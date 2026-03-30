@@ -1,0 +1,501 @@
+# System Architecture
+
+**Last Updated:** 2026-03-30
+
+---
+
+## Overview
+
+Long Nhan Hung Yen is a modular NestJS monorepo using pnpm workspaces and Turborepo. The architecture separates concerns into feature modules, shared libraries, and infrastructure components.
+
+---
+
+## Monorepo Structure
+
+```
+longnhantongtran/
+├── .claude/                    # Code orchestration config
+├── apps/
+│   └── api/                    # Main NestJS API application
+│       ├── src/
+│       │   ├── api/           # Feature modules
+│       │   ├── background/    # Background jobs
+│       │   ├── common/        # Shared DTOs, interfaces, types
+│       │   ├── config/        # App configuration
+│       │   ├── constants/     # Global constants
+│       │   ├── database/      # ORM, entities, migrations
+│       │   ├── decorators/    # Global decorators
+│       │   ├── exceptions/    # Custom exceptions
+│       │   ├── filters/       # Exception filters
+│       │   ├── generated/     # Generated files (i18n)
+│       │   ├── guards/        # Auth guards, JWT
+│       │   ├── i18n/          # Language JSON files
+│       │   ├── interceptors/  # Response/logging interceptors
+│       │   ├── libs/          # Shared NestJS modules
+│       │   ├── mail/          # Email service + templates
+│       │   ├── shared/        # Global singleton services
+│       │   ├── utils/         # Utility functions
+│       │   ├── app.module.ts  # Root module
+│       │   └── main.ts        # App bootstrap
+│       ├── test/              # E2E tests
+│       ├── docs/              # API documentation
+│       ├── Dockerfile         # Production image
+│       ├── maildev.Dockerfile # MailDev service
+│       └── package.json
+├── packages/
+│   └── types/                 # Shared @longnhan/types package
+├── .github/workflows/         # CI/CD pipelines
+├── docker-compose.yml         # Production infra
+├── docker-compose.local.yml   # Local dev stack
+├── pnpm-workspace.yaml        # Workspace definition
+├── turbo.json                 # Turborepo config
+└── docs/                      # Project documentation (NEW)
+```
+
+---
+
+## Core Architecture Layers
+
+### 1. API/Presentation Layer (src/api/)
+
+**Modules** (feature-driven)
+- **UserModule** — User CRUD, profile management
+- **AuthModule** — JWT auth, sign-in/up, password reset
+- **HealthModule** — Liveness/readiness probes
+- **ProductsModule** — Product catalog CRUD with search
+- **OrdersModule** — Order creation, status management
+- **ArticlesModule** — Blog/content articles
+- **MediaModule** — File uploads to Cloudinary
+- **DashboardModule** — Admin analytics + statistics
+
+Each module follows standard NestJS structure:
+```
+{module}/
+├── entities/          # Database models
+├── dto/              # Data Transfer Objects
+├── services/         # Business logic
+├── controllers/      # HTTP endpoints
+├── {module}.module.ts
+└── {module}.spec.ts
+```
+
+### 2. Shared Layer (src/common/, src/libs/)
+
+**Shared DTOs & Interfaces**
+- `common/dto/` — Common request/response structures
+- `common/interfaces/` — TypeScript interfaces
+- `common/types/` — Type definitions
+- `common/constants/` — Global constants (enums, numbers, strings)
+
+**Shared Modules (libs/)**
+- Reusable NestJS modules available across apps
+- Centralized configuration management
+- Common validators, transformers
+
+### 3. Infrastructure Layer
+
+#### Authentication & Authorization (src/guards/, src/auth/)
+- **JwtAuthGuard** — JWT token validation
+- **RolesGuard** — Role-based access control
+- **ApiPublic** decorator — Mark endpoints as public
+- **ApiAuth** decorator — Mark endpoints as admin-only
+
+#### Database (src/database/)
+- **Entities** — TypeORM entity definitions per module
+- **Migrations** — Auto-generated via TypeORM CLI
+- **Seeds** — Sample data seeding with Faker
+- **Data Source** — TypeORM configuration
+
+#### Email Service (src/mail/)
+- **MailerService** — Nodemailer + NestJS Mailer wrapper
+- **Templates** — Handlebars email templates
+- HTML emails for: sign-up, reset password, order confirmation, etc.
+
+#### Caching (src/shared/cache/)
+- **CacheManager** — Redis integration via cache-manager
+- TTL-based expiration strategy
+- Key-value storage for frequently accessed data
+
+#### Background Jobs (src/background/)
+- **BullMQ** — Queue processor for async tasks
+- Email delivery, bulk operations, async reporting
+- Configurable retries and failure handling
+
+#### Global Error Handling (src/exceptions/, src/filters/)
+- **Custom Exceptions** — Domain-specific error classes
+- **ExceptionFilter** — Unified error response formatting
+- Consistent HTTP status codes and error messages
+
+#### Logging & Monitoring (src/interceptors/)
+- **Pino** logger integration
+- Request/response logging via nestjs-pino
+- Performance metrics capture
+
+### 4. Configuration Layer (src/config/)
+
+Environment-driven configuration using `@nestjs/config`:
+- Database connection settings (host, port, credentials, SSL)
+- JWT secrets and token expiration
+- Email SMTP settings
+- Cloudinary credentials
+- CORS origins
+- API prefix and port
+
+All values from `.env` file with validation.
+
+---
+
+## Data Flow & Key Interactions
+
+### Request Flow (Example: Create Product)
+
+```
+HTTP Request (POST /api/v1/products)
+  ↓
+[CORS & Helmet Security Headers]
+  ↓
+[Auth Guard - Validate JWT]
+  ↓
+[Roles Guard - Check admin role]
+  ↓
+ProductsController.create(createProductDto)
+  ↓
+ProductsService.create() - Business logic
+  ↓
+TypeORM Repository.save(productEntity)
+  ↓
+[Database Transaction]
+  ↓
+[Cache invalidation on success]
+  ↓
+HTTP Response (201 Created + Product)
+```
+
+### Background Job Flow (Example: Send Email)
+
+```
+EmailService.sendEmail(dto)
+  ↓
+EmailQueue.add(job)
+  ↓
+[BullMQ processor picks up job]
+  ↓
+MailerService.sendMail(template, recipients)
+  ↓
+Nodemailer/SMTP delivery
+  ↓
+[Log delivery status]
+  ↓
+[Mark job complete or retry]
+```
+
+### Authentication Flow
+
+```
+POST /api/v1/auth/sign-in { email, password }
+  ↓
+AuthService.validateUser(email, password)
+  ↓
+[Argon2 hash comparison]
+  ↓
+JwtService.sign(payload) → Access Token
+JwtService.sign(payload, refreshSecret) → Refresh Token
+  ↓
+Response: { token, refreshToken, user }
+```
+
+---
+
+## Docker Architecture
+
+### Production Stack (docker-compose.yml)
+
+```yaml
+Services:
+  ├── db (PostgreSQL 13)
+  │   └── Port: 5432
+  │   └── Volume: postgres_data
+  ├── redis
+  │   └── Port: 6379
+  │   └── Volume: redis_data
+  ├── maildev (SMTP + Web UI)
+  │   ├── SMTP Port: 1025
+  │   └── Web UI: http://localhost:1080
+  ├── pgadmin (PostgreSQL GUI)
+  │   └── Port: 5050
+  │   └── Volume: pgadmin_data
+  └── longnhan-network (shared bridge)
+```
+
+**Use Cases**
+- Local development without API container
+- Staging testing with full stack
+- Production infrastructure reference
+
+### Local Development Stack (docker-compose.local.yml)
+
+Extends production setup + adds:
+```yaml
+Services:
+  ├── [all from production]
+  └── api (NestJS API)
+      ├── Port: 3000
+      ├── Watch mode enabled (hot-reload)
+      └── Volume: src/ (code mounting)
+```
+
+**Launch**
+```bash
+docker compose -f docker-compose.local.yml up --build -d
+# API available at http://localhost:3000
+# MailDev at http://localhost:1080
+```
+
+---
+
+## Module Dependencies
+
+### Core Module Graph
+
+```
+AppModule (root)
+  ├── ConfigModule (global)
+  ├── DatabaseModule
+  │   └── TypeOrmModule
+  ├── CacheModule
+  │   └── Redis via cache-manager-ioredis-yet
+  ├── MailModule
+  │   └── MailerModule
+  ├── QueueModule
+  │   └── BullModule (BullMQ)
+  │
+  └── Feature Modules
+      ├── AuthModule
+      │   ├── JwtModule
+      │   ├── UserModule
+      │   └── MailModule (injected)
+      ├── ProductsModule
+      │   ├── DatabaseModule
+      │   └── CacheModule
+      ├── OrdersModule
+      │   ├── DatabaseModule
+      │   ├── QueueModule
+      │   └── MailModule
+      ├── ArticlesModule
+      ├── MediaModule
+      │   └── Cloudinary SDK
+      ├── DashboardModule
+      │   └── DatabaseModule
+      └── HealthModule
+```
+
+---
+
+## Entity Relationships (Database)
+
+```
+User (1) ──── (many) Session
+  ↓ (auth)
+  └──── (many) Order
+
+Product (1) ──── (many) ProductVariant
+  ↓ (catalog)
+  └──── (many) OrderItem (via Order)
+
+Order (1) ──── (many) OrderItem
+  ↓
+  └──── (1) User
+
+Article (1) ──── (many) Media (has thumbnail)
+
+Media (Cloudinary references)
+  └── Stored in: cloudinary_public_id, cloudinary_secure_url
+```
+
+---
+
+## API Endpoints Structure
+
+Base URL: `http://localhost:3000/api/v1`
+
+| Module | Endpoints | Auth |
+|--------|-----------|------|
+| **Auth** | `POST /auth/sign-up`, `POST /auth/sign-in`, `POST /auth/refresh`, `POST /auth/forgot-password` | Public/JWT |
+| **Users** | `GET /users/:id`, `PUT /users/:id`, `GET /users` (admin) | JWT |
+| **Products** | `GET /products`, `GET /products/:slug`, `POST /products` (admin), `PUT /products/:id` (admin), `DELETE /products/:id` (admin) | Public/Admin |
+| **Orders** | `POST /orders`, `GET /orders`, `GET /orders/:id`, `PATCH /orders/:id/status` (admin) | Public/JWT/Admin |
+| **Articles** | `GET /articles`, `GET /articles/:slug`, `POST /articles` (admin), `PUT /articles/:id` (admin), `DELETE /articles/:id` (admin) | Public/Admin |
+| **Media** | `POST /media/upload` (admin), `GET /media` (admin), `DELETE /media/:id` (admin) | Admin |
+| **Dashboard** | `GET /dashboard/stats?period=today\|week\|month\|all` | Admin |
+| **Health** | `GET /health` | Public |
+
+---
+
+## Security Architecture
+
+### Authentication
+- **Method:** JWT (JSON Web Tokens)
+- **Secret Storage:** Environment variables (`AUTH_JWT_SECRET`)
+- **Token Lifetime:** Configurable (default 1 day)
+- **Refresh Tokens:** Separate secret, longer lifetime (default 365 days)
+
+### Authorization
+- **Model:** RBAC (Role-Based Access Control)
+- **Roles:** admin, user
+- **Assignment:** Database column (manual for now)
+- **Enforcement:** Guards on controller methods
+
+### Password Security
+- **Hash Algorithm:** Argon2 (current best practice)
+- **Storage:** Hashed only in database
+- **Comparison:** Timing-safe via argon2 package
+
+### CORS
+- **Config:** `APP_CORS_ORIGIN` environment variable
+- **Methods:** GET, HEAD, PUT, PATCH, POST, DELETE
+- **Credentials:** Allowed when same-origin
+- **Wildcard:** Disabled in production
+
+### Helmet
+- Sets security headers: X-Frame-Options, X-XSS-Protection, CSP, etc.
+- Enabled by default in main.ts
+
+---
+
+## Performance Considerations
+
+### Caching Strategy
+- **Products/Articles:** Cache with TTL, invalidate on create/update
+- **User data:** Cache profile, invalidate on change
+- **Dashboard stats:** Cache per period, refresh daily
+
+### Database Optimization
+- **Indexing:** Add indexes on: user_id, product_id, slug, created_at
+- **Query optimization:** Use select() to limit fields
+- **Pagination:** Always use limit/offset or cursor for large datasets
+- **Lazy loading:** Avoid N+1 queries with eager loading
+
+### Async Processing
+- **Email:** Queue via BullMQ, process in background
+- **Bulk operations:** Use queue for large data processing
+- **File operations:** Upload to Cloudinary asynchronously
+
+---
+
+## Deployment Architecture
+
+### Environment Promotion Path
+```
+Local Development
+  ↓
+Staging (docker-compose)
+  ↓
+Production (kubernetes/managed container)
+```
+
+### Production Checklist
+- [ ] ENV vars set (no .env file in production)
+- [ ] Database backups configured
+- [ ] Redis persistence enabled
+- [ ] SSL certificates installed
+- [ ] Cloudinary credentials validated
+- [ ] Email SMTP credentials verified
+- [ ] API rate limiting configured
+- [ ] Monitoring/alerting setup
+- [ ] Health check endpoints verified
+- [ ] CI/CD pipeline passing
+
+---
+
+## Development Workflow
+
+### Local Setup
+```bash
+# Install dependencies
+pnpm install
+
+# Copy environment template
+cp .env.example .env
+
+# Start infrastructure (db, redis, mail, pgadmin)
+docker compose -f docker-compose.local.yml up --build -d
+
+# Run API in watch mode
+pnpm dev
+```
+
+### Code Quality Gates
+- **Linting:** ESLint (via `pnpm lint`)
+- **Formatting:** Prettier (via `pnpm format`)
+- **Type checking:** TypeScript (via `pnpm type-check`)
+- **Testing:** Jest (via `pnpm test`)
+- **Pre-commit:** Husky + lint-staged (automatic)
+
+### Database Workflow
+```bash
+# Generate migration from entities
+pnpm migration:generate src/database/migrations/MyMigration
+
+# Run pending migrations
+pnpm migration:up
+
+# Revert last migration
+pnpm migration:down
+
+# Seed sample data
+pnpm seed:run
+```
+
+---
+
+## Scalability Considerations
+
+### Horizontal Scaling
+- **Stateless API** — JWT tokens, no session storage
+- **External cache** — Redis for shared state
+- **Queue-based** — BullMQ with Redis backend supports distributed processing
+- **CDN** — Cloudinary handles media distribution
+
+### Vertical Scaling
+- **Database** — Connection pooling, query optimization
+- **Caching** — Strategic TTL to reduce DB load
+- **Monitoring** — Identify bottlenecks via Pino logs
+
+### Future Improvements
+- Add API rate limiting (express-rate-limit)
+- Implement request/response compression
+- Add GraphQL layer (alternative to REST)
+- Migrate to microservices if needed
+- Add message broker (RabbitMQ) for complex workflows
+
+---
+
+## Technology Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| NestJS | Enterprise-grade framework, strong typing, modular architecture |
+| TypeScript | Type safety, better IDE support, self-documenting code |
+| PostgreSQL | Mature RDBMS, ACID compliance, JSON support, great TypeORM support |
+| TypeORM | Declarative entities, migration management, works with PostgreSQL well |
+| JWT | Stateless auth, scalable, industry standard |
+| Argon2 | Cryptographically secure, resistant to GPU/ASIC attacks |
+| BullMQ | Redis-backed queues, reliable job processing, good DX |
+| Cloudinary | Handled media CDN, image optimization, secure uploads |
+| pnpm | Faster than npm, disk-efficient, monorepo-friendly |
+| Turborepo | Fast builds, task caching, monorepo orchestration |
+
+---
+
+## Glossary
+
+- **DTO** — Data Transfer Object (request/response schema)
+- **Entity** — TypeORM database model
+- **Repository** — TypeORM data access layer
+- **Service** — Business logic layer
+- **Controller** — HTTP endpoint handler
+- **Guard** — Middleware for auth/authorization
+- **Interceptor** — Middleware for request/response transformation
+- **Filter** — Exception handler
+- **Decorator** — Function annotation (e.g., @Post, @UseGuards)
+

@@ -1,0 +1,644 @@
+# Codebase Summary
+
+**Generated:** 2026-03-30
+**Project:** Long Nhan Hung Yen - NestJS E-commerce API
+
+---
+
+## Quick Facts
+
+| Metric | Value |
+|--------|-------|
+| **Type** | NestJS Monorepo (pnpm workspaces) |
+| **Language** | TypeScript 5.6+ |
+| **Database** | PostgreSQL 13+ |
+| **Package Manager** | pnpm 10.32.1 |
+| **Node Version** | >= 20.10.0 |
+| **Entry Point** | `apps/api/src/main.ts` |
+| **Build Output** | `apps/api/dist/` |
+
+---
+
+## Directory Tree (High-Level)
+
+```
+longnhantongtran/
+├── .claude/                          # Code orchestration (skills, hooks)
+├── .github/workflows/                # CI/CD pipelines (GitHub Actions)
+├── apps/
+│   └── api/                          # Main NestJS application
+│       ├── src/
+│       │   ├── api/                 # Feature modules (8 modules)
+│       │   ├── background/          # Background jobs (email queue, etc.)
+│       │   ├── common/              # Shared DTOs, interfaces, types
+│       │   ├── config/              # Application configuration
+│       │   ├── constants/           # Global constants & enums
+│       │   ├── database/            # ORM setup, entities, migrations, seeds
+│       │   ├── decorators/          # Global decorators
+│       │   ├── exceptions/          # Custom exception classes
+│       │   ├── filters/             # HTTP exception filters
+│       │   ├── generated/           # Auto-generated files (i18n)
+│       │   ├── guards/              # Auth guards (JWT, Roles)
+│       │   ├── i18n/                # Language translation files (JSON)
+│       │   ├── interceptors/        # Request/response interceptors
+│       │   ├── libs/                # Shared NestJS modules
+│       │   ├── mail/                # Email service & templates
+│       │   ├── shared/              # Singleton services
+│       │   ├── utils/               # Utility functions
+│       │   ├── app.module.ts        # Root module
+│       │   └── main.ts              # Application bootstrap
+│       ├── test/                    # E2E tests
+│       ├── docs/                    # API documentation (README, guides)
+│       ├── Dockerfile               # Production image
+│       ├── maildev.Dockerfile       # MailDev container
+│       ├── jest.config.json         # Jest configuration
+│       ├── tsconfig.json            # TypeScript config
+│       ├── nest-cli.json            # NestJS CLI config
+│       └── package.json
+├── packages/
+│   └── types/                        # Shared @longnhan/types package
+│       ├── src/
+│       │   ├── api/
+│       │   ├── common/
+│       │   └── index.ts
+│       ├── tsconfig.json
+│       └── package.json
+├── docs/                             # PROJECT DOCS (NEW)
+│   ├── project-overview-pdr.md
+│   ├── system-architecture.md
+│   ├── code-standards.md
+│   ├── codebase-summary.md
+│   ├── deployment-guide.md
+│   └── project-roadmap.md
+├── docker-compose.yml                # Production services (db, redis, mail, pgadmin)
+├── docker-compose.local.yml          # Local dev stack (with API container)
+├── pnpm-workspace.yaml               # Workspace configuration
+├── turbo.json                        # Turborepo build config
+├── tsconfig.json                     # Root TypeScript config
+├── eslint.config.mjs                 # ESLint rules
+├── .prettierrc                       # Prettier formatting
+├── jest.config.json                  # Jest test config
+├── commitlint.config.mjs             # Commit message linting
+├── .env.example                      # Environment template
+├── .gitignore                        # Git ignore patterns
+├── CLAUDE.md                         # AI development instructions
+├── README.md                         # Project root README
+└── pnpm-lock.yaml                    # Dependency lock file
+```
+
+---
+
+## Module Structure
+
+### 1. Feature Modules (src/api/)
+
+**8 Core Modules:**
+
+#### UserModule
+- **Purpose:** User management, profiles
+- **Key Files:**
+  - `entities/user.entity.ts` — User database model
+  - `user.service.ts` — User CRUD logic
+  - `user.controller.ts` — User endpoints
+  - `dto/create-user.dto.ts`, `update-user.dto.ts`
+
+#### AuthModule
+- **Purpose:** Authentication, JWT tokens, password management
+- **Key Files:**
+  - `auth.service.ts` — Sign-in, sign-up, token refresh
+  - `auth.controller.ts` — Auth endpoints
+  - `guards/jwt-auth.guard.ts` — JWT token validation
+  - `guards/roles.guard.ts` — Role-based access control
+  - `strategies/jwt.strategy.ts` — Passport JWT strategy
+
+#### HealthModule
+- **Purpose:** Application health checks
+- **Endpoints:** `GET /health`
+- **Key Files:**
+  - `health.controller.ts`
+
+#### ProductsModule
+- **Purpose:** E-commerce product catalog
+- **Key Files:**
+  - `entities/product.entity.ts` — Product model
+  - `entities/product-variant.entity.ts` — Product variants (OneToMany)
+  - `product.service.ts` — CRUD, search, filtering
+  - `products.controller.ts` — Endpoints
+  - `dto/create-product.dto.ts`, `update-product.dto.ts`
+- **Endpoints:**
+  - `GET /products` — List with pagination
+  - `GET /products/:slug` — Get by slug
+  - `POST /products` — Create (admin)
+  - `PUT /products/:id` — Update (admin)
+  - `DELETE /products/:id` — Delete (admin)
+
+#### OrdersModule
+- **Purpose:** Order management
+- **Key Files:**
+  - `entities/order.entity.ts` — Order model
+  - `entities/order-item.entity.ts` — Order line items (OneToMany)
+  - `orders.service.ts` — Order logic
+  - `orders.controller.ts` — Endpoints
+  - `dto/create-order.dto.ts`, `update-order-status.dto.ts`
+- **Endpoints:**
+  - `POST /orders` — Create order
+  - `GET /orders` — User's orders
+  - `GET /orders/:id` — Order details
+  - `PATCH /orders/:id/status` — Update status (admin)
+
+#### ArticlesModule
+- **Purpose:** Blog/content articles
+- **Key Files:**
+  - `entities/article.entity.ts` — Article model
+  - `articles.service.ts` — CRUD
+  - `articles.controller.ts` — Endpoints
+  - `dto/create-article.dto.ts`, `update-article.dto.ts`
+- **Endpoints:**
+  - `GET /articles` — List articles
+  - `GET /articles/:slug` — Get by slug
+  - `POST /articles` — Create (admin)
+  - `PUT /articles/:id` — Update (admin)
+  - `DELETE /articles/:id` — Delete (admin)
+
+#### MediaModule
+- **Purpose:** File uploads, media management
+- **Key Files:**
+  - `entities/media.entity.ts` — Media metadata
+  - `media.service.ts` — Cloudinary integration
+  - `media.controller.ts` — Upload endpoints
+  - `strategies/cloudinary.strategy.ts` — Cloudinary upload logic
+- **Endpoints:**
+  - `POST /media/upload` — Upload file (admin)
+  - `GET /media` — List uploads (admin)
+  - `DELETE /media/:id` — Delete (admin)
+
+#### DashboardModule
+- **Purpose:** Admin analytics & statistics
+- **Key Files:**
+  - `dashboard.service.ts` — Stats calculation
+  - `dashboard.controller.ts` — Stats endpoints
+- **Endpoints:**
+  - `GET /dashboard/stats?period=today|week|month|all` — Statistics (admin)
+
+### 2. Background Jobs (src/background/)
+
+**Email Queue Processing**
+- **Files:**
+  - `queues/email-queue/` — BullMQ email queue
+  - `queues/email-queue/email-queue.events.ts` — Job definitions
+- **Purpose:** Async email delivery via background jobs
+- **Technology:** BullMQ + Redis
+
+### 3. Shared Modules (src/libs/)
+
+Reusable NestJS modules:
+- Configuration management
+- Common decorators
+- Shared services
+- Constants and types
+
+### 4. Common Layer (src/common/)
+
+**DTOs** (`common/dto/`)
+- `pagination.dto.ts` — Pagination parameters
+- `api-response.dto.ts` — API response wrapper
+- `error-response.dto.ts` — Error response format
+
+**Interfaces** (`common/interfaces/`)
+- `paginated-response.interface.ts` — Paginated data structure
+- `user-payload.interface.ts` — JWT payload shape
+
+**Types** (`common/types/`)
+- `pagination.type.ts` — Pagination types
+- `user-role.type.ts` — Role enums
+
+**Constants** (`common/constants/`)
+- `api-messages.const.ts` — Message strings
+- `user-roles.const.ts` — Role definitions
+- `http-status.const.ts` — HTTP status mappings
+
+### 5. Infrastructure (src/)
+
+#### Database (`src/database/`)
+- **config/** — TypeORM configuration
+- **entities/** — ORM entity definitions
+- **migrations/** — Database schema changes (auto-generated)
+- **seeds/** — Sample data seeding
+- **data-source.ts** — TypeORM DataSource config
+
+#### Configuration (`src/config/`)
+- Environment variable schemas
+- Config services for: app, database, auth, email, etc.
+
+#### Authentication (`src/guards/`, `src/decorators/`)
+- **Guards:**
+  - `jwt-auth.guard.ts` — Token validation
+  - `roles.guard.ts` — Role checking
+- **Decorators:**
+  - `@ApiPublic()` — Mark endpoint as public
+  - `@Roles('admin')` — Restrict to role
+  - `@ApiAuth()` — Require authentication
+
+#### Email Service (`src/mail/`)
+- **mail.service.ts** — Nodemailer wrapper
+- **templates/** — Handlebars HTML templates
+- Integration: NestJS Mailer + Nodemailer
+
+#### Caching (`src/shared/cache/`)
+- Redis cache manager
+- TTL-based expiration
+- Cache invalidation logic
+
+#### Error Handling (`src/exceptions/`, `src/filters/`)
+- **Custom Exception Classes:**
+  - `NotFoundException` — Resource not found
+  - `BadRequestException` — Invalid input
+  - `UnauthorizedException` — Auth failure
+- **Global Exception Filter:**
+  - Catches all exceptions
+  - Formats consistent error responses
+
+---
+
+## Key Files Overview
+
+### Entry Points
+| File | Purpose |
+|------|---------|
+| `src/main.ts` | Bootstrap application, Swagger setup |
+| `src/app.module.ts` | Root NestJS module, imports all features |
+| `docker-compose.yml` | Production infrastructure (db, redis, mail) |
+| `docker-compose.local.yml` | Local dev stack with API container |
+
+### Configuration Files
+| File | Purpose |
+|------|---------|
+| `.env.example` | Template environment variables |
+| `tsconfig.json` | TypeScript compiler options |
+| `jest.config.json` | Jest test configuration |
+| `nest-cli.json` | NestJS CLI config (generators) |
+| `eslint.config.mjs` | ESLint rules |
+| `.prettierrc` | Code formatting rules |
+| `turbo.json` | Turborepo task configuration |
+| `pnpm-workspace.yaml` | Workspace package paths |
+
+### Testing
+| File | Pattern |
+|------|---------|
+| `src/**/*.spec.ts` | Unit tests (Jest) |
+| `test/` | E2E tests |
+| `jest.config.json` | Test setup |
+| `setup-jest.mjs` | Jest initialization |
+
+---
+
+## Data Models (TypeORM Entities)
+
+### Core Entities
+
+**User**
+```typescript
+- id (UUID, PK)
+- email (unique, varchar)
+- password (hashed, varchar)
+- firstName, lastName
+- role (enum: admin, user)
+- createdAt, updatedAt
+- Relations: Session[], Order[]
+```
+
+**Session**
+```typescript
+- id (UUID, PK)
+- userId (FK → User)
+- refreshToken
+- expiresAt
+- createdAt
+```
+
+**Product**
+```typescript
+- id (UUID, PK)
+- name (varchar)
+- slug (unique, varchar)
+- description (text)
+- price (decimal)
+- stock (int)
+- createdAt, updatedAt
+- Relations: ProductVariant[], OrderItem[]
+```
+
+**ProductVariant**
+```typescript
+- id (UUID, PK)
+- productId (FK → Product)
+- name, color, size
+- sku (unique)
+- price (decimal, nullable)
+- stock
+- Relations: Product
+```
+
+**Order**
+```typescript
+- id (UUID, PK)
+- userId (FK → User)
+- status (enum: pending, processing, shipped, delivered)
+- totalPrice (decimal)
+- shippingAddress
+- createdAt, updatedAt
+- Relations: User, OrderItem[]
+```
+
+**OrderItem**
+```typescript
+- id (UUID, PK)
+- orderId (FK → Order)
+- productId (FK → Product)
+- quantity
+- unitPrice
+- Relations: Order, Product
+```
+
+**Article**
+```typescript
+- id (UUID, PK)
+- title (varchar)
+- slug (unique, varchar)
+- content (text)
+- thumbnailId (FK → Media, nullable)
+- createdAt, updatedAt
+- Relations: Media
+```
+
+**Media**
+```typescript
+- id (UUID, PK)
+- cloudinaryPublicId (varchar)
+- cloudinarySecureUrl (varchar)
+- mimeType (varchar)
+- fileSize (bigint)
+- createdAt
+- Relations: Article[]
+```
+
+---
+
+## Dependencies (Key Packages)
+
+### Core Framework
+- `@nestjs/common` — NestJS core
+- `@nestjs/core` — Core module
+- `@nestjs/platform-express` — Express adapter
+- `express` — Web framework
+
+### Database & ORM
+- `typeorm` — ORM library
+- `@nestjs/typeorm` — NestJS TypeORM integration
+- `pg` — PostgreSQL driver
+
+### Authentication
+- `@nestjs/jwt` — JWT support
+- `jsonwebtoken` — Token management (via jwt)
+- `argon2` — Password hashing
+
+### Validation & Serialization
+- `class-validator` — Input validation
+- `class-transformer` — DTO serialization
+
+### API Documentation
+- `@nestjs/swagger` — Swagger/OpenAPI
+
+### Email
+- `@nestjs-modules/mailer` — Email service
+- `nodemailer` — SMTP client
+- `handlebars` — Email templates
+
+### Background Jobs
+- `@nestjs/bullmq` — BullMQ integration
+- `bullmq` — Job queue library
+- `redis` — Queue backend
+
+### Caching
+- `@nestjs/cache-manager` — Cache service
+- `cache-manager-ioredis-yet` — Redis adapter
+
+### Media Management
+- `cloudinary` — Image/video CDN
+- `streamifier` — Stream utilities
+
+### Content Processing
+- `slugify` — URL slug generation
+
+### Logging
+- `nestjs-pino` — Structured logging
+- `pino` — Logger library
+- `pino-http` — HTTP logging
+- `pino-pretty` — Pretty formatter
+
+### Utilities
+- `axios` — HTTP client
+- `uuid` — UUID generation
+- `ms` — Time conversion
+- `helmet` — Security headers
+- `compression` — Response compression
+
+### Testing
+- `jest` — Test framework
+- `@nestjs/testing` — NestJS test utilities
+- `supertest` — HTTP testing
+- `ts-jest` — TypeScript support
+
+---
+
+## Scripts & Commands
+
+### Development
+```bash
+pnpm dev              # Start with file watcher
+pnpm start            # Run production build
+pnpm start:debug      # Debug mode with watcher
+```
+
+### Building & Quality
+```bash
+pnpm build            # Build for production
+pnpm lint             # Lint and fix
+pnpm format           # Format code with Prettier
+pnpm type-check       # Type checking without emit
+```
+
+### Testing
+```bash
+pnpm test             # Run all tests
+pnpm test:watch      # Watch mode
+pnpm test:cov        # Coverage report
+pnpm test:e2e        # E2E tests
+```
+
+### Database
+```bash
+pnpm migration:up     # Run migrations
+pnpm migration:down   # Revert migration
+pnpm migration:show   # Show migration status
+pnpm migration:generate src/database/migrations/Name
+pnpm seed:run         # Run seeders
+pnpm seed:create      # Create new seeder
+pnpm db:create        # Create database
+pnpm db:drop          # Drop database
+```
+
+### Docker
+```bash
+docker compose up -d                     # Production stack
+docker compose -f docker-compose.local.yml up --build -d  # Local dev
+docker compose logs -f api               # Watch API logs
+```
+
+---
+
+## Environment Variables
+
+Key variables from `.env.example`:
+
+| Category | Variable | Example |
+|----------|----------|---------|
+| **App** | `NODE_ENV` | development |
+| | `APP_PORT` | 3000 |
+| | `APP_DEBUG` | false |
+| | `APP_CORS_ORIGIN` | http://localhost:3000 |
+| **Database** | `DATABASE_HOST` | localhost |
+| | `DATABASE_PORT` | 5432 |
+| | `DATABASE_NAME` | nestjs_api |
+| | `DATABASE_USERNAME` | postgres |
+| | `DATABASE_PASSWORD` | postgres |
+| **Auth** | `AUTH_JWT_SECRET` | secret_key |
+| | `AUTH_JWT_TOKEN_EXPIRES_IN` | 1d |
+| | `AUTH_REFRESH_SECRET` | refresh_key |
+| **Email** | `MAIL_HOST` | localhost |
+| | `MAIL_PORT` | 1025 |
+| | `MAIL_CLIENT_PORT` | 1080 |
+| **Cloudinary** | `CLOUDINARY_CLOUD_NAME` | (prod only) |
+| | `CLOUDINARY_API_KEY` | (prod only) |
+| | `CLOUDINARY_API_SECRET` | (prod only) |
+
+---
+
+## Docker Services
+
+### Production (docker-compose.yml)
+- **postgres** — PostgreSQL 13 on port 5432
+- **redis** — Redis on port 6379
+- **maildev** — SMTP on port 1025, Web UI on port 1080
+- **pgadmin** — PostgreSQL GUI on port 5050
+
+### Local Dev (docker-compose.local.yml)
+- All production services
+- **api** — NestJS API on port 3000 (hot-reload enabled)
+
+---
+
+## API Response Format
+
+### Success Response
+```json
+{
+  "data": {},
+  "statusCode": 200,
+  "message": "Operation successful"
+}
+```
+
+### Error Response
+```json
+{
+  "statusCode": 400,
+  "message": "Validation failed",
+  "error": "Bad Request"
+}
+```
+
+---
+
+## Authentication
+
+- **Method:** JWT (Bearer token)
+- **Storage:** Authorization header
+- **Format:** `Authorization: Bearer <token>`
+- **Validation:** JwtAuthGuard
+- **Expiry:** Configurable per environment
+
+---
+
+## Pagination
+
+Two modes supported:
+
+**Offset Pagination**
+```
+GET /api/v1/products?page=1&limit=20
+```
+
+**Cursor Pagination**
+```
+GET /api/v1/products?cursor=abc123&limit=20
+```
+
+---
+
+## Important Patterns
+
+### Error Handling
+All endpoints use custom exceptions that are caught by global filter:
+```typescript
+throw new NotFoundException(`Product ${id} not found`);
+```
+
+### Dependency Injection
+NestJS IoC container auto-injects services:
+```typescript
+constructor(
+  @InjectRepository(Product) private repo: Repository<Product>,
+  private service: ProductService,
+) {}
+```
+
+### Database Transactions
+TypeORM handles transactions in migrations and seeders.
+
+### Validation
+Class-validator decorators on DTOs automatically validate input.
+
+---
+
+## Performance Optimizations
+
+- Database indexes on frequently queried columns
+- Redis caching for expensive queries
+- Pagination for large datasets
+- BullMQ for async heavy operations
+- Compression middleware for responses
+
+---
+
+## Security Measures
+
+- JWT authentication for protected endpoints
+- Argon2 password hashing
+- CORS configuration
+- Helmet security headers
+- Input validation via class-validator
+- Environment-based secrets (no hardcoded keys)
+
+---
+
+## Links to Detailed Docs
+
+- [Project Overview & PDR](./project-overview-pdr.md)
+- [System Architecture](./system-architecture.md)
+- [Code Standards](./code-standards.md)
+- [Deployment Guide](./deployment-guide.md)
+- [Project Roadmap](./project-roadmap.md)
+- [API Documentation](../apps/api/docs/api.md)
+- [Development Guide](../apps/api/docs/development.md)
+

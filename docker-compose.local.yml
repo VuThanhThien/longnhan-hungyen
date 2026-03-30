@@ -1,0 +1,93 @@
+version: '3.8'
+
+# Local development compose — includes API with hot-reload
+# Usage: docker compose -f docker-compose.local.yml up --build -d
+
+services:
+  api:
+    image: longnhan-api-local
+    container_name: longnhan_api_local
+    restart: always
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: development
+    env_file:
+      - ./apps/api/.env.docker
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./apps/api/src:/app/src
+    command: pnpm start:dev
+    depends_on:
+      - db
+      - redis
+      - maildev
+    networks:
+      - longnhan-network
+
+  db:
+    image: postgres:16-alpine
+    container_name: longnhan_db
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: longnhan
+      POSTGRES_USER: longnhan
+      POSTGRES_PASSWORD: longnhan
+      TZ: "UTC"
+    ports:
+      - "5432:5432"
+    networks:
+      - longnhan-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: longnhan_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    command: redis-server --save 20 1 --loglevel warning
+    volumes:
+      - redis_data:/data
+    networks:
+      - longnhan-network
+
+  maildev:
+    build:
+      context: ./apps/api
+      dockerfile: maildev.Dockerfile
+    container_name: longnhan_maildev
+    ports:
+      - "${MAIL_CLIENT_PORT:-1080}:1080"
+      - "${MAIL_PORT:-1025}:1025"
+    restart: unless-stopped
+    networks:
+      - longnhan-network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: longnhan_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@longnhan.vn
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_WTF_CSRF_ENABLED: "False"
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/root/.pgadmin
+    depends_on:
+      - db
+    networks:
+      - longnhan-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  pgadmin_data:
+
+networks:
+  longnhan-network:
+    driver: bridge

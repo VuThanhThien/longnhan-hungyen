@@ -8,11 +8,14 @@ services:
       POSTGRES_DB: longnhan
       POSTGRES_USER: longnhan
       POSTGRES_PASSWORD: longnhan
+      TZ: "UTC"
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
+    networks:
+      - longnhan-network
 
   redis:
     image: redis:7-alpine
@@ -23,6 +26,20 @@ services:
     volumes:
       - redis_data:/data
     restart: unless-stopped
+    networks:
+      - longnhan-network
+
+  maildev:
+    build:
+      context: ./apps/api
+      dockerfile: maildev.Dockerfile
+    container_name: longnhan_maildev
+    ports:
+      - "${MAIL_CLIENT_PORT:-1080}:1080"
+      - "${MAIL_PORT:-1025}:1025"
+    restart: unless-stopped
+    networks:
+      - longnhan-network
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -30,12 +47,23 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@longnhan.vn
       PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_WTF_CSRF_ENABLED: "False"
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "False"
     ports:
       - "5050:80"
+    volumes:
+      - pgadmin_data:/root/.pgadmin
     depends_on:
       - db
     restart: unless-stopped
+    networks:
+      - longnhan-network
 
 volumes:
   postgres_data:
   redis_data:
+  pgadmin_data:
+
+networks:
+  longnhan-network:
+    driver: bridge
