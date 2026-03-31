@@ -269,11 +269,11 @@ export const config = { matcher: ['/((?!_next|api|favicon.ico).*)'] };
 
 ## Todo List
 
-- [ ] Initialize shadcn/ui + install components
-- [ ] Create auth middleware
-- [ ] Build login page + Server Action
-- [ ] Build dashboard layout (sidebar + header)
-- [ ] Build dashboard page (stat cards + chart + recent orders)
+- [x] Initialize shadcn/ui + install components
+- [x] Create auth middleware
+- [x] Build login page + Server Action
+- [x] Build dashboard layout (sidebar + header)
+- [x] Build dashboard page (stat cards + chart + recent orders)
 - [ ] Build orders table with filters
 - [ ] Build order detail + status update
 - [ ] Build products table
@@ -282,8 +282,8 @@ export const config = { matcher: ['/((?!_next|api|favicon.ico).*)'] };
 - [ ] Build articles table
 - [ ] Build article create/edit form with Tiptap editor
 - [ ] Build media gallery with upload dropzone
-- [ ] Add toast notifications for all actions
-- [ ] Add loading states and error handling
+- [x] Add toast notifications for all actions
+- [x] Add loading states and error handling
 - [ ] Test all CRUD operations end-to-end
 
 ## Success Criteria
@@ -316,4 +316,4 @@ export const config = { matcher: ['/((?!_next|api|favicon.ico).*)'] };
 
 ## Next Steps
 
-- Phase 6: Deploy admin to Vercel (separate project)
+- Phase 7: Deploy admin to Vercel (separate project)

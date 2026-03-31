@@ -1,7 +1,8 @@
 export enum OrderStatus {
   PENDING = 'pending',
   CONFIRMED = 'confirmed',
-  PROCESSING = 'processing',
+  SHIPPING = 'shipping',
+  PROCESSING = 'shipping',
   SHIPPED = 'shipped',
   DELIVERED = 'delivered',
   CANCELLED = 'cancelled',
@@ -14,52 +15,63 @@ export enum PaymentMethod {
 
 export enum PaymentStatus {
   PENDING = 'pending',
-  CONFIRMED = 'confirmed',
+  PAID = 'paid',
+  CONFIRMED = 'paid',
   FAILED = 'failed',
 }
 
 export interface OrderItem {
-  id: number;
-  orderId: number;
-  variantId: number;
-  variantName: string;
-  variantSku: string;
-  quantity: number;
+  id: string;
+  variantSnapshot: Record<string, unknown>;
+  qty: number;
   unitPrice: number;
   subtotal: number;
+  // Backward-compatible aliases for old consumers.
+  orderId?: string;
+  variantId?: string;
+  variantName?: string;
+  variantSku?: string;
+  quantity?: number;
 }
 
 export interface Order {
-  id: number;
-  orderCode: string;
+  id: string;
+  code: string;
   customerName: string;
-  customerPhone: string;
-  customerEmail: string | null;
-  shippingAddress: string;
-  shippingCity: string;
-  shippingProvince: string;
-  note: string | null;
+  phone: string;
+  email: string | null;
+  address: string;
+  province: string | null;
+  notes: string | null;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
   orderStatus: OrderStatus;
-  totalAmount: number;
+  total: number;
   createdAt: string;
   updatedAt: string;
   items: OrderItem[];
+  // Backward-compatible aliases for old consumers.
+  orderCode?: string;
+  customerPhone?: string;
+  customerEmail?: string | null;
+  shippingAddress?: string;
+  shippingCity?: string;
+  shippingProvince?: string;
+  note?: string | null;
+  totalAmount?: number;
 }
 
 export interface CreateOrderDto {
   customerName: string;
-  customerPhone: string;
-  customerEmail?: string;
-  shippingAddress: string;
-  shippingCity: string;
-  shippingProvince: string;
-  note?: string;
+  phone: string;
+  email?: string;
+  address: string;
+  province?: string;
+  notes?: string;
   paymentMethod: PaymentMethod;
   items: {
-    variantId: number;
-    quantity: number;
+    variantId: string;
+    qty: number;
   }[];
 }
 

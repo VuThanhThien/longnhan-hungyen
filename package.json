@@ -1,6 +1,9 @@
 {
   "name": "longnhantongtran",
   "private": true,
+  "pnpm": {
+    "ignoredBuiltDependencies": ["sharp", "unrs-resolver"]
+  },
   "scripts": {
     "dev": "turbo dev",
     "dev:api": "pnpm --filter @longnhan/api dev",

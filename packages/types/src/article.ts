@@ -4,24 +4,34 @@ export enum ArticleStatus {
 }
 
 export interface Article {
-  id: number;
+  id: string;
   title: string;
   slug: string;
-  summary: string | null;
-  content: string;
-  coverImageUrl: string | null;
+  excerpt: string | null;
+  contentHtml: string | null;
+  featuredImageUrl: string | null;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  tags: string[];
   status: ArticleStatus;
   publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  // Backward-compatible aliases for old consumers.
+  summary?: string | null;
+  content?: string;
+  coverImageUrl?: string | null;
 }
 
 export interface CreateArticleDto {
   title: string;
   slug: string;
-  summary?: string;
-  content: string;
-  coverImageUrl?: string;
+  excerpt?: string;
+  contentHtml?: string;
+  featuredImageUrl?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  tags?: string[];
   status?: ArticleStatus;
   publishedAt?: string;
 }

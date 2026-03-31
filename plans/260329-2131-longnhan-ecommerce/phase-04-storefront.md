@@ -2,7 +2,7 @@
 phase: 4
 title: "Storefront (Next.js Web)"
 status: pending
-effort: 10h
+effort: 12h
 depends_on: [3]
 ---
 
@@ -19,6 +19,7 @@ depends_on: [3]
 - **Priority:** P1
 - **Status:** pending
 - Build public-facing storefront: landing page (hero + video + products), product list/detail with ISR, order form (Server Actions), articles/blog (SSG), Vietnamese SEO throughout.
+- **Product detail page (PDP)** matches structural parity with [reference PDP](https://tinhhoaphohien.vn/san-pham/long-nhan-vuong-gia-chi-qua) (see section below); branding and copy remain Long Nhãn Hưng Yên project–specific.
 
 ## Key Insights
 
@@ -35,7 +36,7 @@ depends_on: [3]
 ### Functional
 - Landing page: hero banner, YouTube embed, featured products grid, call-to-action
 - Product list page: grid of active products with image, name, price, category filter
-- Product detail page: images gallery, description, variant selector, order form
+- Product detail page: images gallery, description, variant selector, order form — plus PDP blocks per [reference parity](#product-detail-page-pdp--reference-parity)
 - Order form: customer name, phone (required), email, address, province, payment method (COD/QR), notes
 - Order confirmation page (success message + order code)
 - Articles list page: card grid with featured image, title, excerpt
@@ -87,6 +88,11 @@ apps/web/
 │   │   ├── product-grid.tsx
 │   │   ├── product-images.tsx
 │   │   ├── variant-selector.tsx
+│   │   ├── product-pdp-hero.tsx       # title, price range, ingredient/HSD strip
+│   │   ├── product-pdp-tabs.tsx     # Mô tả | Thông tin bổ sung | Đánh giá
+│   │   ├── product-pdp-rich-body.tsx  # long-form HTML/markdown from API
+│   │   ├── product-pdp-spec-table.tsx
+│   │   ├── related-products.tsx
 │   │   └── category-filter.tsx
 │   ├── orders/
 │   │   ├── order-form.tsx       # Client component for form state
@@ -204,9 +210,39 @@ export default async function ProductsPage({ searchParams }) {
 
 ### 5. Product Detail + Order Form
 
+#### Product detail page (PDP) — reference parity
+
+**Source:** [tinhhoaphohien.vn — Long nhãn vương giả chi quả](https://tinhhoaphohien.vn/san-pham/long-nhan-vuong-gia-chi-qua). Use as **layout and information architecture** reference, not literal copy or third-party branding.
+
+| Block | Reference behavior | Our implementation |
+|-------|-------------------|---------------------|
+| Breadcrumb | Trang chủ / Danh mục / Tên SP | `Breadcrumb` + category slug/label from API |
+| Title | H1 product name | `generateMetadata` + on-page H1 |
+| Price | Range when variants differ (e.g. 126k–252k ₫) | Min–max from variant prices in VND; format `vi-VN` |
+| Quick facts | **Thành phần**, **HSD** lines | CMS/API fields: `ingredientsSummary`, `shelfLife` (or rich text excerpt) |
+| Short bullets | Ăn vặt / nấu ăn / ngâm rượu | Optional `highlights: string[]` or fixed template per category |
+| Gallery | Main + thumbs | Existing `product-images` plan |
+| Purchase row | Khối lượng (500g/1000g), quantity, CTA | Variant selector + qty + primary CTA → scroll/focus order form or inline |
+| Meta row | SKU, Danh mục, Thẻ | Map to `sku?`, `category`, `tags[]` if API supports; hide SKU if N/A |
+| Tabs | Mô tả · Thông tin bổ sung · Đánh giá | **Mô tả:** long body (HTML). **Thông tin bổ sung:** key/value or table (nutrition, weight links). **Đánh giá:** MVP empty state + “coming soon” OR omit until API exists |
+| Long content | Story (Phố Hiến, lịch sử, thu hoạch), nutrition %, đông y, quà biếu | Single `descriptionHtml` from admin/API, or split fields if admin supports sections |
+| Spec table | Khối lượng / Cân nặng rows | `product-pdp-spec-table` driven by variants + optional static rows |
+| Related products | Grid carousel | `GET /products?related=slug` or same category limit N |
+
+**API/data:** If the NestJS `Product` entity lacks `ingredientsSummary`, `shelfLife`, `tags`, or tabbed extras, extend Phase 3 with minimal fields or store structured JSON in `metadata` — prefer explicit columns for query/filter needs.
+
+#### Implementation checklist (PDP)
+
 - Product images gallery (swipeable on mobile)
-- Variant selector: radio buttons for weight options
-- Inline order form below product info
+- Variant selector: radio buttons for weight options (500g / 1000g pattern from reference)
+- Price range display when multiple variant prices
+- Ingredient + HSD strip above fold
+- Tabbed content area with accessible tabs (Radix/shadcn pattern if available)
+- Rich HTML description (sanitized) for “Mô tả”
+- Related products section (ISR-friendly fetch)
+- JSON-LD `Product` with `offers` per variant or AggregateOffer for range
+
+- Inline order form below product info (or sticky mobile bar linking to form)
 - Server Action on form submit → POST /orders → redirect to success page
 
 ```typescript
@@ -290,23 +326,23 @@ const config = {
 
 ## Todo List
 
-- [ ] Set up root layout with Vietnamese metadata
-- [ ] Create header + footer components
-- [ ] Build landing page (hero, video, featured products, CTA)
-- [ ] Build product list page with category filter
-- [ ] Build product detail page with image gallery
-- [ ] Build variant selector component
-- [ ] Build order form (client component)
-- [ ] Implement order Server Action
-- [ ] Build order success page
-- [ ] Build articles list page
-- [ ] Build article detail page
-- [ ] Implement sitemap.ts
-- [ ] Implement robots.ts
-- [ ] Add JSON-LD structured data (Product, Article, Organization, Breadcrumb)
-- [ ] Configure Cloudinary image loader
-- [ ] Add generateMetadata to all pages
-- [ ] Style all pages (Tailwind, mobile-first)
+- [x] Set up root layout with Vietnamese metadata
+- [x] Create header + footer components
+- [x] Build landing page (hero, video, featured products, CTA)
+- [x] Build product list page with category filter
+- [x] Build product detail page with image gallery + PDP blocks (quick facts, tabs, spec table, related)
+- [x] Build variant selector component
+- [x] Build order form (client component)
+- [x] Implement order Server Action
+- [x] Build order success page
+- [x] Build articles list page
+- [x] Build article detail page
+- [x] Implement sitemap.ts
+- [x] Implement robots.ts
+- [x] Add JSON-LD structured data (Product, Article, Organization, Breadcrumb)
+- [x] Configure Cloudinary image loader
+- [x] Add generateMetadata to all pages
+- [x] Style all pages (Tailwind, mobile-first)
 - [ ] Test on mobile viewport
 - [ ] Run Lighthouse audit
 
@@ -339,4 +375,5 @@ const config = {
 ## Next Steps
 
 - Phase 5: Admin panel (can run in parallel)
-- Phase 6: Deployment
+- Phase 6: [Landing motion & effects](phase-06-frontend-landing-enhancement.md) (parallel-friendly)
+- Phase 7: Deployment
