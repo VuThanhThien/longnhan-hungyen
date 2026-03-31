@@ -1,7 +1,7 @@
 # Codebase Summary
 
-**Generated:** 2026-03-30
-**Project:** Long Nhan Hung Yen - NestJS E-commerce API
+**Generated:** 2026-04-01
+**Project:** Long Nhan Hung Yen - E-commerce Monorepo (API + storefront + admin)
 
 ---
 
@@ -26,35 +26,78 @@ longnhantongtran/
 ├── .claude/                          # Code orchestration (skills, hooks)
 ├── .github/workflows/                # CI/CD pipelines (GitHub Actions)
 ├── apps/
-│   └── api/                          # Main NestJS application
-│       ├── src/
-│       │   ├── api/                 # Feature modules (8 modules)
-│       │   ├── background/          # Background jobs (email queue, etc.)
-│       │   ├── common/              # Shared DTOs, interfaces, types
-│       │   ├── config/              # Application configuration
-│       │   ├── constants/           # Global constants & enums
-│       │   ├── database/            # ORM setup, entities, migrations, seeds
-│       │   ├── decorators/          # Global decorators
-│       │   ├── exceptions/          # Custom exception classes
-│       │   ├── filters/             # HTTP exception filters
-│       │   ├── generated/           # Auto-generated files (i18n)
-│       │   ├── guards/              # Auth guards (JWT, Roles)
-│       │   ├── i18n/                # Language translation files (JSON)
-│       │   ├── interceptors/        # Request/response interceptors
-│       │   ├── libs/                # Shared NestJS modules
-│       │   ├── mail/                # Email service & templates
-│       │   ├── shared/              # Singleton services
-│       │   ├── utils/               # Utility functions
-│       │   ├── app.module.ts        # Root module
-│       │   └── main.ts              # Application bootstrap
-│       ├── test/                    # E2E tests
-│       ├── docs/                    # API documentation (README, guides)
-│       ├── Dockerfile               # Production image
-│       ├── maildev.Dockerfile       # MailDev container
-│       ├── jest.config.json         # Jest configuration
-│       ├── tsconfig.json            # TypeScript config
-│       ├── nest-cli.json            # NestJS CLI config
-│       └── package.json
+│   ├── api/                          # Main NestJS application
+│   │   ├── src/
+│   │   │   ├── api/                 # Feature modules (8 modules)
+│   │   │   ├── background/          # Background jobs (email queue, etc.)
+│   │   │   ├── common/              # Shared DTOs, interfaces, types
+│   │   │   ├── config/              # Application configuration
+│   │   │   ├── constants/           # Global constants & enums
+│   │   │   ├── database/            # ORM setup, entities, migrations, seeds
+│   │   │   ├── decorators/          # Global decorators
+│   │   │   ├── exceptions/          # Custom exception classes
+│   │   │   ├── filters/             # HTTP exception filters
+│   │   │   ├── generated/           # Auto-generated files (i18n)
+│   │   │   ├── guards/              # Auth guards (JWT, Roles)
+│   │   │   ├── i18n/                # Language translation files (JSON)
+│   │   │   ├── interceptors/        # Request/response interceptors
+│   │   │   ├── libs/                # Shared NestJS modules
+│   │   │   ├── mail/                # Email service & templates
+│   │   │   ├── shared/              # Singleton services
+│   │   │   ├── utils/               # Utility functions
+│   │   │   ├── app.module.ts        # Root module
+│   │   │   └── main.ts              # Application bootstrap
+│   │   ├── test/                    # E2E tests
+│   │   ├── docs/                    # API documentation (README, guides)
+│   │   ├── Dockerfile               # Production image
+│   │   ├── maildev.Dockerfile       # MailDev container
+│   │   ├── jest.config.json         # Jest configuration
+│   │   ├── tsconfig.json            # TypeScript config
+│   │   ├── nest-cli.json            # NestJS CLI config
+│   │   └── package.json
+│   ├── admin/                        # Next.js admin panel (App Router)
+│   │   ├── src/
+│   │   │   ├── app/                 # Next.js App Router pages
+│   │   │   │   ├── login/           # Admin login page
+│   │   │   │   ├── (dashboard)/     # Protected dashboard routes
+│   │   │   │   │   ├── page.tsx     # Dashboard home
+│   │   │   │   │   ├── products/    # CRUD: products list/create/edit
+│   │   │   │   │   ├── articles/    # CRUD: articles list/create/edit
+│   │   │   │   │   ├── orders/      # Orders list & detail page
+│   │   │   │   │   └── media/       # Media upload & management
+│   │   │   │   ├── api/             # API routes (proxies to backend)
+│   │   │   │   ├── layout.tsx       # Root layout
+│   │   │   │   └── page.tsx         # Redirect to /login
+│   │   │   ├── components/          # Reusable UI components
+│   │   │   │   ├── layout/          # Header, sidebar, user menu
+│   │   │   │   ├── dashboard/       # Dashboard widgets (stats, charts, tables)
+│   │   │   │   ├── products/        # Product form, table, URL picker
+│   │   │   │   ├── articles/        # Article form, editor, table
+│   │   │   │   ├── orders/          # Order table, status panel, detail
+│   │   │   │   ├── media/           # Media manager, upload, picker
+│   │   │   │   ├── providers/       # React Query, Auth providers
+│   │   │   │   └── ui/              # Radix UI primitives
+│   │   │   ├── features/            # Feature-specific logic
+│   │   │   │   ├── media/           # Media hooks, API calls
+│   │   │   │   └── orders/          # Order hooks, mutations
+│   │   │   ├── services/            # Service layer
+│   │   │   │   ├── auth/            # Auth service, token handling
+│   │   │   │   └── api/             # API client wrappers
+│   │   │   ├── lib/                 # Utility functions
+│   │   │   │   ├── admin-api-client.ts    # Fetch wrapper for server-side API calls
+│   │   │   │   ├── admin-api-proxy.ts     # Route handler helpers to proxy requests
+│   │   │   │   ├── admin-data.ts          # Data fetching utilities for Server Components
+│   │   │   │   ├── admin-form-parsers.ts  # Form data parsing helpers
+│   │   │   │   ├── auth.ts                # Auth utilities
+│   │   │   │   ├── auth-token.ts          # Cookie token management
+│   │   │   │   ├── http-client.ts         # Axios instance for client-side calls
+│   │   │   │   ├── media.ts               # Media upload & processing
+│   │   │   │   └── utils.ts               # General helpers (cn, format, etc.)
+│   │   │   ├── app.tsx              # Root component
+│   │   │   └── globals.css           # Global styles
+│   │   ├── public/                  # Static assets
+│   │   └── package.json
+│   └── web/                          # Next.js storefront
 ├── packages/
 │   └── types/                        # Shared @longnhan/types package
 │       ├── src/
@@ -127,7 +170,9 @@ longnhantongtran/
   - `dto/create-product.dto.ts`, `update-product.dto.ts`
 - **Endpoints:**
   - `GET /products` — List with pagination
+  - `GET /products/admin` — List products for admin
   - `GET /products/:slug` — Get by slug
+  - `GET /products/admin/:id` — Get product by id for admin
   - `POST /products` — Create (admin)
   - `PUT /products/:id` — Update (admin)
   - `DELETE /products/:id` — Delete (admin)
@@ -155,22 +200,30 @@ longnhantongtran/
   - `dto/create-article.dto.ts`, `update-article.dto.ts`
 - **Endpoints:**
   - `GET /articles` — List articles
+  - `GET /articles/admin` — List articles for admin
   - `GET /articles/:slug` — Get by slug
+  - `GET /articles/admin/:id` — Get article by id for admin
   - `POST /articles` — Create (admin)
   - `PUT /articles/:id` — Update (admin)
   - `DELETE /articles/:id` — Delete (admin)
 
 #### MediaModule
-- **Purpose:** File uploads, media management
+- **Purpose:** File uploads, media management, Cloudinary integration
 - **Key Files:**
   - `entities/media.entity.ts` — Media metadata
-  - `media.service.ts` — Cloudinary integration
-  - `media.controller.ts` — Upload endpoints
-  - `strategies/cloudinary.strategy.ts` — Cloudinary upload logic
+  - `media.service.ts` — Cloudinary integration, folder management
+  - `media.controller.ts` — Upload & folder endpoints
+  - `providers/cloudinary.provider.ts` — Cloudinary upload logic
+  - `dto/create-media-folder.req.dto.ts` — Create folder request
+  - `dto/media-folder.res.dto.ts` — Folder response
+  - `dto/media-query.req.dto.ts` — Query/filter params
+  - `dto/media.res.dto.ts` — Media response
 - **Endpoints:**
   - `POST /media/upload` — Upload file (admin)
-  - `GET /media` — List uploads (admin)
-  - `DELETE /media/:id` — Delete (admin)
+  - `GET /media` — List uploads with filters (admin)
+  - `DELETE /media/:id` — Delete file (admin)
+  - `POST /media/folders` — Create folder (admin)
+  - `GET /media/folders` — List folders (admin)
 
 #### DashboardModule
 - **Purpose:** Admin analytics & statistics
@@ -238,6 +291,66 @@ Reusable NestJS modules:
   - `@ApiPublic()` — Mark endpoint as public
   - `@Roles('admin')` — Restrict to role
   - `@ApiAuth()` — Require authentication
+
+### 6. Admin App (apps/admin/src/)
+
+**Purpose:** Next.js 16 admin dashboard with full CRUD for products, articles, orders, and media.
+
+**Key Pages:**
+- `/login` — Admin authentication
+- `/(dashboard)/` — Dashboard home with stats cards, revenue charts, recent orders
+- `/(dashboard)/products` — Products list/create/edit with TiptapHtmlEditor for descriptions
+- `/(dashboard)/articles` — Articles list/create/edit with rich text editor
+- `/(dashboard)/orders` — Orders list with status filter; detail page with status panel
+- `/(dashboard)/media` — Media manager with Cloudinary upload, folder navigation, URL picker
+
+**Architecture:**
+- **Server-side fetching:** `lib/admin-api-client.ts` (`adminFetch`) for Server Components
+- **Client-side queries:** `lib/http-client.ts` (Axios instance) + React Query hooks in `features/`
+- **API proxies:** `/app/api/*` route handlers forward to backend + validate auth
+- **State:** AuthProvider (context), React Query (stale 30s), Radix UI toast notifications
+- **Forms:** react-hook-form + yup validation, Server Actions for login/mutations
+- **Cache:** `revalidatePath()` after mutations to sync Server Component state
+
+**Key Libraries:**
+- `@radix-ui/*` — UI primitives (dialog, dropdown, tabs, etc.)
+- `recharts` — Revenue & stats charts
+- `react-hook-form` + `yup` — Form validation
+- `axios` — HTTP client
+- `@tanstack/react-query` — Data fetching & caching
+- `motion` — Micro-interactions
+- `tailwind-css@v4` — Styling
+
+**Authentication Pattern:**
+- Cookie: `long-nhan-hy-admin-auth-token-data`
+- Protected routes check layout-level auth
+- Token refresh via proxy route: `GET /api/auth/refresh`
+- Logout via proxy route: `POST /api/auth/logout`
+
+**API Proxy Routes (apps/admin/src/app/api/):**
+- `POST /api/auth/login` — Admin login (Server Action wrapper)
+- `GET /api/auth/refresh` — Refresh token via cookie
+- `POST /api/auth/logout` — Clear session
+- `GET /api/users/me` — Current admin info
+- `GET /api/media` — List media (delegated to backend)
+- `POST /api/media/upload` — Cloudinary upload
+- `DELETE /api/media/:id` — Delete media
+- `PATCH /api/orders/:id/status` — Update order status
+- Plus standard CRUD proxies for products/articles/orders
+
+### 7. Shared Types Package (@longnhan/types)
+
+**Purpose:** TypeScript types shared across all apps.
+
+**Structure:**
+- `src/api/` — API request/response DTOs
+- `src/common/` — Shared interfaces, enums, constants
+- `src/index.ts` — Public export barrel
+
+**Usage:**
+- `apps/api` — Entity validation & API response types
+- `apps/web` — Form inputs, API calls, UI state
+- `apps/admin` — Admin forms, API proxies, mutations
 
 #### Email Service (`src/mail/`)
 - **mail.service.ts** — Nodemailer wrapper

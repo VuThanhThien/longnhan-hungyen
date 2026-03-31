@@ -1,11 +1,11 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsArray, IsOptional, IsString, ValidateNested } from 'class-validator';
 import {
   BooleanFieldOptional,
   NumberFieldOptional,
   StringFieldOptional,
 } from '@/decorators/field.decorators';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsArray, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { CreateProductVariantDto } from './create-product.req.dto';
 
 export class UpdateProductReqDto {

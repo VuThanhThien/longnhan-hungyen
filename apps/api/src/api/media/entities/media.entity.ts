@@ -30,7 +30,11 @@ export class MediaEntity {
   @Column({ type: 'varchar', length: 255, nullable: true })
   filename: string | null;
 
-  @Column({ type: 'enum', enum: MediaResourceType, default: MediaResourceType.IMAGE })
+  @Column({
+    type: 'enum',
+    enum: MediaResourceType,
+    default: MediaResourceType.IMAGE,
+  })
   resourceType!: MediaResourceType;
 
   @Column({ type: 'varchar', length: 100, nullable: true })

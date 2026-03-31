@@ -40,13 +40,13 @@ export function RecentOrders({ orders }: RecentOrdersProps) {
                   className="flex items-center justify-between rounded-md p-3 hover:bg-gray-50 transition-colors"
                 >
                   <div className="space-y-0.5">
-                    <p className="text-sm font-medium text-gray-900">{order.orderCode}</p>
+                    <p className="text-sm font-medium text-gray-900">{order.code}</p>
                     <p className="text-xs text-gray-500">{order.customerName} · {formatDate(order.createdAt)}</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <Badge variant={status.variant}>{status.label}</Badge>
                     <span className="text-sm font-semibold text-gray-900">
-                      {formatCurrency(order.totalAmount)}
+                      {formatCurrency(order.total)}
                     </span>
                   </div>
                 </Link>

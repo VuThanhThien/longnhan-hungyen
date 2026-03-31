@@ -7,7 +7,7 @@ effort: 47h
 branch: main
 tags: [ecommerce, nestjs, nextjs, typeorm, turborepo, vietnamese-seo, axios, tanstack-query]
 created: 2026-03-29
-updated: "2026-03-31T18:15"
+updated: "2026-04-01T00:30"
 ---
 
 # Long Nhan Hung Yen E-Commerce Platform
@@ -18,25 +18,24 @@ E-commerce + content platform selling "Long Nhan Hung Yen" (longan specialties) 
 
 ## Progress & continuity
 
-**Last updated:** 2026-03-31 (scope alignment for admin product/article/media flow)
+**Last updated:** 2026-04-01 (docs comprehensive sync)
 
-| Artifact | Purpose |
-|----------|---------|
-| [`.agent/agent-memo.md`](../../.agent/agent-memo.md) | Session handoff — what to do next, key paths |
-| [`.agent/PROJECT-STATUS.md`](../../.agent/PROJECT-STATUS.md) / [`.claude/PROJECT-STATUS.md`](../../.claude/PROJECT-STATUS.md) | Phase rollup vs repo reality |
-| [`plans/reports/pm-260331-1800-status-sync.md`](../reports/pm-260331-1800-status-sync.md) | Latest PM checklist reconciliation |
-| [`plans/reports/brainstorm-260331-1815-admin-product-article-media-dynamic-pages.md`](../reports/brainstorm-260331-1815-admin-product-article-media-dynamic-pages.md) | Scope decision for admin-driven product/article dynamic pages |
+**Overall Completion:** ~82% (81/98 tasks estimated)
 
-**Phases 1–3:** Done (monorepo, DB/entities, public + admin API surface per phase docs).
-**Checklist progress:** 69/94 tasks checked (~73.4%) across `phase-*.md` (synced to repo 2026-03-31).
+**Phase 1–3:** DONE (100% complete) — Monorepo, DB/entities, public + admin API surface all implemented.
 
-**Phase 4 (near closure):** Storefront routes, PDP stack, articles, robots/sitemap, JSON-LD, Cloudinary loader, and metadata are implemented; **remaining** in `phase-04-storefront.md`: manual mobile viewport pass and Lighthouse audit. Confirm **order payload** parity with `CreateOrderReqDto` for reliable E2E submit.
+**Phase 4 (Storefront):** IN PROGRESS (~95% complete) — All pages, ISR, SEO, Cloudinary loader implemented. Remaining: mobile viewport pass, Lighthouse audit (≥85 perf).
 
-**Phase 5 (in progress):** Auth shell, dashboard overview, toasts, and basic loading/error paths exist; remaining priority is product/article/media CRUD completion + media URL binding and E2E verification of storefront reflection per `phase-05-admin-panel.md`.
+**Phase 5 (Admin Panel):** IN PROGRESS (~75% complete) — All CRUD pages (products, articles, orders, media) with API proxies, forms, React Query. Remaining: date-range/search filters, storefront verification, E2E tests.
 
-**Phase 6 (in progress):** `motion` dependency and `ScrollReveal`-based landing motion are in place; hero motion polish, FAQ accordion motion, channels/testimonials polish, optional keyframes, and Lighthouse smoke still open per `phase-06-frontend-landing-enhancement.md`.
+**Phase 6 (Frontend Animation):** IN PROGRESS (~40% complete) — `motion` lib installed, ScrollReveal wrapping landing. Remaining: hero/FAQ/channels/testimonials polish, Lighthouse audit.
 
-**Phase 7:** Not started (deployment checklist open).
+**Phase 7 (Deployment):** PENDING (0%) — Blocked by Phase 5+6 completion. Target: Railway API, Vercel web+admin.
+
+**Key Artifacts:**
+- [Project Roadmap](../../docs/project-roadmap.md) — Detailed phase breakdown
+- [Codebase Summary](../../docs/codebase-summary.md) — Structure & modules
+- [System Architecture](../../docs/system-architecture.md) — Full-stack design
 
 ## Research References
 

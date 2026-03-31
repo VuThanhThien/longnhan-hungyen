@@ -3,6 +3,7 @@ import { StatCards } from '@/components/dashboard/stat-cards';
 import { RecentOrders } from '@/components/dashboard/recent-orders';
 import { RevenueChart } from '@/components/dashboard/revenue-chart';
 import { adminFetch } from '@/lib/admin-api-client';
+import { toList } from '@/lib/admin-data';
 import type { Order } from '@longnhan/types';
 
 interface DashboardStats {
@@ -15,11 +16,11 @@ interface DashboardStats {
 
 async function getDashboardData() {
   try {
-    const [stats, recentOrders] = await Promise.all([
+    const [stats, recentOrdersRaw] = await Promise.all([
       adminFetch<DashboardStats>('/dashboard/stats'),
-      adminFetch<Order[]>('/orders?limit=10&page=1'),
+      adminFetch<unknown>('/orders?limit=10&page=1'),
     ]);
-    return { stats, recentOrders };
+    return { stats, recentOrders: toList<Order>(recentOrdersRaw) };
   } catch {
     return {
       stats: {

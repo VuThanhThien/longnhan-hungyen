@@ -38,10 +38,29 @@ export class ProductsController {
     return this.productsService.findMany(dto);
   }
 
+  @ApiAuth({
+    type: ProductResDto,
+    summary: 'List products for admin',
+    isPaginated: true,
+  })
+  @Get('admin')
+  async findManyAdmin(
+    @Query() dto: ProductQueryReqDto,
+  ): Promise<OffsetPaginatedDto<ProductResDto>> {
+    return this.productsService.findMany(dto, { includeInactive: true });
+  }
+
   @ApiPublic({ type: ProductResDto, summary: 'Get product by slug' })
   @Get(':slug')
   async findBySlug(@Param('slug') slug: string): Promise<ProductResDto> {
     return this.productsService.findBySlug(slug);
+  }
+
+  @ApiAuth({ type: ProductResDto, summary: 'Get product by id (admin)' })
+  @ApiParam({ name: 'id', type: 'String' })
+  @Get('admin/:id')
+  async findById(@Param('id', ParseUUIDPipe) id: Uuid): Promise<ProductResDto> {
+    return this.productsService.findById(id);
   }
 
   @ApiAuth({ type: ProductResDto, summary: 'Create product', statusCode: 201 })

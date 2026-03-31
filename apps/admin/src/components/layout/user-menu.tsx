@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef } from 'react';
 import { LogOut, User } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -13,6 +14,8 @@ import {
 import { logoutAction } from '@/lib/auth';
 
 export function UserMenu() {
+  const logoutFormRef = useRef<HTMLFormElement>(null);
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -28,13 +31,16 @@ export function UserMenu() {
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuLabel>Tài khoản</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <form action={logoutAction}>
-            <button type="submit" className="flex w-full items-center gap-2 text-red-600">
-              <LogOut className="h-4 w-4" />
-              Đăng xuất
-            </button>
-          </form>
+        <form ref={logoutFormRef} action={logoutAction} />
+        <DropdownMenuItem
+          onSelect={(event) => {
+            event.preventDefault();
+            logoutFormRef.current?.requestSubmit();
+          }}
+          className="flex items-center gap-2 text-red-600"
+        >
+          <LogOut className="h-4 w-4" />
+          Đăng xuất
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

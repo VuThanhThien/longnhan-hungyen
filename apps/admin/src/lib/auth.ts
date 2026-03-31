@@ -2,6 +2,7 @@
 
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { AUTH_TOKEN_KEY } from '@/lib/auth-token';
 
 const API_URL = process.env.API_URL || 'http://localhost:3001/api/v1';
 
@@ -14,7 +15,7 @@ export async function loginAction(formData: FormData): Promise<{ error?: string 
   }
 
   try {
-    const res = await fetch(`${API_URL}/auth/login`, {
+    const res = await fetch(`${API_URL}/auth/email/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -25,20 +26,24 @@ export async function loginAction(formData: FormData): Promise<{ error?: string 
     }
 
     const json = await res.json();
-    const token = json.data?.token || json.token;
+    const data = json?.data ?? json;
+    const accessToken = data?.accessToken;
+    const refreshToken = data?.refreshToken;
+    const tokenExpires = data?.tokenExpires;
 
-    if (!token) {
+    if (!accessToken || !refreshToken || typeof tokenExpires !== 'number') {
       return { error: 'Đăng nhập thất bại' };
     }
 
     const cookieStore = await cookies();
-    cookieStore.set('token', token, {
-      httpOnly: true,
+    cookieStore.set(AUTH_TOKEN_KEY, JSON.stringify({ accessToken, refreshToken, tokenExpires }), {
+      httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7, // 7 days
       path: '/',
     });
+    cookieStore.delete('token');
   } catch {
     return { error: 'Lỗi kết nối máy chủ' };
   }
@@ -48,6 +53,7 @@ export async function loginAction(formData: FormData): Promise<{ error?: string 
 
 export async function logoutAction() {
   const cookieStore = await cookies();
+  cookieStore.delete(AUTH_TOKEN_KEY);
   cookieStore.delete('token');
   redirect('/login');
 }

@@ -1,6 +1,7 @@
 # Deployment Guide
 
-**Last Updated:** 2026-03-30
+**Last Updated:** 2026-04-01
+**Production Targets:** Railway (API), Vercel (web + admin)
 
 ---
 

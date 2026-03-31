@@ -25,16 +25,26 @@ import { OrdersService } from './orders.service';
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
-  @ApiPublic({ type: OrderResDto, summary: 'Create order (customer)', statusCode: 201 })
+  @ApiPublic({
+    type: OrderResDto,
+    summary: 'Create order (customer)',
+    statusCode: 201,
+  })
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() dto: CreateOrderReqDto): Promise<OrderResDto> {
     return this.ordersService.create(dto);
   }
 
-  @ApiAuth({ type: OrderResDto, summary: 'List orders (admin)', isPaginated: true })
+  @ApiAuth({
+    type: OrderResDto,
+    summary: 'List orders (admin)',
+    isPaginated: true,
+  })
   @Get()
-  async findMany(@Query() dto: OrderQueryReqDto): Promise<OffsetPaginatedDto<OrderResDto>> {
+  async findMany(
+    @Query() dto: OrderQueryReqDto,
+  ): Promise<OffsetPaginatedDto<OrderResDto>> {
     return this.ordersService.findMany(dto);
   }
 
@@ -45,7 +55,10 @@ export class OrdersController {
     return this.ordersService.findOne(id);
   }
 
-  @ApiAuth({ type: OrderResDto, summary: 'Update order/payment status (admin)' })
+  @ApiAuth({
+    type: OrderResDto,
+    summary: 'Update order/payment status (admin)',
+  })
   @ApiParam({ name: 'id', type: 'String' })
   @Patch(':id/status')
   async updateStatus(

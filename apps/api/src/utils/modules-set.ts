@@ -31,7 +31,14 @@ function generateModulesSet() {
   const imports: ModuleMetadata['imports'] = [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, databaseConfig, redisConfig, authConfig, mailConfig, cloudinaryConfig],
+      load: [
+        appConfig,
+        databaseConfig,
+        redisConfig,
+        authConfig,
+        mailConfig,
+        cloudinaryConfig,
+      ],
       envFilePath: ['.env'],
     }),
   ];

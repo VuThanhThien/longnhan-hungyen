@@ -1,6 +1,6 @@
 # Code Standards & Development Guidelines
 
-**Last Updated:** 2026-03-30
+**Last Updated:** 2026-04-01
 
 ---
 
@@ -724,6 +724,13 @@ export class ProductsService {
 - [ ] CORS configured restrictively
 - [ ] Input validation on all endpoints
 - [ ] Rate limiting on auth endpoints
+
+---
+
+## Next.js & React Standards Overview
+
+For detailed Next.js/React standards (components, data fetching, Server Actions, React Query, authentication, styling), see:
+- **[Frontend Code Standards](./frontend-code-standards.md)** — Next.js 16, React 19, Server Components, Client Components, API patterns
 
 ---
 

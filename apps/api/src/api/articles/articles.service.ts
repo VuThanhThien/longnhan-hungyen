@@ -20,7 +20,11 @@ export class ArticlesService {
   ) {}
 
   /** Public: list published articles (no contentHtml for performance) */
-  async findMany(dto: ArticleQueryReqDto): Promise<OffsetPaginatedDto<ArticleResDto>> {
+  async findMany(
+    dto: ArticleQueryReqDto,
+    options?: { includeDraft?: boolean },
+  ): Promise<OffsetPaginatedDto<ArticleResDto>> {
+    const includeDraft = options?.includeDraft === true;
     const qb = this.articleRepo
       .createQueryBuilder('article')
       .select([
@@ -37,8 +41,11 @@ export class ArticlesService {
         'article.createdAt',
         'article.updatedAt',
       ])
-      .where('article.status = :status', { status: ArticleStatus.PUBLISHED })
       .orderBy('article.publishedAt', 'DESC');
+
+    if (!includeDraft) {
+      qb.where('article.status = :status', { status: ArticleStatus.PUBLISHED });
+    }
 
     if (dto.tag) {
       qb.andWhere(':tag = ANY(article.tags)', { tag: dto.tag });
@@ -47,9 +54,14 @@ export class ArticlesService {
       qb.andWhere('article.title ILIKE :q', { q: `%${dto.q}%` });
     }
 
-    const [articles, meta] = await paginate(qb, dto, { skipCount: false, takeAll: false });
+    const [articles, meta] = await paginate(qb, dto, {
+      skipCount: false,
+      takeAll: false,
+    });
     return new OffsetPaginatedDto(
-      plainToInstance(ArticleResDto, articles, { excludeExtraneousValues: true }),
+      plainToInstance(ArticleResDto, articles, {
+        excludeExtraneousValues: true,
+      }),
       meta,
     );
   }
@@ -60,7 +72,18 @@ export class ArticlesService {
       where: { slug, status: ArticleStatus.PUBLISHED },
     });
     if (!article) throw new NotFoundException('Article not found');
-    return plainToInstance(ArticleResDto, article, { excludeExtraneousValues: true });
+    return plainToInstance(ArticleResDto, article, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  /** Admin: full article by id */
+  async findById(id: Uuid): Promise<ArticleResDto> {
+    const article = await this.articleRepo.findOne({ where: { id } });
+    if (!article) throw new NotFoundException('Article not found');
+    return plainToInstance(ArticleResDto, article, {
+      excludeExtraneousValues: true,
+    });
   }
 
   /** Admin: create article */
@@ -80,7 +103,9 @@ export class ArticlesService {
       publishedAt: isPublished ? new Date() : null,
     });
     const saved = await this.articleRepo.save(article);
-    return plainToInstance(ArticleResDto, saved, { excludeExtraneousValues: true });
+    return plainToInstance(ArticleResDto, saved, {
+      excludeExtraneousValues: true,
+    });
   }
 
   /** Admin: update article */
@@ -107,14 +132,20 @@ export class ArticlesService {
       ...(dto.title !== undefined && { title: dto.title }),
       ...(dto.excerpt !== undefined && { excerpt: dto.excerpt }),
       ...(dto.contentHtml !== undefined && { contentHtml: dto.contentHtml }),
-      ...(dto.featuredImageUrl !== undefined && { featuredImageUrl: dto.featuredImageUrl }),
+      ...(dto.featuredImageUrl !== undefined && {
+        featuredImageUrl: dto.featuredImageUrl,
+      }),
       ...(dto.metaTitle !== undefined && { metaTitle: dto.metaTitle }),
-      ...(dto.metaDescription !== undefined && { metaDescription: dto.metaDescription }),
+      ...(dto.metaDescription !== undefined && {
+        metaDescription: dto.metaDescription,
+      }),
       ...(dto.tags !== undefined && { tags: dto.tags }),
     });
 
     const saved = await this.articleRepo.save(article);
-    return plainToInstance(ArticleResDto, saved, { excludeExtraneousValues: true });
+    return plainToInstance(ArticleResDto, saved, {
+      excludeExtraneousValues: true,
+    });
   }
 
   /** Admin: delete article */
@@ -124,12 +155,17 @@ export class ArticlesService {
     await this.articleRepo.remove(article);
   }
 
-  private async generateUniqueSlug(title: string, excludeId?: Uuid): Promise<string> {
+  private async generateUniqueSlug(
+    title: string,
+    excludeId?: Uuid,
+  ): Promise<string> {
     const base = slugify(title, { lower: true, strict: true, locale: 'vi' });
     let slug = base;
     let counter = 1;
     while (true) {
-      const qb = this.articleRepo.createQueryBuilder('a').where('a.slug = :slug', { slug });
+      const qb = this.articleRepo
+        .createQueryBuilder('a')
+        .where('a.slug = :slug', { slug });
       if (excludeId) qb.andWhere('a.id != :id', { id: excludeId });
       const exists = await qb.getOne();
       if (!exists) break;

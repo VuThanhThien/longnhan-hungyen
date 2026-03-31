@@ -46,7 +46,9 @@ export class OrdersService {
       for (const item of dto.items) {
         const variant = variantMap.get(item.variantId as Uuid);
         if (!variant || !variant.active) {
-          throw new BadRequestException(`Variant ${item.variantId} not found or inactive`);
+          throw new BadRequestException(
+            `Variant ${item.variantId} not found or inactive`,
+          );
         }
         if (variant.stock < item.qty) {
           throw new BadRequestException(
@@ -110,34 +112,51 @@ export class OrdersService {
         );
       }
 
-      return plainToInstance(OrderResDto, savedOrder, { excludeExtraneousValues: true });
+      return plainToInstance(OrderResDto, savedOrder, {
+        excludeExtraneousValues: true,
+      });
     });
   }
 
   /** Admin: list orders with filters */
-  async findMany(dto: OrderQueryReqDto): Promise<OffsetPaginatedDto<OrderResDto>> {
+  async findMany(
+    dto: OrderQueryReqDto,
+  ): Promise<OffsetPaginatedDto<OrderResDto>> {
     const qb = this.orderRepo
       .createQueryBuilder('order')
       .leftJoinAndSelect('order.items', 'item')
       .orderBy('order.createdAt', 'DESC');
 
     if (dto.orderStatus) {
-      qb.andWhere('order.orderStatus = :orderStatus', { orderStatus: dto.orderStatus });
+      qb.andWhere('order.orderStatus = :orderStatus', {
+        orderStatus: dto.orderStatus,
+      });
     }
     if (dto.paymentStatus) {
-      qb.andWhere('order.paymentStatus = :paymentStatus', { paymentStatus: dto.paymentStatus });
+      qb.andWhere('order.paymentStatus = :paymentStatus', {
+        paymentStatus: dto.paymentStatus,
+      });
     }
     if (dto.dateFrom) {
-      qb.andWhere('order.createdAt >= :dateFrom', { dateFrom: new Date(dto.dateFrom) });
+      qb.andWhere('order.createdAt >= :dateFrom', {
+        dateFrom: new Date(dto.dateFrom),
+      });
     }
     if (dto.dateTo) {
-      qb.andWhere('order.createdAt <= :dateTo', { dateTo: new Date(dto.dateTo) });
+      qb.andWhere('order.createdAt <= :dateTo', {
+        dateTo: new Date(dto.dateTo),
+      });
     }
     if (dto.q) {
-      qb.andWhere('(order.code ILIKE :q OR order.phone ILIKE :q)', { q: `%${dto.q}%` });
+      qb.andWhere('(order.code ILIKE :q OR order.phone ILIKE :q)', {
+        q: `%${dto.q}%`,
+      });
     }
 
-    const [orders, meta] = await paginate(qb, dto, { skipCount: false, takeAll: false });
+    const [orders, meta] = await paginate(qb, dto, {
+      skipCount: false,
+      takeAll: false,
+    });
     return new OffsetPaginatedDto(
       plainToInstance(OrderResDto, orders, { excludeExtraneousValues: true }),
       meta,
@@ -151,19 +170,29 @@ export class OrdersService {
       relations: ['items'],
     });
     if (!order) throw new NotFoundException('Order not found');
-    return plainToInstance(OrderResDto, order, { excludeExtraneousValues: true });
+    return plainToInstance(OrderResDto, order, {
+      excludeExtraneousValues: true,
+    });
   }
 
   /** Admin: update order/payment status */
-  async updateStatus(id: Uuid, dto: UpdateOrderStatusReqDto): Promise<OrderResDto> {
-    const order = await this.orderRepo.findOne({ where: { id }, relations: ['items'] });
+  async updateStatus(
+    id: Uuid,
+    dto: UpdateOrderStatusReqDto,
+  ): Promise<OrderResDto> {
+    const order = await this.orderRepo.findOne({
+      where: { id },
+      relations: ['items'],
+    });
     if (!order) throw new NotFoundException('Order not found');
 
     if (dto.orderStatus) order.orderStatus = dto.orderStatus;
     if (dto.paymentStatus) order.paymentStatus = dto.paymentStatus;
 
     const saved = await this.orderRepo.save(order);
-    return plainToInstance(OrderResDto, saved, { excludeExtraneousValues: true });
+    return plainToInstance(OrderResDto, saved, {
+      excludeExtraneousValues: true,
+    });
   }
 
   /**
@@ -180,7 +209,11 @@ export class OrdersService {
     const prefix = `LN-${yy}${mm}${dd}-`;
 
     // Random 4-char alphanumeric suffix — collision probability negligible for MVP scale
-    const randomSuffix = Math.random().toString(36).slice(2, 6).toUpperCase().padEnd(4, '0');
+    const randomSuffix = Math.random()
+      .toString(36)
+      .slice(2, 6)
+      .toUpperCase()
+      .padEnd(4, '0');
     return `${prefix}${randomSuffix}`;
   }
 }

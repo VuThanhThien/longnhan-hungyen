@@ -1,6 +1,6 @@
 # System Architecture
 
-**Last Updated:** 2026-03-30
+**Last Updated:** 2026-04-01
 
 ---
 
@@ -16,32 +16,42 @@ Long Nhan Hung Yen is a modular NestJS monorepo using pnpm workspaces and Turbor
 longnhantongtran/
 ├── .claude/                    # Code orchestration config
 ├── apps/
-│   └── api/                    # Main NestJS API application
-│       ├── src/
-│       │   ├── api/           # Feature modules
-│       │   ├── background/    # Background jobs
-│       │   ├── common/        # Shared DTOs, interfaces, types
-│       │   ├── config/        # App configuration
-│       │   ├── constants/     # Global constants
-│       │   ├── database/      # ORM, entities, migrations
-│       │   ├── decorators/    # Global decorators
-│       │   ├── exceptions/    # Custom exceptions
-│       │   ├── filters/       # Exception filters
-│       │   ├── generated/     # Generated files (i18n)
-│       │   ├── guards/        # Auth guards, JWT
-│       │   ├── i18n/          # Language JSON files
-│       │   ├── interceptors/  # Response/logging interceptors
-│       │   ├── libs/          # Shared NestJS modules
-│       │   ├── mail/          # Email service + templates
-│       │   ├── shared/        # Global singleton services
-│       │   ├── utils/         # Utility functions
-│       │   ├── app.module.ts  # Root module
-│       │   └── main.ts        # App bootstrap
-│       ├── test/              # E2E tests
-│       ├── docs/              # API documentation
-│       ├── Dockerfile         # Production image
-│       ├── maildev.Dockerfile # MailDev service
-│       └── package.json
+│   ├── api/                    # Main NestJS API application
+│   │   ├── src/
+│   │   │   ├── api/           # Feature modules
+│   │   │   ├── background/    # Background jobs
+│   │   │   ├── common/        # Shared DTOs, interfaces, types
+│   │   │   ├── config/        # App configuration
+│   │   │   ├── constants/     # Global constants
+│   │   │   ├── database/      # ORM, entities, migrations
+│   │   │   ├── decorators/    # Global decorators
+│   │   │   ├── exceptions/    # Custom exceptions
+│   │   │   ├── filters/       # Exception filters
+│   │   │   ├── generated/     # Generated files (i18n)
+│   │   │   ├── guards/        # Auth guards, JWT
+│   │   │   ├── i18n/          # Language JSON files
+│   │   │   ├── interceptors/  # Response/logging interceptors
+│   │   │   ├── libs/          # Shared NestJS modules
+│   │   │   ├── mail/          # Email service + templates
+│   │   │   ├── shared/        # Global singleton services
+│   │   │   ├── utils/         # Utility functions
+│   │   │   ├── app.module.ts  # Root module
+│   │   │   └── main.ts        # App bootstrap
+│   │   ├── test/              # E2E tests
+│   │   ├── docs/              # API documentation
+│   │   ├── Dockerfile         # Production image
+│   │   ├── maildev.Dockerfile # MailDev service
+│   │   └── package.json
+│   ├── admin/                 # Next.js admin panel (Next.js 16, React 19, Tailwind CSS v4)
+│   │   ├── src/
+│   │   │   ├── app/           # Next.js App Router (login, dashboard, CRUD pages)
+│   │   │   ├── components/    # Reusable UI (Radix UI, charts, forms)
+│   │   │   ├── features/      # Feature-specific hooks & API calls
+│   │   │   ├── services/      # Service layer (auth, API)
+│   │   │   ├── lib/           # Utilities (admin-api-client, http-client, auth-token, etc.)
+│   │   │   └── globals.css    # Tailwind CSS v4 config
+│   │   └── package.json
+│   └── web/                   # Next.js storefront
 ├── packages/
 │   └── types/                 # Shared @longnhan/types package
 ├── .github/workflows/         # CI/CD pipelines
@@ -142,6 +152,85 @@ Environment-driven configuration using `@nestjs/config`:
 - API prefix and port
 
 All values from `.env` file with validation.
+
+---
+
+## Admin Panel Architecture (apps/admin)
+
+**Framework:** Next.js 16 App Router + React 19 + Tailwind CSS v4 + Radix UI
+
+### Pages & Routes
+- `/login` — Admin authentication (form → Server Action → /api/auth/login)
+- `/(dashboard)/` — Dashboard home (stats cards, revenue chart, recent orders)
+- `/(dashboard)/products` — Products CRUD (list, create, edit)
+- `/(dashboard)/articles` — Articles CRUD (list, create, edit)
+- `/(dashboard)/orders` — Orders list & detail (status updates)
+- `/(dashboard)/media` — Media manager (Cloudinary upload, folder nav, URL picker)
+
+### Data Access Patterns
+
+**Server-side (Server Components):**
+- `lib/admin-api-client.ts` — Server fetch wrapper that includes auth token from cookies
+- `lib/admin-data.ts` — Data fetching utilities for dashboards/lists
+- Uses `revalidatePath()` after mutations to sync cached component state
+
+**Client-side (Client Components):**
+- `lib/http-client.ts` — Axios instance configured for client-side requests
+- React Query hooks in `features/` (media, orders)
+- `useQuery()` for fetching, `useMutation()` for mutations
+- Query keys follow pattern: `[resource, filters]`
+
+### API Proxy Routes (apps/admin/src/app/api/)
+
+Maps admin requests to backend NestJS API:
+- `POST /api/auth/login` — Admin login
+- `GET /api/auth/refresh` — Token refresh
+- `POST /api/auth/logout` — Session logout
+- `GET /api/users/me` — Current admin info
+- `GET /api/media` — List media with filters
+- `POST /api/media/upload` — Cloudinary file upload
+- `DELETE /api/media/:id` — Delete media
+- `PATCH /api/orders/:id/status` — Update order status
+- `GET/POST/PUT/DELETE /api/products/*` — Product CRUD proxies
+- `GET/POST/PUT/DELETE /api/articles/*` — Article CRUD proxies
+
+### Authentication Pattern
+- Cookie: `long-nhan-hy-admin-auth-token-data`
+- Protected routes check auth in layout-level Server Components
+- Token refresh interceptor: auto-refresh 60 seconds before expiry
+- Logout clears cookie + redirects to /login
+
+### State Management
+- **Global Context:** AuthProvider for user & auth state
+- **Query Cache:** React Query (stale 30s for lists, mutation invalidation)
+- **UI Toast:** Radix UI toast notifications for success/error feedback
+
+---
+
+## Media Module Architecture
+
+**Backend (apps/api/src/api/media/):**
+- Entity: `media.entity.ts` — Cloudinary metadata, JSONB folder tracking
+- Service: `media.service.ts` — Cloudinary API integration
+- Controller: `media.controller.ts` — REST endpoints
+- DTOs:
+  - `create-media-folder.req.dto.ts` — Folder creation request
+  - `media-folder.res.dto.ts` — Folder response (name, path, itemCount)
+  - `media-query.req.dto.ts` — Query/filter params (folder, search, limit, offset)
+  - `media.res.dto.ts` — Media response (id, url, publicId, size, mime)
+- Provider: `cloudinary.provider.ts` — Cloudinary SDK wrapper
+
+**Endpoints:**
+- `POST /media/upload` — Upload file to Cloudinary
+- `GET /media` — List media with folder/search filtering
+- `DELETE /media/:id` — Delete file from Cloudinary & database
+- `POST /media/folders` — Create folder structure
+- `GET /media/folders` — List folders
+
+**Admin UI (apps/admin/src/components/media/):**
+- `MediaManager` — Folder nav, upload, list display
+- `MediaUrlPicker` — Modal to select/insert media URLs into forms
+- `useMediaHooks()` — React Query hooks for fetch/upload/delete
 
 ---
 
@@ -322,9 +411,9 @@ Base URL: `http://localhost:3000/api/v1`
 |--------|-----------|------|
 | **Auth** | `POST /auth/sign-up`, `POST /auth/sign-in`, `POST /auth/refresh`, `POST /auth/forgot-password` | Public/JWT |
 | **Users** | `GET /users/:id`, `PUT /users/:id`, `GET /users` (admin) | JWT |
-| **Products** | `GET /products`, `GET /products/:slug`, `POST /products` (admin), `PUT /products/:id` (admin), `DELETE /products/:id` (admin) | Public/Admin |
+| **Products** | `GET /products`, `GET /products/admin` (admin), `GET /products/:slug`, `GET /products/admin/:id` (admin), `POST /products` (admin), `PUT /products/:id` (admin), `DELETE /products/:id` (admin) | Public/Admin |
 | **Orders** | `POST /orders`, `GET /orders`, `GET /orders/:id`, `PATCH /orders/:id/status` (admin) | Public/JWT/Admin |
-| **Articles** | `GET /articles`, `GET /articles/:slug`, `POST /articles` (admin), `PUT /articles/:id` (admin), `DELETE /articles/:id` (admin) | Public/Admin |
+| **Articles** | `GET /articles`, `GET /articles/admin` (admin), `GET /articles/:slug`, `GET /articles/admin/:id` (admin), `POST /articles` (admin), `PUT /articles/:id` (admin), `DELETE /articles/:id` (admin) | Public/Admin |
 | **Media** | `POST /media/upload` (admin), `GET /media` (admin), `DELETE /media/:id` (admin) | Admin |
 | **Dashboard** | `GET /dashboard/stats?period=today\|week\|month\|all` | Admin |
 | **Health** | `GET /health` | Public |

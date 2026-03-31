@@ -15,21 +15,39 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiParam, ApiTags } from '@nestjs/swagger';
+import { ArticlesService } from './articles.service';
 import { ArticleQueryReqDto } from './dto/article-query.req.dto';
 import { ArticleResDto } from './dto/article.res.dto';
 import { CreateArticleReqDto } from './dto/create-article.req.dto';
 import { UpdateArticleReqDto } from './dto/update-article.req.dto';
-import { ArticlesService } from './articles.service';
 
 @ApiTags('articles')
 @Controller({ path: 'articles', version: '1' })
 export class ArticlesController {
   constructor(private readonly articlesService: ArticlesService) {}
 
-  @ApiPublic({ type: ArticleResDto, summary: 'List published articles', isPaginated: true })
+  @ApiPublic({
+    type: ArticleResDto,
+    summary: 'List published articles',
+    isPaginated: true,
+  })
   @Get()
-  async findMany(@Query() dto: ArticleQueryReqDto): Promise<OffsetPaginatedDto<ArticleResDto>> {
+  async findMany(
+    @Query() dto: ArticleQueryReqDto,
+  ): Promise<OffsetPaginatedDto<ArticleResDto>> {
     return this.articlesService.findMany(dto);
+  }
+
+  @ApiAuth({
+    type: ArticleResDto,
+    summary: 'List articles for admin',
+    isPaginated: true,
+  })
+  @Get('admin')
+  async findManyAdmin(
+    @Query() dto: ArticleQueryReqDto,
+  ): Promise<OffsetPaginatedDto<ArticleResDto>> {
+    return this.articlesService.findMany(dto, { includeDraft: true });
   }
 
   @ApiPublic({ type: ArticleResDto, summary: 'Get article by slug' })
@@ -38,7 +56,18 @@ export class ArticlesController {
     return this.articlesService.findBySlug(slug);
   }
 
-  @ApiAuth({ type: ArticleResDto, summary: 'Create article (admin)', statusCode: 201 })
+  @ApiAuth({ type: ArticleResDto, summary: 'Get article by id (admin)' })
+  @ApiParam({ name: 'id', type: 'String' })
+  @Get('admin/:id')
+  async findById(@Param('id', ParseUUIDPipe) id: Uuid): Promise<ArticleResDto> {
+    return this.articlesService.findById(id);
+  }
+
+  @ApiAuth({
+    type: ArticleResDto,
+    summary: 'Create article (admin)',
+    statusCode: 201,
+  })
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() dto: CreateArticleReqDto): Promise<ArticleResDto> {

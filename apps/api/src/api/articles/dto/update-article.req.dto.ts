@@ -1,4 +1,7 @@
-import { BooleanFieldOptional, StringFieldOptional } from '@/decorators/field.decorators';
+import {
+  BooleanFieldOptional,
+  StringFieldOptional,
+} from '@/decorators/field.decorators';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsArray, IsOptional, IsString } from 'class-validator';
 

@@ -1,7 +1,11 @@
 import { Uuid } from '@/common/types/common.type';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose, Type } from 'class-transformer';
-import { OrderStatus, PaymentMethod, PaymentStatus } from '../entities/order.entity';
+import {
+  OrderStatus,
+  PaymentMethod,
+  PaymentStatus,
+} from '../entities/order.entity';
 
 export class OrderItemResDto {
   @ApiProperty()

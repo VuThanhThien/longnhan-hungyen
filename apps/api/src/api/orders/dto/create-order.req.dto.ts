@@ -1,7 +1,18 @@
-import { NumberField, StringField, StringFieldOptional } from '@/decorators/field.decorators';
+import {
+  NumberField,
+  StringField,
+  StringFieldOptional,
+} from '@/decorators/field.decorators';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsArray, IsEnum, IsOptional, IsUUID, ValidateNested } from 'class-validator';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsEnum,
+  IsOptional,
+  IsUUID,
+  ValidateNested,
+} from 'class-validator';
 import { PaymentMethod } from '../entities/order.entity';
 
 export class CreateOrderItemDto {

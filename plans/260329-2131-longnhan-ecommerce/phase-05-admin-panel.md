@@ -1,7 +1,8 @@
 ---
 phase: 5
-title: "Admin Panel"
+title: "Admin Panel (Next.js Admin)"
 status: in-progress
+completion: 75%
 effort: 10h
 depends_on: [3]
 ---
@@ -16,8 +17,11 @@ depends_on: [3]
 ## Overview
 
 - **Priority:** P1
-- **Status:** in-progress
-- Build admin panel with JWT authentication, dashboard, and CRUD management for orders, products, articles, and media. Uses shadcn/ui + TanStack Table + Tiptap editor.
+- **Status:** IN PROGRESS (~75% complete)
+- **Completion Target:** 2026-04-10
+- **Completed:** Login, dashboard, products/articles/orders/media CRUD pages, Radix UI + charts, React Query hooks, API proxies, Server Actions, TiptapHtmlEditor
+- **Remaining:** Date-range/search filters, storefront reflection verification (PDP parity), E2E test suite
+- Build admin panel with JWT authentication, dashboard, and CRUD management for orders, products, articles, and media. Uses Radix UI + React Query + Tiptap editor.
 
 ## Scope Alignment (2026-03-31)
 
@@ -42,7 +46,7 @@ depends_on: [3]
 - Orders: data table with filters (status, payment, date range, search), status update buttons
 - Products: data table + create/edit forms with variant management, image upload, URL binding to `featuredImageUrl` and `images[]`
 - Articles: data table + create/edit with Tiptap rich text editor, image insertion, SEO field management (`metaTitle`, `metaDescription`)
-- Media: gallery view, drag-and-drop upload to Cloudinary, copy URL for product/article configuration
+- Media: gallery view, upload to Cloudinary, copy URL for product/article configuration
 - Logout
 
 ### Non-Functional
@@ -111,8 +115,8 @@ apps/admin/
 │   │   ├── article-form.tsx
 │   │   └── tiptap-editor.tsx
 │   ├── media/
-│   │   ├── media-gallery.tsx
-│   │   ├── upload-dropzone.tsx
+│   │   ├── media-manager.tsx
+│   │   ├── media-url-picker.tsx
 │   │   └── media-card.tsx
 │   └── ui/                      # shadcn/ui components
 │       ├── button.tsx
@@ -195,7 +199,7 @@ npx shadcn@latest add button input table card badge select dialog tabs toast tex
 pnpm add @tanstack/react-table
 pnpm add @tiptap/react @tiptap/starter-kit @tiptap/extension-image @tiptap/extension-link
 pnpm add recharts
-pnpm add react-dropzone
+# optional: pnpm add react-dropzone (if true drag-drop UX is implemented)
 ```
 
 ### 2. Auth Middleware
@@ -270,7 +274,7 @@ export const config = { matcher: ['/((?!_next|api|favicon.ico).*)'] };
 ### 9. Media Gallery
 
 - Grid of uploaded images (cards with thumbnail + filename + URL)
-- Upload dropzone: drag-and-drop or click, upload to Cloudinary
+- Upload action: click-to-upload (drag-drop optional follow-up), upload to Cloudinary
 - Click to copy URL
 - Delete with confirmation
 
@@ -281,14 +285,15 @@ export const config = { matcher: ['/((?!_next|api|favicon.ico).*)'] };
 - [x] Build login page + Server Action
 - [x] Build dashboard layout (sidebar + header)
 - [x] Build dashboard page (stat cards + chart + recent orders)
-- [ ] Build orders table with filters
-- [ ] Build order detail + status update
-- [ ] Build products table
-- [ ] Build product create/edit form with variant fields
-- [ ] Build image upload component + URL picker workflow for product form
-- [ ] Build articles table
-- [ ] Build article create/edit form with Tiptap editor + SEO fields
-- [ ] Build media gallery with upload dropzone + copy URL action
+- [x] Build orders table with status/payment filters
+- [ ] Add date-range + search filters to orders table
+- [x] Build order detail + status update
+- [x] Build products table
+- [x] Build product create/edit form with variant fields
+- [x] Build image upload component + URL picker workflow for product form
+- [x] Build articles table
+- [x] Build article create/edit form with Tiptap editor + SEO fields
+- [x] Build media gallery with upload + copy URL action
 - [ ] Verify product detail page reflects `featuredImageUrl` / `images[]` after admin update
 - [ ] Verify article detail page reflects `featuredImageUrl` + `contentHtml` after admin update
 - [x] Decide article freshness strategy: keep ISR=3600 (selected)

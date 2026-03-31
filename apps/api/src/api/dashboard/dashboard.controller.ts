@@ -12,13 +12,20 @@ type StatsPeriod = (typeof VALID_PERIODS)[number];
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
-  @ApiAuth({ type: DashboardStatsResDto, summary: 'Get dashboard stats (admin)' })
+  @ApiAuth({
+    type: DashboardStatsResDto,
+    summary: 'Get dashboard stats (admin)',
+  })
   @ApiQuery({ name: 'period', enum: VALID_PERIODS, required: false })
   @Get('stats')
-  async getStats(@Query('period') period?: string): Promise<DashboardStatsResDto> {
+  async getStats(
+    @Query('period') period?: string,
+  ): Promise<DashboardStatsResDto> {
     const resolved = (period ?? 'month') as StatsPeriod;
     if (period && !VALID_PERIODS.includes(resolved)) {
-      throw new BadRequestException(`period must be one of: ${VALID_PERIODS.join(', ')}`);
+      throw new BadRequestException(
+        `period must be one of: ${VALID_PERIODS.join(', ')}`,
+      );
     }
     return this.dashboardService.getStats(resolved);
   }

@@ -1,8 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { OrderEntity, OrderStatus, PaymentStatus } from '../orders/entities/order.entity';
-import { DashboardStatsResDto, OrderDayStatDto } from './dto/dashboard-stats.res.dto';
+import {
+  OrderEntity,
+  OrderStatus,
+  PaymentStatus,
+} from '../orders/entities/order.entity';
+import {
+  DashboardStatsResDto,
+  OrderDayStatDto,
+} from './dto/dashboard-stats.res.dto';
 
 type StatsPeriod = 'today' | 'week' | 'month' | 'all';
 
@@ -32,7 +39,10 @@ export class DashboardService {
     const countByStatus = (status: OrderStatus): number =>
       parseInt(statusCounts.find((r) => r.status === status)?.count ?? '0', 10);
 
-    const totalOrders = statusCounts.reduce((sum, r) => sum + parseInt(r.count, 10), 0);
+    const totalOrders = statusCounts.reduce(
+      (sum, r) => sum + parseInt(r.count, 10),
+      0,
+    );
     const pendingOrders = countByStatus(OrderStatus.PENDING);
     const confirmedOrders = countByStatus(OrderStatus.CONFIRMED);
     const deliveredOrders = countByStatus(OrderStatus.DELIVERED);
@@ -52,7 +62,10 @@ export class DashboardService {
 
     // Daily stats via SQL GROUP BY date
     const dailyRows = await baseQb()
-      .select(`TO_CHAR(order.createdAt AT TIME ZONE 'UTC', 'YYYY-MM-DD')`, 'date')
+      .select(
+        `TO_CHAR(order.createdAt AT TIME ZONE 'UTC', 'YYYY-MM-DD')`,
+        'date',
+      )
       .addSelect('COUNT(*)', 'count')
       .addSelect('SUM(order.total)', 'revenue')
       .groupBy(`TO_CHAR(order.createdAt AT TIME ZONE 'UTC', 'YYYY-MM-DD')`)

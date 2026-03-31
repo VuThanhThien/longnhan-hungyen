@@ -1,20 +1,17 @@
 import { OffsetPaginatedDto } from '@/common/dto/offset-pagination/paginated.dto';
 import { Uuid } from '@/common/types/common.type';
 import { paginate } from '@/utils/offset-pagination';
-import {
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
 import slugify from 'slugify';
 import { DataSource, Repository } from 'typeorm';
-import { ProductVariantEntity } from './entities/product-variant.entity';
-import { ProductEntity } from './entities/product.entity';
 import { CreateProductReqDto } from './dto/create-product.req.dto';
 import { ProductQueryReqDto } from './dto/product-query.req.dto';
 import { ProductResDto } from './dto/product.res.dto';
 import { UpdateProductReqDto } from './dto/update-product.req.dto';
+import { ProductVariantEntity } from './entities/product-variant.entity';
+import { ProductEntity } from './entities/product.entity';
 
 @Injectable()
 export class ProductsService {
@@ -29,11 +26,23 @@ export class ProductsService {
   /** Public: list active products with variants */
   async findMany(
     dto: ProductQueryReqDto,
+    options?: { includeInactive?: boolean },
   ): Promise<OffsetPaginatedDto<ProductResDto>> {
-    const qb = this.productRepo
-      .createQueryBuilder('product')
-      .leftJoinAndSelect('product.variants', 'variant', 'variant.active = true')
-      .where('product.active = true');
+    const includeInactive = options?.includeInactive === true;
+    const qb = this.productRepo.createQueryBuilder('product');
+    if (includeInactive) {
+      qb.leftJoinAndSelect('product.variants', 'variant');
+    } else {
+      qb.leftJoinAndSelect(
+        'product.variants',
+        'variant',
+        'variant.active = true',
+      );
+    }
+
+    if (!includeInactive) {
+      qb.where('product.active = true');
+    }
 
     if (dto.category) {
       qb.andWhere('product.category = :category', { category: dto.category });
@@ -42,10 +51,21 @@ export class ProductsService {
       qb.andWhere('product.name ILIKE :q', { q: `%${dto.q}%` });
     }
 
-    qb.orderBy('product.createdAt', 'DESC').addOrderBy('variant.sortOrder', 'ASC');
+    qb.orderBy('product.createdAt', 'DESC').addOrderBy(
+      'variant.sortOrder',
+      'ASC',
+    );
 
-    const [products, meta] = await paginate(qb, dto, { skipCount: false, takeAll: false });
-    return new OffsetPaginatedDto(plainToInstance(ProductResDto, products, { excludeExtraneousValues: true }), meta);
+    const [products, meta] = await paginate(qb, dto, {
+      skipCount: false,
+      takeAll: false,
+    });
+    return new OffsetPaginatedDto(
+      plainToInstance(ProductResDto, products, {
+        excludeExtraneousValues: true,
+      }),
+      meta,
+    );
   }
 
   /** Public: single product by slug */
@@ -59,7 +79,24 @@ export class ProductsService {
       .getOne();
 
     if (!product) throw new NotFoundException('Product not found');
-    return plainToInstance(ProductResDto, product, { excludeExtraneousValues: true });
+    return plainToInstance(ProductResDto, product, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  /** Admin: get single product by id */
+  async findById(id: Uuid): Promise<ProductResDto> {
+    const product = await this.productRepo
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.variants', 'variant')
+      .where('product.id = :id', { id })
+      .orderBy('variant.sortOrder', 'ASC')
+      .getOne();
+
+    if (!product) throw new NotFoundException('Product not found');
+    return plainToInstance(ProductResDto, product, {
+      excludeExtraneousValues: true,
+    });
   }
 
   /** Admin: create product with variants */
@@ -94,12 +131,17 @@ export class ProductsService {
       saved.variants = await this.variantRepo.save(variants);
     }
 
-    return plainToInstance(ProductResDto, saved, { excludeExtraneousValues: true });
+    return plainToInstance(ProductResDto, saved, {
+      excludeExtraneousValues: true,
+    });
   }
 
   /** Admin: update product + replace variants atomically */
   async update(id: Uuid, dto: UpdateProductReqDto): Promise<ProductResDto> {
-    const product = await this.productRepo.findOne({ where: { id }, relations: ['variants'] });
+    const product = await this.productRepo.findOne({
+      where: { id },
+      relations: ['variants'],
+    });
     if (!product) throw new NotFoundException('Product not found');
 
     if (dto.name && dto.name !== product.name) {
@@ -110,7 +152,9 @@ export class ProductsService {
       ...(dto.description !== undefined && { description: dto.description }),
       ...(dto.basePrice !== undefined && { basePrice: dto.basePrice }),
       ...(dto.images !== undefined && { images: dto.images }),
-      ...(dto.featuredImageUrl !== undefined && { featuredImageUrl: dto.featuredImageUrl }),
+      ...(dto.featuredImageUrl !== undefined && {
+        featuredImageUrl: dto.featuredImageUrl,
+      }),
       ...(dto.videoUrl !== undefined && { videoUrl: dto.videoUrl }),
       ...(dto.category !== undefined && { category: dto.category }),
       ...(dto.active !== undefined && { active: dto.active }),
@@ -144,7 +188,9 @@ export class ProductsService {
       return savedProduct;
     });
 
-    return plainToInstance(ProductResDto, saved, { excludeExtraneousValues: true });
+    return plainToInstance(ProductResDto, saved, {
+      excludeExtraneousValues: true,
+    });
   }
 
   /** Admin: soft delete (set active = false) */
@@ -155,12 +201,17 @@ export class ProductsService {
     await this.productRepo.save(product);
   }
 
-  private async generateUniqueSlug(name: string, excludeId?: Uuid): Promise<string> {
+  private async generateUniqueSlug(
+    name: string,
+    excludeId?: Uuid,
+  ): Promise<string> {
     const base = slugify(name, { lower: true, strict: true, locale: 'vi' });
     let slug = base;
     let counter = 1;
     while (true) {
-      const qb = this.productRepo.createQueryBuilder('p').where('p.slug = :slug', { slug });
+      const qb = this.productRepo
+        .createQueryBuilder('p')
+        .where('p.slug = :slug', { slug });
       if (excludeId) qb.andWhere('p.id != :id', { id: excludeId });
       const exists = await qb.getOne();
       if (!exists) break;

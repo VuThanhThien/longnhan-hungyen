@@ -1,17 +1,22 @@
 # Project Overview & PDR (Product Development Requirements)
 
-## Project: Long Nhan Hung Yen E-commerce API
+## Project: Long Nhan Hung Yen E-commerce Platform (API + Web + Admin)
 
-**Status:** In Development
-**Version:** 0.0.1
+**Status:** In Development (82% complete)
+**Version:** 0.1.0-alpha
 **Team:** ViBe Coding Team
-**Last Updated:** 2026-03-30
+**Last Updated:** 2026-04-01
 
 ---
 
 ## Executive Summary
 
-Long Nhan Hung Yen is a full-featured e-commerce API platform built with NestJS, TypeScript, and PostgreSQL. It enables end-to-end management of longan fruit product sales, including product catalogs, order processing, media uploads, and admin analytics.
+Long Nhan Hung Yen is a full-stack e-commerce platform for longan specialty products with three integrated applications:
+- **API (NestJS):** REST backend with JWT auth, product/order/media management, admin dashboard
+- **Web (Next.js):** Public-facing storefront with product catalog, articles, order submission
+- **Admin (Next.js):** Admin dashboard for products, articles, orders, media, and analytics
+
+Target: Vietnamese market, SEO-optimized, ad-free, premium design.
 
 ---
 
@@ -23,29 +28,46 @@ Provide a scalable, secure, and maintainable backend API for an e-commerce platf
 
 ## Core Features
 
-### Released/Implemented
-- **E-commerce Modules** — Products, Orders, Articles, Media management
+### Released/Implemented (Backend - Phase 3)
+- **API Modules** — Auth, Users, Products, Orders, Articles, Media, Dashboard, Health
 - **Authentication** — JWT-based with email sign-in/up, Argon2 password hashing
 - **Authorization** — Role-Based Access Control (RBAC) for admin/user roles
-- **Media Uploads** — Cloudinary integration for product images and media
-- **Pagination** — Offset and cursor-based pagination support
+- **Products** — CRUD, slug-based routing, variants, pessimistic stock locking
+- **Orders** — Creation with variant snapshots, status tracking, code format LN-YYMMDD-XXXX
+- **Articles** — Blog/CMS with DRAFT/PUBLISHED status, Tiptap content
+- **Media** — Cloudinary upload/delete, folder management, dual removal safety
+- **Dashboard** — Admin stats (revenue by period, order count, daily breakdown)
+- **Email** — Nodemailer + templates (queued via BullMQ)
 - **API Documentation** — Swagger/OpenAPI at `/api-docs`
 - **Database** — TypeORM with PostgreSQL, auto-generated migrations
-- **Seeding** — Sample data via typeorm-extension with Faker
-- **Testing** — Jest unit tests + E2E test support
-- **Email Delivery** — Nodemailer + NestJS Mailer with Handlebars templates
-- **Background Jobs** — BullMQ queue processing for async tasks
-- **Caching** — Redis cache-manager integration
-- **Monitoring** — Health check endpoints
+- **Caching** — Redis cache-manager, pessimistic locking
 - **Docker** — Local dev and production compose setups
 - **CI/CD** — GitHub Actions workflows
 
+### Released/Implemented (Web - Phase 4, ~95%)
+- **Storefront Pages** — Landing, Products list/detail, Articles list/detail, Order success
+- **Landing Sections** — Hero, Story, ProductQuality, NutritionSeason, Channels, Testimonials, FAQ
+- **ISR** — Home (revalidate 300s), Products (60s)
+- **SEO** — JSON-LD schema, robots.txt, sitemap.xml, dynamic metadata
+- **Auth** — Cookie-based tokens, auto-refresh 60s before expiry
+- **Data Fetching** — React Query (stale 60s), TanStack Query hooks
+- **Forms** — Server Actions for order creation, yup validation
+- **Images** — Cloudinary loader with optimization
+- **Remaining** — Mobile viewport pass, Lighthouse audit (≥85 performance)
+
+### Released/Implemented (Admin - Phase 5, ~75%)
+- **Pages** — Login, Dashboard, Products CRUD, Articles CRUD, Orders list/detail, Media manager
+- **State** — React Query (stale 30s), AuthProvider context
+- **Forms** — react-hook-form + yup, TiptapHtmlEditor for rich text
+- **API Proxies** — /api routes to backend (auth, media, orders status)
+- **HTTP** — Dual mode (adminFetch server-side, httpClient client-side Axios)
+- **UI** — Radix UI components, Recharts for dashboards
+- **Remaining** — Date-range filters, search filters, storefront verification, E2E tests
+
 ### In Progress / Planned
-- Integration testing suite expansion
-- Performance optimization (caching strategies)
-- Comprehensive logging/monitoring (Google Cloud Logging, AWS CloudWatch)
-- Real-time notifications (WebSockets)
-- Multi-language i18n (framework in place, translations needed)
+- **Phase 6 (Frontend Animation)** — motion library, ScrollReveal, hero/FAQ/channels/testimonials polish
+- **Phase 7 (Deployment)** — Railway (API), Vercel (web + admin), monitoring, SSL
+- **Post-Launch** — API rate limiting, payment integration, customer reviews, real-time notifications
 
 ---
 
@@ -82,13 +104,15 @@ Provide a scalable, secure, and maintainable backend API for an e-commerce platf
 ```
 longnhantongtran/
 ├── apps/
-│   └── api/                    # Main NestJS API app
+│   ├── api/                    # NestJS REST API (backend)
+│   ├── web/                    # Next.js storefront (public)
+│   └── admin/                  # Next.js admin dashboard
 ├── packages/
-│   └── types/                  # Shared TypeScript types
+│   └── types/                  # Shared TypeScript interfaces
 ├── docker-compose.yml          # Prod infra (db, redis, maildev, pgadmin)
-├── docker-compose.local.yml    # Local dev stack with hot-reload
+├── docker-compose.local.yml    # Local dev stack (+ API hot-reload)
 ├── pnpm-workspace.yaml         # Workspace config
-└── turbo.json                  # Turborepo config
+└── turbo.json                  # Turborepo orchestration
 ```
 
 ---
@@ -202,15 +226,15 @@ longnhantongtran/
 
 ## Timeline & Milestones
 
-| Phase | Duration | Status | Key Deliverables |
-|-------|----------|--------|-------------------|
-| Phase 1: Core Setup | Complete | Done | Project structure, CI/CD, Docker |
-| Phase 2: Auth & DB | Complete | Done | JWT auth, PostgreSQL, migrations |
-| Phase 3: E-commerce | Complete | Done | Products, Orders, Articles modules |
-| Phase 4: Media & Admin | Complete | Done | Cloudinary, Dashboard, RBAC |
-| Phase 5: Testing | In Progress | 40% | Unit tests, E2E tests, coverage |
-| Phase 6: Optimization | Planned | 0% | Caching, performance tuning |
-| Phase 7: Deployment | Planned | 0% | Production setup, monitoring |
+| Phase | Duration | Status | Progress | Key Deliverables |
+|-------|----------|--------|----------|-------------------|
+| Phase 1: Monorepo Setup | 3 days | Done | 100% | Turborepo, pnpm, Docker, CI/CD |
+| Phase 2: Database | 5 days | Done | 100% | TypeORM, 8 entities, migrations |
+| Phase 3: Backend API | 10 days | Done | 100% | 10 modules, auth, CRUD, dashboard |
+| Phase 4: Storefront | 12 days | In Progress | ~95% | Next.js web, SEO, ISR, checkout |
+| Phase 5: Admin Panel | 10 days | In Progress | ~75% | Next.js admin, products/articles/orders/media CRUD |
+| Phase 6: Frontend Animation | 5 days | In Progress | ~40% | motion library, ScrollReveal, hero/FAQ polish |
+| Phase 7: Deployment | 2 days | Pending | 0% | Railway API, Vercel web+admin, monitoring |
 
 ---
 

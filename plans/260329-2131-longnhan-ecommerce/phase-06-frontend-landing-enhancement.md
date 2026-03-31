@@ -2,6 +2,7 @@
 phase: 6
 title: "Frontend — landing motion & effects"
 status: in-progress
+completion: 40%
 effort: 5h
 depends_on: [1]
 ---
@@ -11,13 +12,17 @@ depends_on: [1]
 ## Context Links
 
 - [Plan Overview](plan.md)
-- [Phase 4: Storefront](phase-04-storefront.md) — global layout/header/footer may land here first; this phase focuses on **home landing** only.
+- [Phase 4: Storefront](phase-04-storefront.md) — global layout/header/footer; this phase focuses on **home landing** animation only
+- [Supplementary Animation Plan](../260331-1000-frontend-animation-enhancement/plan.md) — Detailed 4-phase breakdown (reference for implementation detail)
 
 ## Overview
 
 - **Priority:** P1 (business-facing marketing surface)
-- **Status:** in-progress
-- Elevate `apps/web` **landing page** (`src/app/page.tsx` + `src/components/landing/*`) with purposeful **motion, micro-interactions, and scroll effects** while keeping **SEO, LCP, and CLS** healthy. Stack is **Next.js App Router + React 19 + Tailwind CSS v4** (not MUI/TanStack Router — ignore generic frontend-development skill paths that assume Vite/MUI).
+- **Status:** IN PROGRESS (~40% complete)
+- **Completion Target:** 2026-04-15
+- **Completed:** `motion` library installed, `ScrollReveal` component wrapping landing sections, basic scroll-triggered reveals
+- **Remaining:** Hero animation polish, FAQ accordion motion, channels/testimonials animation, Lighthouse audit (performance ≥85%)
+- Elevate `apps/web` **landing page** (`src/app/page.tsx` + `src/components/landing/*`) with purposeful **motion, micro-interactions, and scroll effects** while keeping **SEO, LCP, and CLS** healthy. Stack: **Next.js App Router + React 19 + Tailwind CSS v4**.
 
 ## Business goals
 
