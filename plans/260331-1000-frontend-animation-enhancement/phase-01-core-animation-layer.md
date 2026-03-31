@@ -8,7 +8,7 @@
 
 ## Overview
 - **Priority:** P1 (prerequisite for all other phases)
-- **Status:** Pending
+- **Status:** in-progress
 - **Effort:** ~4h
 - Install `motion` library and build the reusable animation infrastructure that all other phases depend on.
 

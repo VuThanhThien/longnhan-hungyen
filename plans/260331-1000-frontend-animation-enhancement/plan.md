@@ -7,7 +7,7 @@ effort: ~16h
 branch: master
 tags: [frontend, feature, animation, ux]
 created: 2026-03-31
-updated: "2026-03-31T18:00"
+updated: "2026-03-31T18:15"
 ---
 
 # Frontend Animation Enhancement
@@ -20,7 +20,7 @@ Style direction: premium organic food brand — scroll-triggered reveals, soft p
 
 ## Progress & continuity
 
-**Last updated:** 2026-03-31 (PM status + memo sync)
+**Last updated:** 2026-03-31 (consistency sync)
 
 - `motion` is installed; `pnpm --filter @longnhan/web type-check` passes.
 - `ScrollReveal` wraps landing + home sections on `app/page.tsx` (interim pattern vs plan’s `AnimatedSection` / `StaggerContainer` filenames).

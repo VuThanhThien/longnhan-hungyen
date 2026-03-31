@@ -1,6 +1,6 @@
 # Long Nhãn Tống Trân — project status
 
-**Last sync:** 2026-03-31 (18:00)  
+**Last sync:** 2026-03-31 (18:15)  
 **Tracked plans:** `plans/260329-2131-longnhan-ecommerce/plan.md`, `plans/260331-1000-frontend-animation-enhancement/plan.md`  
 **Handoff detail:** `agent-memo.md` (same folder)
 
@@ -8,7 +8,7 @@
 
 | Plan | Status | Checklist progress | Notes |
 |------|--------|--------------------|-------|
-| Long Nhan e-commerce | in-progress | 68/94 (~72.3%) | Phases 1–3 complete; 4–6 in progress; 7 pending |
+| Long Nhan e-commerce | in-progress | 69/94 (~73.4%) | Phases 1–3 complete; 4–6 in progress; 7 pending |
 | Frontend animation enhancement | in-progress | 4/39 (~10.3%) | Phase 1 partial (`motion` + `ScrollReveal`); 2–4 unchecked |
 
 ## E-commerce phase rollup
@@ -53,5 +53,5 @@
 - `plans/reports/pm-260330-1433-phase1-2-completion.md`
 - `plans/reports/pm-260330-1436-phase3-completion.md`
 - `plans/reports/pm-260330-session-sync.md`
-- `plans/reports/pm-260331-1629-status-sync.md`
 - `plans/reports/pm-260331-1800-status-sync.md`
+- `plans/reports/pm-260331-1815-admin-product-article-media-scope-sync.md`

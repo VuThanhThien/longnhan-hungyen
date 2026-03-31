@@ -17,12 +17,12 @@ export function LandingTestimonialsTrust() {
               {LANDING_TESTIMONIALS.items.map((t, i) => (
                 <li
                   key={i}
-                  className="rounded-sm border border-[var(--brand-forest)]/10 bg-[var(--brand-cream)]/40 p-8"
+                  className="rounded-sm border border-(--brand-forest)/10 bg-(--brand-cream)/40 p-8"
                 >
-                  <blockquote className="text-[var(--brand-forest-muted)] leading-relaxed">&ldquo;{t.quote}&rdquo;</blockquote>
-                  <footer className="mt-4 text-sm font-semibold text-[var(--brand-forest)]">
+                  <blockquote className="text-(--brand-forest-muted) leading-relaxed">&ldquo;{t.quote}&rdquo;</blockquote>
+                  <footer className="mt-4 text-sm font-semibold text-(--brand-forest)">
                     {t.author}
-                    {t.location ? <span className="font-normal text-[var(--brand-forest-muted)]"> — {t.location}</span> : null}
+                    {t.location ? <span className="font-normal text-(--brand-forest-muted)"> — {t.location}</span> : null}
                   </footer>
                 </li>
               ))}
@@ -32,19 +32,19 @@ export function LandingTestimonialsTrust() {
       ) : (
         <section className="bg-white px-4 py-16">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="text-sm font-medium uppercase tracking-wider text-[var(--brand-gold-dark)]">
+            <p className="text-sm font-medium uppercase tracking-wider text-(--brand-gold-dark)">
               {LANDING_TESTIMONIALS.sectionTitle}
             </p>
-            <p className="mt-2 text-[var(--brand-forest-muted)]">{LANDING_TESTIMONIALS.sectionSubtitle}</p>
+            <p className="mt-2 text-(--brand-forest-muted)">{LANDING_TESTIMONIALS.sectionSubtitle}</p>
           </div>
         </section>
       )}
-      <section className="border-t border-[var(--brand-forest)]/10 bg-[var(--brand-cream)] px-4 py-16">
+      <section className="border-t border-(--brand-forest)/10 bg-(--brand-cream) px-4 py-16">
         <div className="mx-auto max-w-3xl">
           <SectionHeading title={LANDING_TRUST.sectionTitle} />
-          <ul className="space-y-3 text-[var(--brand-forest-muted)] leading-relaxed">
+          <ul className="space-y-3 text-(--brand-forest-muted) leading-relaxed">
             {LANDING_TRUST.items.map((line) => (
-              <li key={line} className="flex gap-2 before:text-[var(--brand-gold-dark)] before:content-['✦']">
+              <li key={line} className="flex gap-2 before:text-(--brand-gold-dark) before:content-['✦']">
                 <span>{line}</span>
               </li>
             ))}

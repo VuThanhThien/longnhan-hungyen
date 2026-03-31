@@ -37,7 +37,7 @@ export function LandingHero() {
           <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center md:justify-start">
             <a
               href={`tel:${tel}`}
-              className="inline-flex min-h-12 items-center justify-center rounded-sm bg-(--brand-forest) px-8 text-sm font-semibold tracking-wide text-[var(--brand-cream)] shadow-md transition hover:bg-[var(--brand-forest-soft)]"
+              className="inline-flex min-h-12 items-center justify-center rounded-sm bg-(--brand-forest) px-8 text-sm font-semibold tracking-wide text-(--brand-cream) shadow-md transition hover:bg-(--brand-forest-soft)"
             >
               {LANDING_HERO.primaryCta}
             </a>

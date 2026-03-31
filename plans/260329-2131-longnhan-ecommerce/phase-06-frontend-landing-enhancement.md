@@ -1,7 +1,7 @@
 ---
 phase: 6
 title: "Frontend — landing motion & effects"
-status: pending
+status: in-progress
 effort: 5h
 depends_on: [1]
 ---
@@ -16,7 +16,7 @@ depends_on: [1]
 ## Overview
 
 - **Priority:** P1 (business-facing marketing surface)
-- **Status:** pending
+- **Status:** in-progress
 - Elevate `apps/web` **landing page** (`src/app/page.tsx` + `src/components/landing/*`) with purposeful **motion, micro-interactions, and scroll effects** while keeping **SEO, LCP, and CLS** healthy. Stack is **Next.js App Router + React 19 + Tailwind CSS v4** (not MUI/TanStack Router — ignore generic frontend-development skill paths that assume Vite/MUI).
 
 ## Business goals

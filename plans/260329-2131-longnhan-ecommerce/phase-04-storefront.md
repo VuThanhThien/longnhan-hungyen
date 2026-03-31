@@ -1,7 +1,7 @@
 ---
 phase: 4
 title: "Storefront (Next.js Web)"
-status: pending
+status: in-progress
 effort: 12h
 depends_on: [3]
 ---
@@ -17,7 +17,7 @@ depends_on: [3]
 ## Overview
 
 - **Priority:** P1
-- **Status:** pending
+- **Status:** in-progress
 - Build public-facing storefront: landing page (hero + video + products), product list/detail with ISR, order form (Server Actions), articles/blog (SSG), Vietnamese SEO throughout.
 - **Product detail page (PDP)** matches structural parity with [reference PDP](https://tinhhoaphohien.vn/san-pham/long-nhan-vuong-gia-chi-qua) (see section below); branding and copy remain Long Nhãn Hưng Yên project–specific.
 

@@ -17,7 +17,7 @@ depends_on: [2]
 ## Overview
 
 - **Priority:** P1 (blocking storefront + admin)
-- **Status:** pending
+- **Status:** completed
 - Implement all NestJS modules: auth, products, orders, articles, media, dashboard. REST API with class-validator DTOs, JWT admin auth guard, Cloudinary upload.
 
 ## Key Insights

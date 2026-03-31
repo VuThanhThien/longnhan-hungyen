@@ -1,7 +1,7 @@
 ---
 phase: 5
 title: "Admin Panel"
-status: pending
+status: in-progress
 effort: 10h
 depends_on: [3]
 ---
@@ -16,8 +16,14 @@ depends_on: [3]
 ## Overview
 
 - **Priority:** P1
-- **Status:** pending
+- **Status:** in-progress
 - Build admin panel with JWT authentication, dashboard, and CRUD management for orders, products, articles, and media. Uses shadcn/ui + TanStack Table + Tiptap editor.
+
+## Scope Alignment (2026-03-31)
+
+- Primary goal of this phase is **content operations**: admin manages product/article information + media, then storefront product/article pages render configured fields/images dynamically.
+- Out of scope for this request: generic landing CMS blocks. Keep to `products`, `articles`, and `media` modules.
+- Existing backend DTO shape already supports this model (`featuredImageUrl`, `images`, `contentHtml`, SEO metadata fields).
 
 ## Key Insights
 
@@ -34,9 +40,9 @@ depends_on: [3]
 - Login page: email + password → JWT cookie
 - Dashboard: order count cards (today/week/month), revenue totals, recent orders list
 - Orders: data table with filters (status, payment, date range, search), status update buttons
-- Products: data table + create/edit forms with variant management, image upload
-- Articles: data table + create/edit with Tiptap rich text editor, image insertion
-- Media: gallery view, drag-and-drop upload to Cloudinary, copy URL
+- Products: data table + create/edit forms with variant management, image upload, URL binding to `featuredImageUrl` and `images[]`
+- Articles: data table + create/edit with Tiptap rich text editor, image insertion, SEO field management (`metaTitle`, `metaDescription`)
+- Media: gallery view, drag-and-drop upload to Cloudinary, copy URL for product/article configuration
 - Logout
 
 ### Non-Functional
@@ -44,6 +50,7 @@ depends_on: [3]
 - Responsive sidebar layout
 - Loading states + error handling on all API calls
 - Toast notifications for actions
+- Dynamic storefront reflection: product pages update via ISR window (60s), article pages update via current ISR window (3600s). On-demand revalidation is explicitly out of scope for this phase.
 
 ## Architecture
 
@@ -278,10 +285,13 @@ export const config = { matcher: ['/((?!_next|api|favicon.ico).*)'] };
 - [ ] Build order detail + status update
 - [ ] Build products table
 - [ ] Build product create/edit form with variant fields
-- [ ] Build image upload component
+- [ ] Build image upload component + URL picker workflow for product form
 - [ ] Build articles table
-- [ ] Build article create/edit form with Tiptap editor
-- [ ] Build media gallery with upload dropzone
+- [ ] Build article create/edit form with Tiptap editor + SEO fields
+- [ ] Build media gallery with upload dropzone + copy URL action
+- [ ] Verify product detail page reflects `featuredImageUrl` / `images[]` after admin update
+- [ ] Verify article detail page reflects `featuredImageUrl` + `contentHtml` after admin update
+- [x] Decide article freshness strategy: keep ISR=3600 (selected)
 - [x] Add toast notifications for all actions
 - [x] Add loading states and error handling
 - [ ] Test all CRUD operations end-to-end
@@ -292,10 +302,11 @@ export const config = { matcher: ['/((?!_next|api|favicon.ico).*)'] };
 - Dashboard shows correct order counts and revenue
 - Admin can create/edit/delete products with variants
 - Admin can create/edit/delete articles with rich text
-- Admin can upload images and use them in products/articles
+- Admin can upload images and use returned URLs in products/articles
 - Admin can view/filter orders and update statuses
 - All actions show success/error toast notifications
 - Unauthorized access redirects to login
+- Storefront product/article pages show admin-configured content and images without code changes
 
 ## Risk Assessment
 

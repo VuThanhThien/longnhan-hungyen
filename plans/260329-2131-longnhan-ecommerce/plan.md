@@ -7,7 +7,7 @@ effort: 47h
 branch: main
 tags: [ecommerce, nestjs, nextjs, typeorm, turborepo, vietnamese-seo, axios, tanstack-query]
 created: 2026-03-29
-updated: "2026-03-31T18:00"
+updated: "2026-03-31T18:15"
 ---
 
 # Long Nhan Hung Yen E-Commerce Platform
@@ -18,20 +18,21 @@ E-commerce + content platform selling "Long Nhan Hung Yen" (longan specialties) 
 
 ## Progress & continuity
 
-**Last updated:** 2026-03-31 (PM status + memo sync)
+**Last updated:** 2026-03-31 (scope alignment for admin product/article/media flow)
 
 | Artifact | Purpose |
 |----------|---------|
 | [`.agent/agent-memo.md`](../../.agent/agent-memo.md) | Session handoff — what to do next, key paths |
 | [`.agent/PROJECT-STATUS.md`](../../.agent/PROJECT-STATUS.md) / [`.claude/PROJECT-STATUS.md`](../../.claude/PROJECT-STATUS.md) | Phase rollup vs repo reality |
 | [`plans/reports/pm-260331-1800-status-sync.md`](../reports/pm-260331-1800-status-sync.md) | Latest PM checklist reconciliation |
+| [`plans/reports/brainstorm-260331-1815-admin-product-article-media-dynamic-pages.md`](../reports/brainstorm-260331-1815-admin-product-article-media-dynamic-pages.md) | Scope decision for admin-driven product/article dynamic pages |
 
 **Phases 1–3:** Done (monorepo, DB/entities, public + admin API surface per phase docs).
-**Checklist progress:** 68/94 tasks checked (~72.3%) across `phase-*.md` (synced to repo 2026-03-31).
+**Checklist progress:** 69/94 tasks checked (~73.4%) across `phase-*.md` (synced to repo 2026-03-31).
 
 **Phase 4 (near closure):** Storefront routes, PDP stack, articles, robots/sitemap, JSON-LD, Cloudinary loader, and metadata are implemented; **remaining** in `phase-04-storefront.md`: manual mobile viewport pass and Lighthouse audit. Confirm **order payload** parity with `CreateOrderReqDto` for reliable E2E submit.
 
-**Phase 5 (in progress):** Auth shell, dashboard overview, toasts, and basic loading/error paths exist; full orders/products/articles/media CRUD pages and E2E verification still open per `phase-05-admin-panel.md`.
+**Phase 5 (in progress):** Auth shell, dashboard overview, toasts, and basic loading/error paths exist; remaining priority is product/article/media CRUD completion + media URL binding and E2E verification of storefront reflection per `phase-05-admin-panel.md`.
 
 **Phase 6 (in progress):** `motion` dependency and `ScrollReveal`-based landing motion are in place; hero motion polish, FAQ accordion motion, channels/testimonials polish, optional keyframes, and Lighthouse smoke still open per `phase-06-frontend-landing-enhancement.md`.
 
@@ -40,6 +41,7 @@ E-commerce + content platform selling "Long Nhan Hung Yen" (longan specialties) 
 ## Research References
 
 - [Brainstorm Report](../reports/brainstorm-260329-2123-longnhan-hungyên-ecommerce.md)
+- [Scope Alignment Brainstorm (Admin product/article/media)](../reports/brainstorm-260331-1815-admin-product-article-media-dynamic-pages.md)
 - [NestJS + TypeORM Research](../reports/researcher-260329-2130-nestjs-typeorm-ecommerce-guide.md)
 - [Next.js SEO Research](../reports/researcher-260329-2129-nextjs14-ecommerce-vietnamese-seo.md)
 - [Backend Boilerplate](https://vndevteam.github.io/nestjs-boilerplate/development.html) — use as foundation for apps/api
@@ -85,7 +87,7 @@ Product detail page (PDP) UX and content structure should follow the parity spec
 1. **Simplified entity model** -- Product has variants (weight/size), no separate SKU table. MVP scope.
 2. **No customer auth** -- Orders captured via phone/email form, admin manages lifecycle.
 3. **Vietnamese-only** -- No i18n complexity. Single locale, UTF-8 throughout.
-4. **ISR for products** -- Revalidate every 60s for fresh stock data. SSG for articles.
+4. **ISR for products/articles** -- Product detail revalidate every 60s; article detail uses ISR window 3600s by explicit scope decision for current phase (no on-demand revalidation in Phase 5).
 5. **Server Actions for orders** -- No client-side cart state needed, single form submission.
 6. **CRITICAL: Frontend never touches DB directly** -- Both `apps/web` and `apps/admin` MUST call `apps/api` (NestJS REST API) for all data. No TypeORM/DB imports in frontend apps. All data access goes through HTTP API calls.
 
