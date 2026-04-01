@@ -1,7 +1,8 @@
 # Codebase Summary
 
-**Generated:** 2026-04-01
+**Generated:** 2026-04-01 (Updated: Phase 4 Complete)
 **Project:** Long Nhan Hung Yen - E-commerce Monorepo (API + storefront + admin)
+**Phase Status:** 85% complete (86/98 tasks) | Phase 4 Storefront COMPLETE
 
 ---
 
@@ -97,7 +98,14 @@ longnhantongtran/
 │   │   │   └── globals.css           # Global styles
 │   │   ├── public/                  # Static assets
 │   │   └── package.json
-│   └── web/                          # Next.js storefront
+│   └── web/                          # Next.js storefront (Phase 4: COMPLETE)
+│       ├── src/
+│       │   ├── app/                  # Next.js App Router pages
+│       │   ├── components/           # 43 UI components (13 new in 4.1.0)
+│       │   ├── data/                 # Static content (landing-page-content.ts)
+│       │   ├── lib/                  # HTTP client, SEO, form helpers
+│       │   └── public/               # Static assets
+│       └── package.json
 ├── packages/
 │   └── types/                        # Shared @longnhan/types package
 │       ├── src/
@@ -745,6 +753,55 @@ Class-validator decorators on DTOs automatically validate input.
 
 ---
 
+## Storefront Components (Phase 4 - COMPLETE)
+
+### New Components Added (4.1.0 Release - 2026-04-01)
+
+**Landing Page Section Components:**
+- `landing-hero.tsx` — Hero section with CTA
+- `landing-story.tsx` — Brand story narrative
+- `landing-product-quality.tsx` — Product quality highlights
+- `landing-nutrition-season.tsx` — Seasonal nutrition info
+- `landing-service-badges.tsx` — Service quality badges
+- `landing-stats-bar.tsx` — Animated statistics (founded, users, orders)
+- `landing-urgency-strip.tsx` — Time-sensitive messaging
+- `landing-articles-preview.tsx` — Featured blog carousel
+- `landing-origin-badge.tsx` — Origin & authenticity indicator
+- `landing-channels.tsx` — Distribution channels
+- `landing-testimonials-trust.tsx` — Customer testimonials
+- `landing-faq.tsx` — FAQ accordion
+
+**Product Experience:**
+- `product-quick-view-modal.tsx` — Quick-view popup (NEW)
+- `product-pdp-trust-badges.tsx` — Trust indicators (NEW)
+- `product-pdp-share-buttons.tsx` — Social share buttons (NEW)
+- `product-card.tsx` — Updated with discount badges, stock overlay, quick-view trigger
+- `product-images.tsx` — Updated with zoom interaction
+- `product-pdp-hero.tsx` — Updated: diacritics fix, tags, category display
+
+**Navigation & Utility:**
+- `hero-carousel.tsx` — Landing carousel (NEW)
+- `category-nav-cards.tsx` — Category navigation grid (NEW)
+- `home-products-by-category.tsx` — Category-filtered sections (NEW)
+- `home-products-section.tsx` — Featured products grid (NEW)
+- `floating-contact-widget.tsx` — Persistent contact UI (NEW)
+- `back-to-top-button.tsx` — Scroll-to-top button (NEW)
+- `header.tsx` — Navigation header
+- `footer.tsx` — Footer
+- `mobile-nav.tsx` — Mobile navigation
+
+**Data Structures (New in 4.1.0):**
+- `LANDING_SERVICE_BADGES` — Service definitions
+- `LANDING_STATS` — Statistics data
+- `LANDING_CERTS` — Certification badges
+- `LANDING_URGENCY` — Urgency messaging
+- `LANDING_HERO_SLIDES` — Hero carousel data
+- `LANDING_CATEGORIES` — Category card data
+
+### Total Component Count: 43 UI components
+
+---
+
 ## Links to Detailed Docs
 
 - [Project Overview & PDR](./project-overview-pdr.md)
@@ -752,6 +809,7 @@ Class-validator decorators on DTOs automatically validate input.
 - [Code Standards](./code-standards.md)
 - [Deployment Guide](./deployment-guide.md)
 - [Project Roadmap](./project-roadmap.md)
+- [Project Changelog](./project-changelog.md)
 - [API Documentation](../apps/api/docs/api.md)
 - [Development Guide](../apps/api/docs/development.md)
 

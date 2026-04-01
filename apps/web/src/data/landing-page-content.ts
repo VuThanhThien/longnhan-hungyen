@@ -103,7 +103,7 @@ export const LANDING_PRICING = {
 export const LANDING_TESTIMONIALS: {
   sectionTitle: string;
   sectionSubtitle: string;
-  items: { quote: string; author: string; location?: string }[];
+  items: { quote: string; author: string; location?: string; rating?: number }[];
 } = {
   sectionTitle: 'Khách hàng tin chọn',
   sectionSubtitle: 'Cập nhật đánh giá thật khi có dữ liệu',
@@ -152,12 +152,66 @@ export const LANDING_CHANNELS = {
 } as const;
 
 export const LANDING_TRUST = {
-  sectionTitle: 'Uy tín & minh bạch',
+  sectionTitle: 'Cam kết của chúng tôi',
   items: [
-    'Điền MST, địa chỉ kinh doanh, chính sách đổi trả tại đây.',
-    'Điền giấy chứng nhận ATTP / OCOP nếu có.',
+    'Giao hàng COD toàn quốc — nhận hàng mới thanh toán',
+    'Đổi trả trong 7 ngày nếu sản phẩm lỗi hoặc không đúng mô tả',
+    'Quy trình chế biến khép kín, an toàn vệ sinh thực phẩm',
+    'Hỗ trợ tư vấn miễn phí qua Zalo và điện thoại',
   ],
 } as const;
 
 export const LANDING_FOOTER_TAGLINE =
   'Đặc sản Hưng Yên — long nhãn chọn lọc, quà biếu sang trọng, giao hàng tận nơi.';
+
+// Phase 1 — Conversion Elements
+export const LANDING_SERVICE_BADGES = [
+  { icon: 'truck', label: 'Giao hàng 24h', sublabel: 'Toàn quốc' },
+  { icon: 'chat', label: 'Tư vấn miễn phí', sublabel: 'Zalo & điện thoại' },
+  { icon: 'cash', label: 'Thanh toán COD', sublabel: 'Nhận hàng mới trả' },
+] as const;
+
+// Phase 2 — Trust & Social Proof
+export const LANDING_STATS = [
+  { value: '500+', label: 'Đơn hàng mỗi mùa' },
+  { value: '5+', label: 'Năm kinh nghiệm' },
+  { value: '98%', label: 'Khách hài lòng' },
+] as const;
+
+export const LANDING_CERTS = {
+  sectionTitle: 'Chứng nhận & uy tín',
+  items: [
+    { label: 'An toàn thực phẩm', imageSrc: null },
+    { label: 'Sản phẩm OCOP', imageSrc: null },
+  ],
+} as const;
+
+// Phase 3 — UX Polish
+export const LANDING_URGENCY = {
+  enabled: true,
+  message: 'Mùa nhãn tháng 7–9 — Liên hệ sớm để đảm bảo nguồn hàng chất lượng nhất',
+} as const;
+
+// Phase 6 — Home Page Enhancement
+export const LANDING_HERO_SLIDES = [
+  {
+    headline: 'Long nhãn Hưng Yên\nvương giả chi quả',
+    subhead: 'Hương vị cổ truyền, chọn lọc từ vườn nhãn xứ Đông — món quà quê nhà ý nghĩa.',
+    ctaLabel: 'Đặt hàng — COD toàn quốc',
+    ctaHref: '/products',
+    imageSrc: null as string | null,
+  },
+  {
+    headline: 'Set quà cao cấp\nbiếu tặng ý nghĩa',
+    subhead: 'Hộp quà sang trọng, phù hợp mọi dịp lễ và doanh nghiệp.',
+    ctaLabel: 'Xem bộ quà tặng',
+    ctaHref: '/products',
+    imageSrc: null as string | null,
+  },
+];
+
+export const LANDING_CATEGORIES = [
+  { label: 'Đặc sản Hưng Yên', href: '/products?category=longnhan', icon: '🌿' },
+  { label: 'Giải pháp quà tặng', href: '/products?category=gift', icon: '🎁' },
+  { label: 'Bộ quà tặng', href: '/products?category=giftset', icon: '📦' },
+] as const;

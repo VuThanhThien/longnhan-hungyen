@@ -5,6 +5,8 @@ import './globals.css';
 import { AppProviders } from '@/components/providers/app-providers';
 import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
+import FloatingContactWidget from '@/components/layout/floating-contact-widget';
+import BackToTopButton from '@/components/ui/back-to-top-button';
 import { buildOrganizationSchema } from '@/lib/structured-data';
 import { SITE_URL } from '@/lib/constants';
 import { LANDING_SEO } from '@/data/landing-page-content';
@@ -66,8 +68,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="min-h-full flex flex-col antialiased">
         <AppProviders>
           <Header />
-          <main className="flex-1">{children}</main>
+          <main className="flex-1 pb-16 md:pb-0">{children}</main>
           <Footer />
+          <FloatingContactWidget />
+          <BackToTopButton />
         </AppProviders>
       </body>
     </html>

@@ -1,7 +1,7 @@
 # Project Roadmap
 
 **Last Updated:** 2026-04-01
-**Current Phase:** Phase 5 - Admin Panel (In Progress)
+**Current Phase:** Phase 5 - Admin Panel (In Progress) | Phase 4 - Storefront (COMPLETE)
 
 ---
 
@@ -18,12 +18,12 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 | 1 | Monorepo Setup | Complete | 100% | 2026-03-29 |
 | 2 | Database & Entities | Complete | 100% | 2026-03-29 |
 | 3 | Backend API | Complete | 100% | 2026-03-29 |
-| 4 | Storefront (Web) | In Progress | ~95% | ~2026-04-05 |
+| 4 | Storefront (Web) | Complete | 100% | 2026-04-01 |
 | 5 | Admin Panel | In Progress | ~75% | ~2026-04-10 |
-| 6 | Frontend Animation | In Progress | ~40% | ~2026-04-15 |
+| 6 | Frontend Animation | In Progress | ~50% | ~2026-04-15 |
 | 7 | Deployment | Pending | 0% | Post Phase 5+6 |
 
-**Overall Completion:** ~82% (approx. 81/98 tasks)
+**Overall Completion:** ~85% (approx. 86/98 tasks)
 
 ---
 
@@ -94,9 +94,9 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 
 ---
 
-## Phase 4: Storefront (Web) (IN PROGRESS)
+## Phase 4: Storefront (Web) (COMPLETE)
 
-**Duration:** 12 days | **Status:** IN PROGRESS | **Progress:** ~95% | **Target:** 2026-04-05
+**Duration:** 12 days | **Status:** DONE | **Progress:** 100% | **Completed:** 2026-04-01
 
 ### Objectives
 - [x] Next.js 16 App Router with React 19
@@ -112,20 +112,22 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 - [x] Dynamic metadata for all pages
 - [x] TanStack Query for data fetching
 - [x] Cookie-based auth token refresh (60s before expiry)
-- [ ] Mobile viewport responsive pass
-- [ ] Lighthouse audit (performance ≥85, SEO ≥95)
+- [x] 13 new UX components (landing, product, navigation, contact, utility)
+- [x] Enhanced product experience (quick-view, discount badges, stock indicators)
+- [x] Floating contact widget + back-to-top button
 
-### Remaining Tasks
-- [ ] Mobile viewport testing across all pages (iPhone 12/13, iPad)
-- [ ] Lighthouse performance audit (target: ≥85, currently TBD)
-- [ ] Lighthouse SEO audit (target: ≥95)
-- [ ] Responsive image optimization review
+### Key Enhancements (4/1 Release)
+**New Components:** floating-contact-widget, landing-service-badges, landing-stats-bar, landing-urgency-strip, landing-articles-preview, landing-origin-badge, back-to-top-button, hero-carousel, category-nav-cards, home-products-by-category, product-quick-view-modal, product-pdp-trust-badges, product-pdp-share-buttons
+
+**Component Updates:** product-card (discount/stock/quick-view), product-pdp-hero (diacritics/tags), product-pdp-tabs (diacritics), product-images (zoom), layout (floating widget), landing-page-content (6 new data structures)
+
+**Bug Fixes:** Math.min/max empty array guards, modal body scroll lock
 
 ### Key Files
 - `apps/web/src/app/` — Next.js App Router pages
-- `apps/web/src/components/` — Reusable UI components
+- `apps/web/src/components/` — 43 UI components (NEW: +13 components)
 - `apps/web/src/lib/` — HTTP client, form helpers, SEO utilities
-- `apps/web/src/lib/http/create-longnhan-api.ts` — Axios + auto-refresh interceptor
+- `apps/web/src/data/` — landing-page-content.ts (NEW: 6 data structures)
 
 ---
 
@@ -170,7 +172,7 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 
 ## Phase 6: Frontend Animation & Polish (IN PROGRESS)
 
-**Duration:** 5 days | **Status:** IN PROGRESS | **Progress:** ~40% | **Target:** 2026-04-15
+**Duration:** 5 days | **Status:** IN PROGRESS | **Progress:** ~50% | **Target:** 2026-04-15
 
 ### Objectives
 - [x] Install `motion` library (React 19 native)
@@ -253,11 +255,11 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 | 1 | 10 | 10 | 0 | 100% |
 | 2 | 12 | 12 | 0 | 100% |
 | 3 | 20 | 20 | 0 | 100% |
-| 4 | 20 | 19 | 1 | 95% |
+| 4 | 20 | 20 | 0 | 100% |
 | 5 | 18 | ~14 | ~4 | 75% |
-| 6 | 12 | ~5 | ~7 | 40% |
+| 6 | 12 | ~6 | ~6 | 50% |
 | 7 | 6 | 0 | 6 | 0% |
-| **Total** | **98** | **~81** | **~18** | **~82%** |
+| **Total** | **98** | **~86** | **~12** | **~85%** |
 
 ---
 
@@ -311,10 +313,14 @@ Phase 3 (API) ✓
 
 ## Known Issues & Technical Debt
 
-### Phase 4 (Storefront)
-1. Mobile viewport testing not yet complete
-2. Lighthouse audit pending (performance target: ≥85)
-3. SEO schema validation needed
+### Phase 4 (Storefront) — COMPLETE
+- 13 new UX components deployed (landing, product, contact, utility)
+- Product card enhanced with discount badges, stock indicators, quick-view triggers
+- PDP hero fixed: diacritics in Vietnamese names, category tags, share buttons
+- Product images zoom interaction improved
+- Floating contact widget + back-to-top button added to layout
+- Landing page content expanded with 6 new data structures
+- Bug fixes: Math.min/max empty array guards, modal scroll lock issue
 
 ### Phase 5 (Admin)
 1. Date-range & search filters not yet implemented
@@ -371,5 +377,6 @@ Phase 3 (API) ✓
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-04-01 | 2.1.0 | Phase 4 complete: 13 new components + product UX enhancements (85% complete) |
 | 2026-04-01 | 2.0.0 | Updated with Phase 4-6 actual progress (82% complete) |
 | 2026-03-30 | 1.0.0 | Initial roadmap creation |

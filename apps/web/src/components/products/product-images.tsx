@@ -23,14 +23,14 @@ export default function ProductImages({ images, productName }: ProductImagesProp
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Main image */}
-      <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-50">
+      {/* Main image — CSS zoom on hover */}
+      <div className="group/zoom relative aspect-square rounded-xl overflow-hidden bg-gray-50">
         <Image
           src={images[activeIndex]}
           alt={`${productName} - ảnh ${activeIndex + 1}`}
           fill
           sizes="(max-width: 768px) 100vw, 50vw"
-          className="object-cover"
+          className="object-cover transition-transform duration-300 group-hover/zoom:scale-110"
           priority={activeIndex === 0}
         />
       </div>

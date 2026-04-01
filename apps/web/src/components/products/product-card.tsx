@@ -1,11 +1,13 @@
-// Product card — thumbnail, name, price range, link to detail page
+'use client';
 
+// Product card — thumbnail, name, price range, stock overlay, quick view button
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Product } from '@longnhan/types';
 
 interface ProductCardProps {
   product: Product;
+  onQuickView?: (product: Product) => void;
 }
 
 function formatPrice(price: number): string {
@@ -21,9 +23,12 @@ function getPriceRange(product: Product): string {
   return min === max ? formatPrice(min) : `${formatPrice(min)} – ${formatPrice(max)}`;
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, onQuickView }: ProductCardProps) {
   const images = product.images ?? [];
   const coverImage = product.featuredImageUrl ?? images[0] ?? product.imageUrls?.[0];
+  const isOutOfStock =
+    product.variants.length > 0 &&
+    product.variants.every((v) => (v.stock ?? v.stockQuantity ?? 0) <= 0);
 
   return (
     <Link
@@ -41,6 +46,29 @@ export default function ProductCard({ product }: ProductCardProps) {
           />
         ) : (
           <div className="flex items-center justify-center h-full text-5xl text-gray-300">🌿</div>
+        )}
+
+        {/* Out of stock overlay */}
+        {isOutOfStock && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+            <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-gray-700">
+              Hết hàng
+            </span>
+          </div>
+        )}
+
+        {/* Quick view button — visible on hover */}
+        {onQuickView && !isOutOfStock && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              onQuickView(product);
+            }}
+            className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-gray-800 shadow opacity-0 transition-opacity duration-200 group-hover:opacity-100 hover:bg-white"
+          >
+            Xem nhanh
+          </button>
         )}
       </div>
       <div className="p-4">

@@ -10,26 +10,21 @@ interface ProductPdpTabsProps {
 type TabId = 'description' | 'extra' | 'reviews';
 
 function buildSpecRows(product: Product): Array<{ key: string; value: string }> {
-  const minWeight = Math.min(
-    ...product.variants
-      .map((variant) => variant.weightG ?? variant.weightGrams ?? 0)
-      .filter((weight) => weight > 0),
-  );
-  const maxWeight = Math.max(
-    ...product.variants
-      .map((variant) => variant.weightG ?? variant.weightGrams ?? 0)
-      .filter((weight) => weight > 0),
-  );
+  const weights = product.variants
+    .map((variant) => variant.weightG ?? variant.weightGrams ?? 0)
+    .filter((weight) => weight > 0);
+  const minWeight = weights.length > 0 ? Math.min(...weights) : 0;
+  const maxWeight = weights.length > 0 ? Math.max(...weights) : 0;
 
   return [
-    { key: 'Danh muc', value: product.category || 'Long nhan' },
+    { key: 'Danh mục', value: product.category || 'Long nhãn' },
     {
-      key: 'Khoi luong',
+      key: 'Khối lượng',
       value: Number.isFinite(minWeight) && Number.isFinite(maxWeight) && minWeight > 0
         ? minWeight === maxWeight
           ? `${minWeight}g`
           : `${minWeight}g - ${maxWeight}g`
-        : 'Nhieu quy cach',
+        : 'Nhiều quy cách',
     },
   ];
 }
@@ -42,9 +37,9 @@ export default function ProductPdpTabs({ product }: ProductPdpTabsProps) {
     <section className="mt-8 rounded-2xl border border-gray-200 bg-white">
       <div className="flex flex-wrap border-b border-gray-200">
         {[
-          { id: 'description' as const, label: 'Mo ta' },
-          { id: 'extra' as const, label: 'Thong tin bo sung' },
-          { id: 'reviews' as const, label: 'Danh gia' },
+          { id: 'description' as const, label: 'Mô tả' },
+          { id: 'extra' as const, label: 'Thông tin bổ sung' },
+          { id: 'reviews' as const, label: 'Đánh giá (0)' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -64,7 +59,7 @@ export default function ProductPdpTabs({ product }: ProductPdpTabsProps) {
       <div className="p-5">
         {activeTab === 'description' ? (
           <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-            {product.description ?? 'Dang cap nhat.'}
+            {product.description ?? 'Đang cập nhật.'}
           </p>
         ) : null}
 
@@ -86,7 +81,7 @@ export default function ProductPdpTabs({ product }: ProductPdpTabsProps) {
         ) : null}
 
         {activeTab === 'reviews' ? (
-          <p className="text-sm text-gray-600">Tinh nang danh gia se cap nhat trong phien ban tiep theo.</p>
+          <p className="text-sm text-gray-600">Tính năng đánh giá sẽ cập nhật trong phiên bản tiếp theo.</p>
         ) : null}
       </div>
     </section>
