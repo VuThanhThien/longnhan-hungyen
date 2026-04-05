@@ -18,14 +18,14 @@ describe('validateConfig', () => {
   it('should return validated config for valid input', () => {
     const config = {
       DATABASE_HOST: 'localhost',
-      DATABASE_PORT: 5432,
+      DATABASE_PORT: 5435,
     };
 
     const result = validateConfig(config, EnvVariables);
 
     expect(result).toEqual({
       DATABASE_HOST: 'localhost',
-      DATABASE_PORT: 5432,
+      DATABASE_PORT: 5435,
     });
   });
 

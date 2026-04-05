@@ -12,8 +12,8 @@ export const CONTACT_ADDRESS = 'Tống Trân, Hưng Yên, Việt Nam';
 export const SOCIAL_LINKS = {
   facebook: 'https://facebook.com/longnhanhungyen',
   zalo: 'https://zalo.me/longnhanhungyen',
-  shopee: '',
-  tiktok: '',
+  shopee: 'https://shopee.vn/sieuthithaomoc',
+  tiktok: 'https://www.tiktok.com/@vtthien8999',
 };
 
 export const PAYMENT_METHODS = [

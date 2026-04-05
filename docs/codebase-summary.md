@@ -629,7 +629,7 @@ Key variables from `.env.example`:
 | | `APP_DEBUG` | false |
 | | `APP_CORS_ORIGIN` | http://localhost:3000 |
 | **Database** | `DATABASE_HOST` | localhost |
-| | `DATABASE_PORT` | 5432 |
+| | `DATABASE_PORT` | 5435 (local host; Docker service `db` still uses 5432 inside the network) |
 | | `DATABASE_NAME` | nestjs_api |
 | | `DATABASE_USERNAME` | postgres |
 | | `DATABASE_PASSWORD` | postgres |
@@ -648,8 +648,8 @@ Key variables from `.env.example`:
 ## Docker Services
 
 ### Production (docker-compose.yml)
-- **postgres** — PostgreSQL 13 on port 5432
-- **redis** — Redis on port 6379
+- **postgres** — PostgreSQL 13 on host port 5435 (maps to container 5432)
+- **redis** — Redis on host port 6380 (maps to container 6379)
 - **maildev** — SMTP on port 1025, Web UI on port 1080
 - **pgadmin** — PostgreSQL GUI on port 5050
 

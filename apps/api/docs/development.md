@@ -49,7 +49,7 @@ APP_CORS_ORIGIN=http://localhost:3000,http://example.com
 ##== Database
 DATABASE_TYPE=postgres
 DATABASE_HOST=localhost
-DATABASE_PORT=5432
+DATABASE_PORT=5435
 DATABASE_USERNAME=postgres
 DATABASE_PASSWORD=postgres
 DATABASE_NAME=nestjs_api

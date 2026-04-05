@@ -54,15 +54,15 @@ describe('databaseConfig', () => {
 
   describe('port', () => {
     it('should return the value of DATABASE_PORT', async () => {
-      process.env.DATABASE_PORT = '5432';
+      process.env.DATABASE_PORT = '5435';
       const config = await databaseConfig();
-      expect(config.port).toBe(5432);
+      expect(config.port).toBe(5435);
     });
 
-    it('should return 5432 when DATABASE_PORT is an empty', async () => {
+    it('should return 5435 when DATABASE_PORT is an empty', async () => {
       process.env.DATABASE_PORT = '';
       const config = await databaseConfig();
-      expect(config.port).toBe(5432);
+      expect(config.port).toBe(5435);
     });
 
     it('should throw an error when DATABASE_PORT is not set', async () => {

@@ -46,7 +46,9 @@ pnpm dev:admin    # admin only (http://localhost:3002)
 | Swagger  | http://localhost:3001/api-docs | API docs        |
 | Web      | http://localhost:3000     | Storefront           |
 | Admin    | http://localhost:3002     | Admin panel          |
+| PostgreSQL | localhost:5435        | Database (Docker)    |
 | MailDev  | http://localhost:1080     | Email testing UI     |
+| Redis    | localhost:6380          | Cache / BullMQ       |
 | pgAdmin  | http://localhost:5050     | Database UI          |
 
 ## Docker

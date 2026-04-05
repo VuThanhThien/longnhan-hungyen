@@ -57,7 +57,7 @@ APP_CORS_ORIGIN=http://localhost:3000
 
 # Database
 DATABASE_HOST=localhost
-DATABASE_PORT=5432
+DATABASE_PORT=5435
 DATABASE_NAME=nestjs_api
 DATABASE_USERNAME=postgres
 DATABASE_PASSWORD=postgres
@@ -85,8 +85,8 @@ docker compose -f docker-compose.local.yml up --build -d
 ```
 
 **Services:**
-- PostgreSQL: http://localhost:5432
-- Redis: localhost:6379
+- PostgreSQL: localhost:5435
+- Redis: localhost:6380
 - MailDev SMTP: localhost:1025
 - MailDev Web UI: http://localhost:1080
 - PgAdmin: http://localhost:5050

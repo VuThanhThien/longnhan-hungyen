@@ -302,10 +302,10 @@ Response: { token, refreshToken, user }
 ```yaml
 Services:
   ├── db (PostgreSQL 13)
-  │   └── Port: 5432
+  │   └── Host port: 5435 (container 5432)
   │   └── Volume: postgres_data
   ├── redis
-  │   └── Port: 6379
+  │   └── Host port: 6380 (container 6379)
   │   └── Volume: redis_data
   ├── maildev (SMTP + Web UI)
   │   ├── SMTP Port: 1025

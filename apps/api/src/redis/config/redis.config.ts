@@ -38,7 +38,7 @@ export default registerAs<RedisConfig>('redis', () => {
 
   return {
     host: process.env.REDIS_HOST,
-    port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 6379,
+    port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 6380,
     password: process.env.REDIS_PASSWORD,
     tlsEnabled: process.env.REDIS_TLS_ENABLED === 'true',
   };
