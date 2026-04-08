@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist } from 'next/font/google';
 import './globals.css';
-import { Toaster } from '@/components/ui/toaster';
+import { Toaster } from 'sonner';
 import { QueryProvider } from '@/components/providers/query-provider';
 
 const geist = Geist({
@@ -20,7 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="h-full antialiased bg-gray-50">
         <QueryProvider>
           {children}
-          <Toaster />
+          <Toaster richColors closeButton />
         </QueryProvider>
       </body>
     </html>

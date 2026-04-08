@@ -55,7 +55,7 @@ export function buildProductSchema(product: Product) {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: product.name,
-    description: product.description ?? undefined,
+    description: product.summary ?? product.description ?? undefined,
     image: imageList,
     url: `${SITE_URL}/products/${product.slug}`,
     offers: {

@@ -4,6 +4,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Product } from '@longnhan/types';
+import { getProductLandingDescription } from '@/lib/product-description';
 
 interface ProductCardProps {
   product: Product;
@@ -26,6 +27,7 @@ function getPriceRange(product: Product): string {
 export default function ProductCard({ product, onQuickView }: ProductCardProps) {
   const images = product.images ?? [];
   const coverImage = product.featuredImageUrl ?? images[0] ?? product.imageUrls?.[0];
+  const summary = getProductLandingDescription(product);
   const isOutOfStock =
     product.variants.length > 0 &&
     product.variants.every((v) => (v.stock ?? v.stockQuantity ?? 0) <= 0);
@@ -75,6 +77,7 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
         <h3 className="font-semibold text-gray-900 text-sm leading-snug mb-1 line-clamp-2">
           {product.name}
         </h3>
+        {summary ? <p className="text-xs text-gray-600 line-clamp-2 mt-1">{summary}</p> : null}
         <p className="text-green-700 font-bold text-sm">{getPriceRange(product)}</p>
       </div>
     </Link>

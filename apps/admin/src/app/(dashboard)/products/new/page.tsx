@@ -1,21 +1,15 @@
-import { redirect } from 'next/navigation';
+'use client';
+
+import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProductForm } from '@/components/products/product-form';
-import { adminFetch } from '@/lib/admin-api-client';
-import { parseProductPayload } from '@/lib/admin-form-parsers';
+import { onProductsAdminDone, useCreateProductMutation } from '../_shared/use-admin-product-mutations';
 
 export default function ProductCreatePage() {
-  async function createProductAction(formData: FormData) {
-    'use server';
-    const payload = parseProductPayload(formData);
-    await adminFetch('/products', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+  const router = useRouter();
 
-    redirect('/products');
-  }
+  const mutation = useCreateProductMutation({ onDone: () => onProductsAdminDone(router) });
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -26,7 +20,11 @@ export default function ProductCreatePage() {
             <CardTitle className="text-base">Thông tin sản phẩm</CardTitle>
           </CardHeader>
           <CardContent>
-            <ProductForm action={createProductAction} submitLabel="Tạo sản phẩm" />
+            <ProductForm
+              onSubmit={(formData) => mutation.mutateAsync(formData)}
+              isSubmitting={mutation.isPending}
+              submitLabel="Tạo sản phẩm"
+            />
           </CardContent>
         </Card>
       </main>

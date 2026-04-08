@@ -3,7 +3,6 @@
 // Product image gallery with thumbnail switcher — client component for interactivity
 
 import { useState } from 'react';
-import Image from 'next/image';
 
 interface ProductImagesProps {
   images: string[];
@@ -25,13 +24,13 @@ export default function ProductImages({ images, productName }: ProductImagesProp
     <div className="flex flex-col gap-3">
       {/* Main image — CSS zoom on hover */}
       <div className="group/zoom relative aspect-square rounded-xl overflow-hidden bg-gray-50">
-        <Image
+        <img
           src={images[activeIndex]}
           alt={`${productName} - ảnh ${activeIndex + 1}`}
-          fill
-          sizes="(max-width: 768px) 100vw, 50vw"
-          className="object-cover transition-transform duration-300 group-hover/zoom:scale-110"
-          priority={activeIndex === 0}
+          loading={activeIndex === 0 ? 'eager' : 'lazy'}
+          fetchPriority={activeIndex === 0 ? 'high' : 'auto'}
+          decoding={activeIndex === 0 ? 'sync' : 'async'}
+          className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover/zoom:scale-110"
         />
       </div>
 
@@ -47,12 +46,12 @@ export default function ProductImages({ images, productName }: ProductImagesProp
                 index === activeIndex ? 'border-green-600' : 'border-transparent hover:border-green-300'
               }`}
             >
-              <Image
+              <img
                 src={src}
                 alt={`${productName} thumbnail ${index + 1}`}
-                fill
-                sizes="64px"
-                className="object-cover"
+                loading="lazy"
+                decoding="async"
+                className="absolute inset-0 h-full w-full object-cover"
               />
             </button>
           ))}

@@ -2,7 +2,8 @@ export interface Product {
   id: string;
   name: string;
   slug: string;
-  description: string | null;
+  summary: string | null;
+  descriptionHtml: string | null;
   images: string[];
   featuredImageUrl: string | null;
   basePrice: number;
@@ -13,6 +14,7 @@ export interface Product {
   updatedAt: string;
   variants: ProductVariant[];
   // Backward-compatible aliases for old consumers.
+  description?: string | null;
   imageUrls?: string[];
   isActive?: boolean;
 }
@@ -38,13 +40,16 @@ export interface ProductVariant {
 export interface CreateProductDto {
   name: string;
   slug: string;
-  description?: string;
+  summary?: string;
+  descriptionHtml?: string;
   images?: string[];
   featuredImageUrl?: string;
   basePrice?: number;
   category?: string;
   videoUrl?: string;
   active?: boolean;
+  // Backward-compatible alias for old consumers.
+  description?: string;
 }
 
 export interface UpdateProductDto extends Partial<CreateProductDto> {}

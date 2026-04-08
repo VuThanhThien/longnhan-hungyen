@@ -1,40 +1,40 @@
-import { notFound, redirect } from 'next/navigation';
-import type { Product } from '@longnhan/types';
+'use client';
+
+import { useParams, useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProductForm } from '@/components/products/product-form';
-import { adminFetch } from '@/lib/admin-api-client';
-import { parseProductPayload } from '@/lib/admin-form-parsers';
+import type { AdminIdParams } from '../../_shared/products.interface';
+import { useAdminProduct } from '../../_shared/use-admin-product';
+import { onProductsAdminDone, useUpdateProductMutation } from '../../_shared/use-admin-product-mutations';
 
-interface ProductEditPageProps {
-  params: Promise<{ id: string }>;
-}
+export default function ProductEditPage() {
+  const router = useRouter();
+  const params = useParams<AdminIdParams>();
+  const id = params?.id;
 
-export default async function ProductEditPage({ params }: ProductEditPageProps) {
-  const { id } = await params;
-  const product = await adminFetch<Product>(`/products/admin/${id}`).catch(() => null);
-  if (!product) notFound();
-
-  async function updateProductAction(formData: FormData) {
-    'use server';
-    const payload = parseProductPayload(formData);
-    await adminFetch(`/products/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
-    redirect('/products');
-  }
+  const { data: product, isLoading, isError } = useAdminProduct(id);
+  const mutation = useUpdateProductMutation(id, { onDone: () => onProductsAdminDone(router) });
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <Header title={`Sửa: ${product.name}`} />
+      <Header title={product ? `Sửa: ${product.name}` : 'Sửa sản phẩm'} />
       <main className="flex-1 overflow-y-auto p-6">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Cập nhật sản phẩm</CardTitle>
           </CardHeader>
           <CardContent>
-            <ProductForm initialProduct={product} action={updateProductAction} submitLabel="Lưu thay đổi" />
+            {isLoading ? <div className="py-8 text-sm text-gray-500">Đang tải…</div> : null}
+            {isError ? <div className="py-8 text-sm text-red-600">Không tìm thấy sản phẩm</div> : null}
+            {product ? (
+              <ProductForm
+                initialProduct={product}
+                onSubmit={(formData) => mutation.mutateAsync(formData)}
+                isSubmitting={mutation.isPending}
+                submitLabel="Lưu thay đổi"
+              />
+            ) : null}
           </CardContent>
         </Card>
       </main>

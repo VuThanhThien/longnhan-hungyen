@@ -30,6 +30,12 @@ export class ProductEntity {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
+  @Column({ type: 'text', nullable: true })
+  summary: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  descriptionHtml: string | null;
+
   @Column({ type: 'int', default: 0 })
   basePrice!: number; // VND integer
 

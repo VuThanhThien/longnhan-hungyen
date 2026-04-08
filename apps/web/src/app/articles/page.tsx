@@ -26,7 +26,7 @@ export default async function ArticlesPage() {
     <section className="mx-auto max-w-6xl px-4 py-8">
       <Breadcrumb
         items={[
-          { label: 'Trang chu', url: '/' },
+          { label: 'Trang chủ', url: '/' },
           { label: 'Tin tuc' },
         ]}
       />

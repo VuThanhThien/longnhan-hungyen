@@ -15,6 +15,12 @@ export class UpdateProductReqDto {
   @StringFieldOptional()
   description?: string;
 
+  @StringFieldOptional()
+  summary?: string;
+
+  @StringFieldOptional()
+  descriptionHtml?: string;
+
   @NumberFieldOptional({ int: true, min: 0 })
   basePrice?: number;
 

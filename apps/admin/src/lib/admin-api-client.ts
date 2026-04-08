@@ -32,6 +32,15 @@ export async function adminFetch<T>(path: string, options?: RequestInit): Promis
   }
 
   const json = await res.json();
+  // Keep full body for offset-paginated lists { data, pagination }; do not unwrap to array only.
+  if (
+    json &&
+    typeof json === 'object' &&
+    'pagination' in json &&
+    Array.isArray((json as { data?: unknown }).data)
+  ) {
+    return json as T;
+  }
   return (json?.data ?? json) as T;
 }
 

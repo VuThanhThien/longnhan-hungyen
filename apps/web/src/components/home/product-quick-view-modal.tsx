@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { Product } from '@longnhan/types';
+import { getProductLandingDescription } from '@/lib/product-description';
 
 interface ProductQuickViewModalProps {
   product: Product | null;
@@ -41,10 +42,11 @@ export function ProductQuickViewModal({ product, onClose }: ProductQuickViewModa
   if (!product) return null;
 
   const cover = product.featuredImageUrl ?? product.images?.[0] ?? product.imageUrls?.[0];
+  const summary = getProductLandingDescription(product);
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+      className="fixed inset-0 z-60 flex items-center justify-center bg-black/50 p-4"
       onClick={onClose}
     >
       <div
@@ -73,8 +75,8 @@ export function ProductQuickViewModal({ product, onClose }: ProductQuickViewModa
         <div className="p-5">
           <h3 className="text-lg font-bold text-gray-900">{product.name}</h3>
           <p className="mt-1 text-xl font-bold text-green-700">{getPriceRange(product)}</p>
-          {product.description && (
-            <p className="mt-2 line-clamp-2 text-sm text-gray-600">{product.description}</p>
+          {summary && (
+            <p className="mt-2 line-clamp-2 text-sm text-gray-600">{summary}</p>
           )}
           <Link
             href={`/products/${product.slug}`}

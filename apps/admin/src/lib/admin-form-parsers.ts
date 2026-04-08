@@ -11,6 +11,8 @@ interface ProductVariantInput {
 export interface ProductPayload {
   name: string;
   description?: string;
+  summary?: string;
+  descriptionHtml?: string;
   basePrice: number;
   images: string[];
   featuredImageUrl?: string;
@@ -53,7 +55,11 @@ export function parseProductPayload(formData: FormData): ProductPayload {
 
   return {
     name: String(formData.get('name') || '').trim(),
+    // Backward compatibility: if older forms still send `description`,
+    // we forward it too (API maps it into `summary`).
     description: String(formData.get('description') || '').trim() || undefined,
+    summary: String(formData.get('summary') || '').trim() || undefined,
+    descriptionHtml: String(formData.get('descriptionHtml') || '').trim() || undefined,
     basePrice: toInt(formData.get('basePrice'), 0),
     category: String(formData.get('category') || '').trim(),
     featuredImageUrl: String(formData.get('featuredImageUrl') || '').trim() || undefined,

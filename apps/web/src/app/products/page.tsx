@@ -16,7 +16,7 @@ interface ProductsPageProps {
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: 'San pham long nhan Hung Yen',
+    title: 'Sản phẩm long nhan Hung Yen',
     description: 'Danh sach san pham long nhan, nhan long Hung Yen va qua bieu dac san.',
   };
 }
@@ -48,12 +48,12 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     <section className="mx-auto max-w-6xl px-4 py-8">
       <Breadcrumb
         items={[
-          { label: 'Trang chu', url: '/' },
-          { label: 'San pham' },
+          { label: 'Trang chủ', url: '/' },
+          { label: 'Sản phẩm' },
         ]}
       />
       <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-green-950">San pham</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-green-950">Sản phẩm</h1>
         <p className="mt-2 text-sm text-gray-600">
           Tong {totalRecords} san pham dang hoat dong.
         </p>

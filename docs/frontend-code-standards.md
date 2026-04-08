@@ -1,9 +1,14 @@
 # Frontend Code Standards (Next.js & React)
 
-**Last Updated:** 2026-04-01
+**Last Updated:** 2026-04-08
 **Applies To:** apps/web, apps/admin
 
 ---
+
+## Typography & Fonts
+
+- **Body font**: must use a normal-weight sans stack (e.g. `--font-geist-sans`). Do **not** set a display font as the first `font-family` on `body`, especially if the font files only include bold weights.
+- **Display font**: OK for headings/brand-only (e.g. `.landing-heading`), but keep it scoped so regular copy doesn’t inherit bold-only glyphs.
 
 ## Component Organization
 
@@ -39,6 +44,37 @@ export function ProductList({ products }) {
 - State management (`useState`, `useContext`)
 - Event handlers (`onClick`, `onChange`)
 - React hooks (`useEffect`, `useQuery`, etc.)
+
+### `useSearchParams` + `<Suspense>` (Admin list pages)
+
+In Next.js App Router, `useSearchParams()` is a client hook and must be rendered within a `<Suspense>` boundary. For admin list pages that read query params (pagination/sorting/filtering), use this structure:
+
+```tsx
+// apps/admin/src/app/(dashboard)/<resource>/page.tsx (Server Component)
+import { Suspense } from 'react';
+import ResourcePageClient from './page.client';
+
+export default function ResourcePage() {
+  return (
+    <Suspense fallback={null}>
+      <ResourcePageClient />
+    </Suspense>
+  );
+}
+```
+
+```tsx
+// apps/admin/src/app/(dashboard)/<resource>/page.client.tsx (Client Component)
+'use client';
+
+import { useSearchParams } from 'next/navigation';
+
+export default function ResourcePageClient() {
+  const searchParams = useSearchParams();
+  // Read pagination/sort/filter from searchParams
+  return null;
+}
+```
 
 ---
 

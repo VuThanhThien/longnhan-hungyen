@@ -63,7 +63,7 @@ export default async function ArticleDetailPage({ params }: ArticleDetailPagePro
 
   const articleSchema = buildArticleSchema(article);
   const breadcrumbSchema = buildBreadcrumbSchema([
-    { name: 'Trang chu', url: SITE_URL },
+    { name: 'Trang chủ', url: SITE_URL },
     { name: 'Tin tuc', url: `${SITE_URL}/articles` },
     { name: article.title, url: `${SITE_URL}/articles/${article.slug}` },
   ]);
@@ -81,7 +81,7 @@ export default async function ArticleDetailPage({ params }: ArticleDetailPagePro
 
       <Breadcrumb
         items={[
-          { label: 'Trang chu', url: '/' },
+          { label: 'Trang chủ', url: '/' },
           { label: 'Tin tuc', url: '/articles' },
           { label: article.title },
         ]}

@@ -39,6 +39,12 @@ export class CreateProductReqDto {
   @StringFieldOptional()
   description?: string;
 
+  @StringFieldOptional()
+  summary?: string;
+
+  @StringFieldOptional()
+  descriptionHtml?: string;
+
   @NumberField({ int: true, min: 0 })
   basePrice!: number;
 

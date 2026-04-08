@@ -20,6 +20,14 @@ export class ProductResDto {
   @Expose()
   description: string | null;
 
+  @ApiPropertyOptional()
+  @Expose()
+  summary: string | null;
+
+  @ApiPropertyOptional()
+  @Expose()
+  descriptionHtml: string | null;
+
   @ApiProperty()
   @Expose()
   basePrice!: number;

@@ -1,27 +1,19 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import type { Product } from '@longnhan/types';
+import { useMemo, useState, useEffect } from 'react';
 import { MediaUrlPicker } from '@/components/media/media-url-picker';
+import { TiptapHtmlEditor } from '@/components/articles/tiptap-html-editor';
+import { useForm, type Resolver } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import type { ProductFormProps, VariantDraft } from './product-form.interface';
+import { productFormSchema, type ProductFormValues } from './product-form.constant';
+import { coerceToHtml } from './product-form.utils';
 
-interface ProductFormProps {
-  initialProduct?: Product;
-  submitLabel: string;
-  action: (formData: FormData) => void | Promise<void>;
-}
-
-interface VariantDraft {
-  label: string;
-  price: number;
-  stock: number;
-  weightG?: number;
-  skuCode?: string;
-  sortOrder: number;
-  active: boolean;
-}
-
-export function ProductForm({ initialProduct, submitLabel, action }: ProductFormProps) {
+export function ProductForm({ initialProduct, submitLabel, onSubmit, isSubmitting }: ProductFormProps) {
   const [featuredImageUrl, setFeaturedImageUrl] = useState(initialProduct?.featuredImageUrl || '');
+  const [descriptionHtml, setDescriptionHtml] = useState(initialProduct?.descriptionHtml || '');
+  const initialSummary = initialProduct?.summary || initialProduct?.description || '';
+  const [summaryHtml, setSummaryHtml] = useState(initialSummary ? coerceToHtml(initialSummary) : '');
   const [variants, setVariants] = useState<VariantDraft[]>(
     initialProduct?.variants?.map((variant) => ({
       label: variant.label,
@@ -40,26 +32,79 @@ export function ProductForm({ initialProduct, submitLabel, action }: ProductForm
     setVariants((prev) => prev.map((item, itemIndex) => (itemIndex === index ? { ...item, [key]: value } : item)));
   }
 
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors },
+  } = useForm<ProductFormValues>({
+    resolver: yupResolver(productFormSchema) as unknown as Resolver<ProductFormValues>,
+    defaultValues: {
+      name: initialProduct?.name || '',
+      category: initialProduct?.category || 'long-nhan',
+      basePrice: initialProduct?.basePrice || 0,
+      videoUrl: initialProduct?.videoUrl || '',
+      active: initialProduct?.active ?? true,
+      images: initialProduct?.images?.join('\n') || '',
+      summary: summaryHtml,
+      descriptionHtml: descriptionHtml,
+      featuredImageUrl: featuredImageUrl,
+      variantsJson,
+    },
+  });
+
+  useEffect(() => {
+    setValue('featuredImageUrl', featuredImageUrl, { shouldValidate: true });
+  }, [featuredImageUrl, setValue]);
+
+  useEffect(() => {
+    setValue('summary', summaryHtml, { shouldValidate: true });
+  }, [summaryHtml, setValue]);
+
+  useEffect(() => {
+    setValue('descriptionHtml', descriptionHtml, { shouldValidate: true });
+  }, [descriptionHtml, setValue]);
+
+  useEffect(() => {
+    setValue('variantsJson', variantsJson, { shouldValidate: true });
+  }, [variantsJson, setValue]);
+
   return (
-    <form action={action} className="space-y-6">
+    <form
+      className="space-y-6"
+      onSubmit={handleSubmit(async (data: ProductFormValues) => {
+        const formData = new FormData();
+        formData.set('name', data.name);
+        formData.set('category', data.category);
+        formData.set('basePrice', String(data.basePrice ?? 0));
+        if (data.videoUrl) formData.set('videoUrl', data.videoUrl);
+        if (data.active) formData.set('active', 'on');
+        formData.set('summary', data.summary || '');
+        formData.set('descriptionHtml', data.descriptionHtml || '');
+        formData.set('featuredImageUrl', data.featuredImageUrl || '');
+        formData.set('images', data.images || '');
+        formData.set('variantsJson', data.variantsJson || '[]');
+        await onSubmit(formData);
+      })}
+    >
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="space-y-1">
           <label className="text-sm text-gray-600">Tên sản phẩm</label>
           <input
-            name="name"
-            defaultValue={initialProduct?.name || ''}
+            {...register('name')}
             className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
             required
           />
+          {errors.name?.message ? <p className="text-xs text-red-600">{errors.name.message}</p> : null}
         </div>
         <div className="space-y-1">
           <label className="text-sm text-gray-600">Danh mục</label>
           <input
-            name="category"
-            defaultValue={initialProduct?.category || 'long-nhan'}
+            {...register('category')}
             className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
             required
           />
+          {errors.category?.message ? <p className="text-xs text-red-600">{errors.category.message}</p> : null}
         </div>
       </div>
 
@@ -69,50 +114,57 @@ export function ProductForm({ initialProduct, submitLabel, action }: ProductForm
           <input
             type="number"
             min={0}
-            name="basePrice"
-            defaultValue={initialProduct?.basePrice || 0}
+            {...register('basePrice', { valueAsNumber: true })}
             className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
             required
           />
+          {errors.basePrice?.message ? <p className="text-xs text-red-600">{errors.basePrice.message}</p> : null}
         </div>
         <div className="space-y-1">
           <label className="text-sm text-gray-600">Video URL</label>
           <input
-            name="videoUrl"
-            defaultValue={initialProduct?.videoUrl || ''}
+            {...register('videoUrl')}
             className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
           />
         </div>
         <div className="flex items-end">
           <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" name="active" defaultChecked={initialProduct?.active ?? true} />
+            <input type="checkbox" {...register('active')} />
             Kích hoạt sản phẩm
           </label>
         </div>
       </div>
 
       <div className="space-y-1">
+        <label className="text-sm text-gray-600">Tóm tắt</label>
+        <TiptapHtmlEditor
+          value={summaryHtml}
+          onChange={setSummaryHtml}
+          placeholder="Viết tóm tắt ngắn…"
+          className="rounded-md border border-gray-200"
+        />
+      </div>
+
+      <div className="space-y-1">
         <label className="text-sm text-gray-600">Mô tả</label>
-        <textarea
-          name="description"
-          rows={4}
-          defaultValue={initialProduct?.description || ''}
-          className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm"
+        <TiptapHtmlEditor
+          value={descriptionHtml}
+          onChange={setDescriptionHtml}
+          placeholder="Viết mô tả chi tiết… Gõ / để chèn khối."
+          className="rounded-md border border-gray-200"
         />
       </div>
 
       <div className="space-y-2">
         <label className="text-sm text-gray-600">Ảnh đại diện</label>
         <MediaUrlPicker value={featuredImageUrl} onChange={setFeaturedImageUrl} folder="products" />
-        <input type="hidden" name="featuredImageUrl" value={featuredImageUrl} />
       </div>
 
       <div className="space-y-1">
         <label className="text-sm text-gray-600">Danh sách ảnh (mỗi dòng 1 URL)</label>
         <textarea
-          name="images"
           rows={4}
-          defaultValue={initialProduct?.images?.join('\n') || ''}
+          {...register('images')}
           className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm"
         />
       </div>
@@ -133,6 +185,13 @@ export function ProductForm({ initialProduct, submitLabel, action }: ProductForm
             + Thêm biến thể
           </button>
         </div>
+        <div className="grid grid-cols-1 gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-6">
+          <div className="col-span-2">Tên biến thể</div>
+          <div className="col-span-1">Giá</div>
+          <div className="col-span-1">Tồn kho</div>
+          <div className="col-span-1">Khối lượng(g)</div>
+          <div className="col-span-1">SKU</div>
+        </div>
 
         {variants.map((variant, index) => (
           <div key={index} className="grid grid-cols-1 gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-6">
@@ -145,9 +204,17 @@ export function ProductForm({ initialProduct, submitLabel, action }: ProductForm
         ))}
       </div>
 
-      <input type="hidden" name="variantsJson" value={variantsJson} />
-      <button type="submit" className="inline-flex h-10 items-center rounded-md bg-green-600 px-4 text-sm font-medium text-white hover:bg-green-700">
-        {submitLabel}
+      <input type="hidden" {...register('featuredImageUrl')} />
+      <input type="hidden" {...register('summary')} />
+      <input type="hidden" {...register('descriptionHtml')} />
+      <input type="hidden" {...register('variantsJson')} />
+
+      <button
+        type="submit"
+        disabled={isSubmitting}
+        className="inline-flex h-10 items-center rounded-md bg-green-600 px-4 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+      >
+        {isSubmitting ? 'Đang lưu…' : submitLabel}
       </button>
     </form>
   );

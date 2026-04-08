@@ -106,6 +106,8 @@ export class ProductsService {
       name: dto.name,
       slug,
       description: dto.description ?? null,
+      summary: dto.summary ?? dto.description ?? null,
+      descriptionHtml: dto.descriptionHtml ?? null,
       basePrice: dto.basePrice,
       images: dto.images ?? [],
       featuredImageUrl: dto.featuredImageUrl ?? null,
@@ -147,9 +149,23 @@ export class ProductsService {
     if (dto.name && dto.name !== product.name) {
       product.slug = await this.generateUniqueSlug(dto.name, id);
     }
+
+    // Backward-compatible mapping:
+    // - `description` is legacy plain text used by some consumers.
+    // - `summary` is the new short text (preferred for SEO/cards/hero).
+    // If admin/client still sends only `description`, we also update `summary` to match.
+    const patchSummary =
+      dto.summary !== undefined
+        ? dto.summary
+        : dto.description !== undefined
+          ? dto.description
+          : undefined;
+
     Object.assign(product, {
       ...(dto.name !== undefined && { name: dto.name }),
       ...(dto.description !== undefined && { description: dto.description }),
+      ...(patchSummary !== undefined && { summary: patchSummary }),
+      ...(dto.descriptionHtml !== undefined && { descriptionHtml: dto.descriptionHtml }),
       ...(dto.basePrice !== undefined && { basePrice: dto.basePrice }),
       ...(dto.images !== undefined && { images: dto.images }),
       ...(dto.featuredImageUrl !== undefined && {

@@ -1,6 +1,6 @@
 // Site-wide constants for Long Nhan Hung Yen storefront
 
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://longnhan.vn';
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://shop.longnhanhungyen.shop';
 export const SITE_NAME = 'Long Nhãn Tống Trân';
 export const SITE_DESCRIPTION =
   'Long nhãn Hưng Yên — đặc sản chọn lọc, quà biếu sang trọng. Giao COD toàn quốc, Shopee, TikTok, Zalo.';

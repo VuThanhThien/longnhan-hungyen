@@ -5,8 +5,6 @@ import OrderForm from '@/components/orders/order-form';
 import ProductImages from '@/components/products/product-images';
 import ProductPdpHero from '@/components/products/product-pdp-hero';
 import ProductPdpTabs from '@/components/products/product-pdp-tabs';
-import ProductPdpRichBody from '@/components/products/product-pdp-rich-body';
-import ProductPdpSpecTable from '@/components/products/product-pdp-spec-table';
 import RelatedProducts from '@/components/products/related-products';
 import Breadcrumb from '@/components/ui/breadcrumb';
 import { fetchApi, fetchPaginated } from '@/lib/api-client';
@@ -35,12 +33,14 @@ export async function generateMetadata({ params }: ProductDetailPageProps): Prom
     return { title: 'Khong tim thay san pham' };
   }
 
+  const summary = product.summary ?? product.description ?? null;
+
   return {
     title: product.name,
-    description: product.description ?? `Chi tiet san pham ${product.name}.`,
+    description: summary ?? `Chi tiet san pham ${product.name}.`,
     openGraph: {
       title: product.name,
-      description: product.description ?? undefined,
+      description: summary ?? undefined,
       images: product.featuredImageUrl
         ? [product.featuredImageUrl]
         : (product.images ?? []).slice(0, 1),
@@ -68,14 +68,14 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
   }
 
   const breadcrumbItems = [
-    { label: 'Trang chu', url: '/' },
-    { label: 'San pham', url: '/products' },
+    { label: 'Trang chủ', url: '/' },
+    { label: 'Sản phẩm', url: '/products' },
     { label: product.name },
   ];
 
   const breadcrumbSchema = buildBreadcrumbSchema([
-    { name: 'Trang chu', url: SITE_URL },
-    { name: 'San pham', url: `${SITE_URL}/products` },
+    { name: 'Trang chủ', url: SITE_URL },
+    { name: 'Sản phẩm', url: `${SITE_URL}/products` },
     { name: product.name, url: `${SITE_URL}/products/${product.slug}` },
   ]);
 
@@ -105,8 +105,6 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
       </div>
 
       <ProductPdpTabs product={product} />
-      <ProductPdpRichBody html={product.description} />
-      <ProductPdpSpecTable variants={product.variants} />
       <RelatedProducts products={relatedProducts} />
     </section>
   );

@@ -10,7 +10,7 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
 
   return (
     <section className="mt-8 rounded-2xl border border-gray-200 bg-white p-6">
-      <h2 className="text-xl font-bold text-green-950 mb-4">San pham lien quan</h2>
+      <h2 className="text-xl font-bold text-green-950 mb-4">Sản phẩm lien quan</h2>
       <ProductGrid products={products} />
     </section>
   );
