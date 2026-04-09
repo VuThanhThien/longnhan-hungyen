@@ -7,8 +7,10 @@ import { plainToInstance } from 'class-transformer';
 import slugify from 'slugify';
 import { DataSource, Repository } from 'typeorm';
 import { CreateProductReqDto } from './dto/create-product.req.dto';
+import { CreateProductVariantReqDto } from './dto/create-product-variant.req.dto';
 import { ProductQueryReqDto } from './dto/product-query.req.dto';
 import { ProductResDto } from './dto/product.res.dto';
+import { UpdateProductVariantReqDto } from './dto/update-product-variant.req.dto';
 import { UpdateProductReqDto } from './dto/update-product.req.dto';
 import { ProductVariantEntity } from './entities/product-variant.entity';
 import { ProductEntity } from './entities/product.entity';
@@ -165,7 +167,9 @@ export class ProductsService {
       ...(dto.name !== undefined && { name: dto.name }),
       ...(dto.description !== undefined && { description: dto.description }),
       ...(patchSummary !== undefined && { summary: patchSummary }),
-      ...(dto.descriptionHtml !== undefined && { descriptionHtml: dto.descriptionHtml }),
+      ...(dto.descriptionHtml !== undefined && {
+        descriptionHtml: dto.descriptionHtml,
+      }),
       ...(dto.basePrice !== undefined && { basePrice: dto.basePrice }),
       ...(dto.images !== undefined && { images: dto.images }),
       ...(dto.featuredImageUrl !== undefined && {
@@ -215,6 +219,64 @@ export class ProductsService {
     if (!product) throw new NotFoundException('Product not found');
     product.active = false;
     await this.productRepo.save(product);
+  }
+
+  /** Admin: update a single variant field (e.g. SKU) */
+  async updateVariant(
+    productId: Uuid,
+    variantId: Uuid,
+    dto: UpdateProductVariantReqDto,
+  ): Promise<ProductResDto> {
+    const variant = await this.variantRepo.findOneBy({ id: variantId, productId });
+    if (!variant) {
+      throw new NotFoundException('Product variant not found');
+    }
+
+    Object.assign(variant, {
+      ...(dto.label !== undefined && { label: dto.label.trim() }),
+      ...(dto.weightG !== undefined && { weightG: dto.weightG ?? null }),
+      ...(dto.price !== undefined && { price: dto.price }),
+      ...(dto.stock !== undefined && { stock: dto.stock }),
+      ...(dto.skuCode !== undefined && { skuCode: dto.skuCode.trim() || null }),
+      ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),
+      ...(dto.active !== undefined && { active: dto.active }),
+    });
+
+    await this.variantRepo.save(variant);
+    return this.findById(productId);
+  }
+
+  /** Admin: add a variant to a product */
+  async createVariant(
+    productId: Uuid,
+    dto: CreateProductVariantReqDto,
+  ): Promise<ProductResDto> {
+    const product = await this.productRepo.findOneBy({ id: productId });
+    if (!product) throw new NotFoundException('Product not found');
+
+    const variant = this.variantRepo.create({
+      productId,
+      label: dto.label.trim(),
+      weightG: dto.weightG ?? null,
+      price: dto.price,
+      stock: dto.stock,
+      skuCode: dto.skuCode?.trim() || null,
+      sortOrder: dto.sortOrder ?? 0,
+      active: dto.active ?? true,
+    });
+
+    await this.variantRepo.save(variant);
+    return this.findById(productId);
+  }
+
+  /** Admin: delete a variant */
+  async deleteVariant(productId: Uuid, variantId: Uuid): Promise<ProductResDto> {
+    const variant = await this.variantRepo.findOneBy({ id: variantId, productId });
+    if (!variant) {
+      throw new NotFoundException('Product variant not found');
+    }
+    await this.variantRepo.delete({ id: variantId, productId });
+    return this.findById(productId);
   }
 
   private async generateUniqueSlug(

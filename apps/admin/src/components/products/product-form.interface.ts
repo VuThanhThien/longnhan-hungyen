@@ -5,6 +5,7 @@ export interface ProductFormProps {
   submitLabel: string;
   onSubmit: (formData: FormData) => void | Promise<void>;
   isSubmitting?: boolean;
+  showVariants?: boolean;
 }
 
 export interface VariantDraft {

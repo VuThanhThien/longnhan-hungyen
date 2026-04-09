@@ -192,6 +192,7 @@ Maps admin requests to backend NestJS API:
 - `DELETE /api/media/:id` — Delete media
 - `PATCH /api/orders/:id/status` — Update order status
 - `GET/POST/PUT/DELETE /api/products/*` — Product CRUD proxies
+- `PUT /api/products/:productId/variants/:variantId` — Update product variant (admin, e.g. `skuCode`)
 - `GET/POST/PUT/DELETE /api/articles/*` — Article CRUD proxies
 
 ### Authentication Pattern
@@ -411,7 +412,7 @@ Base URL: `http://localhost:3000/api/v1`
 |--------|-----------|------|
 | **Auth** | `POST /auth/sign-up`, `POST /auth/sign-in`, `POST /auth/refresh`, `POST /auth/forgot-password` | Public/JWT |
 | **Users** | `GET /users/:id`, `PUT /users/:id`, `GET /users` (admin) | JWT |
-| **Products** | `GET /products`, `GET /products/admin` (admin), `GET /products/:slug`, `GET /products/admin/:id` (admin), `POST /products` (admin), `PUT /products/:id` (admin), `DELETE /products/:id` (admin) | Public/Admin |
+| **Products** | `GET /products`, `GET /products/admin` (admin), `GET /products/:slug`, `GET /products/admin/:id` (admin), `POST /products` (admin), `PUT /products/:id` (admin), `PUT /products/:productId/variants/:variantId` (admin), `DELETE /products/:id` (admin) | Public/Admin |
 | **Orders** | `POST /orders`, `GET /orders`, `GET /orders/:id`, `PATCH /orders/:id/status` (admin) | Public/JWT/Admin |
 | **Articles** | `GET /articles`, `GET /articles/admin` (admin), `GET /articles/:slug`, `GET /articles/admin/:id` (admin), `POST /articles` (admin), `PUT /articles/:id` (admin), `DELETE /articles/:id` (admin) | Public/Admin |
 | **Media** | `POST /media/upload` (admin), `GET /media` (admin), `DELETE /media/:id` (admin) | Admin |

@@ -25,7 +25,7 @@ async function getHomeProducts(): Promise<Product[]> {
 
 export default async function Home() {
   const products = await getHomeProducts();
-  const introVideo = products.find((product) => Boolean(product.videoUrl))?.videoUrl ?? null;
+  const productVideos = products.map((p) => p.videoUrl).filter(Boolean) as string[];
 
   return (
     <div className="landing-page bg-(--brand-cream) text-(--brand-forest)">
@@ -54,7 +54,7 @@ export default async function Home() {
         <FeaturedProducts products={products} />
       </ScrollReveal>
       <ScrollReveal delayMs={280}>
-        <VideoSection videoUrl={introVideo} />
+        <VideoSection videoUrls={productVideos} />
       </ScrollReveal>
       <ScrollReveal delayMs={300}>
         <CtaSection />

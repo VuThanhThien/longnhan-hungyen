@@ -18,10 +18,10 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBody, ApiConsumes, ApiParam, ApiTags } from '@nestjs/swagger';
-import { MediaResDto } from './dto/media.res.dto';
 import { CreateMediaFolderReqDto } from './dto/create-media-folder.req.dto';
 import { MediaFolderResDto } from './dto/media-folder.res.dto';
 import { MediaQueryReqDto } from './dto/media-query.req.dto';
+import { MediaResDto } from './dto/media.res.dto';
 import { MediaService } from './media.service';
 
 @ApiTags('media')

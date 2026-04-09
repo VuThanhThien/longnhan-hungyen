@@ -137,7 +137,7 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
           </span>
         ) : null}
         {selectedVariantStock > 0 ? (
-          <span className="text-xs text-gray-500">Ton kho: {selectedVariantStock}</span>
+          <span className="text-xs text-gray-500">Tồn kho: {selectedVariantStock}</span>
         ) : null}
       </div>
 

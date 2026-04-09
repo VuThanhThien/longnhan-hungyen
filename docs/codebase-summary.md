@@ -183,6 +183,7 @@ longnhantongtran/
   - `GET /products/admin/:id` — Get product by id for admin
   - `POST /products` — Create (admin)
   - `PUT /products/:id` — Update (admin)
+  - `PUT /products/:productId/variants/:variantId` — Update variant fields (admin; e.g. `skuCode`)
   - `DELETE /products/:id` — Delete (admin)
 
 #### OrdersModule

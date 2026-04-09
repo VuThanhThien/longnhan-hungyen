@@ -14,7 +14,7 @@ export const productFormSchema = yup.object({
   summary: yup.string().optional(),
   descriptionHtml: yup.string().optional(),
   featuredImageUrl: yup.string().optional(),
-  variantsJson: yup.string().required(),
+  variantsJson: yup.string().optional(),
 });
 
 export type ProductFormValues = yup.InferType<typeof productFormSchema>;
