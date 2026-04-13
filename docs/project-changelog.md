@@ -1,8 +1,32 @@
 # Project Changelog
 
-**Last Updated:** 2026-04-01
+**Last Updated:** 2026-04-13
 
-All notable changes to the Long Nhan Hung Yen e-commerce project are documented here.
+All notable changes to the Long Nhan Hung Yen e-commerce project are documented here. **Phase status** is canonical in [Project Roadmap](./project-roadmap.md).
+
+---
+
+## [4.2.0] - 2026-04-13 - Storefront cart, search, and URL state
+
+### Summary
+
+Storefront updates: guest shopping cart, header search tied to query params, supporting libs and static assets. Phase 4 remains **complete** per [Project Roadmap](./project-roadmap.md); this release is incremental UX on top of that baseline.
+
+### Added
+
+- **`apps/web/src/app/cart/`** — Cart route (guest cart UI)
+- **`apps/web/src/services/cart/`** — Zustand cart store with `localStorage` persistence (`cart-store.ts`, storage key `longnhan-cart-v1`)
+- **`apps/web/src/components/layout/header-search-bar.tsx`** — Header search (works with URL state)
+- **`apps/web/src/components/layout/header-cart-button.tsx`** — Header cart entry point
+- **`apps/web/src/lib/product-search-params.ts`** — nuqs parsers / loader / serializer for product search params
+- **`apps/web/src/lib/format-vnd.ts`**, **`format-phone-display.ts`** — Display helpers for storefront
+- **`apps/web/public/`** — Additional marketing/UI assets (banners, backgrounds, icons)
+
+### Changed
+
+- **`header.tsx`**, **`mobile-nav.tsx`** — Integrate search and cart affordances
+- **`app-providers.tsx`** — Provider wiring for storefront (e.g. nuqs adapter + existing app providers)
+- **`products/page.tsx`**, **`lib/product-description.ts`** — Listing/content refinements aligned with search params
 
 ---
 
@@ -10,7 +34,7 @@ All notable changes to the Long Nhan Hung Yen e-commerce project are documented 
 
 ### Phase 4 Completion: Landing Page & Product UX Overhaul
 
-**Release Status:** Phase 4 (Storefront) marked COMPLETE. Project progress: 85% (86/98 tasks).
+**Release Status:** Phase 4 (Storefront) marked complete in the roadmap (see [Project Roadmap](./project-roadmap.md) for task breakdown).
 
 ### Added
 

@@ -1,12 +1,21 @@
 # Code Standards & Development Guidelines
 
-**Last Updated:** 2026-04-01
+**Last Updated:** 2026-04-13
 
 ---
 
 ## Overview
 
-This document defines the coding conventions, file structure, naming patterns, and development practices used across the Long Nhan Hung Yen codebase.
+This document defines coding conventions, file structure, naming patterns, and practices for the **NestJS API** in **`apps/api`**.
+
+### Scope
+
+| App | Standards doc |
+|-----|----------------|
+| `apps/api` | **This file** (`code-standards.md`) |
+| `apps/web`, `apps/admin` | **[Frontend Code Standards](./frontend-code-standards.md)** (App Router, TanStack Query, nuqs, Zustand cart on web, etc.) |
+
+Shared types live in **`packages/types`**. Monorepo scripts and ports: [root README](../README.md). Phase status: [Project Roadmap](./project-roadmap.md).
 
 ---
 
@@ -730,7 +739,7 @@ export class ProductsService {
 ## Next.js & React Standards Overview
 
 For detailed Next.js/React standards (components, data fetching, Server Actions, React Query, authentication, styling), see:
-- **[Frontend Code Standards](./frontend-code-standards.md)** — Next.js 16, React 19, Server Components, Client Components, API patterns
+- **[Frontend Code Standards](./frontend-code-standards.md)** — Next.js 16, React 19, Server Components, Client Components, API patterns, **nuqs** (query state + [SEO / canonical URLs](https://nuqs.dev/docs/seo)), **Zustand** (guest cart + client state in `apps/web`), icons (**lucide-react**, `public/` assets; see *Icons & assets*)
 
 ---
 

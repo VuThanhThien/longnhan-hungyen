@@ -90,7 +90,7 @@ docker compose -f docker-compose.local.yml up --build -d
 - MailDev SMTP: localhost:1025
 - MailDev Web UI: http://localhost:1080
 - PgAdmin: http://localhost:5050
-- API (if using local.yml): http://localhost:3000
+- API (if using `docker-compose.local.yml`): http://localhost:3001 (host mapping in compose)
 
 ### 4. Initialize Database
 
@@ -116,8 +116,8 @@ pnpm dev
 docker compose -f docker-compose.local.yml logs -f api
 ```
 
-API available at: http://localhost:3000
-Swagger docs: http://localhost:3000/api-docs
+API available at: http://localhost:3001 (see root `README.md` for all local ports)
+Swagger docs: http://localhost:3001/api-docs
 
 ---
 

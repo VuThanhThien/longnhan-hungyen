@@ -1,15 +1,13 @@
 import type { Product } from '@longnhan/types';
 
+/**
+ * Strip HTML to plain text using one code path on server and client.
+ * (DOMParser on the client and regex on the server produced different spacing
+ * and caused React hydration mismatches in product cards.)
+ */
 function htmlToPlainText(html: string) {
   if (!html) return '';
 
-  // Client-side: most accurate.
-  if (typeof window !== 'undefined') {
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    return (doc.body.textContent || '').replace(/\s+/g, ' ').trim();
-  }
-
-  // Server-side fallback: best-effort stripping.
   return html
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')

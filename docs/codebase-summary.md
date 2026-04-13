@@ -1,8 +1,8 @@
 # Codebase Summary
 
-**Generated:** 2026-04-01 (Updated: Phase 4 Complete)
-**Project:** Long Nhan Hung Yen - E-commerce Monorepo (API + storefront + admin)
-**Phase Status:** 85% complete (86/98 tasks) | Phase 4 Storefront COMPLETE
+**Generated:** 2026-04-13  
+**Project:** Long Nhan Hung Yen — e-commerce monorepo (API + storefront + admin)  
+**Phase status:** [Project Roadmap](./project-roadmap.md) (canonical). Storefront Phase 4 is complete; ongoing work is Phases 5–7.
 
 ---
 
@@ -10,7 +10,7 @@
 
 | Metric | Value |
 |--------|-------|
-| **Type** | NestJS Monorepo (pnpm workspaces) |
+| **Type** | pnpm + Turborepo (NestJS API + Next.js web + Next.js admin) |
 | **Language** | TypeScript 5.6+ |
 | **Database** | PostgreSQL 13+ |
 | **Package Manager** | pnpm 10.32.1 |
@@ -98,13 +98,16 @@ longnhantongtran/
 │   │   │   └── globals.css           # Global styles
 │   │   ├── public/                  # Static assets
 │   │   └── package.json
-│   └── web/                          # Next.js storefront (Phase 4: COMPLETE)
+│   └── web/                          # Next.js storefront (@longnhan/web)
+│       ├── public/                   # Static assets (images, decorative art)
 │       ├── src/
-│       │   ├── app/                  # Next.js App Router pages
-│       │   ├── components/           # 43 UI components (13 new in 4.1.0)
-│       │   ├── data/                 # Static content (landing-page-content.ts)
-│       │   ├── lib/                  # HTTP client, SEO, form helpers
-│       │   └── public/               # Static assets
+│       │   ├── app/                  # App Router (/, /products, /articles, /cart, …)
+│       │   ├── components/           # UI (~47 .tsx under components/; excludes app/)
+│       │   ├── data/                 # Marketing copy (e.g. landing-page-content.ts)
+│       │   ├── hooks/                # Shared hooks
+│       │   ├── lib/                  # API clients, SEO, nuqs product search, format helpers
+│       │   ├── services/             # auth/, cart/ (Zustand guest cart)
+│       │   └── actions/              # Server Actions (e.g. orders)
 │       └── package.json
 ├── packages/
 │   └── types/                        # Shared @longnhan/types package
@@ -114,13 +117,16 @@ longnhantongtran/
 │       │   └── index.ts
 │       ├── tsconfig.json
 │       └── package.json
-├── docs/                             # PROJECT DOCS (NEW)
+├── docs/
+│   ├── README.md
 │   ├── project-overview-pdr.md
+│   ├── project-roadmap.md
+│   ├── project-changelog.md
 │   ├── system-architecture.md
 │   ├── code-standards.md
+│   ├── frontend-code-standards.md
 │   ├── codebase-summary.md
-│   ├── deployment-guide.md
-│   └── project-roadmap.md
+│   └── deployment-guide.md
 ├── docker-compose.yml                # Production services (db, redis, mail, pgadmin)
 ├── docker-compose.local.yml          # Local dev stack (with API container)
 ├── pnpm-workspace.yaml               # Workspace configuration
@@ -321,7 +327,7 @@ Reusable NestJS modules:
 - **Forms:** react-hook-form + yup validation, Server Actions for login/mutations
 - **Cache:** `revalidatePath()` after mutations to sync Server Component state
 
-**Key Libraries:**
+**Key libraries (admin):**
 - `@radix-ui/*` — UI primitives (dialog, dropdown, tabs, etc.)
 - `recharts` — Revenue & stats charts
 - `react-hook-form` + `yup` — Form validation
@@ -330,13 +336,13 @@ Reusable NestJS modules:
 - `motion` — Micro-interactions
 - `tailwind-css@v4` — Styling
 
-**Authentication Pattern:**
+**Authentication pattern:**
 - Cookie: `long-nhan-hy-admin-auth-token-data`
 - Protected routes check layout-level auth
 - Token refresh via proxy route: `GET /api/auth/refresh`
 - Logout via proxy route: `POST /api/auth/logout`
 
-**API Proxy Routes (apps/admin/src/app/api/):**
+**API proxy routes (`apps/admin/src/app/api/`):**
 - `POST /api/auth/login` — Admin login (Server Action wrapper)
 - `GET /api/auth/refresh` — Refresh token via cookie
 - `POST /api/auth/logout` — Clear session
@@ -346,6 +352,22 @@ Reusable NestJS modules:
 - `DELETE /api/media/:id` — Delete media
 - `PATCH /api/orders/:id/status` — Update order status
 - Plus standard CRUD proxies for products/articles/orders
+
+### 6b. Storefront App (`apps/web/src/`)
+
+**Routes (`app/`):** marketing home, product listing + `[slug]` PDP, articles, order success, **cart**.
+
+**Layout & navigation (`components/layout/`):** `header.tsx`, `header-search-bar.tsx`, `header-cart-button.tsx`, `mobile-nav.tsx`, `footer.tsx`, `floating-contact-widget.tsx`.
+
+**Catalog & content:** `components/products/*`, `components/home/*`, `components/landing/*`, `components/articles/*`, `components/orders/*` (order form / QR UI).
+
+**Client state:** `services/cart/cart-store.ts` — Zustand + `persist` (`longnhan-cart-v1`). **URL state:** `lib/product-search-params.ts` — nuqs parsers shared with server loaders.
+
+**API/data:** `lib/api-client.ts`, `lib/api-server.ts`, `lib/http/create-longnhan-api.ts`, TanStack Query usage; default public API base `http://localhost:3001/api/v1` via env (see `NEXT_PUBLIC_API_URL`).
+
+**Assets:** `apps/web/public/` — raster/WebP/PNG used by layout and landing (not under `src/`).
+
+**Key libraries (storefront):** `next`, `react`, `@tanstack/react-query`, `nuqs`, `zustand`, `axios`, `motion`, `react-hook-form`, `yup`, `@longnhan/types`.
 
 ### 7. Shared Types Package (@longnhan/types)
 
@@ -754,9 +776,11 @@ Class-validator decorators on DTOs automatically validate input.
 
 ---
 
-## Storefront Components (Phase 4 - COMPLETE)
+## Storefront components (Phase 4 complete; ongoing UX)
 
-### New Components Added (4.1.0 Release - 2026-04-01)
+Major landing/product additions from **4.1.0** (2026-04-01); **4.2.0** (2026-04-13) adds cart flow, header search/cart, `product-search-params`, and related layout wiring — see [Project Changelog](./project-changelog.md).
+
+### Components added (4.1.0)
 
 **Landing Page Section Components:**
 - `landing-hero.tsx` — Hero section with CTA
@@ -787,11 +811,11 @@ Class-validator decorators on DTOs automatically validate input.
 - `home-products-section.tsx` — Featured products grid (NEW)
 - `floating-contact-widget.tsx` — Persistent contact UI (NEW)
 - `back-to-top-button.tsx` — Scroll-to-top button (NEW)
-- `header.tsx` — Navigation header
+- `header.tsx` — Navigation header (extended in 4.2.0 with search + cart)
 - `footer.tsx` — Footer
 - `mobile-nav.tsx` — Mobile navigation
 
-**Data Structures (New in 4.1.0):**
+**Data structures (4.1.0):**
 - `LANDING_SERVICE_BADGES` — Service definitions
 - `LANDING_STATS` — Statistics data
 - `LANDING_CERTS` — Certification badges
@@ -799,7 +823,10 @@ Class-validator decorators on DTOs automatically validate input.
 - `LANDING_HERO_SLIDES` — Hero carousel data
 - `LANDING_CATEGORIES` — Category card data
 
-### Total Component Count: 43 UI components
+### Module counts (approximate)
+
+- **`apps/web/src/components/**/*.tsx`:** on the order of **~47** files (layout, landing, products, etc.); prefer counting in-repo over hard-coding in docs.
+- **App routes:** see `apps/web/src/app/` (includes **`cart/`**).
 
 ---
 

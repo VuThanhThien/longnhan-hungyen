@@ -1,12 +1,12 @@
 # System Architecture
 
-**Last Updated:** 2026-04-01
+**Last Updated:** 2026-04-13
 
 ---
 
 ## Overview
 
-Long Nhan Hung Yen is a modular NestJS monorepo using pnpm workspaces and Turborepo. The architecture separates concerns into feature modules, shared libraries, and infrastructure components.
+Long Nhan Hung Yen is a **pnpm + Turborepo** monorepo: a **NestJS API** (`apps/api`), **Next.js storefront** (`apps/web`), **Next.js admin** (`apps/admin`), and shared **`@longnhan/types`**. Phase status: [Project Roadmap](./project-roadmap.md).
 
 ---
 
@@ -52,6 +52,8 @@ longnhantongtran/
 │   │   │   └── globals.css    # Tailwind CSS v4 config
 │   │   └── package.json
 │   └── web/                   # Next.js storefront
+│       ├── public/            # Static assets (images, decorative art)
+│       └── src/               # App Router, components, lib, services
 ├── packages/
 │   └── types/                 # Shared @longnhan/types package
 ├── .github/workflows/         # CI/CD pipelines
@@ -205,6 +207,42 @@ Maps admin requests to backend NestJS API:
 - **Global Context:** AuthProvider for user & auth state
 - **Query Cache:** React Query (stale 30s for lists, mutation invalidation)
 - **UI Toast:** Radix UI toast notifications for success/error feedback
+
+---
+
+## Storefront architecture (`apps/web`)
+
+**Framework:** Next.js App Router + React + Tailwind (see `package.json` for pinned versions).
+
+### Routes (representative)
+
+| Area | Location | Notes |
+|------|----------|--------|
+| Marketing home | `src/app/page.tsx` | Landing sections composed from `components/home` / `components/landing` |
+| Products | `src/app/products/page.tsx`, `src/app/products/[slug]/page.tsx` | Listing + PDP; listing participates in URL-driven search/filter via shared parsers |
+| Articles | `src/app/articles/…` | List + detail |
+| Order success | `src/app/order-success/` | Post-checkout |
+| Cart | `src/app/cart/` | Guest cart UI backed by client store |
+
+### URL state (search / filters)
+
+The storefront uses **nuqs** with shared definitions in **`src/lib/product-search-params.ts`**: parsers, server loader, and serializers so Server Components and client header/search stay aligned. Details: [Frontend Code Standards](./frontend-code-standards.md).
+
+### Client-only state (cart)
+
+**`src/services/cart/cart-store.ts`** exposes a **Zustand** store with **`persist`** middleware targeting **`localStorage`** (key `longnhan-cart-v1`). Lines hold `variantId`, `quantity`, and `unitPriceVnd`; totals are derived. There is **no separate server cart API** in this layer — cart is browser-local until checkout flows consume it.
+
+### Header & navigation
+
+**`header-search-bar.tsx`** and **`header-cart-button.tsx`** are composed in **`header.tsx`** and reflected in **`mobile-nav.tsx`** for smaller viewports.
+
+### Data access
+
+Server and client code call the Nest API using **`NEXT_PUBLIC_API_URL` / `API_URL`**, defaulting in code to **`http://localhost:3001/api/v1`** (aligned with [root README](../README.md)). Swagger for the API: **`http://localhost:3001/api-docs`**.
+
+### Static assets
+
+Raster/WebP/PNG live under **`apps/web/public/`** and are referenced via `next/image` or CSS `url('/…')`.
 
 ---
 
@@ -406,7 +444,7 @@ Media (Cloudinary references)
 
 ## API Endpoints Structure
 
-Base URL: `http://localhost:3000/api/v1`
+Local base URL (per [root README](../README.md)): `http://localhost:3001/api/v1` · Swagger: `http://localhost:3001/api-docs`
 
 | Module | Endpoints | Auth |
 |--------|-----------|------|

@@ -1,13 +1,13 @@
 # Project Roadmap
 
-**Last Updated:** 2026-04-01
-**Current Phase:** Phase 5 - Admin Panel (In Progress) | Phase 4 - Storefront (COMPLETE)
+**Last Updated:** 2026-04-13
+**Current Phase:** Phase 5 — Admin Panel (in progress). Phase 4 — Storefront (**complete**).
 
 ---
 
 ## Overview
 
-Long Nhan Hung Yen development roadmap tracks phases from core infrastructure through production deployment. Status reflects actual codebase state as of 2026-04-01.
+Long Nhan Hung Yen development roadmap tracks phases from core infrastructure through production deployment. Status reflects actual codebase state as of 2026-04-01; Phase 7 scope updated 2026-04-13 to match the active deployment / storefront hardening plan (see Phase 7).
 
 ---
 
@@ -23,7 +23,7 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 | 6 | Frontend Animation | In Progress | ~50% | ~2026-04-15 |
 | 7 | Deployment | Pending | 0% | Post Phase 5+6 |
 
-**Overall Completion:** ~85% (approx. 86/98 tasks)
+**Overall Completion:** ~81% (approx. 86/106 tasks; Phase 7 expanded 2026-04-13)
 
 ---
 
@@ -124,10 +124,12 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 **Bug Fixes:** Math.min/max empty array guards, modal body scroll lock
 
 ### Key Files
-- `apps/web/src/app/` — Next.js App Router pages
-- `apps/web/src/components/` — 43 UI components (NEW: +13 components)
-- `apps/web/src/lib/` — HTTP client, form helpers, SEO utilities
-- `apps/web/src/data/` — landing-page-content.ts (NEW: 6 data structures)
+- `apps/web/src/app/` — App Router routes (home, products, articles, order success, **`cart/`**)
+- `apps/web/src/components/` — UI by domain (layout, landing, home, products, …) including **`header-search-bar.tsx`**, **`header-cart-button.tsx`**, **`mobile-nav.tsx`**
+- `apps/web/src/lib/` — API clients, SEO, **`product-search-params.ts`** (nuqs), **`format-vnd.ts`**, **`format-phone-display.ts`**, form/validation helpers
+- `apps/web/src/services/cart/` — Zustand guest cart (`cart-store.ts`, persisted)
+- `apps/web/public/` — Static images and decorative assets (referenced from layout/components)
+- `apps/web/src/data/` — `landing-page-content.ts` and related marketing copy structures
 
 ---
 
@@ -211,17 +213,22 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 
 ## Phase 7: Deployment (PENDING)
 
-**Estimated Duration:** 2 days | **Status:** PENDING | **Progress:** 0% | **Blocked By:** Phase 5 + Phase 6 completion
+**Estimated Duration:** 3–4 days | **Status:** PENDING | **Progress:** 0% | **Blocked By:** Phase 5 + Phase 6 completion (storefront hardening below may start in parallel once plan is approved)
+
+**Implementation plan (2026-04-13):** [`.cursor/plans/web-cloudflare-sentry-ux.plan.md`](../.cursor/plans/web-cloudflare-sentry-ux.plan.md) — Cloudflare target for `apps/web`, optional CI `Dockerfile` + build-args for env-specific `NEXT_PUBLIC_*`, `@sentry/nextjs` (client + server + edge), App Router `loading` / `error` / `global-error`, refresh `not-found`, header cart button aligned with search submit.
 
 ### Objectives
 - [ ] Finalize production environment
 - [ ] Deploy API to Railway
-- [ ] Deploy web + admin to Vercel
+- [ ] Deploy **storefront (`apps/web`) to Cloudflare** (OpenNext / Workers or Cloudflare Pages per plan; not generic `next start` on CF)
+- [ ] **Web CI/build:** reproducible Docker image or documented Cloudflare build with **Production vs Preview** env vars (`NEXT_PUBLIC_*`, Sentry DSNs)
+- [ ] Deploy **admin** to Vercel (or align with team choice; default remains Vercel until changed)
 - [ ] Configure custom domain DNS
 - [ ] Setup SSL/TLS certificates
-- [ ] Configure environment variables in production
-- [ ] Setup monitoring & alerting
-- [ ] Document deployment procedures
+- [ ] Configure environment variables in production (including Sentry: `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_DSN`, build-only `SENTRY_AUTH_TOKEN` for source maps)
+- [ ] **Storefront UX:** root `loading.tsx`, segment `error.tsx`, `global-error.tsx`; polish `not-found` (copy + brand)
+- [ ] Setup monitoring & alerting (Sentry Issues + dashboards)
+- [ ] Document deployment procedures (`docs/deployment-guide.md` — add Cloudflare subsection)
 - [ ] Plan rollback strategy
 - [ ] Monitor for 7 days post-launch
 
@@ -229,7 +236,7 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 | Service | Platform | Status |
 |---------|----------|--------|
 | **API** | Railway | Pending Phase 5 completion |
-| **Web** | Vercel | Pending Phase 4 completion |
+| **Web (storefront)** | **Cloudflare** (Workers/Pages + adapter) | Planned; implementation per `.cursor/plans/web-cloudflare-sentry-ux.plan.md` |
 | **Admin** | Vercel | Pending Phase 5 completion |
 | **Database** | Railway PostgreSQL | Pending Phase 5 completion |
 | **Media CDN** | Cloudinary | Ready |
@@ -242,7 +249,7 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 - [ ] Mobile responsive across all viewports
 - [ ] Production .env configured (no secrets in code)
 - [ ] Database backups automated
-- [ ] Error tracking setup (Sentry or similar)
+- [ ] Error tracking: **Sentry** (`@sentry/nextjs` for web per plan; verify events + source maps in CI)
 - [ ] Analytics configured (GA4)
 - [ ] Team trained on production procedures
 
@@ -258,8 +265,8 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 | 4 | 20 | 20 | 0 | 100% |
 | 5 | 18 | ~14 | ~4 | 75% |
 | 6 | 12 | ~6 | ~6 | 50% |
-| 7 | 6 | 0 | 6 | 0% |
-| **Total** | **98** | **~86** | **~12** | **~85%** |
+| 7 | ~14 | 0 | ~14 | 0% |
+| **Total** | **~106** | **~86** | **~20** | **~81%** |
 
 ---
 
@@ -271,16 +278,18 @@ Phase 1 (Monorepo) ✓
 Phase 2 (Database) ✓
   ↓
 Phase 3 (API) ✓
-  ↓├─ Phase 4 (Storefront) — IN PROGRESS (~95%)
-  └─ Phase 5 (Admin) — IN PROGRESS (~75%)
-      ↓
-      Phase 6 (Frontend Animation) — IN PROGRESS (~40%)
-      ↓
-      Phase 7 (Deployment) — BLOCKED (waiting for 5+6)
+  ↓
+Phase 4 (Storefront) ✓
+  ↓
+Phase 5 (Admin) — in progress
+  ↓
+Phase 6 (Frontend animation / polish) — in progress (overlaps storefront)
+  ↓
+Phase 7 (Deployment) — blocked until Phase 5 + 6 exit criteria met
 ```
 
-**Critical Path:** Phase 5 completion → Phase 7 unblocks
-**Optimization:** Phase 4 & 5 can run in parallel (mostly do); Phase 6 can overlap
+**Critical path:** Finish Phase 5 and Phase 6 objectives → Phase 7 (deployment).  
+**Note:** Phase 4 and Phase 5 were mostly parallel; Phase 6 continues to refine the storefront experience.
 
 ---
 
@@ -337,16 +346,19 @@ Phase 3 (API) ✓
 1. E2E test coverage minimal
 2. Admin-specific unit tests needed
 3. Performance profiling on production-like data
+4. **Storefront production hardening (Phase 7 plan):** Cloudflare deploy pipeline for `apps/web`, Sentry, loading/error surfaces, `not-found` polish, header cart/search control parity — tracked in [`.cursor/plans/web-cloudflare-sentry-ux.plan.md`](../.cursor/plans/web-cloudflare-sentry-ux.plan.md)
 
 ---
 
-## Release Timeline
+## Release timeline (targets)
+
+Targets are planning aids; **actual completion** is reflected in the phase checklists above and in [Project Changelog](./project-changelog.md).
 
 ```
-2026-04-05  Phase 4 closure (storefront mobile + Lighthouse audit)
-2026-04-10  Phase 5 closure (admin filters + verification + E2E tests)
-2026-04-15  Phase 6 closure (animation polish + Lighthouse audit)
-2026-04-17  Phase 7 deployment to production
+2026-04-01  Phase 4 storefront milestone (complete)
+2026-04-10  Phase 5 target (admin filters + verification + E2E)
+2026-04-15  Phase 6 target (animation polish + Lighthouse audit)
+2026-04-17  Phase 7 target (production deployment)
 ```
 
 ---
@@ -377,6 +389,8 @@ Phase 3 (API) ✓
 
 | Date | Version | Changes |
 |------|---------|---------|
-| 2026-04-01 | 2.1.0 | Phase 4 complete: 13 new components + product UX enhancements (85% complete) |
+| 2026-04-13 | 2.3.0 | Phase 7: web → Cloudflare, Sentry, web Dockerfile/env matrix, storefront error/loading/not-found + header parity; link to `.cursor/plans/web-cloudflare-sentry-ux.plan.md`; phase task totals ~106 |
+| 2026-04-13 | 2.2.0 | Storefront cart/search/url-state docs sync; dependency diagram aligned (Phase 4 complete) |
+| 2026-04-01 | 2.1.0 | Phase 4 complete: 13 new components + product UX enhancements |
 | 2026-04-01 | 2.0.0 | Updated with Phase 4-6 actual progress (82% complete) |
 | 2026-03-30 | 1.0.0 | Initial roadmap creation |

@@ -1,7 +1,11 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { Phone } from 'lucide-react';
 import { CONTACT_PHONE } from '@/lib/constants';
+import { formatPhoneDisplay } from '@/lib/format-phone-display';
 import { LANDING_BRAND } from '@/data/landing-page-content';
+import HeaderCartButton from './header-cart-button';
+import HeaderSearchBar from './header-search-bar';
 import MobileNav from './mobile-nav';
 
 const navLinks = [
@@ -11,54 +15,47 @@ const navLinks = [
 ];
 
 export default function Header() {
+  const tel = CONTACT_PHONE.replace(/\s/g, '');
+  const phoneDisplay = formatPhoneDisplay(CONTACT_PHONE);
+
   return (
-    <header className="sticky top-0 z-50 border-b border-[var(--brand-forest)]/10 bg-[var(--brand-cream)]/95 shadow-sm backdrop-blur-md">
-      <div className="relative mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-3">
+    <header className="sticky top-0 z-50 border-b border-(--brand-forest)/10 bg-(--brand-cream)/95 shadow-sm backdrop-blur-md">
+      <div className="relative mx-auto flex min-h-17 max-w-6xl items-center gap-3 px-4 py-2 md:min-h-18 md:gap-4">
+        <Link href="/" className="relative z-10 flex shrink-0 items-center">
           <Image
             src={LANDING_BRAND.logoSrc}
             alt={LANDING_BRAND.logoAlt}
-            width={44}
-            height={44}
-            className="h-11 w-11 shrink-0 object-contain"
+            width={72}
+            height={72}
+            className="h-14 w-14 object-contain md:h-18 md:w-18"
+            priority
           />
-          <span className="hidden flex-col sm:flex">
-            <span className="landing-heading text-base font-semibold leading-tight text-[var(--brand-forest)]">
-              {LANDING_BRAND.name}
-            </span>
-            <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-[var(--brand-gold-dark)]">
-              {LANDING_BRAND.specialtyLine}
-            </span>
-          </span>
         </Link>
 
-        <nav className="hidden items-center gap-8 md:flex">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="text-sm font-medium text-[var(--brand-forest-muted)] transition hover:text-[var(--brand-leaf)]"
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
+        <div className="pointer-events-none absolute inset-0 hidden items-center justify-center px-28 md:flex">
+          <HeaderSearchBar className="pointer-events-auto w-full max-w-xl" />
+        </div>
 
-        <div className="flex items-center gap-3">
+        <div className="relative z-10 ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
           <a
-            href={`tel:${CONTACT_PHONE.replace(/\s/g, '')}`}
-            className="hidden items-center gap-1.5 text-sm font-semibold text-[var(--brand-forest)] sm:inline-flex"
+            href={`tel:${tel}`}
+            className="hidden items-center gap-2.5 rounded-full border-2 border-(--brand-gold)/55 bg-linear-to-br from-(--brand-gold)/20 via-(--brand-cream) to-(--brand-gold)/10 px-3 py-1.5 text-(--brand-forest) shadow-sm transition hover:border-(--brand-gold) hover:shadow-md sm:inline-flex sm:px-4 sm:py-2"
           >
-            <svg className="h-4 w-4 text-[var(--brand-leaf)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-              />
-            </svg>
-            {CONTACT_PHONE}
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-(--brand-forest)/10 text-(--brand-leaf)">
+              <Phone className="h-4 w-4" strokeWidth={2} aria-hidden />
+            </span>
+            <span className="flex min-w-0 flex-col leading-tight">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-(--brand-forest-muted) sm:text-[11px]">
+                Giao hàng tận nơi
+              </span>
+              <span className="text-sm font-bold tabular-nums">{phoneDisplay}</span>
+            </span>
           </a>
+
+          <div className="hidden h-8 w-px bg-(--brand-forest)/15 sm:block" aria-hidden />
+
+          <HeaderCartButton />
+
           <MobileNav links={navLinks} />
         </div>
       </div>

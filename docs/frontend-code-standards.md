@@ -1,6 +1,6 @@
 # Frontend Code Standards (Next.js & React)
 
-**Last Updated:** 2026-04-08
+**Last Updated:** 2026-04-13
 **Applies To:** apps/web, apps/admin
 
 ---
@@ -10,13 +10,20 @@
 - **Body font**: must use a normal-weight sans stack (e.g. `--font-geist-sans`). Do **not** set a display font as the first `font-family` on `body`, especially if the font files only include bold weights.
 - **Display font**: OK for headings/brand-only (e.g. `.landing-heading`), but keep it scoped so regular copy doesn’t inherit bold-only glyphs.
 
+## Icons & assets (`apps/web`)
+
+- **UI icons:** Prefer **`lucide-react`** ([Lucide](https://lucide.dev/icons/)) for standard glyphs (navigation, cart, phone, etc.). Import named components (`import { ShoppingCart } from 'lucide-react'`) and size/color with `className` (`h-5 w-5`, `text-(--brand-*)`). Avoid ad-hoc inline `<svg>` when a Lucide icon exists.
+- **Radix icons:** `@radix-ui/react-icons` remains acceptable where already used (e.g. search bar); prefer **one** icon system per surface for consistency unless a Radix-only glyph is required.
+- **Brand / decorative / raster art:** Prefer files under **`apps/web/public/`** (PNG, WebP, SVG) and reference them with `next/image` or CSS `url('/path')` (e.g. decorative search bar corners). Do not hand-generate SVG paths for assets that should be shipped as static files.
+- **When to add new SVG in code:** Only if neither Lucide nor `public/` provides a suitable asset; keep it minimal and colocate with the component.
+
 ## Component Organization
 
 ### Server vs Client Components
 
 **Default: Server Components** (no rendering cost)
 ```typescript
-// pages/products/page.tsx — Server Component (default)
+// apps/web/src/app/products/page.tsx — Server Component (default)
 export default async function ProductsPage() {
   const products = await fetch('...'); // OK: server-side data fetching
   return <ProductList products={products} />;
@@ -76,6 +83,84 @@ export default function ResourcePageClient() {
 }
 ```
 
+### `nuqs` — URL query state (storefront `apps/web`)
+
+Use [**nuqs**](https://nuqs.dev/docs) for type-safe search params: shared parsers between server and client, serializers for links/navigation, and hooks that behave like `useState` backed by the query string.
+
+**Docs:** [Installation](https://nuqs.dev/docs/installation) · [Adapters (Next.js App Router)](https://nuqs.dev/docs/adapters) · [Server-side](https://nuqs.dev/docs/server-side) · [**SEO**](https://nuqs.dev/docs/seo)
+
+**Setup in `apps/web`:**
+
+1. Wrap the app with `NuqsAdapter` from `nuqs/adapters/next/app` (inside `AppProviders`, with a `<Suspense fallback={null}>` boundary around the adapter so `useSearchParams` is valid during static prerender).
+2. Define parsers once (e.g. `src/lib/product-search-params.ts`) using `nuqs/server`: `createLoader`, `createSearchParamsCache`, `createSerializer`, and `parseAsString` (and options such as `throttleMs` on the query field).
+3. **Client:** `useQueryStates(productSearchParamsParsers)` for components that read/write the current URL (e.g. header search on `/` and `/products`).
+4. **Server:** `await loadProductSearchParams(searchParams)` in route handlers that need `q` / `category` for data fetching.
+5. **Navigation:** `serializeProductSearchUrl('/products', { q, category })` instead of hand-built `URLSearchParams`.
+
+**SEO and canonical URLs ([nuqs SEO](https://nuqs.dev/docs/seo))**
+
+Query strings affect how crawlers treat duplicate URLs. Align canonical tags with whether params are *UI-only* or *content-defining*.
+
+| Situation | Canonical strategy |
+|-----------|-------------------|
+| Params are **local-only** (filters, draft search text, UI state that does not change the primary “topic” of the page) | Point canonical at the **path without** those query strings so search engines index one preferred URL. |
+| Params **define** what is shown (e.g. a resource id, or search results that are the main intent of the URL) | Canonical should **include** the relevant query string(s). Reuse the same **parsers** and **`createSerializer`** in `generateMetadata` so the canonical matches what users and parsers agree on. |
+
+In the Next.js App Router, set this with **metadata**:
+
+```ts
+import type { Metadata } from 'next';
+
+// Example: local-only state on `/` — prefer indexing the bare landing URL
+export const metadata: Metadata = {
+  alternates: {
+    canonical: '/',
+  },
+};
+```
+
+For routes where the visible content depends on parsed params, compute canonical inside **`generateMetadata`** using your shared loader/serializer (same pattern as [nuqs SEO examples](https://nuqs.dev/docs/seo)):
+
+```ts
+import type { Metadata } from 'next';
+import type { SearchParams } from 'nuqs/server';
+import { loadProductSearchParams, serializeProductSearchUrl } from '@/lib/product-search-params';
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}): Promise<Metadata> {
+  const { q, category } = await loadProductSearchParams(searchParams);
+  const hasContentDefiningParams = Boolean(q ?? category);
+  return {
+    alternates: {
+      canonical: hasContentDefiningParams
+        ? serializeProductSearchUrl('/products', { q, category })
+        : '/products',
+    },
+  };
+}
+```
+
+Resolve `alternates.canonical` against root **`metadataBase`** in `layout.tsx` when you use relative paths. **Decide per route** whether `q` / `category` belong in the canonical (product listing/search often yes; the marketing home with incidental `?q=` from the header often should stay canonical **`/`** without params — see [nuqs SEO](https://nuqs.dev/docs/seo)).
+
+---
+
+## Zustand — client state & guest cart (`apps/web`)
+
+Use **[Zustand](https://docs.pmnd.rs/zustand/getting-started/introduction)** for **client-only** global state that must not live in the URL. For **bookmarkable / shareable** filters and search, use **nuqs** instead.
+
+**Shopping cart (guest, no server cart API)**
+
+- Implementation: `src/services/cart/cart-store.ts` — `useCartStore`, `useCartTotals`, `getCartTotals`.
+- **Persist** via `persist` middleware to **`localStorage`**; key **`longnhan-cart-v1`** (`CART_STORAGE_KEY`). If the JSON shape changes, bump the key or add a **`version` + `migrate`** in `persist` options.
+- Store **lines** only: `variantId`, `quantity`, `unitPriceVnd`. Derive **item count** and **total ₫** from lines (do not duplicate totals in state).
+- **Providers:** none required — use hooks in **`'use client'`** components. **`NuqsAdapter`** and the cart store are independent; order in `AppProviders` does not require nesting one inside the other.
+- **SSR / hydration:** server render uses the store’s initial empty state; **`persist` rehydrates** after load. Do not rely on cart contents during server components.
+
+**Selectors:** use **`useShallow`** from `zustand/react/shallow` when selecting computed objects (e.g. `{ itemCount, totalVnd }`) to avoid unnecessary re-renders.
+
 ---
 
 ## API Route Handlers & Server Actions
@@ -91,8 +176,8 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: NextRequest) {
   const body = await req.json();
 
-  // Call backend NestJS API
-  const response = await fetch('http://api:3000/api/v1/auth/sign-in', {
+  // Call backend NestJS API (local dev: localhost:3001; Docker: service host from compose)
+  const response = await fetch('http://localhost:3001/api/v1/auth/sign-in', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -114,14 +199,14 @@ export async function POST(req: NextRequest) {
 Used for form submissions with automatic cache revalidation:
 
 ```typescript
-// lib/product-actions.ts
+// Example Server Action (e.g. apps/web/src/actions/... or apps/admin pattern)
 'use server';
 import { revalidatePath } from 'next/cache';
 
 export async function createProduct(formData: FormData) {
   const data = Object.fromEntries(formData);
 
-  const response = await fetch('http://api:3000/api/v1/products', {
+  const response = await fetch('http://localhost:3001/api/v1/products', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${getToken()}` },
     body: JSON.stringify(data),
@@ -153,7 +238,7 @@ Fetch from backend in Server Components:
 ```typescript
 // lib/admin-api-client.ts
 export async function adminFetch(path: string, options = {}) {
-  const response = await fetch(`http://api:3000/api/v1${path}`, {
+  const response = await fetch(`http://localhost:3001/api/v1${path}`, {
     ...options,
     headers: {
       'Authorization': `Bearer ${getCookieToken()}`,
@@ -179,7 +264,7 @@ Use Axios + React Query for client-side data fetching:
 import axios from 'axios';
 
 export const httpClient = axios.create({
-  baseURL: 'http://localhost:3000/api/v1',
+  baseURL: 'http://localhost:3001/api/v1',
   timeout: 15000,
 });
 
@@ -473,7 +558,7 @@ export function ArticleForm() {
 ### ISR & On-demand Revalidation
 
 ```typescript
-// app/products/page.tsx
+// apps/web/src/app/products/page.tsx
 export const revalidate = 60; // Revalidate every 60 seconds
 
 // Manual revalidation after mutation
@@ -513,32 +598,44 @@ export async function createProduct(data) {
 }
 ```
 
-### Error Boundaries (Client Components)
+### Route errors (App Router)
 
-```typescript
+Use a segment **`error.tsx`** (client file) so Next.js can catch render errors in that subtree — do not use `onError` on a `<div>` (that is not a React error boundary).
+
+```tsx
+// apps/web/src/app/example-segment/error.tsx
 'use client';
-import { useState } from 'react';
 
-export function ErrorBoundary({ children }) {
-  const [error, setError] = useState(null);
+import { useEffect } from 'react';
 
-  if (error) {
-    return (
-      <div className="p-4 bg-red-100 text-red-800 rounded">
-        <h2>Something went wrong</h2>
-        <p>{error.message}</p>
-        <button onClick={() => setError(null)}>Try again</button>
-      </div>
-    );
-  }
+export default function ExampleSegmentError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    console.error(error);
+  }, [error]);
 
   return (
-    <div onError={(e) => setError(e)}>
-      {children}
+    <div className="rounded-md border border-red-200 bg-red-50 p-4 text-red-900">
+      <h2 className="font-semibold">Something went wrong</h2>
+      <p className="mt-1 text-sm">{error.message}</p>
+      <button
+        type="button"
+        className="mt-3 rounded bg-red-800 px-3 py-1 text-sm text-white"
+        onClick={() => reset()}
+      >
+        Try again
+      </button>
     </div>
   );
 }
 ```
+
+For granular client trees, a **class-based** `componentDidCatch` boundary is still valid; prefer `error.tsx` for route-level failures.
 
 ---
 
@@ -590,9 +687,29 @@ export function ProductSchema({ product }) {
 
 ---
 
-## File Organization
+## File organization
 
-### Admin App Structure
+### Storefront (`apps/web/src`) — quick map
+
+```
+apps/web/src/
+├── app/                    # Routes: page.tsx, layout, cart/, products/, articles/, …
+├── actions/                # Server Actions (e.g. orders)
+├── components/
+│   ├── layout/             # header.tsx, header-search-bar, header-cart-button, mobile-nav, footer, …
+│   ├── home/, landing/, products/, articles/, orders/, ui/, …
+├── data/                   # Static marketing content
+├── hooks/
+├── lib/                    # api-client, api-server, product-search-params, format-*, SEO, …
+├── services/
+│   ├── auth/               # Auth context / hooks
+│   └── cart/               # Zustand cart-store (guest cart)
+```
+
+Static files: **`apps/web/public/`** (not under `src/`).
+
+### Admin app structure
+
 ```
 apps/admin/src/
 ├── app/
@@ -695,8 +812,9 @@ describe('Button', () => {
 
 ---
 
-## Related Documentation
+## Related documentation
 
-- [Code Standards](./code-standards.md) — NestJS backend standards
+- [Code Standards](./code-standards.md) — **`apps/api`** (NestJS) conventions
 - [System Architecture](./system-architecture.md) — Full stack architecture
 - [Codebase Summary](./codebase-summary.md) — Project structure overview
+- [Project Roadmap](./project-roadmap.md) — Phase status

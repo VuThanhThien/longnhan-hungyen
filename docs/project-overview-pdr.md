@@ -2,10 +2,10 @@
 
 ## Project: Long Nhan Hung Yen E-commerce Platform (API + Web + Admin)
 
-**Status:** In Development (82% complete)
+**Status:** In development — see [Project Roadmap](./project-roadmap.md) for phase completion and current focus.
 **Version:** 0.1.0-alpha
 **Team:** ViBe Coding Team
-**Last Updated:** 2026-04-01
+**Last Updated:** 2026-04-13
 
 ---
 
@@ -44,30 +44,31 @@ Provide a scalable, secure, and maintainable backend API for an e-commerce platf
 - **Docker** — Local dev and production compose setups
 - **CI/CD** — GitHub Actions workflows
 
-### Released/Implemented (Web - Phase 4, ~95%)
-- **Storefront Pages** — Landing, Products list/detail, Articles list/detail, Order success
-- **Landing Sections** — Hero, Story, ProductQuality, NutritionSeason, Channels, Testimonials, FAQ
-- **ISR** — Home (revalidate 300s), Products (60s)
-- **SEO** — JSON-LD schema, robots.txt, sitemap.xml, dynamic metadata
-- **Auth** — Cookie-based tokens, auto-refresh 60s before expiry
-- **Data Fetching** — React Query (stale 60s), TanStack Query hooks
-- **Forms** — Server Actions for order creation, yup validation
-- **Images** — Cloudinary loader with optimization
-- **Remaining** — Mobile viewport pass, Lighthouse audit (≥85 performance)
+### Released/Implemented (Web — Phase 4 per roadmap)
+- **Storefront routes** — Landing, product listing/detail, articles, order success, cart page (`apps/web/src/app/cart/`)
+- **Landing sections** — Hero, story, product quality, nutrition/season, channels, testimonials, FAQ (and related home/landing components)
+- **Catalog UX** — Header search (`header-search-bar.tsx`) wired to URL state; cart affordance in header (`header-cart-button.tsx`); product listing refinements
+- **URL state** — `nuqs` parsers/loaders in `lib/product-search-params.ts` (shared server/client usage)
+- **Guest cart** — Zustand store with `localStorage` persistence under `services/cart/` (see [Frontend Code Standards](./frontend-code-standards.md))
+- **ISR** — Home (revalidate 300s), products listing (60s) where configured
+- **SEO** — JSON-LD, `robots.ts`, `sitemap.ts`, dynamic metadata
+- **Auth** — Cookie-based tokens, client refresh path via storefront API base URL
+- **Data fetching** — TanStack Query patterns, server data helpers in `lib/`
+- **Forms** — Server Actions for orders, yup validation
+- **Images** — Cloudinary loader; static assets under `apps/web/public/`
+- **Follow-ups** — Polishing, performance audits, and animation work tracked in Phases 5–7 of the roadmap
 
-### Released/Implemented (Admin - Phase 5, ~75%)
+### Released/Implemented (Admin — Phase 5 per roadmap)
 - **Pages** — Login, Dashboard, Products CRUD, Articles CRUD, Orders list/detail, Media manager
 - **State** — React Query (stale 30s), AuthProvider context
 - **Forms** — react-hook-form + yup, TiptapHtmlEditor for rich text
 - **API Proxies** — /api routes to backend (auth, media, orders status)
 - **HTTP** — Dual mode (adminFetch server-side, httpClient client-side Axios)
 - **UI** — Radix UI components, Recharts for dashboards
-- **Remaining** — Date-range filters, search filters, storefront verification, E2E tests
+- **Roadmap gaps** — Date-range filters, search filters, storefront verification, E2E tests (see [Project Roadmap](./project-roadmap.md))
 
-### In Progress / Planned
-- **Phase 6 (Frontend Animation)** — motion library, ScrollReveal, hero/FAQ/channels/testimonials polish
-- **Phase 7 (Deployment)** — Railway (API), Vercel (web + admin), monitoring, SSL
-- **Post-Launch** — API rate limiting, payment integration, customer reviews, real-time notifications
+### In progress / planned
+Tracked in [Project Roadmap](./project-roadmap.md): admin completion (Phase 5), storefront animation/polish (Phase 6), deployment (Phase 7), plus post-launch items (rate limiting, payments, reviews, notifications).
 
 ---
 
@@ -224,17 +225,9 @@ longnhantongtran/
 
 ---
 
-## Timeline & Milestones
+## Timeline & milestones
 
-| Phase | Duration | Status | Progress | Key Deliverables |
-|-------|----------|--------|----------|-------------------|
-| Phase 1: Monorepo Setup | 3 days | Done | 100% | Turborepo, pnpm, Docker, CI/CD |
-| Phase 2: Database | 5 days | Done | 100% | TypeORM, 8 entities, migrations |
-| Phase 3: Backend API | 10 days | Done | 100% | 10 modules, auth, CRUD, dashboard |
-| Phase 4: Storefront | 12 days | In Progress | ~95% | Next.js web, SEO, ISR, checkout |
-| Phase 5: Admin Panel | 10 days | In Progress | ~75% | Next.js admin, products/articles/orders/media CRUD |
-| Phase 6: Frontend Animation | 5 days | In Progress | ~40% | motion library, ScrollReveal, hero/FAQ polish |
-| Phase 7: Deployment | 2 days | Pending | 0% | Railway API, Vercel web+admin, monitoring |
+Phase titles, dates, and “done vs in progress” are maintained in **[Project Roadmap](./project-roadmap.md)** to avoid drift. This PDR summarizes scope; the roadmap is authoritative for status.
 
 ---
 
@@ -244,7 +237,7 @@ All configs in `.env.example`:
 
 **Core App**
 - `NODE_ENV` — local/development/staging/production
-- `APP_PORT` — API port (default 3000)
+- `APP_PORT` — API listen port (see `apps/api/.env.example`; local monorepo dev URLs are summarized in [root README](../README.md) — API **3001**, web **3000**, admin **3002**)
 - `APP_DEBUG` — Enable stack traces in responses
 - `APP_CORS_ORIGIN` — Allowed origins (comma-separated)
 

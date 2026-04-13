@@ -1,77 +1,36 @@
 # Long Nhan Hung Yen - Documentation Index
 
-**Last Updated:** 2026-03-30
+**Last Updated:** 2026-04-13
 
-Complete project documentation for the NestJS e-commerce API for longan fruit products.
+pnpm + Turborepo monorepo: **NestJS API** (`apps/api`), **Next.js storefront** (`apps/web`), **Next.js admin** (`apps/admin`), shared **@longnhan/types**.
+
+**Canonical phase status:** [Project Roadmap](./project-roadmap.md).
 
 ---
 
-## Quick Navigation
+## Quick navigation
 
-### 📋 Start Here
-**[Project Overview & PDR](./project-overview-pdr.md)** (262 lines)
-- Project vision, goals, features
-- Stakeholders and responsibilities
-- Functional/non-functional requirements
-- Success metrics and timeline
-- **Best for:** Understanding the "why" and "what"
-
-### 🏗️ Architecture & Design
-**[System Architecture](./system-architecture.md)** (501 lines)
-- Monorepo structure with module breakdown
-- API layers, request flows, data models
-- Docker setup (local & production)
-- Security architecture
-- Scaling strategies
-- **Best for:** Understanding the "how" technically
-
-### 💻 Development
-**[Code Standards](./code-standards.md)** (737 lines)
-- Naming conventions (files, variables, functions)
-- TypeScript/NestJS patterns with examples
-- Error handling and testing standards
-- Commit/branch conventions
-- Code review checklist
-- **Best for:** Writing code that fits the codebase style
-
-### 📚 Reference
-**[Codebase Summary](./codebase-summary.md)** (644 lines)
-- Directory tree and file organization
-- Module structure overview
-- Data models (8 entities)
-- API endpoints (12+)
-- Dependencies list
-- Available commands
-- **Best for:** Quick reference and navigation
-
-### 🚀 Operations
-**[Deployment Guide](./deployment-guide.md)** (619 lines)
-- Local development setup
-- Staging deployment steps
-- Production deployment options
-- Database management (migrations, backup)
-- Troubleshooting procedures
-- **Best for:** Setting up and deploying environments
-
-### 🗺️ Planning
-**[Project Roadmap](./project-roadmap.md)** (530 lines)
-- Development phases (7 phases, 3 complete)
-- Feature backlog and enhancements
-- Timeline and milestones
-- Known issues and tech debt
-- Success metrics
-- **Best for:** Understanding project status and planning
+| Doc | Use for |
+|-----|---------|
+| [Project Overview & PDR](./project-overview-pdr.md) | Vision, requirements |
+| [Project Roadmap](./project-roadmap.md) | **Current phases & milestones** |
+| [Project Changelog](./project-changelog.md) | Release-style change log |
+| [System Architecture](./system-architecture.md) | How pieces connect |
+| [Code Standards](./code-standards.md) | NestJS / `apps/api` |
+| [Frontend Code Standards](./frontend-code-standards.md) | Next.js / `apps/web`, `apps/admin` |
+| [Codebase Summary](./codebase-summary.md) | Trees, modules, commands |
+| [Deployment Guide](./deployment-guide.md) | Environments & ops |
 
 ---
 
 ## By Role
 
 ### New Developer
-1. Read [Project Overview](./project-overview-pdr.md) (20 min)
-2. Read [Codebase Summary](./codebase-summary.md) (20 min)
-3. Follow [Deployment Guide](./deployment-guide.md) - Local Setup section
-4. Review [Code Standards](./code-standards.md) before writing code
-5. Explore codebase in IDE while referencing [System Architecture](./system-architecture.md)
+1. [Project Overview](./project-overview-pdr.md) + [Project Roadmap](./project-roadmap.md)
+2. [Codebase Summary](./codebase-summary.md) + [root README](../README.md) (ports, scripts)
+3. [Deployment Guide](./deployment-guide.md) — local setup
+4. Backend: [Code Standards](./code-standards.md) · Frontend: [Frontend Code Standards](./frontend-code-standards.md)
+5. [System Architecture](./system-architecture.md) while exploring the repo
 
 ### DevOps Engineer
 1. Review [System Architecture](./system-architecture.md) - Docker sections
@@ -86,128 +45,93 @@ Complete project documentation for the NestJS e-commerce API for longan fruit pr
 
 ### Architect / Tech Lead
 1. Study [System Architecture](./system-architecture.md) thoroughly
-2. Review [Code Standards](./code-standards.md) - Architecture patterns
-3. Check [Project Roadmap](./project-roadmap.md) - Future enhancements
-4. Analyze [Codebase Summary](./codebase-summary.md) - Module relationships
+2. Review [Code Standards](./code-standards.md) and [Frontend Code Standards](./frontend-code-standards.md)
+3. Check [Project Roadmap](./project-roadmap.md) for status and next work
+4. Use [Codebase Summary](./codebase-summary.md) for module layout
 
 ---
 
-## Documentation Overview
+## Documentation overview
 
-| Document | Focus | Audience | Time |
-|----------|-------|----------|------|
-| Project Overview & PDR | Business & Requirements | Everyone | 20 min |
-| System Architecture | Technical Design | Architects, Devs | 60 min |
-| Code Standards | Development Patterns | Developers | 45 min |
-| Codebase Summary | Navigation & Reference | All devs | 30 min |
-| Deployment Guide | Operations | DevOps, Devs | 60 min |
-| Project Roadmap | Planning & Status | PM, Leads | 30 min |
+| Document | Focus | Audience |
+|----------|-------|----------|
+| Project Overview & PDR | Requirements & scope | Everyone |
+| Project Roadmap | **Canonical** phase status | PM, leads, devs |
+| Project Changelog | Release notes | Everyone |
+| System Architecture | Stack & flows | Architects, devs |
+| Code Standards | `apps/api` (NestJS) | Backend devs |
+| Frontend Code Standards | `apps/web`, `apps/admin` | Frontend devs |
+| Codebase Summary | Trees & commands | All devs |
+| Deployment Guide | Environments | DevOps, devs |
 
 ---
 
-## Key Information at a Glance
+## Key information
 
-### Tech Stack
-- **Framework:** NestJS 10 + TypeScript 5.6
-- **Database:** PostgreSQL 13+
-- **ORM:** TypeORM 0.3.20
-- **Authentication:** JWT + Argon2
-- **Cache:** Redis
-- **Queue:** BullMQ
-- **Email:** Nodemailer
-- **Media:** Cloudinary
-- **Package Manager:** pnpm 10.32.1
+### Tech stack
+- **API:** NestJS 10, TypeORM, PostgreSQL, Redis, BullMQ, Cloudinary (see [root README](../README.md))
+- **Web / Admin:** Next.js App Router, React, TanStack Query, Tailwind (details in [System Architecture](./system-architecture.md))
 - **Monorepo:** pnpm workspaces + Turborepo
 
-### Core Modules
-- **UserModule** — User auth & profiles
-- **AuthModule** — JWT authentication
-- **ProductsModule** — Product catalog (with variants)
-- **OrdersModule** — Order management
-- **ArticlesModule** — Blog/content
-- **MediaModule** — Cloudinary uploads
-- **DashboardModule** — Admin statistics
-- **HealthModule** — Health checks
+### Local URLs (from root README)
+| Service | URL |
+|--------|-----|
+| API | http://localhost:3001 |
+| Swagger | http://localhost:3001/api-docs |
+| Storefront | http://localhost:3000 |
+| Admin | http://localhost:3002 |
 
-### Development Status
-- **Phase 1-3:** Complete (Core setup, Auth, E-commerce)
-- **Phase 4:** In Progress - 40% (Testing & quality)
-- **Phase 5-7:** Planned (Performance, staging, production)
+REST routes use URI versioning (e.g. `http://localhost:3001/api/v1/...`), matching `NEXT_PUBLIC_API_URL` defaults in the Next.js apps.
 
-### Quick Commands
+### Quick commands
 ```bash
-pnpm install           # Install dependencies
-pnpm dev              # Start development server
-pnpm build            # Production build
-pnpm test             # Run tests
-pnpm lint             # Lint and fix code
-pnpm migration:up     # Run database migrations
-pnpm seed:run         # Seed sample data
+pnpm install
+pnpm dev                    # all apps (turbo)
+pnpm dev:api                # API → :3001 (per root README)
+pnpm dev:web                # storefront → :3000
+pnpm dev:admin              # admin → :3002
+pnpm --filter @longnhan/api migration:up   # DB migrations
+pnpm lint && pnpm type-check
 ```
 
-### API Base URL
-```
-Development: http://localhost:3000/api/v1
-Swagger: http://localhost:3000/api-docs
-```
-
-### Environment Setup
-Copy `.env.example` to `.env` and configure:
+### Environment
 ```bash
 cp .env.example .env
-# Edit database, auth, and email settings
+cp apps/api/.env.example apps/api/.env   # then fill values
 ```
 
 ---
 
-## Directory Structure
+## Directory structure (high level)
 
 ```
 longnhantongtran/
-├── docs/                          # ← You are here
-│   ├── README.md                  # This file
-│   ├── project-overview-pdr.md
-│   ├── system-architecture.md
-│   ├── code-standards.md
-│   ├── codebase-summary.md
-│   ├── deployment-guide.md
-│   └── project-roadmap.md
+├── docs/                    # This index + PDR, architecture, standards, changelog, …
 ├── apps/
-│   └── api/                       # Main NestJS application
-│       ├── src/
-│       │   ├── api/              # 8 feature modules
-│       │   ├── common/           # Shared DTOs, types
-│       │   ├── database/         # ORM, entities, migrations
-│       │   ├── mail/             # Email service
-│       │   └── ...
-│       ├── test/                 # E2E tests
-│       └── docs/                 # Additional API docs
+│   ├── api/                 # NestJS API
+│   ├── web/                 # Next.js storefront (app/, src/components/, public/)
+│   └── admin/               # Next.js admin
 ├── packages/
-│   └── types/                    # Shared @longnhan/types
-├── docker-compose.yml            # Production services
-└── docker-compose.local.yml      # Local dev stack
+│   └── types/               # @longnhan/types
+├── docker-compose.yml
+└── docker-compose.local.yml
 ```
 
 ---
 
-## Common Tasks
+## Common tasks
 
-### Get Started
-```bash
-pnpm install
-cp .env.example .env
-docker compose -f docker-compose.local.yml up --build -d
-pnpm migration:up
-pnpm dev
-```
+### Get started
+Follow [root README](../README.md) (Docker infra, `pnpm --filter @longnhan/api migration:up`, `pnpm dev`).
 
-### Add a Feature
-1. Create module in `src/api/{feature}/`
-2. Follow patterns in [Code Standards](./code-standards.md)
-3. Add entity to `src/database/entities/`
-4. Generate migration: `pnpm migration:generate`
-5. Write tests (target 70%+ coverage)
-6. Update [Codebase Summary](./codebase-summary.md) if new public API
+### Add API feature
+1. Add module under `apps/api/src/api/{feature}/`
+2. Follow [Code Standards](./code-standards.md)
+3. Entities/migrations under `apps/api/src/database/`
+
+### Add storefront UI
+1. Prefer `apps/web/src/app/` (routes) and `apps/web/src/components/`
+2. Follow [Frontend Code Standards](./frontend-code-standards.md)
 
 ### Deploy to Staging
 1. Review [Deployment Guide](./deployment-guide.md) - Staging section
@@ -238,8 +162,8 @@ pnpm dev
 **Setup & Development?**
 → See [Deployment Guide - Local Setup](./deployment-guide.md#local-development-setup)
 
-**Code Style & Patterns?**
-→ See [Code Standards](./code-standards.md)
+**Code style?**
+→ API: [Code Standards](./code-standards.md) · Web/Admin: [Frontend Code Standards](./frontend-code-standards.md)
 
 **Architecture & Design?**
 → See [System Architecture](./system-architecture.md)
@@ -247,11 +171,11 @@ pnpm dev
 **Finding Files & Commands?**
 → See [Codebase Summary](./codebase-summary.md)
 
-**Project Status & Roadmap?**
-→ See [Project Roadmap](./project-roadmap.md)
+**Project status?**
+→ [Project Roadmap](./project-roadmap.md) · [Project Changelog](./project-changelog.md)
 
-**Business Requirements?**
-→ See [Project Overview & PDR](./project-overview-pdr.md)
+**Business requirements?**
+→ [Project Overview & PDR](./project-overview-pdr.md)
 
 ---
 
@@ -263,7 +187,7 @@ These docs are living documents and updated regularly:
 - **Quarterly:** Architecture reviews
 - **Annually:** Comprehensive audit
 
-Last review: 2026-03-30
+Last review: 2026-04-13
 
 ---
 
@@ -271,6 +195,7 @@ Last review: 2026-03-30
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.1.0 | 2026-04-13 | Monorepo index, ports, changelog link, scoped standards |
 | 1.0.0 | 2026-03-30 | Initial documentation creation |
 
 ---
