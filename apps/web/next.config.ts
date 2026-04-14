@@ -16,8 +16,9 @@ const nextConfig: NextConfig = {
 const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
 const sentryOrg = process.env.SENTRY_ORG;
 const sentryProject = process.env.SENTRY_PROJECT;
+const sentryEnabled = process.env.NODE_ENV === 'production';
 
-export default sentryAuthToken && sentryOrg && sentryProject
+export default sentryEnabled && sentryAuthToken && sentryOrg && sentryProject
   ? withSentryConfig(nextConfig, {
       org: 'longnhanhungyen',
       project: 'longnhanhungyen',

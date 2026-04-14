@@ -11,7 +11,7 @@ export const CONTACT_EMAIL = 'thudan.td@gmail.com';
 export const CONTACT_ADDRESS = 'Tống Trân, Hưng Yên, Việt Nam';
 
 export const SOCIAL_LINKS = {
-  facebook: 'https://www.facebook.com/hai.code.me',
+  facebook: 'https://www.facebook.com/exameen.dev/',
   zalo: 'https://zalo.me/0922919456',
   shopee: 'https://shopee.vn/sieuthithaomoc',
   tiktok: 'https://www.tiktok.com/@vtthien8999',

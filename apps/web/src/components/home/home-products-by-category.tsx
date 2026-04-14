@@ -1,7 +1,7 @@
 // Products grouped by category — falls back to single grid if no category data
-import Link from 'next/link';
 import type { Product } from '@longnhan/types';
 import ProductCard from '@/components/products/product-card';
+import SectionTitleLinkButton from '@/components/ui/section-title-link-button';
 
 interface HomeProductsByCategoryProps {
   products: Product[];
@@ -31,17 +31,16 @@ export function HomeProductsByCategory({
       <div className="mx-auto max-w-6xl px-4">
         {isSingle ? (
           <>
-            <div className="mb-8 flex items-center justify-between">
-              <h2 className="text-2xl md:text-3xl font-bold text-green-900">
-                Sản phẩm nổi bật
-              </h2>
-              <Link
-                href="/products"
-                className="text-sm font-medium text-green-700 underline underline-offset-2 hover:text-green-900"
-              >
-                Xem tất cả →
-              </Link>
-            </div>
+            <SectionTitleLinkButton
+              className="mb-8"
+              titleClassName="font-bold text-green-900 not-italic"
+              buttonClassName="text-green-700 hover:text-green-900 text-sm font-medium"
+              title="Sản phẩm nổi bật"
+              actionLabel="Xem tất cả"
+              href="/products"
+              align="right"
+              solid={false}
+            />
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {products.slice(0, 8).map((p) => (
                 <ProductCard key={p.id} product={p} onQuickView={onQuickView} />
@@ -52,17 +51,17 @@ export function HomeProductsByCategory({
           <div className="space-y-14">
             {categories.map(([cat, items]) => (
               <div key={cat}>
-                <div className="mb-6 flex items-center justify-between">
-                  <h2 className="text-xl font-bold text-green-900 capitalize">
-                    {cat}
-                  </h2>
-                  <Link
-                    href={`/products?category=${encodeURIComponent(cat)}`}
-                    className="text-sm font-medium text-green-700 underline underline-offset-2 hover:text-green-900"
-                  >
-                    Xem tất cả →
-                  </Link>
-                </div>
+                <SectionTitleLinkButton
+                  className="mb-6"
+                  headingAs="h3"
+                  titleClassName="text-xl font-bold text-green-900 capitalize not-italic"
+                  buttonClassName="text-green-700 hover:text-green-900 text-sm font-medium"
+                  title={cat}
+                  actionLabel="Xem tất cả"
+                  href={`/products?category=${encodeURIComponent(cat)}`}
+                  align="right"
+                  solid={false}
+                />
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                   {items.slice(0, 4).map((p) => (
                     <ProductCard

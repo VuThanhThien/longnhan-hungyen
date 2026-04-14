@@ -2,6 +2,7 @@
 // Always visible, provides quick access to phone/Zalo/Facebook
 
 import { CONTACT_PHONE, SOCIAL_LINKS } from '@/lib/constants';
+import Image from 'next/image';
 
 const tel = `tel:${CONTACT_PHONE.replace(/\s/g, '')}`;
 
@@ -33,14 +34,15 @@ const contacts = [
     aria: 'Chat qua Zalo',
     external: true,
     icon: (
-      <svg
-        className="h-5 w-5"
-        fill="currentColor"
-        viewBox="0 0 24 24"
+      <Image
+        src="/logo-zalo-vector.png"
+        alt=""
         aria-hidden="true"
-      >
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" />
-      </svg>
+        width={36}
+        height={36}
+        className="h-[36px] w-[36px]"
+        style={{ objectFit: 'contain' }}
+      />
     ),
   },
   {
@@ -74,7 +76,7 @@ export default function FloatingContactWidget() {
             {...(c.external
               ? { target: '_blank', rel: 'noopener noreferrer' }
               : {})}
-            className="flex items-center gap-2 rounded-full border border-(--brand-gold)/40 bg-(--brand-cream) px-3 py-2 text-xs font-semibold text-(--brand-forest) shadow-md transition hover:bg-(--brand-gold)/10 hover:text-white"
+            className="flex items-center gap-2 rounded-full border border-(--brand-gold)/40 bg-(--brand-cream) px-3 py-2 text-xs font-semibold text-(--brand-forest) shadow-md transition hover:bg-(--brand-gold)/10 hover:text-black"
           >
             {c.icon}
             <span>{c.label}</span>

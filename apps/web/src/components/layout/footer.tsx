@@ -1,20 +1,15 @@
-import Link from 'next/link';
-import Image from 'next/image';
+import { LANDING_FOOTER_TAGLINE } from '@/data/landing-page-content';
 import {
-  SITE_NAME,
-  CONTACT_PHONE,
-  CONTACT_EMAIL,
   CONTACT_ADDRESS,
+  CONTACT_EMAIL,
+  CONTACT_PHONE,
+  SITE_NAME,
   SOCIAL_LINKS,
 } from '@/lib/constants';
-import { LANDING_FOOTER_TAGLINE } from '@/data/landing-page-content';
+import Image from 'next/image';
+import Link from 'next/link';
 
 export default function Footer() {
-  const facebookPageHref = SOCIAL_LINKS.facebook;
-  const facebookEmbedSrc = `https://www.facebook.com/plugins/page.php?href=${encodeURIComponent(
-    facebookPageHref,
-  )}&tabs=timeline&width=340&height=214&small_header=true&adapt_container_width=true&hide_cover=false&show_facepile=true`;
-
   // Prefer a no-key embed that works with just an address query.
   const mapEmbedSrc = `https://www.google.com/maps?q=${encodeURIComponent(CONTACT_ADDRESS)}&output=embed`;
 
@@ -90,98 +85,76 @@ export default function Footer() {
               </Link>
             </li>
           </ul>
-
-          <div className="mt-5">
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-(--brand-gold)">
-              Liên kết
-            </h3>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <Link
-                  href="/"
-                  className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
-                >
-                  Trang chủ
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/products"
-                  className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
-                >
-                  Sản phẩm
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/articles"
-                  className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
-                >
-                  Tin tức
-                </Link>
-              </li>
-              <li className="flex flex-wrap gap-x-4 gap-y-2 pt-2">
-                <a
-                  href={SOCIAL_LINKS.facebook}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
-                >
-                  Facebook
-                </a>
-                <a
-                  href={SOCIAL_LINKS.zalo}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
-                >
-                  Zalo
-                </a>
-                {SOCIAL_LINKS.shopee ? (
-                  <a
-                    href={SOCIAL_LINKS.shopee}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
-                  >
-                    Shopee
-                  </a>
-                ) : null}
-                {SOCIAL_LINKS.tiktok ? (
-                  <a
-                    href={SOCIAL_LINKS.tiktok}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
-                  >
-                    TikTok
-                  </a>
-                ) : null}
-              </li>
-            </ul>
-          </div>
         </div>
 
         <div>
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-(--brand-gold)">
-            Fanpage
+            Liên kết
           </h3>
-          <div className="overflow-hidden rounded-lg border border-(--brand-cream)/15 bg-(--brand-cream)">
-            <iframe
-              title="Facebook Page"
-              src={facebookEmbedSrc}
-              width="340"
-              height="214"
-              loading="lazy"
-              scrolling="no"
-              frameBorder={0}
-              referrerPolicy="origin-when-cross-origin"
-              allowFullScreen
-              allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-              className="block w-full"
-              style={{ border: 'none', overflow: 'hidden' }}
-            />
-          </div>
+          <ul className="space-y-2 text-sm">
+            <li>
+              <Link
+                href="/"
+                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
+              >
+                Trang chủ
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/products"
+                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
+              >
+                Sản phẩm
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/articles"
+                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
+              >
+                Tin tức
+              </Link>
+            </li>
+            <li className="flex flex-wrap gap-x-4 gap-y-2 pt-2">
+              <a
+                href={SOCIAL_LINKS.facebook}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
+              >
+                Facebook
+              </a>
+              <a
+                href={SOCIAL_LINKS.zalo}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
+              >
+                Zalo
+              </a>
+              {SOCIAL_LINKS.shopee ? (
+                <a
+                  href={SOCIAL_LINKS.shopee}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
+                >
+                  Shopee
+                </a>
+              ) : null}
+              {SOCIAL_LINKS.tiktok ? (
+                <a
+                  href={SOCIAL_LINKS.tiktok}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
+                >
+                  TikTok
+                </a>
+              ) : null}
+            </li>
+          </ul>
         </div>
 
         <div>

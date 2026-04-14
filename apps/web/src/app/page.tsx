@@ -5,9 +5,6 @@ import VideoSection from '@/components/home/video-section';
 import CtaSection from '@/components/home/cta-section';
 import { LandingHero } from '@/components/landing/landing-hero';
 import { LandingStory } from '@/components/landing/landing-story';
-import { LandingProductQuality } from '@/components/landing/landing-product-quality';
-import { LandingNutritionSeason } from '@/components/landing/landing-nutrition-season';
-import { LandingChannels } from '@/components/landing/landing-channels';
 import { LandingTestimonialsTrust } from '@/components/landing/landing-testimonials-trust';
 import { LandingFaq } from '@/components/landing/landing-faq';
 import ScrollReveal from '@/components/ui/scroll-reveal';
@@ -51,19 +48,6 @@ export default async function Home() {
       </ScrollReveal>
       <ScrollReveal delayMs={80}>
         <LandingStory />
-      </ScrollReveal>
-      <ScrollReveal delayMs={120}>
-        <section className="landing-section landing-section--decor-hero">
-          <LandingProductQuality />
-        </section>
-      </ScrollReveal>
-      <ScrollReveal delayMs={160}>
-        <section className="landing-section landing-section--decor-story">
-          <LandingNutritionSeason />
-        </section>
-      </ScrollReveal>
-      <ScrollReveal delayMs={200}>
-        <LandingChannels />
       </ScrollReveal>
       <ScrollReveal delayMs={220}>
         <section className="landing-section landing-section--decor-cta">

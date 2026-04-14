@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Article } from '@longnhan/types';
+import SectionTitleLinkButton from '@/components/ui/section-title-link-button';
 
 interface LandingArticlesPreviewProps {
   articles: Article[];
@@ -24,17 +25,16 @@ export function LandingArticlesPreview({
   return (
     <section className="bg-(--brand-cream) px-4 py-16">
       <div className="mx-auto max-w-6xl">
-        <div className="mb-8 flex items-center justify-between">
-          <h2 className="landing-heading text-2xl font-semibold text-(--brand-forest)">
-            Tin tức & chia sẻ
-          </h2>
-          <Link
-            href="/articles"
-            className="text-sm font-medium text-(--brand-leaf) underline underline-offset-2 hover:text-(--brand-forest)"
-          >
-            Xem tất cả →
-          </Link>
-        </div>
+        <SectionTitleLinkButton
+          className="mb-8"
+          titleClassName="text-2xl font-semibold text-(--brand-forest) not-italic"
+          buttonClassName="text-sm font-medium text-(--brand-leaf) hover:text-(--brand-forest)"
+          title="Tin tức & chia sẻ"
+          actionLabel="Xem tất cả"
+          href="/articles"
+          align="right"
+          solid={false}
+        />
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
           {articles.map((article) => {
             const cover = article.featuredImageUrl ?? article.coverImageUrl;
@@ -67,7 +67,7 @@ export function LandingArticlesPreview({
                     {article.title}
                   </h3>
                   <p className="mt-1.5 text-xs text-(--brand-leaf) font-medium">
-                    Đọc thêm →
+                    Đọc thêm
                   </p>
                 </div>
               </Link>

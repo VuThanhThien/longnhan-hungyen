@@ -478,6 +478,12 @@ importers:
       axios:
         specifier: ^1.14.0
         version: 1.14.0
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
       js-cookie:
         specifier: ^3.0.5
         version: 3.0.5
@@ -505,6 +511,9 @@ importers:
       server-only:
         specifier: ^0.0.1
         version: 0.0.1
+      tailwind-merge:
+        specifier: ^3.5.0
+        version: 3.5.0
       yup:
         specifier: ^1.7.1
         version: 1.7.1

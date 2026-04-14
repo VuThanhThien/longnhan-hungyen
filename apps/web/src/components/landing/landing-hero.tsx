@@ -5,6 +5,7 @@ import {
   LANDING_CHANNELS,
   LANDING_HERO,
 } from '@/data/landing-page-content';
+import { SectionTitleLinkButton } from '@/components/ui/section-title-link-button';
 
 const tel = CONTACT_PHONE.replace(/\s/g, '');
 
@@ -35,39 +36,35 @@ export function LandingHero() {
             {LANDING_HERO.subhead}
           </p>
           <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center md:justify-start">
-            <a
+            <SectionTitleLinkButton
+              title={<span className="hidden" />}
+              headingAs="div"
+              className="gap-0!"
+              titleClassName="hidden"
+              actionLabel={LANDING_HERO.primaryCta}
+              type="primary"
+              ariaLabel={
+                typeof LANDING_HERO.primaryCta === 'string'
+                  ? LANDING_HERO.primaryCta
+                  : undefined
+              }
               href={`tel:${tel}`}
-              className="inline-flex min-h-12 items-center justify-center rounded-sm bg-(--brand-forest) px-8 text-sm font-semibold tracking-wide text-(--brand-cream) shadow-md transition hover:bg-(--brand-forest-soft)"
-            >
-              {LANDING_HERO.primaryCta}
-            </a>
+            />
             {LANDING_CHANNELS.shopee.href ? (
-              <a
+              <SectionTitleLinkButton
+                title={<span className="hidden" />}
+                headingAs="div"
+                className="gap-0!"
+                titleClassName="hidden"
+                actionLabel={LANDING_HERO.secondaryCta}
+                ariaLabel={
+                  typeof LANDING_HERO.secondaryCta === 'string'
+                    ? LANDING_HERO.secondaryCta
+                    : undefined
+                }
                 href={LANDING_CHANNELS.shopee.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex min-h-12 items-center justify-center rounded-sm border-2 border-(--brand-forest) bg-transparent px-8 text-sm font-semibold text-(--brand-forest) transition hover:bg-(--brand-forest)/5"
-              >
-                {LANDING_HERO.secondaryCta}
-              </a>
+              />
             ) : null}
-            {LANDING_CHANNELS.zalo.href ? (
-              <a
-                href={LANDING_CHANNELS.zalo.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex min-h-12 items-center justify-center rounded-sm border border-(--brand-gold)/60 bg-(--brand-gold)/10 px-8 text-sm font-semibold text-(--brand-forest) transition hover:bg-(--brand-gold)/20"
-              >
-                {LANDING_HERO.tertiaryCta}
-              </a>
-            ) : (
-              <a
-                href={`tel:${tel}`}
-                className="inline-flex min-h-12 items-center justify-center rounded-sm border border-(--brand-gold)/60 bg-(--brand-gold)/10 px-8 text-sm font-semibold text-(--brand-forest) transition hover:bg-(--brand-gold)/20"
-              >
-                {LANDING_HERO.tertiaryCta}
-              </a>
-            )}
           </div>
         </div>
         <div className="flex flex-1 justify-center md:justify-end">

@@ -53,9 +53,9 @@ export default function HeaderSearchBar({
         className="flex min-w-0 flex-1 border border-r-0 bg-white"
         style={{ borderColor: ACCENT }}
       >
-        <div className="relative flex w-[6.25rem] shrink-0 items-center pl-0.5 sm:w-[6.75rem]">
+        <div className="group relative flex w-25 shrink-0 items-center pl-0.5 transition-transform duration-200 ease-out hover:-translate-y-px hover:scale-[1.01] sm:w-27">
           <div
-            className="pointer-events-none absolute inset-y-0 left-0 w-7 bg-contain bg-left bg-no-repeat opacity-90 sm:w-8"
+            className="pointer-events-none absolute inset-y-0 left-0 w-7 bg-contain bg-left bg-no-repeat opacity-90 transition-opacity duration-200 ease-out group-hover:opacity-100 sm:w-8"
             style={{ backgroundImage: "url('/bg-search-left.png')" }}
             aria-hidden
           />
@@ -68,7 +68,7 @@ export default function HeaderSearchBar({
             onChange={(e) =>
               setSearchParams({ category: e.target.value || null })
             }
-            className="h-full w-full min-w-0 cursor-pointer appearance-none bg-transparent py-0 pr-5 pl-7 text-xs text-(--brand-forest-muted) outline-none sm:pl-8 sm:text-sm"
+            className="h-full w-full min-w-0 cursor-pointer appearance-none bg-transparent py-0 pr-5 pl-7 text-xs text-(--brand-forest-muted) outline-none transition-colors duration-200 ease-out group-hover:text-(--brand-forest) sm:pl-8 sm:text-sm"
           >
             {CATEGORY_OPTIONS.map((opt) => (
               <option key={opt.value || 'all'} value={opt.value}>
@@ -77,7 +77,7 @@ export default function HeaderSearchBar({
             ))}
           </select>
           <ChevronDownIcon
-            className="pointer-events-none absolute right-1 top-1/2 h-3 w-3 -translate-y-1/2 text-(--brand-forest-muted) sm:right-1.5 sm:h-3.5 sm:w-3.5"
+            className="pointer-events-none absolute right-1 top-1/2 h-3 w-3 -translate-y-1/2 text-(--brand-forest-muted) transition-transform duration-200 ease-out group-hover:translate-x-px sm:right-1.5 sm:h-3.5 sm:w-3.5"
             aria-hidden
           />
         </div>
