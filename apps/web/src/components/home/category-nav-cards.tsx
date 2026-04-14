@@ -1,4 +1,5 @@
 // Category navigation cards — 3 link cards below hero
+import Image from 'next/image';
 import Link from 'next/link';
 import { LANDING_CATEGORIES } from '@/data/landing-page-content';
 
@@ -12,7 +13,13 @@ export function CategoryNavCards() {
             href={cat.href}
             className="group flex items-center gap-4 rounded-xl border border-(--brand-forest)/10 bg-white px-5 py-4 shadow-sm transition hover:border-(--brand-gold)/50 hover:shadow-md"
           >
-            <span className="text-2xl">{cat.icon}</span>
+            <Image
+              src={cat.iconSrc}
+              alt=""
+              width={28}
+              height={28}
+              className="h-7 w-7 object-contain"
+            />
             <span className="flex-1 text-sm font-semibold text-(--brand-forest) group-hover:text-(--brand-leaf)">
               {cat.label}
             </span>

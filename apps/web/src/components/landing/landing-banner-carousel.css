@@ -1,0 +1,36 @@
+:root {
+  --swiper-pagination-bullet-inactive-color: rgba(255, 255, 255, 0.45);
+  --swiper-pagination-color: rgba(255, 255, 255, 0.95);
+}
+
+.landing-banner-carousel .swiper-pagination {
+  position: absolute;
+  left: 50%;
+  bottom: 0.85rem;
+  right: auto;
+  width: max-content;
+  margin: 0;
+  display: flex;
+  gap: 0.375rem;
+  transform: translateX(-50%);
+}
+
+.landing-banner-carousel .swiper-pagination-bullet {
+  width: 0.625rem;
+  height: 0.625rem;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  opacity: 1;
+  background: var(--swiper-pagination-bullet-inactive-color);
+}
+
+.landing-banner-carousel .swiper-pagination-bullet-active {
+  background: var(--swiper-pagination-color);
+}
+
+.landing-banner-carousel .swiper-wrapper {
+  height: 100%;
+}
+
+.landing-banner-carousel .swiper-slide {
+  height: 100%;
+}

@@ -1,16 +1,16 @@
-import type { Product } from '@longnhan/types';
-import type { Metadata } from 'next';
 import FeaturedProducts from '@/components/home/featured-products';
 import VideoSection from '@/components/home/video-section';
-import CtaSection from '@/components/home/cta-section';
+import { LandingCategoryCarousel } from '@/components/landing/landing-category-carousel';
+import { LandingFaq } from '@/components/landing/landing-faq';
 import { LandingHero } from '@/components/landing/landing-hero';
 import { LandingStory } from '@/components/landing/landing-story';
 import { LandingTestimonialsTrust } from '@/components/landing/landing-testimonials-trust';
-import { LandingFaq } from '@/components/landing/landing-faq';
 import ScrollReveal from '@/components/ui/scroll-reveal';
-import { fetchPaginated } from '@/lib/api-client';
 import { LANDING_SEO } from '@/data/landing-page-content';
+import { fetchPaginated } from '@/lib/api-client';
 import { buildSeoMetadata } from '@/lib/seo';
+import type { Product } from '@longnhan/types';
+import type { Metadata } from 'next';
 
 export const revalidate = 300;
 
@@ -46,6 +46,9 @@ export default async function Home() {
       <ScrollReveal>
         <LandingHero />
       </ScrollReveal>
+      <ScrollReveal delayMs={60}>
+        <LandingCategoryCarousel />
+      </ScrollReveal>
       <ScrollReveal delayMs={80}>
         <LandingStory />
       </ScrollReveal>
@@ -62,9 +65,6 @@ export default async function Home() {
       </ScrollReveal>
       <ScrollReveal delayMs={280}>
         <VideoSection videoUrls={productVideos} />
-      </ScrollReveal>
-      <ScrollReveal delayMs={300}>
-        <CtaSection />
       </ScrollReveal>
     </div>
   );

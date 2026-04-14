@@ -222,8 +222,46 @@ export const LANDING_CATEGORIES = [
   {
     label: 'Đặc sản Hưng Yên',
     href: '/products?category=longnhan',
-    icon: '🌿',
+    iconSrc: '/icon-menu-pho-hien-36x36.webp',
+    iconAlt: 'Biểu tượng danh mục',
   },
-  { label: 'Giải pháp quà tặng', href: '/products?category=gift', icon: '🎁' },
-  { label: 'Bộ quà tặng', href: '/products?category=giftset', icon: '📦' },
+  {
+    label: 'Giải pháp quà tặng',
+    href: '/products?category=gift',
+    iconSrc: '/cate-icon-2.webp',
+    iconAlt: 'Biểu tượng danh mục',
+  },
+  {
+    label: 'Bộ quà tặng',
+    href: '/products?category=giftset',
+    iconSrc: '/cate-icon-2.webp',
+    iconAlt: 'Biểu tượng danh mục',
+  },
+] as const;
+
+export const LANDING_BANNER_SLIDES = [
+  {
+    id: 'tinh-hoa-pho-hien',
+    imageSrc: '/banner-web2.png',
+    alt: 'Tinh hoa Phố Hiến — đặc sản Hưng Yên',
+    href: '/products',
+  },
+  {
+    id: 'qua-tang-cao-cap',
+    imageSrc: '/bannerweb4.jpg',
+    alt: 'Mai Trang — Tinh hoa Phố Hiến (bộ quà tặng)',
+    href: '/products?category=giftset',
+  },
+  {
+    id: 'mat-hoa-nhan',
+    imageSrc: '/bannerweb5-2048x785.jpg',
+    alt: 'Mai Trang — sản phẩm mật hoa nhãn',
+    href: '/products',
+  },
+  {
+    id: 'tinhhoaphohien',
+    imageSrc: '/tinhhoaphohien.com_-2048x788.webp',
+    alt: 'Tinh hoa Phố Hiến — banner giới thiệu',
+    href: '/products',
+  },
 ] as const;

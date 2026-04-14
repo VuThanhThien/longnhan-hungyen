@@ -56,7 +56,13 @@ export default function Footer() {
             </div>
           </div>
 
-          <div className="pt-1">
+          <div
+            className="pt-1"
+            style={{
+              contentVisibility: 'auto',
+              containIntrinsicSize: '98px 260px',
+            }}
+          >
             <Image
               src="/logo-da-thong-bao-bo-cong-thuong-mau-xanh-1.png"
               alt="Đã thông báo Bộ Công Thương"
@@ -65,6 +71,7 @@ export default function Footer() {
               className="h-auto w-[220px] max-w-full"
               loading="lazy"
               fetchPriority="low"
+              decoding="async"
             />
           </div>
         </div>

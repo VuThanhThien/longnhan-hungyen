@@ -8,15 +8,15 @@
 
 ## Quick Facts
 
-| Metric | Value |
-|--------|-------|
-| **Type** | pnpm + Turborepo (NestJS API + Next.js web + Next.js admin) |
-| **Language** | TypeScript 5.6+ |
-| **Database** | PostgreSQL 13+ |
-| **Package Manager** | pnpm 10.32.1 |
-| **Node Version** | >= 20.10.0 |
-| **Entry Point** | `apps/api/src/main.ts` |
-| **Build Output** | `apps/api/dist/` |
+| Metric              | Value                                                       |
+| ------------------- | ----------------------------------------------------------- |
+| **Type**            | pnpm + Turborepo (NestJS API + Next.js web + Next.js admin) |
+| **Language**        | TypeScript 5.6+                                             |
+| **Database**        | PostgreSQL 13+                                              |
+| **Package Manager** | pnpm 10.32.1                                                |
+| **Node Version**    | >= 20.10.0                                                  |
+| **Entry Point**     | `apps/api/src/main.ts`                                      |
+| **Build Output**    | `apps/api/dist/`                                            |
 
 ---
 
@@ -152,6 +152,7 @@ longnhantongtran/
 **8 Core Modules:**
 
 #### UserModule
+
 - **Purpose:** User management, profiles
 - **Key Files:**
   - `entities/user.entity.ts` — User database model
@@ -160,6 +161,7 @@ longnhantongtran/
   - `dto/create-user.dto.ts`, `update-user.dto.ts`
 
 #### AuthModule
+
 - **Purpose:** Authentication, JWT tokens, password management
 - **Key Files:**
   - `auth.service.ts` — Sign-in, sign-up, token refresh
@@ -169,12 +171,14 @@ longnhantongtran/
   - `strategies/jwt.strategy.ts` — Passport JWT strategy
 
 #### HealthModule
+
 - **Purpose:** Application health checks
 - **Endpoints:** `GET /health`
 - **Key Files:**
   - `health.controller.ts`
 
 #### ProductsModule
+
 - **Purpose:** E-commerce product catalog
 - **Key Files:**
   - `entities/product.entity.ts` — Product model
@@ -193,6 +197,7 @@ longnhantongtran/
   - `DELETE /products/:id` — Delete (admin)
 
 #### OrdersModule
+
 - **Purpose:** Order management
 - **Key Files:**
   - `entities/order.entity.ts` — Order model
@@ -207,6 +212,7 @@ longnhantongtran/
   - `PATCH /orders/:id/status` — Update status (admin)
 
 #### ArticlesModule
+
 - **Purpose:** Blog/content articles
 - **Key Files:**
   - `entities/article.entity.ts` — Article model
@@ -223,6 +229,7 @@ longnhantongtran/
   - `DELETE /articles/:id` — Delete (admin)
 
 #### MediaModule
+
 - **Purpose:** File uploads, media management, Cloudinary integration
 - **Key Files:**
   - `entities/media.entity.ts` — Media metadata
@@ -241,6 +248,7 @@ longnhantongtran/
   - `GET /media/folders` — List folders (admin)
 
 #### DashboardModule
+
 - **Purpose:** Admin analytics & statistics
 - **Key Files:**
   - `dashboard.service.ts` — Stats calculation
@@ -251,6 +259,7 @@ longnhantongtran/
 ### 2. Background Jobs (src/background/)
 
 **Email Queue Processing**
+
 - **Files:**
   - `queues/email-queue/` — BullMQ email queue
   - `queues/email-queue/email-queue.events.ts` — Job definitions
@@ -260,6 +269,7 @@ longnhantongtran/
 ### 3. Shared Modules (src/libs/)
 
 Reusable NestJS modules:
+
 - Configuration management
 - Common decorators
 - Shared services
@@ -268,19 +278,23 @@ Reusable NestJS modules:
 ### 4. Common Layer (src/common/)
 
 **DTOs** (`common/dto/`)
+
 - `pagination.dto.ts` — Pagination parameters
 - `api-response.dto.ts` — API response wrapper
 - `error-response.dto.ts` — Error response format
 
 **Interfaces** (`common/interfaces/`)
+
 - `paginated-response.interface.ts` — Paginated data structure
 - `user-payload.interface.ts` — JWT payload shape
 
 **Types** (`common/types/`)
+
 - `pagination.type.ts` — Pagination types
 - `user-role.type.ts` — Role enums
 
 **Constants** (`common/constants/`)
+
 - `api-messages.const.ts` — Message strings
 - `user-roles.const.ts` — Role definitions
 - `http-status.const.ts` — HTTP status mappings
@@ -288,6 +302,7 @@ Reusable NestJS modules:
 ### 5. Infrastructure (src/)
 
 #### Database (`src/database/`)
+
 - **config/** — TypeORM configuration
 - **entities/** — ORM entity definitions
 - **migrations/** — Database schema changes (auto-generated)
@@ -295,10 +310,12 @@ Reusable NestJS modules:
 - **data-source.ts** — TypeORM DataSource config
 
 #### Configuration (`src/config/`)
+
 - Environment variable schemas
 - Config services for: app, database, auth, email, etc.
 
 #### Authentication (`src/guards/`, `src/decorators/`)
+
 - **Guards:**
   - `jwt-auth.guard.ts` — Token validation
   - `roles.guard.ts` — Role checking
@@ -312,6 +329,7 @@ Reusable NestJS modules:
 **Purpose:** Next.js 16 admin dashboard with full CRUD for products, articles, orders, and media.
 
 **Key Pages:**
+
 - `/login` — Admin authentication
 - `/(dashboard)/` — Dashboard home with stats cards, revenue charts, recent orders
 - `/(dashboard)/products` — Products list/create/edit with TiptapHtmlEditor for descriptions
@@ -320,6 +338,7 @@ Reusable NestJS modules:
 - `/(dashboard)/media` — Media manager with Cloudinary upload, folder navigation, URL picker
 
 **Architecture:**
+
 - **Server-side fetching:** `lib/admin-api-client.ts` (`adminFetch`) for Server Components
 - **Client-side queries:** `lib/http-client.ts` (Axios instance) + React Query hooks in `features/`
 - **API proxies:** `/app/api/*` route handlers forward to backend + validate auth
@@ -328,6 +347,7 @@ Reusable NestJS modules:
 - **Cache:** `revalidatePath()` after mutations to sync Server Component state
 
 **Key libraries (admin):**
+
 - `@radix-ui/*` — UI primitives (dialog, dropdown, tabs, etc.)
 - `recharts` — Revenue & stats charts
 - `react-hook-form` + `yup` — Form validation
@@ -337,12 +357,14 @@ Reusable NestJS modules:
 - `tailwind-css@v4` — Styling
 
 **Authentication pattern:**
+
 - Cookie: `long-nhan-hy-admin-auth-token-data`
 - Protected routes check layout-level auth
 - Token refresh via proxy route: `GET /api/auth/refresh`
 - Logout via proxy route: `POST /api/auth/logout`
 
 **API proxy routes (`apps/admin/src/app/api/`):**
+
 - `POST /api/auth/login` — Admin login (Server Action wrapper)
 - `GET /api/auth/refresh` — Refresh token via cookie
 - `POST /api/auth/logout` — Clear session
@@ -374,26 +396,31 @@ Reusable NestJS modules:
 **Purpose:** TypeScript types shared across all apps.
 
 **Structure:**
+
 - `src/api/` — API request/response DTOs
 - `src/common/` — Shared interfaces, enums, constants
 - `src/index.ts` — Public export barrel
 
 **Usage:**
+
 - `apps/api` — Entity validation & API response types
 - `apps/web` — Form inputs, API calls, UI state
 - `apps/admin` — Admin forms, API proxies, mutations
 
 #### Email Service (`src/mail/`)
+
 - **mail.service.ts** — Nodemailer wrapper
 - **templates/** — Handlebars HTML templates
 - Integration: NestJS Mailer + Nodemailer
 
 #### Caching (`src/shared/cache/`)
+
 - Redis cache manager
 - TTL-based expiration
 - Cache invalidation logic
 
 #### Error Handling (`src/exceptions/`, `src/filters/`)
+
 - **Custom Exception Classes:**
   - `NotFoundException` — Resource not found
   - `BadRequestException` — Invalid input
@@ -407,32 +434,35 @@ Reusable NestJS modules:
 ## Key Files Overview
 
 ### Entry Points
-| File | Purpose |
-|------|---------|
-| `src/main.ts` | Bootstrap application, Swagger setup |
-| `src/app.module.ts` | Root NestJS module, imports all features |
-| `docker-compose.yml` | Production infrastructure (db, redis, mail) |
-| `docker-compose.local.yml` | Local dev stack with API container |
+
+| File                       | Purpose                                     |
+| -------------------------- | ------------------------------------------- |
+| `src/main.ts`              | Bootstrap application, Swagger setup        |
+| `src/app.module.ts`        | Root NestJS module, imports all features    |
+| `docker-compose.yml`       | Production infrastructure (db, redis, mail) |
+| `docker-compose.local.yml` | Local dev stack with API container          |
 
 ### Configuration Files
-| File | Purpose |
-|------|---------|
-| `.env.example` | Template environment variables |
-| `tsconfig.json` | TypeScript compiler options |
-| `jest.config.json` | Jest test configuration |
-| `nest-cli.json` | NestJS CLI config (generators) |
-| `eslint.config.mjs` | ESLint rules |
-| `.prettierrc` | Code formatting rules |
-| `turbo.json` | Turborepo task configuration |
-| `pnpm-workspace.yaml` | Workspace package paths |
+
+| File                  | Purpose                        |
+| --------------------- | ------------------------------ |
+| `.env.example`        | Template environment variables |
+| `tsconfig.json`       | TypeScript compiler options    |
+| `jest.config.json`    | Jest test configuration        |
+| `nest-cli.json`       | NestJS CLI config (generators) |
+| `eslint.config.mjs`   | ESLint rules                   |
+| `.prettierrc`         | Code formatting rules          |
+| `turbo.json`          | Turborepo task configuration   |
+| `pnpm-workspace.yaml` | Workspace package paths        |
 
 ### Testing
-| File | Pattern |
-|------|---------|
-| `src/**/*.spec.ts` | Unit tests (Jest) |
-| `test/` | E2E tests |
-| `jest.config.json` | Test setup |
-| `setup-jest.mjs` | Jest initialization |
+
+| File               | Pattern             |
+| ------------------ | ------------------- |
+| `src/**/*.spec.ts` | Unit tests (Jest)   |
+| `test/`            | E2E tests           |
+| `jest.config.json` | Test setup          |
+| `setup-jest.mjs`   | Jest initialization |
 
 ---
 
@@ -441,6 +471,7 @@ Reusable NestJS modules:
 ### Core Entities
 
 **User**
+
 ```typescript
 - id (UUID, PK)
 - email (unique, varchar)
@@ -452,6 +483,7 @@ Reusable NestJS modules:
 ```
 
 **Session**
+
 ```typescript
 - id (UUID, PK)
 - userId (FK → User)
@@ -461,6 +493,7 @@ Reusable NestJS modules:
 ```
 
 **Product**
+
 ```typescript
 - id (UUID, PK)
 - name (varchar)
@@ -473,6 +506,7 @@ Reusable NestJS modules:
 ```
 
 **ProductVariant**
+
 ```typescript
 - id (UUID, PK)
 - productId (FK → Product)
@@ -484,6 +518,7 @@ Reusable NestJS modules:
 ```
 
 **Order**
+
 ```typescript
 - id (UUID, PK)
 - userId (FK → User)
@@ -495,6 +530,7 @@ Reusable NestJS modules:
 ```
 
 **OrderItem**
+
 ```typescript
 - id (UUID, PK)
 - orderId (FK → Order)
@@ -505,6 +541,7 @@ Reusable NestJS modules:
 ```
 
 **Article**
+
 ```typescript
 - id (UUID, PK)
 - title (varchar)
@@ -516,6 +553,7 @@ Reusable NestJS modules:
 ```
 
 **Media**
+
 ```typescript
 - id (UUID, PK)
 - cloudinaryPublicId (varchar)
@@ -531,56 +569,68 @@ Reusable NestJS modules:
 ## Dependencies (Key Packages)
 
 ### Core Framework
+
 - `@nestjs/common` — NestJS core
 - `@nestjs/core` — Core module
 - `@nestjs/platform-express` — Express adapter
 - `express` — Web framework
 
 ### Database & ORM
+
 - `typeorm` — ORM library
 - `@nestjs/typeorm` — NestJS TypeORM integration
 - `pg` — PostgreSQL driver
 
 ### Authentication
+
 - `@nestjs/jwt` — JWT support
 - `jsonwebtoken` — Token management (via jwt)
 - `argon2` — Password hashing
 
 ### Validation & Serialization
+
 - `class-validator` — Input validation
 - `class-transformer` — DTO serialization
 
 ### API Documentation
+
 - `@nestjs/swagger` — Swagger/OpenAPI
 
 ### Email
+
 - `@nestjs-modules/mailer` — Email service
 - `nodemailer` — SMTP client
 - `handlebars` — Email templates
 
 ### Background Jobs
+
 - `@nestjs/bullmq` — BullMQ integration
 - `bullmq` — Job queue library
 - `redis` — Queue backend
 
 ### Caching
+
 - `@nestjs/cache-manager` — Cache service
 - `cache-manager-ioredis-yet` — Redis adapter
 
 ### Media Management
+
 - `cloudinary` — Image/video CDN
 - `streamifier` — Stream utilities
 
 ### Content Processing
+
 - `slugify` — URL slug generation
 
 ### Logging
+
 - `nestjs-pino` — Structured logging
 - `pino` — Logger library
 - `pino-http` — HTTP logging
 - `pino-pretty` — Pretty formatter
 
 ### Utilities
+
 - `axios` — HTTP client
 - `uuid` — UUID generation
 - `ms` — Time conversion
@@ -588,6 +638,7 @@ Reusable NestJS modules:
 - `compression` — Response compression
 
 ### Testing
+
 - `jest` — Test framework
 - `@nestjs/testing` — NestJS test utilities
 - `supertest` — HTTP testing
@@ -598,6 +649,7 @@ Reusable NestJS modules:
 ## Scripts & Commands
 
 ### Development
+
 ```bash
 pnpm dev              # Start with file watcher
 pnpm start            # Run production build
@@ -605,6 +657,7 @@ pnpm start:debug      # Debug mode with watcher
 ```
 
 ### Building & Quality
+
 ```bash
 pnpm build            # Build for production
 pnpm lint             # Lint and fix
@@ -613,6 +666,7 @@ pnpm type-check       # Type checking without emit
 ```
 
 ### Testing
+
 ```bash
 pnpm test             # Run all tests
 pnpm test:watch      # Watch mode
@@ -621,6 +675,7 @@ pnpm test:e2e        # E2E tests
 ```
 
 ### Database
+
 ```bash
 pnpm migration:up     # Run migrations
 pnpm migration:down   # Revert migration
@@ -633,6 +688,7 @@ pnpm db:drop          # Drop database
 ```
 
 ### Docker
+
 ```bash
 docker compose up -d                     # Production stack
 docker compose -f docker-compose.local.yml up --build -d  # Local dev
@@ -645,38 +701,40 @@ docker compose logs -f api               # Watch API logs
 
 Key variables from `.env.example`:
 
-| Category | Variable | Example |
-|----------|----------|---------|
-| **App** | `NODE_ENV` | development |
-| | `APP_PORT` | 3000 |
-| | `APP_DEBUG` | false |
-| | `APP_CORS_ORIGIN` | http://localhost:3000 |
-| **Database** | `DATABASE_HOST` | localhost |
-| | `DATABASE_PORT` | 5435 (local host; Docker service `db` still uses 5432 inside the network) |
-| | `DATABASE_NAME` | nestjs_api |
-| | `DATABASE_USERNAME` | postgres |
-| | `DATABASE_PASSWORD` | postgres |
-| **Auth** | `AUTH_JWT_SECRET` | secret_key |
-| | `AUTH_JWT_TOKEN_EXPIRES_IN` | 1d |
-| | `AUTH_REFRESH_SECRET` | refresh_key |
-| **Email** | `MAIL_HOST` | localhost |
-| | `MAIL_PORT` | 1025 |
-| | `MAIL_CLIENT_PORT` | 1080 |
-| **Cloudinary** | `CLOUDINARY_CLOUD_NAME` | (prod only) |
-| | `CLOUDINARY_API_KEY` | (prod only) |
-| | `CLOUDINARY_API_SECRET` | (prod only) |
+| Category       | Variable                    | Example                                                                   |
+| -------------- | --------------------------- | ------------------------------------------------------------------------- |
+| **App**        | `NODE_ENV`                  | development                                                               |
+|                | `APP_PORT`                  | 3000                                                                      |
+|                | `APP_DEBUG`                 | false                                                                     |
+|                | `APP_CORS_ORIGIN`           | http://localhost:3000                                                     |
+| **Database**   | `DATABASE_HOST`             | localhost                                                                 |
+|                | `DATABASE_PORT`             | 5435 (local host; Docker service `db` still uses 5432 inside the network) |
+|                | `DATABASE_NAME`             | nestjs_api                                                                |
+|                | `DATABASE_USERNAME`         | postgres                                                                  |
+|                | `DATABASE_PASSWORD`         | postgres                                                                  |
+| **Auth**       | `AUTH_JWT_SECRET`           | secret_key                                                                |
+|                | `AUTH_JWT_TOKEN_EXPIRES_IN` | 1d                                                                        |
+|                | `AUTH_REFRESH_SECRET`       | refresh_key                                                               |
+| **Email**      | `MAIL_HOST`                 | localhost                                                                 |
+|                | `MAIL_PORT`                 | 1025                                                                      |
+|                | `MAIL_CLIENT_PORT`          | 1080                                                                      |
+| **Cloudinary** | `CLOUDINARY_CLOUD_NAME`     | (prod only)                                                               |
+|                | `CLOUDINARY_API_KEY`        | (prod only)                                                               |
+|                | `CLOUDINARY_API_SECRET`     | (prod only)                                                               |
 
 ---
 
 ## Docker Services
 
 ### Production (docker-compose.yml)
+
 - **postgres** — PostgreSQL 13 on host port 5435 (maps to container 5432)
 - **redis** — Redis on host port 6380 (maps to container 6379)
 - **maildev** — SMTP on port 1025, Web UI on port 1080
 - **pgadmin** — PostgreSQL GUI on port 5050
 
 ### Local Dev (docker-compose.local.yml)
+
 - All production services
 - **api** — NestJS API on port 3000 (hot-reload enabled)
 
@@ -685,6 +743,7 @@ Key variables from `.env.example`:
 ## API Response Format
 
 ### Success Response
+
 ```json
 {
   "data": {},
@@ -694,6 +753,7 @@ Key variables from `.env.example`:
 ```
 
 ### Error Response
+
 ```json
 {
   "statusCode": 400,
@@ -719,11 +779,13 @@ Key variables from `.env.example`:
 Two modes supported:
 
 **Offset Pagination**
+
 ```
 GET /api/v1/products?page=1&limit=20
 ```
 
 **Cursor Pagination**
+
 ```
 GET /api/v1/products?cursor=abc123&limit=20
 ```
@@ -733,13 +795,17 @@ GET /api/v1/products?cursor=abc123&limit=20
 ## Important Patterns
 
 ### Error Handling
+
 All endpoints use custom exceptions that are caught by global filter:
+
 ```typescript
 throw new NotFoundException(`Product ${id} not found`);
 ```
 
 ### Dependency Injection
+
 NestJS IoC container auto-injects services:
+
 ```typescript
 constructor(
   @InjectRepository(Product) private repo: Repository<Product>,
@@ -748,9 +814,11 @@ constructor(
 ```
 
 ### Database Transactions
+
 TypeORM handles transactions in migrations and seeders.
 
 ### Validation
+
 Class-validator decorators on DTOs automatically validate input.
 
 ---
@@ -783,6 +851,7 @@ Major landing/product additions from **4.1.0** (2026-04-01); **4.2.0** (2026-04-
 ### Components added (4.1.0)
 
 **Landing Page Section Components:**
+
 - `landing-hero.tsx` — Hero section with CTA
 - `landing-story.tsx` — Brand story narrative
 - `landing-product-quality.tsx` — Product quality highlights
@@ -797,6 +866,7 @@ Major landing/product additions from **4.1.0** (2026-04-01); **4.2.0** (2026-04-
 - `landing-faq.tsx` — FAQ accordion
 
 **Product Experience:**
+
 - `product-quick-view-modal.tsx` — Quick-view popup (NEW)
 - `product-pdp-trust-badges.tsx` — Trust indicators (NEW)
 - `product-pdp-share-buttons.tsx` — Social share buttons (NEW)
@@ -805,8 +875,11 @@ Major landing/product additions from **4.1.0** (2026-04-01); **4.2.0** (2026-04-
 - `product-pdp-hero.tsx` — Updated: diacritics fix, tags, category display
 
 **Navigation & Utility:**
+
 - `hero-carousel.tsx` — Landing carousel (NEW)
 - `category-nav-cards.tsx` — Category navigation grid (NEW)
+- `landing-category-carousel.tsx` — Home: category menu + banner carousel (NEW)
+- `landing-banner-carousel.client.tsx` — Home: banner carousel (client) (NEW)
 - `home-products-by-category.tsx` — Category-filtered sections (NEW)
 - `home-products-section.tsx` — Featured products grid (NEW)
 - `floating-contact-widget.tsx` — Persistent contact UI (NEW)
@@ -816,16 +889,18 @@ Major landing/product additions from **4.1.0** (2026-04-01); **4.2.0** (2026-04-
 - `mobile-nav.tsx` — Mobile navigation
 
 **Data structures (4.1.0):**
+
 - `LANDING_SERVICE_BADGES` — Service definitions
 - `LANDING_STATS` — Statistics data
 - `LANDING_CERTS` — Certification badges
 - `LANDING_URGENCY` — Urgency messaging
 - `LANDING_HERO_SLIDES` — Hero carousel data
 - `LANDING_CATEGORIES` — Category card data
+- `LANDING_BANNER_SLIDES` — Home banner carousel slides (NEW)
 
 ### Module counts (approximate)
 
-- **`apps/web/src/components/**/*.tsx`:** on the order of **~47** files (layout, landing, products, etc.); prefer counting in-repo over hard-coding in docs.
+- **`apps/web/src/components/**/\*.tsx`:** on the order of **~47\*\* files (layout, landing, products, etc.); prefer counting in-repo over hard-coding in docs.
 - **App routes:** see `apps/web/src/app/` (includes **`cart/`**).
 
 ---
@@ -840,4 +915,3 @@ Major landing/product additions from **4.1.0** (2026-04-01); **4.2.0** (2026-04-
 - [Project Changelog](./project-changelog.md)
 - [API Documentation](../apps/api/docs/api.md)
 - [Development Guide](../apps/api/docs/development.md)
-

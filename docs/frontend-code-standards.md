@@ -22,6 +22,7 @@
 ### Server vs Client Components
 
 **Default: Server Components** (no rendering cost)
+
 ```typescript
 // apps/web/src/app/products/page.tsx — Server Component (default)
 export default async function ProductsPage() {
@@ -31,6 +32,7 @@ export default async function ProductsPage() {
 ```
 
 **Client Components** (only for interactivity)
+
 ```typescript
 // components/product-list.tsx — Client Component
 'use client';
@@ -48,9 +50,19 @@ export function ProductList({ products }) {
 ```
 
 **Rule:** Use Server Components by default. Add `'use client'` ONLY for:
+
 - State management (`useState`, `useContext`)
 - Event handlers (`onClick`, `onChange`)
 - React hooks (`useEffect`, `useQuery`, etc.)
+
+### Carousels (landing surfaces)
+
+Carousels are easy to ship poorly. Keep them minimal and safe:
+
+- **Split responsibilities**: keep layout + data mapping as **Server Components**; isolate the interactive carousel into a small `'use client'` component.
+- **A11y**: provide pause/play; keyboard navigation (Left/Right); visible `focus-visible` rings; honor `prefers-reduced-motion` (disable autoplay).
+- **Perf/CLS**: use `next/image` with stable layout (fixed height or explicit `width/height`) + correct `sizes`. Do **not** set `priority` on every slide; at most the first above-the-fold slide.
+- **Copy/text-on-image**: add a gradient scrim behind overlays to maintain contrast; do not rely on subtle text colors over busy images.
 
 ### `useSearchParams` + `<Suspense>` (Admin list pages)
 
@@ -99,12 +111,12 @@ Use [**nuqs**](https://nuqs.dev/docs) for type-safe search params: shared parser
 
 **SEO and canonical URLs ([nuqs SEO](https://nuqs.dev/docs/seo))**
 
-Query strings affect how crawlers treat duplicate URLs. Align canonical tags with whether params are *UI-only* or *content-defining*.
+Query strings affect how crawlers treat duplicate URLs. Align canonical tags with whether params are _UI-only_ or _content-defining_.
 
-| Situation | Canonical strategy |
-|-----------|-------------------|
-| Params are **local-only** (filters, draft search text, UI state that does not change the primary “topic” of the page) | Point canonical at the **path without** those query strings so search engines index one preferred URL. |
-| Params **define** what is shown (e.g. a resource id, or search results that are the main intent of the URL) | Canonical should **include** the relevant query string(s). Reuse the same **parsers** and **`createSerializer`** in `generateMetadata` so the canonical matches what users and parsers agree on. |
+| Situation                                                                                                             | Canonical strategy                                                                                                                                                                               |
+| --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Params are **local-only** (filters, draft search text, UI state that does not change the primary “topic” of the page) | Point canonical at the **path without** those query strings so search engines index one preferred URL.                                                                                           |
+| Params **define** what is shown (e.g. a resource id, or search results that are the main intent of the URL)           | Canonical should **include** the relevant query string(s). Reuse the same **parsers** and **`createSerializer`** in `generateMetadata` so the canonical matches what users and parsers agree on. |
 
 In the Next.js App Router, set this with **metadata**:
 
@@ -124,7 +136,10 @@ For routes where the visible content depends on parsed params, compute canonical
 ```ts
 import type { Metadata } from 'next';
 import type { SearchParams } from 'nuqs/server';
-import { loadProductSearchParams, serializeProductSearchUrl } from '@/lib/product-search-params';
+import {
+  loadProductSearchParams,
+  serializeProductSearchUrl,
+} from '@/lib/product-search-params';
 
 export async function generateMetadata({
   searchParams,
@@ -186,7 +201,7 @@ export async function POST(req: NextRequest) {
   if (!response.ok) {
     return NextResponse.json(
       { error: 'Authentication failed' },
-      { status: response.status }
+      { status: response.status },
     );
   }
 
@@ -276,7 +291,7 @@ httpClient.interceptors.response.use(
       await refreshToken(); // Refresh via /api/auth/refresh
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 // Usage with React Query
@@ -328,6 +343,7 @@ export function useUploadMedia() {
 ```
 
 **Rules:**
+
 - Always invalidate related queries on mutation success
 - Use `staleTime: 30000` for admin (30s), `staleTime: 60000` for public (60s)
 - Query keys should match API resource structure
@@ -424,7 +440,7 @@ httpClient.interceptors.response.use(
     if (error.response?.status === 401) {
       try {
         // Refresh token
-        const newToken = await fetch('/api/auth/refresh').then(r => r.json());
+        const newToken = await fetch('/api/auth/refresh').then((r) => r.json());
         setAuthToken(newToken.accessToken);
 
         // Retry original request
@@ -436,7 +452,7 @@ httpClient.interceptors.response.use(
       }
     }
     return Promise.reject(error);
-  }
+  },
 );
 ```
 
@@ -447,6 +463,7 @@ httpClient.interceptors.response.use(
 ### Best Practices
 
 **Prefer inline classes** over `@apply`:
+
 ```tsx
 // Good
 export function Card({ children }) {
@@ -461,6 +478,7 @@ export function Card({ children }) {
 ```
 
 **Component-level variants:**
+
 ```tsx
 export function Button({ variant = 'primary', size = 'md', children }) {
   const variantStyles = {
@@ -486,6 +504,7 @@ export function Button({ variant = 'primary', size = 'md', children }) {
 ### CSS Modules (Alternative)
 
 For scoped, non-utility styles:
+
 ```css
 /* button.module.css */
 .primary {
@@ -562,7 +581,7 @@ export function ArticleForm() {
 export const revalidate = 60; // Revalidate every 60 seconds
 
 // Manual revalidation after mutation
-'use server';
+('use server');
 export async function createProduct(data) {
   await fetch('...', { method: 'POST', body: JSON.stringify(data) });
   revalidatePath('/products'); // Revalidate product list page
@@ -764,7 +783,11 @@ interface ButtonProps {
   onClick?: () => void;
 }
 
-export function Button({ variant = 'primary', size = 'md', ...props }: ButtonProps) {
+export function Button({
+  variant = 'primary',
+  size = 'md',
+  ...props
+}: ButtonProps) {
   // ...
 }
 ```
