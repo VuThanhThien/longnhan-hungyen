@@ -942,3 +942,8 @@
 {"ts":"2026-04-14T15:58:44.258Z","hook":"scout-block","tool":"Shell","dur":3,"status":"ok","exit":0,"error":""}
 {"ts":"2026-04-14T15:58:48.210Z","hook":"scout-block","tool":"Shell","dur":3,"status":"ok","exit":0,"error":""}
 {"ts":"2026-04-14T15:58:53.982Z","hook":"scout-block","tool":"Shell","dur":4,"status":"ok","exit":0,"error":""}
+{"ts":"2026-04-14T16:00:47.952Z","hook":"scout-block","tool":"Write","dur":3,"status":"ok","exit":0,"error":""}
+{"ts":"2026-04-14T16:00:50.597Z","hook":"scout-block","tool":"Write","dur":3,"status":"ok","exit":0,"error":""}
+{"ts":"2026-04-14T16:00:52.566Z","hook":"scout-block","tool":"Write","dur":3,"status":"ok","exit":0,"error":""}
+{"ts":"2026-04-14T16:00:54.476Z","hook":"scout-block","tool":"Shell","dur":3,"status":"ok","exit":0,"error":""}
+{"ts":"2026-04-14T16:00:58.014Z","hook":"scout-block","tool":"Shell","dur":4,"status":"ok","exit":0,"error":""}

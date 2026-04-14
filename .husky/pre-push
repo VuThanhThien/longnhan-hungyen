@@ -1,6 +1,3 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
 set -e
 
 changed_files="$(git diff --name-only HEAD HEAD~ -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json' '*.css' '*.scss' '*.md' || true)"
