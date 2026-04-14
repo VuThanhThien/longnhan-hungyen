@@ -42,10 +42,26 @@ console.log('Running analyze-llms-txt.js tests...\n');
 
 // Test categorizeUrl
 console.log('## Testing categorizeUrl()');
-assertEqual(categorizeUrl('https://docs.example.com/getting-started'), 'critical', 'Categorize getting-started as critical');
-assertEqual(categorizeUrl('https://docs.example.com/guide/routing'), 'important', 'Categorize routing guide as important');
-assertEqual(categorizeUrl('https://docs.example.com/advanced/internals'), 'supplementary', 'Categorize internals as supplementary');
-assertEqual(categorizeUrl('https://docs.example.com/api-reference'), 'important', 'Categorize API reference as important');
+assertEqual(
+  categorizeUrl('https://docs.example.com/getting-started'),
+  'critical',
+  'Categorize getting-started as critical',
+);
+assertEqual(
+  categorizeUrl('https://docs.example.com/guide/routing'),
+  'important',
+  'Categorize routing guide as important',
+);
+assertEqual(
+  categorizeUrl('https://docs.example.com/advanced/internals'),
+  'supplementary',
+  'Categorize internals as supplementary',
+);
+assertEqual(
+  categorizeUrl('https://docs.example.com/api-reference'),
+  'important',
+  'Categorize API reference as important',
+);
 
 // Test parseUrls
 console.log('\n## Testing parseUrls()');
@@ -90,7 +106,10 @@ assertEqual(dist1.agentCount, 1, 'Suggest 1 agent for 2 URLs');
 assertEqual(dist1.strategy, 'single', 'Strategy is single for few URLs');
 
 const dist2 = suggestAgentDistribution(8);
-assert(dist2.agentCount >= 3 && dist2.agentCount <= 5, 'Suggest 3-5 agents for 8 URLs');
+assert(
+  dist2.agentCount >= 3 && dist2.agentCount <= 5,
+  'Suggest 3-5 agents for 8 URLs',
+);
 assertEqual(dist2.strategy, 'parallel', 'Strategy is parallel for medium URLs');
 
 const dist3 = suggestAgentDistribution(15);

@@ -33,13 +33,11 @@ const {
   extractIssueFromBranch,
   getGitBranch,
   getGitRoot,
-  DEFAULT_CONFIG
+  DEFAULT_CONFIG,
 } = require('../lib/ck-config-utils.cjs');
 
 describe('ck-config-utils.cjs', () => {
-
   describe('deepMerge', () => {
-
     it('merges nested objects', () => {
       const target = { a: { b: 1, c: 2 } };
       const source = { a: { d: 3 } };
@@ -93,11 +91,9 @@ describe('ck-config-utils.cjs', () => {
 
       assert.deepStrictEqual(result, { a: { b: { c: 1, d: 2 } } });
     });
-
   });
 
   describe('normalizePath', () => {
-
     it('returns null for empty string', () => {
       assert.strictEqual(normalizePath(''), null);
     });
@@ -135,11 +131,9 @@ describe('ck-config-utils.cjs', () => {
     it('returns null for only slashes', () => {
       assert.strictEqual(normalizePath('///'), null);
     });
-
   });
 
   describe('isAbsolutePath', () => {
-
     it('returns true for Unix absolute paths', () => {
       assert.strictEqual(isAbsolutePath('/home/user'), true);
       assert.strictEqual(isAbsolutePath('/'), true);
@@ -167,11 +161,9 @@ describe('ck-config-utils.cjs', () => {
       assert.strictEqual(isAbsolutePath(undefined), false);
       assert.strictEqual(isAbsolutePath(''), false);
     });
-
   });
 
   describe('sanitizePath', () => {
-
     const projectRoot = '/project';
 
     it('allows normal relative paths', () => {
@@ -180,7 +172,10 @@ describe('ck-config-utils.cjs', () => {
     });
 
     it('allows absolute paths', () => {
-      assert.strictEqual(sanitizePath('/custom/plans', projectRoot), '/custom/plans');
+      assert.strictEqual(
+        sanitizePath('/custom/plans', projectRoot),
+        '/custom/plans',
+      );
     });
 
     it('blocks null bytes', () => {
@@ -199,11 +194,9 @@ describe('ck-config-utils.cjs', () => {
       assert.strictEqual(sanitizePath('', projectRoot), null);
       assert.strictEqual(sanitizePath(null, projectRoot), null);
     });
-
   });
 
   describe('sanitizeSlug', () => {
-
     it('returns empty for null/undefined', () => {
       assert.strictEqual(sanitizeSlug(null), '');
       assert.strictEqual(sanitizeSlug(undefined), '');
@@ -239,13 +232,14 @@ describe('ck-config-utils.cjs', () => {
       assert.strictEqual(sanitizeSlug('my-feature'), 'my-feature');
       assert.strictEqual(sanitizeSlug('feature123'), 'feature123');
     });
-
   });
 
   describe('escapeShellValue', () => {
-
     it('escapes backslashes', () => {
-      assert.strictEqual(escapeShellValue('path\\to\\file'), 'path\\\\to\\\\file');
+      assert.strictEqual(
+        escapeShellValue('path\\to\\file'),
+        'path\\\\to\\\\file',
+      );
     });
 
     it('escapes double quotes', () => {
@@ -270,13 +264,14 @@ describe('ck-config-utils.cjs', () => {
       const expected = 'echo \\"\\$HOME\\" && \\`ls\\`';
       assert.strictEqual(escapeShellValue(input), expected);
     });
-
   });
 
   describe('extractSlugFromBranch', () => {
-
     it('extracts from feat/ branches', () => {
-      assert.strictEqual(extractSlugFromBranch('feat/add-feature'), 'add-feature');
+      assert.strictEqual(
+        extractSlugFromBranch('feat/add-feature'),
+        'add-feature',
+      );
     });
 
     it('extracts from fix/ branches', () => {
@@ -284,11 +279,17 @@ describe('ck-config-utils.cjs', () => {
     });
 
     it('extracts from chore/ branches', () => {
-      assert.strictEqual(extractSlugFromBranch('chore/update-deps'), 'update-deps');
+      assert.strictEqual(
+        extractSlugFromBranch('chore/update-deps'),
+        'update-deps',
+      );
     });
 
     it('handles nested prefixes', () => {
-      assert.strictEqual(extractSlugFromBranch('feat/user/add-feature'), 'add-feature');
+      assert.strictEqual(
+        extractSlugFromBranch('feat/user/add-feature'),
+        'add-feature',
+      );
     });
 
     it('returns null for non-matching branches', () => {
@@ -306,11 +307,9 @@ describe('ck-config-utils.cjs', () => {
       assert.ok(!result.includes('*'), 'Should sanitize special chars');
       assert.ok(!result.includes('#'), 'Should sanitize special chars');
     });
-
   });
 
   describe('extractIssueFromBranch', () => {
-
     it('extracts from issue-123 format', () => {
       assert.strictEqual(extractIssueFromBranch('issue-123-fix'), '123');
     });
@@ -344,23 +343,34 @@ describe('ck-config-utils.cjs', () => {
       assert.strictEqual(extractIssueFromBranch(null), null);
       assert.strictEqual(extractIssueFromBranch(undefined), null);
     });
-
   });
 
   describe('getReportsPath', () => {
-
     const planConfig = { reportsDir: 'reports' };
     const pathsConfig = { plans: 'plans' };
 
     it('uses plan-specific path for session-resolved plans', () => {
-      const result = getReportsPath('plans/my-plan', 'session', planConfig, pathsConfig);
+      const result = getReportsPath(
+        'plans/my-plan',
+        'session',
+        planConfig,
+        pathsConfig,
+      );
       assert.ok(result.includes('my-plan'), 'Should include plan name');
       assert.ok(result.includes('reports'), 'Should include reports dir');
     });
 
     it('uses default path for branch-resolved plans', () => {
-      const result = getReportsPath('plans/my-plan', 'branch', planConfig, pathsConfig);
-      assert.ok(!result.includes('my-plan'), 'Should NOT include plan name for branch');
+      const result = getReportsPath(
+        'plans/my-plan',
+        'branch',
+        planConfig,
+        pathsConfig,
+      );
+      assert.ok(
+        !result.includes('my-plan'),
+        'Should NOT include plan name for branch',
+      );
       assert.ok(result.includes('reports'), 'Should include reports dir');
     });
 
@@ -371,19 +381,27 @@ describe('ck-config-utils.cjs', () => {
 
     it('handles whitespace-only planPath (Issue #327)', () => {
       const result = getReportsPath('   ', 'session', planConfig, pathsConfig);
-      assert.strictEqual(result, 'plans/reports/', 'Should use default for whitespace');
+      assert.strictEqual(
+        result,
+        'plans/reports/',
+        'Should use default for whitespace',
+      );
     });
 
     it('returns absolute path when baseDir provided', () => {
       const baseDir = '/project';
-      const result = getReportsPath(null, null, planConfig, pathsConfig, baseDir);
+      const result = getReportsPath(
+        null,
+        null,
+        planConfig,
+        pathsConfig,
+        baseDir,
+      );
       assert.ok(result.startsWith('/project'), 'Should start with baseDir');
     });
-
   });
 
   describe('formatDate', () => {
-
     it('formats YYMMDD correctly', () => {
       const result = formatDate('YYMMDD');
       assert.match(result, /^\d{6}$/, 'Should be 6 digits');
@@ -401,13 +419,15 @@ describe('ck-config-utils.cjs', () => {
 
     it('handles complex format', () => {
       const result = formatDate('YYYY-MM-DD_HH:mm:ss');
-      assert.match(result, /^\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2}$/, 'Should match pattern');
+      assert.match(
+        result,
+        /^\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2}$/,
+        'Should match pattern',
+      );
     });
-
   });
 
   describe('validateNamingPattern', () => {
-
     it('valid pattern with {slug}', () => {
       const result = validateNamingPattern('250101-1200-{slug}');
       assert.strictEqual(result.valid, true);
@@ -434,15 +454,13 @@ describe('ck-config-utils.cjs', () => {
       assert.strictEqual(result.valid, false);
       assert.ok(result.error.includes('{date}'));
     });
-
   });
 
   describe('resolveNamingPattern', () => {
-
     const planConfig = {
       namingFormat: '{date}-{issue}-{slug}',
       dateFormat: 'YYMMDD-HHmm',
-      issuePrefix: 'GH-'
+      issuePrefix: 'GH-',
     };
 
     it('includes date in pattern', () => {
@@ -471,11 +489,9 @@ describe('ck-config-utils.cjs', () => {
       const result = resolveNamingPattern(customConfig, 'fix/456-bug');
       assert.ok(result.includes('#456'), 'Should use custom prefix');
     });
-
   });
 
   describe('getGitBranch', () => {
-
     it('returns null for non-git directory', () => {
       const tempDir = path.join(os.tmpdir(), 'non-git-' + Date.now());
       fs.mkdirSync(tempDir, { recursive: true });
@@ -492,11 +508,9 @@ describe('ck-config-utils.cjs', () => {
       // Will return null if not in git repo, or branch name if in git repo
       assert.ok(result === null || typeof result === 'string');
     });
-
   });
 
   describe('getGitRoot', () => {
-
     it('returns null for non-git directory', () => {
       const tempDir = path.join(os.tmpdir(), 'non-git-root-' + Date.now());
       fs.mkdirSync(tempDir, { recursive: true });
@@ -521,15 +535,17 @@ describe('ck-config-utils.cjs', () => {
         const subdirPath = path.join(currentRoot, '.claude', 'hooks');
         if (fs.existsSync(subdirPath)) {
           const result = getGitRoot(subdirPath);
-          assert.strictEqual(result, currentRoot, 'Should resolve to same root');
+          assert.strictEqual(
+            result,
+            currentRoot,
+            'Should resolve to same root',
+          );
         }
       }
     });
-
   });
 
   describe('DEFAULT_CONFIG', () => {
-
     it('has required plan config', () => {
       assert.ok(DEFAULT_CONFIG.plan);
       assert.ok(DEFAULT_CONFIG.plan.namingFormat);
@@ -551,7 +567,5 @@ describe('ck-config-utils.cjs', () => {
       assert.ok(DEFAULT_CONFIG.trust !== undefined);
       assert.strictEqual(DEFAULT_CONFIG.trust.enabled, false);
     });
-
   });
-
 });

@@ -12,8 +12,12 @@ export function LandingFaq() {
               key={item.q}
               className="rounded-sm border border-[var(--brand-forest)]/10 bg-[var(--brand-cream)]/30 p-6"
             >
-              <dt className="landing-heading text-lg font-semibold text-[var(--brand-forest)]">{item.q}</dt>
-              <dd className="mt-3 text-[var(--brand-forest-muted)] leading-relaxed">{item.a}</dd>
+              <dt className="landing-heading text-lg font-semibold text-[var(--brand-forest)]">
+                {item.q}
+              </dt>
+              <dd className="mt-3 text-[var(--brand-forest-muted)] leading-relaxed">
+                {item.a}
+              </dd>
             </div>
           ))}
         </dl>

@@ -15,8 +15,8 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiParam, ApiTags } from '@nestjs/swagger';
-import { CreateProductReqDto } from './dto/create-product.req.dto';
 import { CreateProductVariantReqDto } from './dto/create-product-variant.req.dto';
+import { CreateProductReqDto } from './dto/create-product.req.dto';
 import { ProductQueryReqDto } from './dto/product-query.req.dto';
 import { ProductResDto } from './dto/product.res.dto';
 import { UpdateProductVariantReqDto } from './dto/update-product-variant.req.dto';

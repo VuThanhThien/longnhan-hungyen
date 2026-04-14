@@ -4,7 +4,7 @@
   align-items: stretch;
 
   /* nested tiptap-button-group gets a gap */
-  &:has(> [data-slot="tiptap-button-group"]) {
+  &:has(> [data-slot='tiptap-button-group']) {
     gap: 0.125rem;
   }
 
@@ -15,7 +15,7 @@
   }
 
   /* select trigger without explicit width becomes fit-content */
-  & > [data-slot="select-trigger"]:not([class*="w-"]) {
+  & > [data-slot='select-trigger']:not([class*='w-']) {
     width: fit-content;
   }
 
@@ -47,8 +47,8 @@
   }
 
   /* select trigger last of type when followed by hidden select */
-  &:has(select[aria-hidden="true"]:last-child)
-    > [data-slot="select-trigger"]:last-of-type {
+  &:has(select[aria-hidden='true']:last-child)
+    > [data-slot='select-trigger']:last-of-type {
     border-top-right-radius: var(--tt-radius-lg);
     border-bottom-right-radius: var(--tt-radius-lg);
   }

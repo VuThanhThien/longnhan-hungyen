@@ -18,7 +18,11 @@ export function toList<T>(value: unknown): T[] {
     return value as T[];
   }
 
-  if (value && typeof value === 'object' && Array.isArray((value as OffsetPaginatedData<T>).data)) {
+  if (
+    value &&
+    typeof value === 'object' &&
+    Array.isArray((value as OffsetPaginatedData<T>).data)
+  ) {
     return (value as OffsetPaginatedData<T>).data;
   }
 
@@ -53,7 +57,9 @@ export function toPaginated<T>(value: unknown): {
   };
 }
 
-export function toOptionalStringArray(raw: FormDataEntryValue | null): string[] {
+export function toOptionalStringArray(
+  raw: FormDataEntryValue | null,
+): string[] {
   if (!raw || typeof raw !== 'string') return [];
   return raw
     .split('\n')

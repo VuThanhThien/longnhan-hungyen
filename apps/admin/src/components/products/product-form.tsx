@@ -6,14 +6,30 @@ import { TiptapHtmlEditor } from '@/components/articles/tiptap-html-editor';
 import { useForm, type Resolver } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import type { ProductFormProps, VariantDraft } from './product-form.interface';
-import { productFormSchema, type ProductFormValues } from './product-form.constant';
+import {
+  productFormSchema,
+  type ProductFormValues,
+} from './product-form.constant';
 import { coerceToHtml } from './product-form.utils';
 
-export function ProductForm({ initialProduct, submitLabel, onSubmit, isSubmitting, showVariants = true }: ProductFormProps) {
-  const [featuredImageUrl, setFeaturedImageUrl] = useState(initialProduct?.featuredImageUrl || '');
-  const [descriptionHtml, setDescriptionHtml] = useState(initialProduct?.descriptionHtml || '');
-  const initialSummary = initialProduct?.summary || initialProduct?.description || '';
-  const [summaryHtml, setSummaryHtml] = useState(initialSummary ? coerceToHtml(initialSummary) : '');
+export function ProductForm({
+  initialProduct,
+  submitLabel,
+  onSubmit,
+  isSubmitting,
+  showVariants = true,
+}: ProductFormProps) {
+  const [featuredImageUrl, setFeaturedImageUrl] = useState(
+    initialProduct?.featuredImageUrl || '',
+  );
+  const [descriptionHtml, setDescriptionHtml] = useState(
+    initialProduct?.descriptionHtml || '',
+  );
+  const initialSummary =
+    initialProduct?.summary || initialProduct?.description || '';
+  const [summaryHtml, setSummaryHtml] = useState(
+    initialSummary ? coerceToHtml(initialSummary) : '',
+  );
   const [variants, setVariants] = useState<VariantDraft[] | null>(() => {
     if (!showVariants) return null;
     return (
@@ -29,12 +45,21 @@ export function ProductForm({ initialProduct, submitLabel, onSubmit, isSubmittin
     );
   });
 
-  const variantsJson = useMemo(() => (variants ? JSON.stringify(variants) : ''), [variants]);
+  const variantsJson = useMemo(
+    () => (variants ? JSON.stringify(variants) : ''),
+    [variants],
+  );
 
-  function updateVariant(index: number, key: keyof VariantDraft, value: string | number | boolean) {
+  function updateVariant(
+    index: number,
+    key: keyof VariantDraft,
+    value: string | number | boolean,
+  ) {
     setVariants((prev) => {
       if (!prev) return prev;
-      return prev.map((item, itemIndex) => (itemIndex === index ? { ...item, [key]: value } : item));
+      return prev.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [key]: value } : item,
+      );
     });
   }
 
@@ -44,7 +69,9 @@ export function ProductForm({ initialProduct, submitLabel, onSubmit, isSubmittin
     setValue,
     formState: { errors },
   } = useForm<ProductFormValues>({
-    resolver: yupResolver(productFormSchema) as unknown as Resolver<ProductFormValues>,
+    resolver: yupResolver(
+      productFormSchema,
+    ) as unknown as Resolver<ProductFormValues>,
     defaultValues: {
       name: initialProduct?.name || '',
       category: initialProduct?.category || 'long-nhan',
@@ -104,7 +131,9 @@ export function ProductForm({ initialProduct, submitLabel, onSubmit, isSubmittin
             className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
             required
           />
-          {errors.name?.message ? <p className="text-xs text-red-600">{errors.name.message}</p> : null}
+          {errors.name?.message ? (
+            <p className="text-xs text-red-600">{errors.name.message}</p>
+          ) : null}
         </div>
         <div className="space-y-1">
           <label className="text-sm text-gray-600">Danh mục</label>
@@ -113,7 +142,9 @@ export function ProductForm({ initialProduct, submitLabel, onSubmit, isSubmittin
             className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
             required
           />
-          {errors.category?.message ? <p className="text-xs text-red-600">{errors.category.message}</p> : null}
+          {errors.category?.message ? (
+            <p className="text-xs text-red-600">{errors.category.message}</p>
+          ) : null}
         </div>
       </div>
 
@@ -127,7 +158,9 @@ export function ProductForm({ initialProduct, submitLabel, onSubmit, isSubmittin
             className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
             required
           />
-          {errors.basePrice?.message ? <p className="text-xs text-red-600">{errors.basePrice.message}</p> : null}
+          {errors.basePrice?.message ? (
+            <p className="text-xs text-red-600">{errors.basePrice.message}</p>
+          ) : null}
         </div>
         <div className="space-y-1">
           <label className="text-sm text-gray-600">Video URL</label>
@@ -166,11 +199,17 @@ export function ProductForm({ initialProduct, submitLabel, onSubmit, isSubmittin
 
       <div className="space-y-2">
         <label className="text-sm text-gray-600">Ảnh đại diện</label>
-        <MediaUrlPicker value={featuredImageUrl} onChange={setFeaturedImageUrl} folder="products" />
+        <MediaUrlPicker
+          value={featuredImageUrl}
+          onChange={setFeaturedImageUrl}
+          folder="products"
+        />
       </div>
 
       <div className="space-y-1">
-        <label className="text-sm text-gray-600">Danh sách ảnh (mỗi dòng 1 URL)</label>
+        <label className="text-sm text-gray-600">
+          Danh sách ảnh (mỗi dòng 1 URL)
+        </label>
         <textarea
           rows={4}
           {...register('images')}
@@ -188,7 +227,13 @@ export function ProductForm({ initialProduct, submitLabel, onSubmit, isSubmittin
               onClick={() =>
                 setVariants((prev) => [
                   ...(prev ?? []),
-                  { label: '', price: 0, stock: 0, sortOrder: (prev ?? []).length, active: true },
+                  {
+                    label: '',
+                    price: 0,
+                    stock: 0,
+                    sortOrder: (prev ?? []).length,
+                    active: true,
+                  },
                 ])
               }
             >
@@ -204,12 +249,60 @@ export function ProductForm({ initialProduct, submitLabel, onSubmit, isSubmittin
           </div>
 
           {variants.map((variant, index) => (
-            <div key={index} className="grid grid-cols-1 gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-6">
-              <input placeholder="Tên biến thể" value={variant.label} onChange={(event) => updateVariant(index, 'label', event.target.value)} className="h-9 rounded-md border border-gray-200 px-2 text-sm md:col-span-2" />
-              <input type="number" min={0} placeholder="Giá" value={variant.price} onChange={(event) => updateVariant(index, 'price', Number(event.target.value || 0))} className="h-9 rounded-md border border-gray-200 px-2 text-sm" />
-              <input type="number" min={0} placeholder="Tồn kho" value={variant.stock} onChange={(event) => updateVariant(index, 'stock', Number(event.target.value || 0))} className="h-9 rounded-md border border-gray-200 px-2 text-sm" />
-              <input type="number" min={0} placeholder="Khối lượng(g)" value={variant.weightG || ''} onChange={(event) => updateVariant(index, 'weightG', Number(event.target.value || 0))} className="h-9 rounded-md border border-gray-200 px-2 text-sm" />
-              <input placeholder="SKU" value={variant.skuCode || ''} onChange={(event) => updateVariant(index, 'skuCode', event.target.value)} className="h-9 rounded-md border border-gray-200 px-2 text-sm" />
+            <div
+              key={index}
+              className="grid grid-cols-1 gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-6"
+            >
+              <input
+                placeholder="Tên biến thể"
+                value={variant.label}
+                onChange={(event) =>
+                  updateVariant(index, 'label', event.target.value)
+                }
+                className="h-9 rounded-md border border-gray-200 px-2 text-sm md:col-span-2"
+              />
+              <input
+                type="number"
+                min={0}
+                placeholder="Giá"
+                value={variant.price}
+                onChange={(event) =>
+                  updateVariant(index, 'price', Number(event.target.value || 0))
+                }
+                className="h-9 rounded-md border border-gray-200 px-2 text-sm"
+              />
+              <input
+                type="number"
+                min={0}
+                placeholder="Tồn kho"
+                value={variant.stock}
+                onChange={(event) =>
+                  updateVariant(index, 'stock', Number(event.target.value || 0))
+                }
+                className="h-9 rounded-md border border-gray-200 px-2 text-sm"
+              />
+              <input
+                type="number"
+                min={0}
+                placeholder="Khối lượng(g)"
+                value={variant.weightG || ''}
+                onChange={(event) =>
+                  updateVariant(
+                    index,
+                    'weightG',
+                    Number(event.target.value || 0),
+                  )
+                }
+                className="h-9 rounded-md border border-gray-200 px-2 text-sm"
+              />
+              <input
+                placeholder="SKU"
+                value={variant.skuCode || ''}
+                onChange={(event) =>
+                  updateVariant(index, 'skuCode', event.target.value)
+                }
+                className="h-9 rounded-md border border-gray-200 px-2 text-sm"
+              />
             </div>
           ))}
         </div>
@@ -218,7 +311,9 @@ export function ProductForm({ initialProduct, submitLabel, onSubmit, isSubmittin
       <input type="hidden" {...register('featuredImageUrl')} />
       <input type="hidden" {...register('summary')} />
       <input type="hidden" {...register('descriptionHtml')} />
-      {showVariants ? <input type="hidden" {...register('variantsJson')} /> : null}
+      {showVariants ? (
+        <input type="hidden" {...register('variantsJson')} />
+      ) : null}
 
       <button
         type="submit"

@@ -6,7 +6,9 @@ import { AUTH_TOKEN_KEY } from '@/lib/auth-token';
 
 const API_URL = process.env.API_URL || 'http://localhost:3001/api/v1';
 
-export async function loginAction(formData: FormData): Promise<{ error?: string }> {
+export async function loginAction(
+  formData: FormData,
+): Promise<{ error?: string }> {
   const email = formData.get('email') as string;
   const password = formData.get('password') as string;
 
@@ -36,13 +38,17 @@ export async function loginAction(formData: FormData): Promise<{ error?: string 
     }
 
     const cookieStore = await cookies();
-    cookieStore.set(AUTH_TOKEN_KEY, JSON.stringify({ accessToken, refreshToken, tokenExpires }), {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
-      path: '/',
-    });
+    cookieStore.set(
+      AUTH_TOKEN_KEY,
+      JSON.stringify({ accessToken, refreshToken, tokenExpires }),
+      {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+        path: '/',
+      },
+    );
     cookieStore.delete('token');
   } catch {
     return { error: 'Lỗi kết nối máy chủ' };

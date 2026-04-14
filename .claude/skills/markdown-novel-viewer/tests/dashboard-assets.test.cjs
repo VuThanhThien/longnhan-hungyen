@@ -16,7 +16,10 @@ describe('dashboard-template.html', () => {
   let htmlContent;
 
   before(() => {
-    assert(fs.existsSync(templatePath), `Template file not found: ${templatePath}`);
+    assert(
+      fs.existsSync(templatePath),
+      `Template file not found: ${templatePath}`,
+    );
     htmlContent = fs.readFileSync(templatePath, 'utf8');
   });
 
@@ -185,7 +188,11 @@ describe('dashboard.css', () => {
 
   it('should define color variables or hex values', () => {
     // Check for color definitions
-    assert(cssContent.includes('var(--') || cssContent.includes('#') || cssContent.includes('rgb'));
+    assert(
+      cssContent.includes('var(--') ||
+        cssContent.includes('#') ||
+        cssContent.includes('rgb'),
+    );
   });
 
   it('should not have CSS syntax errors (basic check)', () => {
@@ -218,7 +225,11 @@ describe('dashboard.js', () => {
 
   it('should be valid JavaScript', () => {
     // Check for syntax errors by looking for basic patterns
-    assert(jsContent.includes('function') || jsContent.includes('const') || jsContent.includes('let'));
+    assert(
+      jsContent.includes('function') ||
+        jsContent.includes('const') ||
+        jsContent.includes('let'),
+    );
   });
 
   it('should have IIFE pattern for encapsulation', () => {

@@ -27,4 +27,3 @@ export function getProductLandingDescription(product: Product) {
   if (summary && looksLikeHtml(summary)) return htmlToPlainText(summary);
   return summary ?? product.description ?? null;
 }
-

@@ -5,7 +5,10 @@ import ArticleContent from '@/components/articles/article-content';
 import Breadcrumb from '@/components/ui/breadcrumb';
 import { fetchApi, fetchPaginated } from '@/lib/api-client';
 import { SITE_URL } from '@/lib/constants';
-import { buildArticleSchema, buildBreadcrumbSchema } from '@/lib/structured-data';
+import {
+  buildArticleSchema,
+  buildBreadcrumbSchema,
+} from '@/lib/structured-data';
 
 export const revalidate = 3600;
 
@@ -30,7 +33,9 @@ export async function generateStaticParams() {
   }
 }
 
-export async function generateMetadata({ params }: ArticleDetailPageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: ArticleDetailPageProps): Promise<Metadata> {
   const { slug } = await params;
   const article = await getArticle(slug);
 
@@ -53,7 +58,9 @@ export async function generateMetadata({ params }: ArticleDetailPageProps): Prom
   };
 }
 
-export default async function ArticleDetailPage({ params }: ArticleDetailPageProps) {
+export default async function ArticleDetailPage({
+  params,
+}: ArticleDetailPageProps) {
   const { slug } = await params;
   const article = await getArticle(slug);
 

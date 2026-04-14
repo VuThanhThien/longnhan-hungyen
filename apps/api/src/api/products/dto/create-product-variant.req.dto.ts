@@ -28,4 +28,3 @@ export class CreateProductVariantReqDto {
   @BooleanFieldOptional()
   active?: boolean;
 }
-

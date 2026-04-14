@@ -1,4 +1,8 @@
-import { LANDING_NUTRITION, LANDING_PRICING, LANDING_SEASON } from '@/data/landing-page-content';
+import {
+  LANDING_NUTRITION,
+  LANDING_PRICING,
+  LANDING_SEASON,
+} from '@/data/landing-page-content';
 import { SectionHeading } from './section-heading';
 
 export function LandingNutritionSeason() {
@@ -12,7 +16,9 @@ export function LandingNutritionSeason() {
               title={LANDING_NUTRITION.sectionTitle}
               subtitle={LANDING_NUTRITION.sectionSubtitle}
             />
-            <p className="mb-6 text-[var(--brand-forest-muted)] leading-relaxed">{LANDING_NUTRITION.intro}</p>
+            <p className="mb-6 text-[var(--brand-forest-muted)] leading-relaxed">
+              {LANDING_NUTRITION.intro}
+            </p>
             <ul className="space-y-4">
               {LANDING_NUTRITION.bullets.map((line) => (
                 <li
@@ -29,13 +35,17 @@ export function LandingNutritionSeason() {
               <h3 className="landing-heading text-2xl font-semibold text-[var(--brand-forest)]">
                 {LANDING_SEASON.sectionTitle}
               </h3>
-              <p className="mt-4 text-[var(--brand-forest-muted)] leading-relaxed">{LANDING_SEASON.body}</p>
+              <p className="mt-4 text-[var(--brand-forest-muted)] leading-relaxed">
+                {LANDING_SEASON.body}
+              </p>
             </div>
             <div className="rounded-sm border border-[var(--brand-gold)]/35 bg-[var(--brand-forest)] p-8 text-[var(--brand-cream)] shadow-lg">
               <h3 className="landing-heading text-2xl font-semibold text-[var(--brand-cream)]">
                 {LANDING_PRICING.sectionTitle}
               </h3>
-              <p className="mt-4 text-green-100/90 leading-relaxed">{LANDING_PRICING.body}</p>
+              <p className="mt-4 text-green-100/90 leading-relaxed">
+                {LANDING_PRICING.body}
+              </p>
             </div>
           </div>
         </div>

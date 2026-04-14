@@ -63,7 +63,10 @@ function findRunningInstances() {
 
   for (const file of files) {
     if (file.startsWith(PID_PREFIX) && file.endsWith('.pid')) {
-      const port = parseInt(file.replace(PID_PREFIX, '').replace('.pid', ''), 10);
+      const port = parseInt(
+        file.replace(PID_PREFIX, '').replace('.pid', ''),
+        10,
+      );
       const pid = readPidFile(port);
       if (pid) {
         try {
@@ -124,5 +127,5 @@ module.exports = {
   findRunningInstances,
   stopAllServers,
   setupShutdownHandlers,
-  PID_PREFIX
+  PID_PREFIX,
 };

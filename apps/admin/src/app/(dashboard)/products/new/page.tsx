@@ -4,12 +4,17 @@ import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProductForm } from '@/components/products/product-form';
-import { onProductsAdminDone, useCreateProductMutation } from '../_shared/use-admin-product-mutations';
+import {
+  onProductsAdminDone,
+  useCreateProductMutation,
+} from '../_shared/use-admin-product-mutations';
 
 export default function ProductCreatePage() {
   const router = useRouter();
 
-  const mutation = useCreateProductMutation({ onDone: () => onProductsAdminDone(router) });
+  const mutation = useCreateProductMutation({
+    onDone: () => onProductsAdminDone(router),
+  });
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">

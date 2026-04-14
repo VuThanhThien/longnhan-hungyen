@@ -13,7 +13,12 @@ interface ListPaginationProps {
   limit?: number;
 }
 
-export function ListPagination({ basePath, pagination, filters, limit }: ListPaginationProps) {
+export function ListPagination({
+  basePath,
+  pagination,
+  filters,
+  limit,
+}: ListPaginationProps) {
   const { currentPage, totalPages, totalRecords } = pagination;
 
   const href = (page: number) => {

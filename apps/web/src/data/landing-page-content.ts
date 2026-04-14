@@ -90,20 +90,23 @@ export const LANDING_NUTRITION = {
 
 export const LANDING_SEASON = {
   sectionTitle: 'Mùa vụ & đặt hàng',
-  body:
-    'Long nhãn tươi và long nhãn sấy theo mùa. Quý khách vui lòng liên hệ để biết tồn kho, dung tích hộp và ưu đãi theo đợt hàng.',
+  body: 'Long nhãn tươi và long nhãn sấy theo mùa. Quý khách vui lòng liên hệ để biết tồn kho, dung tích hộp và ưu đãi theo đợt hàng.',
 } as const;
 
 export const LANDING_PRICING = {
   sectionTitle: 'Báo giá',
-  body:
-    'Giá theo khối lượng (500g, 1kg…) và loại hộp quà. Vui lòng gọi, nhắn Zalo hoặc đặt qua Shopee/TikTok Shop để nhận báo giá và hỗ trợ giao COD.',
+  body: 'Giá theo khối lượng (500g, 1kg…) và loại hộp quà. Vui lòng gọi, nhắn Zalo hoặc đặt qua Shopee/TikTok Shop để nhận báo giá và hỗ trợ giao COD.',
 } as const;
 
 export const LANDING_TESTIMONIALS: {
   sectionTitle: string;
   sectionSubtitle: string;
-  items: { quote: string; author: string; location?: string; rating?: number }[];
+  items: {
+    quote: string;
+    author: string;
+    location?: string;
+    rating?: number;
+  }[];
 } = {
   sectionTitle: 'Khách hàng tin chọn',
   sectionSubtitle: 'Cập nhật đánh giá thật khi có dữ liệu',
@@ -132,16 +135,19 @@ export const LANDING_CHANNELS = {
   sectionTitle: 'Đặt hàng & kết nối',
   sectionSubtitle: 'Chọn kênh thuận tiện nhất cho bạn',
   codLabel: 'Đặt hàng COD toàn quốc',
-  codDescription: 'Gọi hoặc nhắn Zalo — xác nhận đơn, giao hàng thu tiền tại nhà.',
+  codDescription:
+    'Gọi hoặc nhắn Zalo — xác nhận đơn, giao hàng thu tiền tại nhà.',
   shopee: {
     label: 'Shopee',
     href: SOCIAL_LINKS.shopee,
-    description: 'Điền link gian hàng Shopee chính thức (cập nhật trong lib/constants).',
+    description:
+      'Điền link gian hàng Shopee chính thức (cập nhật trong lib/constants).',
   },
   tiktok: {
     label: 'TikTok Shop',
     href: SOCIAL_LINKS.tiktok,
-    description: 'Điền link TikTok hoặc TikTok Shop (cập nhật trong lib/constants).',
+    description:
+      'Điền link TikTok hoặc TikTok Shop (cập nhật trong lib/constants).',
   },
   zalo: {
     label: 'Chat Zalo',
@@ -189,14 +195,16 @@ export const LANDING_CERTS = {
 // Phase 3 — UX Polish
 export const LANDING_URGENCY = {
   enabled: true,
-  message: 'Mùa nhãn tháng 7–9 — Liên hệ sớm để đảm bảo nguồn hàng chất lượng nhất',
+  message:
+    'Mùa nhãn tháng 7–9 — Liên hệ sớm để đảm bảo nguồn hàng chất lượng nhất',
 } as const;
 
 // Phase 6 — Home Page Enhancement
 export const LANDING_HERO_SLIDES = [
   {
     headline: 'Long nhãn Hưng Yên\nvương giả chi quả',
-    subhead: 'Hương vị cổ truyền, chọn lọc từ vườn nhãn xứ Đông — món quà quê nhà ý nghĩa.',
+    subhead:
+      'Hương vị cổ truyền, chọn lọc từ vườn nhãn xứ Đông — món quà quê nhà ý nghĩa.',
     ctaLabel: 'Đặt hàng — COD toàn quốc',
     ctaHref: '/products',
     imageSrc: null as string | null,
@@ -211,7 +219,11 @@ export const LANDING_HERO_SLIDES = [
 ];
 
 export const LANDING_CATEGORIES = [
-  { label: 'Đặc sản Hưng Yên', href: '/products?category=longnhan', icon: '🌿' },
+  {
+    label: 'Đặc sản Hưng Yên',
+    href: '/products?category=longnhan',
+    icon: '🌿',
+  },
   { label: 'Giải pháp quà tặng', href: '/products?category=gift', icon: '🎁' },
   { label: 'Bộ quà tặng', href: '/products?category=giftset', icon: '📦' },
 ] as const;

@@ -19,7 +19,17 @@
  *   --close false  : Keep browser running (default for chaining)
  *   --close true   : Close browser completely and clear session
  */
-import { getBrowser, getPage, closeBrowser, disconnectBrowser, parseArgs, outputJSON, outputError, saveAuthSession, clearAuthSession } from './lib/browser.js';
+import {
+  getBrowser,
+  getPage,
+  closeBrowser,
+  disconnectBrowser,
+  parseArgs,
+  outputJSON,
+  outputError,
+  saveAuthSession,
+  clearAuthSession,
+} from './lib/browser.js';
 
 /**
  * Parse cookies from JSON string or file
@@ -31,7 +41,9 @@ function parseCookies(cookiesInput) {
     // Try parsing as JSON string
     return JSON.parse(cookiesInput);
   } catch {
-    throw new Error(`Invalid cookies format. Expected JSON array: [{"name":"cookie_name","value":"cookie_value","domain":".example.com"}]`);
+    throw new Error(
+      `Invalid cookies format. Expected JSON array: [{"name":"cookie_name","value":"cookie_value","domain":".example.com"}]`,
+    );
   }
 }
 
@@ -44,7 +56,9 @@ function parseStorage(storageInput) {
   try {
     return JSON.parse(storageInput);
   } catch {
-    throw new Error(`Invalid storage format. Expected JSON object: {"key":"value"}`);
+    throw new Error(
+      `Invalid storage format. Expected JSON object: {"key":"value"}`,
+    );
   }
 }
 
@@ -52,19 +66,30 @@ async function injectAuth() {
   const args = parseArgs(process.argv.slice(2));
 
   if (!args.url) {
-    outputError(new Error('--url is required (base URL for the protected site)'));
+    outputError(
+      new Error('--url is required (base URL for the protected site)'),
+    );
     return;
   }
 
   // Validate at least one auth method provided
-  if (!args.cookies && !args.token && !args['local-storage'] && !args['session-storage']) {
-    outputError(new Error('At least one auth method required: --cookies, --token, --local-storage, or --session-storage'));
+  if (
+    !args.cookies &&
+    !args.token &&
+    !args['local-storage'] &&
+    !args['session-storage']
+  ) {
+    outputError(
+      new Error(
+        'At least one auth method required: --cookies, --token, --local-storage, or --session-storage',
+      ),
+    );
     return;
   }
 
   try {
     const browser = await getBrowser({
-      headless: args.headless
+      headless: args.headless,
     });
 
     const page = await getPage(browser);
@@ -72,13 +97,13 @@ async function injectAuth() {
     // Navigate to the URL first to set the domain context
     await page.goto(args.url, {
       waitUntil: args['wait-until'] || 'networkidle2',
-      timeout: parseInt(args.timeout || '30000')
+      timeout: parseInt(args.timeout || '30000'),
     });
 
     const result = {
       success: true,
       url: args.url,
-      injected: []
+      injected: [],
     };
 
     // Inject cookies
@@ -86,7 +111,7 @@ async function injectAuth() {
       const cookies = parseCookies(args.cookies);
 
       // Validate and normalize cookies
-      const normalizedCookies = cookies.map(cookie => {
+      const normalizedCookies = cookies.map((cookie) => {
         if (!cookie.name || !cookie.value) {
           throw new Error(`Cookie must have 'name' and 'value' properties`);
         }
@@ -103,9 +128,12 @@ async function injectAuth() {
           domain: cookie.domain,
           path: cookie.path || '/',
           httpOnly: cookie.httpOnly !== undefined ? cookie.httpOnly : false,
-          secure: cookie.secure !== undefined ? cookie.secure : args.url.startsWith('https'),
+          secure:
+            cookie.secure !== undefined
+              ? cookie.secure
+              : args.url.startsWith('https'),
           sameSite: cookie.sameSite || 'Lax',
-          ...(cookie.expires && { expires: cookie.expires })
+          ...(cookie.expires && { expires: cookie.expires }),
         };
       });
 
@@ -113,33 +141,41 @@ async function injectAuth() {
       result.injected.push({
         type: 'cookies',
         count: normalizedCookies.length,
-        names: normalizedCookies.map(c => c.name)
+        names: normalizedCookies.map((c) => c.name),
       });
     }
 
     // Inject Bearer token via localStorage (common pattern)
     if (args.token) {
       const tokenKey = args['token-key'] || 'access_token';
-      const token = args.token.startsWith('Bearer ') ? args.token.slice(7) : args.token;
+      const token = args.token.startsWith('Bearer ')
+        ? args.token.slice(7)
+        : args.token;
 
-      await page.evaluate((key, value) => {
-        localStorage.setItem(key, value);
-      }, tokenKey, token);
+      await page.evaluate(
+        (key, value) => {
+          localStorage.setItem(key, value);
+        },
+        tokenKey,
+        token,
+      );
 
       result.injected.push({
         type: 'token',
         key: tokenKey,
-        storage: 'localStorage'
+        storage: 'localStorage',
       });
 
       // Also set Authorization header for future requests if header option provided
       if (args.header) {
         await page.setExtraHTTPHeaders({
-          [args.header]: args.token.startsWith('Bearer ') ? args.token : `Bearer ${args.token}`
+          [args.header]: args.token.startsWith('Bearer ')
+            ? args.token
+            : `Bearer ${args.token}`,
         });
         result.injected.push({
           type: 'header',
-          name: args.header
+          name: args.header,
         });
       }
     }
@@ -150,13 +186,16 @@ async function injectAuth() {
 
       await page.evaluate((data) => {
         Object.entries(data).forEach(([key, value]) => {
-          localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+          localStorage.setItem(
+            key,
+            typeof value === 'string' ? value : JSON.stringify(value),
+          );
         });
       }, storageData);
 
       result.injected.push({
         type: 'localStorage',
-        keys: Object.keys(storageData)
+        keys: Object.keys(storageData),
       });
     }
 
@@ -166,13 +205,16 @@ async function injectAuth() {
 
       await page.evaluate((data) => {
         Object.entries(data).forEach(([key, value]) => {
-          sessionStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+          sessionStorage.setItem(
+            key,
+            typeof value === 'string' ? value : JSON.stringify(value),
+          );
         });
       }, storageData);
 
       result.injected.push({
         type: 'sessionStorage',
-        keys: Object.keys(storageData)
+        keys: Object.keys(storageData),
       });
     }
 
@@ -196,7 +238,9 @@ async function injectAuth() {
     }
     if (args.token && args.header) {
       authSessionData.headers = {
-        [args.header]: args.token.startsWith('Bearer ') ? args.token : `Bearer ${args.token}`
+        [args.header]: args.token.startsWith('Bearer ')
+          ? args.token
+          : `Bearer ${args.token}`,
       };
     }
 

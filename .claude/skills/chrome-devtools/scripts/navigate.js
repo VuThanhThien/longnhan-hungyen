@@ -19,7 +19,16 @@
  *   --wait-for-login <pattern> : Open headed browser, wait for URL to match regex pattern
  *   --login-timeout <ms>       : Max wait time for login (default: 300000 = 5 min)
  */
-import { getBrowser, getPage, closeBrowser, disconnectBrowser, saveAuthSession, parseArgs, outputJSON, outputError } from './lib/browser.js';
+import {
+  getBrowser,
+  getPage,
+  closeBrowser,
+  disconnectBrowser,
+  saveAuthSession,
+  parseArgs,
+  outputJSON,
+  outputError,
+} from './lib/browser.js';
 
 async function navigate() {
   const args = parseArgs(process.argv.slice(2));
@@ -37,14 +46,14 @@ async function navigate() {
       headless,
       useDefaultProfile: args['use-default-profile'] === 'true',
       profile: args.profile,
-      browserUrl: args['browser-url']
+      browserUrl: args['browser-url'],
     });
 
     const page = await getPage(browser);
 
     const options = {
       waitUntil: args['wait-until'] || 'networkidle2',
-      timeout: parseInt(args.timeout || '30000')
+      timeout: parseInt(args.timeout || '30000'),
     };
 
     await page.goto(args.url, options);
@@ -52,7 +61,7 @@ async function navigate() {
     const result = {
       success: true,
       url: page.url(),
-      title: await page.title()
+      title: await page.title(),
     };
 
     // Interactive login: wait for user to complete OAuth/SSO flow
@@ -62,7 +71,9 @@ async function navigate() {
 
       // Validate timeout value
       if (!Number.isFinite(loginTimeout) || loginTimeout <= 0) {
-        outputError(new Error('--login-timeout must be a positive integer (ms)'));
+        outputError(
+          new Error('--login-timeout must be a positive integer (ms)'),
+        );
         return;
       }
 
@@ -71,13 +82,19 @@ async function navigate() {
       try {
         regex = new RegExp(pattern);
       } catch (e) {
-        outputError(new Error(`Invalid regex pattern for --wait-for-login: ${e.message}`));
+        outputError(
+          new Error(`Invalid regex pattern for --wait-for-login: ${e.message}`),
+        );
         return;
       }
 
       // Log to stderr so JSON output stays clean
-      process.stderr.write(`[i] Browser opened for manual login. Complete the login flow.\n`);
-      process.stderr.write(`[i] Waiting for URL to match: ${pattern} (timeout: ${loginTimeout / 1000}s)\n`);
+      process.stderr.write(
+        `[i] Browser opened for manual login. Complete the login flow.\n`,
+      );
+      process.stderr.write(
+        `[i] Waiting for URL to match: ${pattern} (timeout: ${loginTimeout / 1000}s)\n`,
+      );
 
       // Poll URL from Node side — survives page navigations during OAuth redirects
       const deadline = Date.now() + loginTimeout;
@@ -93,7 +110,7 @@ async function navigate() {
         } catch {
           // Page may be mid-navigation, retry
         }
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise((r) => setTimeout(r, 500));
       }
 
       if (loginDetected) {
@@ -103,7 +120,9 @@ async function navigate() {
           saveAuthSession({ cookies });
           result.cookiesSaved = cookies.length;
         } else {
-          process.stderr.write('[!] No cookies captured. Previous session preserved.\n');
+          process.stderr.write(
+            '[!] No cookies captured. Previous session preserved.\n',
+          );
           result.cookiesSaved = 0;
         }
 
@@ -111,11 +130,15 @@ async function navigate() {
         result.url = page.url();
         result.title = await page.title();
 
-        process.stderr.write(`[OK] Login detected. ${result.cookiesSaved} cookies saved for session reuse.\n`);
+        process.stderr.write(
+          `[OK] Login detected. ${result.cookiesSaved} cookies saved for session reuse.\n`,
+        );
       } else {
         result.loginCompleted = false;
         result.loginError = `Login timeout after ${loginTimeout / 1000}s. URL did not match: ${pattern}`;
-        process.stderr.write(`[X] Login timeout. URL never matched: ${pattern}\n`);
+        process.stderr.write(
+          `[X] Login timeout. URL never matched: ${pattern}\n`,
+        );
       }
     }
 

@@ -24,7 +24,6 @@ const {
 } = require('../privacy-block.cjs');
 
 describe('privacy-block.cjs', () => {
-
   describe('isSafeFile', () => {
     it('returns true for .example files', () => {
       assert.strictEqual(isSafeFile('.env.example'), true);
@@ -82,7 +81,10 @@ describe('privacy-block.cjs', () => {
   describe('stripApprovalPrefix', () => {
     it('removes APPROVED: prefix', () => {
       assert.strictEqual(stripApprovalPrefix('APPROVED:.env'), '.env');
-      assert.strictEqual(stripApprovalPrefix('APPROVED:/path/.env'), '/path/.env');
+      assert.strictEqual(
+        stripApprovalPrefix('APPROVED:/path/.env'),
+        '/path/.env',
+      );
     });
 
     it('returns path unchanged without prefix', () => {
@@ -167,7 +169,10 @@ describe('privacy-block.cjs', () => {
     describe('APPROVED: prefix handling', () => {
       it('still detects sensitivity with APPROVED: prefix', () => {
         assert.strictEqual(isPrivacySensitive('APPROVED:.env'), true);
-        assert.strictEqual(isPrivacySensitive('APPROVED:/path/.env.local'), true);
+        assert.strictEqual(
+          isPrivacySensitive('APPROVED:/path/.env.local'),
+          true,
+        );
       });
     });
 
@@ -198,7 +203,7 @@ describe('privacy-block.cjs', () => {
       const paths = extractPaths({
         file_path: '.env',
         path: '/config',
-        pattern: '*.env'
+        pattern: '*.env',
       });
       assert.strictEqual(paths.length, 3);
     });
@@ -211,16 +216,22 @@ describe('privacy-block.cjs', () => {
 
       it('extracts .env.local from commands', () => {
         const paths = extractPaths({ command: 'cat .env.local' });
-        assert.deepStrictEqual(paths, [{ value: '.env.local', field: 'command' }]);
+        assert.deepStrictEqual(paths, [
+          { value: '.env.local', field: 'command' },
+        ]);
       });
 
       it('extracts APPROVED: paths from commands', () => {
         const paths = extractPaths({ command: 'cat APPROVED:.env' });
-        assert.deepStrictEqual(paths, [{ value: 'APPROVED:.env', field: 'command' }]);
+        assert.deepStrictEqual(paths, [
+          { value: 'APPROVED:.env', field: 'command' },
+        ]);
       });
 
       it('prioritizes APPROVED: over plain .env in same command', () => {
-        const paths = extractPaths({ command: 'cat APPROVED:.env && echo .env' });
+        const paths = extractPaths({
+          command: 'cat APPROVED:.env && echo .env',
+        });
         // Should only find APPROVED:.env, not the plain .env
         assert.strictEqual(paths.length, 1);
         assert.strictEqual(paths[0].value, 'APPROVED:.env');
@@ -228,13 +239,13 @@ describe('privacy-block.cjs', () => {
 
       it('extracts from variable assignments', () => {
         const paths = extractPaths({ command: 'FILE=.env.local cat $FILE' });
-        const values = paths.map(p => p.value);
+        const values = paths.map((p) => p.value);
         assert.ok(values.includes('.env.local'));
       });
 
       it('extracts from command substitution', () => {
         const paths = extractPaths({ command: 'cat $(echo .env)' });
-        const values = paths.map(p => p.value);
+        const values = paths.map((p) => p.value);
         assert.ok(values.includes('.env'));
       });
     });
@@ -264,9 +275,9 @@ describe('formatBlockMessage output structure', () => {
         text: 'string',
         options: [
           { label: 'Yes, approve access', description: 'string' },
-          { label: 'No, skip this file', description: 'string' }
-        ]
-      }
+          { label: 'No, skip this file', description: 'string' },
+        ],
+      },
     };
     assert.ok(expectedStructure, 'JSON structure documented');
   });

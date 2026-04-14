@@ -18,7 +18,10 @@ type CartState = {
   clear: () => void;
 };
 
-function totalsFromLines(lines: CartLine[]): { itemCount: number; totalVnd: number } {
+function totalsFromLines(lines: CartLine[]): {
+  itemCount: number;
+  totalVnd: number;
+} {
   let itemCount = 0;
   let totalVnd = 0;
   for (const line of lines) {
@@ -49,19 +52,22 @@ export const useCartStore = create<CartState>()(
           return { lines: next };
         }),
       removeLine: (variantId) =>
-        set((s) => ({ lines: s.lines.filter((l) => l.variantId !== variantId) })),
+        set((s) => ({
+          lines: s.lines.filter((l) => l.variantId !== variantId),
+        })),
       clear: () => set({ lines: [] }),
     }),
     { name: CART_STORAGE_KEY },
   ),
 );
 
-export function getCartTotals(lines: CartLine[]): { itemCount: number; totalVnd: number } {
+export function getCartTotals(lines: CartLine[]): {
+  itemCount: number;
+  totalVnd: number;
+} {
   return totalsFromLines(lines);
 }
 
 export function useCartTotals(): { itemCount: number; totalVnd: number } {
-  return useCartStore(
-    useShallow((s) => totalsFromLines(s.lines)),
-  );
+  return useCartStore(useShallow((s) => totalsFromLines(s.lines)));
 }

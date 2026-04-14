@@ -1,27 +1,43 @@
 import Link from 'next/link';
 
+import FuzzyText from '@/components/ui/fuzzy-text';
+
 export default function NotFound() {
   return (
     <section className="mx-auto max-w-3xl px-4 py-16 text-center">
-      <p className="text-6xl mb-4" aria-hidden="true">
-        404
-      </p>
-      <h1 className="text-2xl md:text-3xl font-bold text-green-950">Khong tim thay noi dung</h1>
+      <div className="mb-4 flex justify-center" aria-hidden="true">
+        <FuzzyText
+          fontSize="clamp(4rem, 14vw, 9rem)"
+          fontWeight={900}
+          color="#052e16"
+          baseIntensity={0.12}
+          hoverIntensity={0.45}
+          fuzzRange={26}
+          fps={60}
+          className="max-w-full"
+        >
+          404
+        </FuzzyText>
+      </div>
+      <span className="sr-only">404</span>
+      <h1 className="text-2xl md:text-3xl font-bold text-green-950">
+        Không tìm thấy nội dung
+      </h1>
       <p className="mt-3 text-gray-600">
-        Trang ban tim khong ton tai hoac da duoc di chuyen.
+        Trang bạn tìm kiếm hiện không tìm thấy hoặc đã di chuyển
       </p>
       <div className="mt-8 flex justify-center gap-3">
         <Link
           href="/"
           className="inline-flex items-center rounded-xl bg-green-700 px-5 py-3 text-sm font-semibold text-white hover:bg-green-600"
         >
-          Ve trang chu
+          Về trang chủ
         </Link>
         <Link
           href="/products"
           className="inline-flex items-center rounded-xl border border-green-700 px-5 py-3 text-sm font-semibold text-green-700 hover:bg-green-100"
         >
-          Xem san pham
+          Xem sản phẩm
         </Link>
       </div>
     </section>

@@ -1,6 +1,14 @@
 'use client';
 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface RevenueDataPoint {
@@ -26,7 +34,10 @@ export function RevenueChart({ data }: RevenueChartProps) {
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={data} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+          <BarChart
+            data={data}
+            margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis
               dataKey="date"
@@ -43,12 +54,23 @@ export function RevenueChart({ data }: RevenueChartProps) {
             />
             <Tooltip
               formatter={(value: number) =>
-                new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value)
+                new Intl.NumberFormat('vi-VN', {
+                  style: 'currency',
+                  currency: 'VND',
+                }).format(value)
               }
               labelStyle={{ fontSize: 12 }}
-              contentStyle={{ fontSize: 12, borderRadius: '6px', border: '1px solid #e5e7eb' }}
+              contentStyle={{
+                fontSize: 12,
+                borderRadius: '6px',
+                border: '1px solid #e5e7eb',
+              }}
             />
-            <Bar dataKey="revenue" fill="#16a34a" radius={[4, 4, 0, 0]} />
+            <Bar
+              dataKey="revenue"
+              fill="var(--primary)"
+              radius={[4, 4, 0, 0]}
+            />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

@@ -1,16 +1,42 @@
 @import '../styles/_variables.scss';
 @import '../styles/_keyframe-animations.scss';
 
-@import "tailwindcss";
+@import 'tailwindcss';
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Template palette */
+  --palette-offwhite: #fdfdf9;
+  --palette-pale-yellow: #fbef9c;
+  --palette-vivid-yellow: #fee32b;
+  --palette-olive: #877928;
+  --palette-near-black: #201d18;
+
+  /* Semantic tokens */
+  --background: var(--palette-offwhite);
+  --foreground: var(--palette-near-black);
+  --surface: var(--palette-offwhite);
+  --muted: var(--palette-pale-yellow);
+  --muted-foreground: var(--palette-olive);
+  --border: color-mix(in srgb, var(--palette-olive) 20%, transparent);
+  --ring: var(--palette-near-black);
+  --primary: var(--palette-near-black);
+  --primary-foreground: var(--palette-offwhite);
+  --accent: var(--palette-vivid-yellow);
+  --accent-foreground: var(--palette-near-black);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -36,13 +62,48 @@ body {
   pointer-events: none;
 }
 
-.tiptap-editor .ProseMirror h1 { font-size: 1.75rem; font-weight: 700; margin: 1rem 0 0.5rem; }
-.tiptap-editor .ProseMirror h2 { font-size: 1.5rem; font-weight: 600; margin: 1rem 0 0.5rem; }
-.tiptap-editor .ProseMirror h3 { font-size: 1.25rem; font-weight: 600; margin: 0.75rem 0 0.5rem; }
-.tiptap-editor .ProseMirror ul { list-style: disc; padding-left: 1.5rem; margin: 0.5rem 0; }
-.tiptap-editor .ProseMirror ol { list-style: decimal; padding-left: 1.5rem; margin: 0.5rem 0; }
-.tiptap-editor .ProseMirror blockquote { border-left: 4px solid #e5e7eb; padding-left: 1rem; color: #6b7280; }
-.tiptap-editor .ProseMirror a { color: #16a34a; text-decoration: underline; }
-.tiptap-editor .ProseMirror img { max-width: 100%; height: auto; border-radius: 0.375rem; }
-.tiptap-editor .ProseMirror strong { font-weight: 700; }
-.tiptap-editor .ProseMirror em { font-style: italic; }
+.tiptap-editor .ProseMirror h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 1rem 0 0.5rem;
+}
+.tiptap-editor .ProseMirror h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 1rem 0 0.5rem;
+}
+.tiptap-editor .ProseMirror h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0.5rem;
+}
+.tiptap-editor .ProseMirror ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+.tiptap-editor .ProseMirror ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+.tiptap-editor .ProseMirror blockquote {
+  border-left: 4px solid #e5e7eb;
+  padding-left: 1rem;
+  color: #6b7280;
+}
+.tiptap-editor .ProseMirror a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+.tiptap-editor .ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.375rem;
+}
+.tiptap-editor .ProseMirror strong {
+  font-weight: 700;
+}
+.tiptap-editor .ProseMirror em {
+  font-style: italic;
+}

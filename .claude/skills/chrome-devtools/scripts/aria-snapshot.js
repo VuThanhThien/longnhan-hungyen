@@ -13,7 +13,15 @@
  *   By default, browser stays running for session persistence
  *   Use --close true to fully close browser
  */
-import { getBrowser, getPage, closeBrowser, disconnectBrowser, parseArgs, outputJSON, outputError } from './lib/browser.js';
+import {
+  getBrowser,
+  getPage,
+  closeBrowser,
+  disconnectBrowser,
+  parseArgs,
+  outputJSON,
+  outputError,
+} from './lib/browser.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -302,7 +310,7 @@ async function ariaSnapshot() {
 
   try {
     const browser = await getBrowser({
-      headless: args.headless
+      headless: args.headless,
     });
 
     const page = await getPage(browser);
@@ -310,7 +318,7 @@ async function ariaSnapshot() {
     // Navigate if URL provided
     if (args.url) {
       await page.goto(args.url, {
-        waitUntil: args['wait-until'] || 'networkidle2'
+        waitUntil: args['wait-until'] || 'networkidle2',
       });
     }
 
@@ -323,7 +331,7 @@ async function ariaSnapshot() {
       url: page.url(),
       title: await page.title(),
       format: 'yaml',
-      snapshot: snapshot
+      snapshot: snapshot,
     };
 
     // Output to file or stdout
@@ -340,7 +348,7 @@ async function ariaSnapshot() {
       outputJSON({
         success: true,
         output: path.resolve(outputPath),
-        url: page.url()
+        url: page.url(),
       });
     } else {
       // Output to stdout

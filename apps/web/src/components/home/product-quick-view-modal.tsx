@@ -13,7 +13,10 @@ interface ProductQuickViewModalProps {
 }
 
 function formatPrice(price: number): string {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+  }).format(price);
 }
 
 function getPriceRange(product: Product): string {
@@ -22,13 +25,20 @@ function getPriceRange(product: Product): string {
   const prices = active.map((v) => v.price);
   const min = Math.min(...prices);
   const max = Math.max(...prices);
-  return min === max ? formatPrice(min) : `${formatPrice(min)} – ${formatPrice(max)}`;
+  return min === max
+    ? formatPrice(min)
+    : `${formatPrice(min)} – ${formatPrice(max)}`;
 }
 
-export function ProductQuickViewModal({ product, onClose }: ProductQuickViewModalProps) {
+export function ProductQuickViewModal({
+  product,
+  onClose,
+}: ProductQuickViewModalProps) {
   useEffect(() => {
     if (!product) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
     document.addEventListener('keydown', onKey);
     // Lock body scroll while modal is open
     const prev = document.body.style.overflow;
@@ -41,7 +51,8 @@ export function ProductQuickViewModal({ product, onClose }: ProductQuickViewModa
 
   if (!product) return null;
 
-  const cover = product.featuredImageUrl ?? product.images?.[0] ?? product.imageUrls?.[0];
+  const cover =
+    product.featuredImageUrl ?? product.images?.[0] ?? product.imageUrls?.[0];
   const summary = getProductLandingDescription(product);
 
   return (
@@ -59,22 +70,42 @@ export function ProductQuickViewModal({ product, onClose }: ProductQuickViewModa
           aria-label="Đóng"
           className="absolute right-3 top-3 z-10 rounded-full bg-white/80 p-1.5 text-gray-500 shadow hover:bg-white"
         >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <svg
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         </button>
 
         {cover ? (
           <div className="relative aspect-video bg-gray-100">
-            <Image src={cover} alt={product.name} fill sizes="448px" className="object-cover" />
+            <Image
+              src={cover}
+              alt={product.name}
+              fill
+              sizes="448px"
+              className="object-cover"
+            />
           </div>
         ) : (
-          <div className="aspect-video bg-green-50 flex items-center justify-center text-6xl">🌿</div>
+          <div className="aspect-video bg-green-50 flex items-center justify-center text-6xl">
+            🌿
+          </div>
         )}
 
         <div className="p-5">
           <h3 className="text-lg font-bold text-gray-900">{product.name}</h3>
-          <p className="mt-1 text-xl font-bold text-green-700">{getPriceRange(product)}</p>
+          <p className="mt-1 text-xl font-bold text-green-700">
+            {getPriceRange(product)}
+          </p>
           {summary && (
             <p className="mt-2 line-clamp-2 text-sm text-gray-600">{summary}</p>
           )}

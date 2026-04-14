@@ -46,12 +46,18 @@ function toDraft(v: Product['variants'][number]): VariantDraft {
   };
 }
 
-export function ProductVariantsCrudForm({ productId, variants }: ProductVariantsCrudFormProps) {
+export function ProductVariantsCrudForm({
+  productId,
+  variants,
+}: ProductVariantsCrudFormProps) {
   const createMutation = useCreateProductVariantMutation(productId);
   const updateMutation = useUpdateProductVariantMutation(productId);
   const deleteMutation = useDeleteProductVariantMutation(productId);
 
-  const byId = useMemo(() => new Map((variants ?? []).map((v) => [v.id, v])), [variants]);
+  const byId = useMemo(
+    () => new Map((variants ?? []).map((v) => [v.id, v])),
+    [variants],
+  );
 
   const [draftById, setDraftById] = useState<Record<string, VariantDraft>>({});
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -103,12 +109,17 @@ export function ProductVariantsCrudForm({ productId, variants }: ProductVariants
     );
   }
 
-  const isBusy = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
+  const isBusy =
+    createMutation.isPending ||
+    updateMutation.isPending ||
+    deleteMutation.isPending;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-sm text-gray-600">Thêm / sửa / xoá biến thể (tách riêng khỏi cập nhật sản phẩm).</div>
+        <div className="text-sm text-gray-600">
+          Thêm / sửa / xoá biến thể (tách riêng khỏi cập nhật sản phẩm).
+        </div>
         <button
           type="button"
           disabled={isBusy}
@@ -134,7 +145,9 @@ export function ProductVariantsCrudForm({ productId, variants }: ProductVariants
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Thêm biến thể</DialogTitle>
-            <DialogDescription>Nhập thông tin biến thể, sau đó bấm Lưu để tạo.</DialogDescription>
+            <DialogDescription>
+              Nhập thông tin biến thể, sau đó bấm Lưu để tạo.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="grid grid-cols-1 gap-3">
@@ -143,7 +156,9 @@ export function ProductVariantsCrudForm({ productId, variants }: ProductVariants
               <input
                 className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
                 value={createDraft.label}
-                onChange={(e) => setCreateDraft((p) => ({ ...p, label: e.target.value }))}
+                onChange={(e) =>
+                  setCreateDraft((p) => ({ ...p, label: e.target.value }))
+                }
                 placeholder="VD: 500g, 1kg…"
               />
             </div>
@@ -156,7 +171,12 @@ export function ProductVariantsCrudForm({ productId, variants }: ProductVariants
                   min={0}
                   className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
                   value={createDraft.price}
-                  onChange={(e) => setCreateDraft((p) => ({ ...p, price: Number(e.target.value || 0) }))}
+                  onChange={(e) =>
+                    setCreateDraft((p) => ({
+                      ...p,
+                      price: Number(e.target.value || 0),
+                    }))
+                  }
                 />
               </div>
               <div className="space-y-1">
@@ -166,7 +186,12 @@ export function ProductVariantsCrudForm({ productId, variants }: ProductVariants
                   min={0}
                   className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
                   value={createDraft.stock}
-                  onChange={(e) => setCreateDraft((p) => ({ ...p, stock: Number(e.target.value || 0) }))}
+                  onChange={(e) =>
+                    setCreateDraft((p) => ({
+                      ...p,
+                      stock: Number(e.target.value || 0),
+                    }))
+                  }
                 />
               </div>
             </div>
@@ -182,7 +207,8 @@ export function ProductVariantsCrudForm({ productId, variants }: ProductVariants
                   onChange={(e) =>
                     setCreateDraft((p) => ({
                       ...p,
-                      weightG: e.target.value === '' ? null : Number(e.target.value),
+                      weightG:
+                        e.target.value === '' ? null : Number(e.target.value),
                     }))
                   }
                 />
@@ -194,7 +220,12 @@ export function ProductVariantsCrudForm({ productId, variants }: ProductVariants
                   min={0}
                   className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
                   value={createDraft.sortOrder}
-                  onChange={(e) => setCreateDraft((p) => ({ ...p, sortOrder: Number(e.target.value || 0) }))}
+                  onChange={(e) =>
+                    setCreateDraft((p) => ({
+                      ...p,
+                      sortOrder: Number(e.target.value || 0),
+                    }))
+                  }
                 />
               </div>
             </div>
@@ -204,17 +235,23 @@ export function ProductVariantsCrudForm({ productId, variants }: ProductVariants
               <input
                 className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
                 value={createDraft.skuCode}
-                onChange={(e) => setCreateDraft((p) => ({ ...p, skuCode: e.target.value }))}
+                onChange={(e) =>
+                  setCreateDraft((p) => ({ ...p, skuCode: e.target.value }))
+                }
                 placeholder="VD: LN-500G-001"
               />
-              <p className="text-xs text-gray-500">Để trống nếu chưa có SKU (có thể cập nhật sau).</p>
+              <p className="text-xs text-gray-500">
+                Để trống nếu chưa có SKU (có thể cập nhật sau).
+              </p>
             </div>
 
             <label className="inline-flex items-center gap-2 text-sm text-gray-700">
               <input
                 type="checkbox"
                 checked={createDraft.active}
-                onChange={(e) => setCreateDraft((p) => ({ ...p, active: e.target.checked }))}
+                onChange={(e) =>
+                  setCreateDraft((p) => ({ ...p, active: e.target.checked }))
+                }
               />
               Kích hoạt biến thể
             </label>
@@ -231,7 +268,10 @@ export function ProductVariantsCrudForm({ productId, variants }: ProductVariants
             </button>
             <button
               type="button"
-              disabled={createMutation.isPending || createDraft.label.trim().length === 0}
+              disabled={
+                createMutation.isPending ||
+                createDraft.label.trim().length === 0
+              }
               className="inline-flex h-10 items-center rounded-md bg-green-600 px-4 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
               onClick={async () => {
                 const trimmedSku = createDraft.skuCode.trim();
@@ -269,7 +309,10 @@ export function ProductVariantsCrudForm({ productId, variants }: ProductVariants
         const dirty = isDirty(v.id);
 
         return (
-          <div key={v.id} className="grid grid-cols-1 items-center gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-10">
+          <div
+            key={v.id}
+            className="grid grid-cols-1 items-center gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-10"
+          >
             <input
               className="h-9 rounded-md border border-gray-200 px-2 text-sm md:col-span-2"
               value={d.label}
@@ -280,39 +323,55 @@ export function ProductVariantsCrudForm({ productId, variants }: ProductVariants
               min={0}
               className="h-9 rounded-md border border-gray-200 px-2 text-sm md:col-span-1"
               value={d.price}
-              onChange={(e) => setDraft(v.id, { ...d, price: Number(e.target.value || 0) })}
+              onChange={(e) =>
+                setDraft(v.id, { ...d, price: Number(e.target.value || 0) })
+              }
             />
             <input
               type="number"
               min={0}
               className="h-9 rounded-md border border-gray-200 px-2 text-sm md:col-span-1"
               value={d.stock}
-              onChange={(e) => setDraft(v.id, { ...d, stock: Number(e.target.value || 0) })}
+              onChange={(e) =>
+                setDraft(v.id, { ...d, stock: Number(e.target.value || 0) })
+              }
             />
             <input
               type="number"
               min={0}
               className="h-9 rounded-md border border-gray-200 px-2 text-sm md:col-span-1"
               value={d.weightG ?? ''}
-              onChange={(e) => setDraft(v.id, { ...d, weightG: e.target.value === '' ? null : Number(e.target.value) })}
+              onChange={(e) =>
+                setDraft(v.id, {
+                  ...d,
+                  weightG:
+                    e.target.value === '' ? null : Number(e.target.value),
+                })
+              }
             />
             <input
               className="h-9 rounded-md border border-gray-200 px-2 text-sm md:col-span-2"
               value={d.skuCode}
-              onChange={(e) => setDraft(v.id, { ...d, skuCode: e.target.value })}
+              onChange={(e) =>
+                setDraft(v.id, { ...d, skuCode: e.target.value })
+              }
             />
             <input
               type="number"
               min={0}
               className="h-9 rounded-md border border-gray-200 px-2 text-sm md:col-span-1"
               value={d.sortOrder}
-              onChange={(e) => setDraft(v.id, { ...d, sortOrder: Number(e.target.value || 0) })}
+              onChange={(e) =>
+                setDraft(v.id, { ...d, sortOrder: Number(e.target.value || 0) })
+              }
             />
             <label className="flex items-center gap-2 text-sm md:col-span-1">
               <input
                 type="checkbox"
                 checked={d.active}
-                onChange={(e) => setDraft(v.id, { ...d, active: e.target.checked })}
+                onChange={(e) =>
+                  setDraft(v.id, { ...d, active: e.target.checked })
+                }
               />
               <span className="text-gray-700">Bật</span>
             </label>
@@ -354,11 +413,14 @@ export function ProductVariantsCrudForm({ productId, variants }: ProductVariants
               </button>
             </div>
 
-            {dirty ? <div className="text-xs text-amber-700 md:col-span-10">Có thay đổi chưa lưu</div> : null}
+            {dirty ? (
+              <div className="text-xs text-amber-700 md:col-span-10">
+                Có thay đổi chưa lưu
+              </div>
+            ) : null}
           </div>
         );
       })}
     </div>
   );
 }
-

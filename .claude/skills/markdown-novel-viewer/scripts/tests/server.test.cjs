@@ -9,11 +9,35 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 
-const { isPortAvailable, findAvailablePort, DEFAULT_PORT } = require('../lib/port-finder.cjs');
-const { writePidFile, readPidFile, removePidFile, findRunningInstances } = require('../lib/process-mgr.cjs');
-const { getMimeType, MIME_TYPES, isPathSafe, sanitizeErrorMessage } = require('../lib/http-server.cjs');
-const { resolveImages, addHeadingIds, generateTOC, renderTOCHtml } = require('../lib/markdown-renderer.cjs');
-const { detectPlan, parsePlanTable, getNavigationContext, generateNavSidebar } = require('../lib/plan-navigator.cjs');
+const {
+  isPortAvailable,
+  findAvailablePort,
+  DEFAULT_PORT,
+} = require('../lib/port-finder.cjs');
+const {
+  writePidFile,
+  readPidFile,
+  removePidFile,
+  findRunningInstances,
+} = require('../lib/process-mgr.cjs');
+const {
+  getMimeType,
+  MIME_TYPES,
+  isPathSafe,
+  sanitizeErrorMessage,
+} = require('../lib/http-server.cjs');
+const {
+  resolveImages,
+  addHeadingIds,
+  generateTOC,
+  renderTOCHtml,
+} = require('../lib/markdown-renderer.cjs');
+const {
+  detectPlan,
+  parsePlanTable,
+  getNavigationContext,
+  generateNavSidebar,
+} = require('../lib/plan-navigator.cjs');
 
 // Test utilities
 let passed = 0;
@@ -100,7 +124,11 @@ test('getMimeType returns correct types', () => {
   assertEqual(getMimeType('test.js'), 'application/javascript', 'JS type');
   assertEqual(getMimeType('test.png'), 'image/png', 'PNG type');
   assertEqual(getMimeType('test.jpg'), 'image/jpeg', 'JPG type');
-  assertEqual(getMimeType('test.unknown'), 'application/octet-stream', 'Unknown type');
+  assertEqual(
+    getMimeType('test.unknown'),
+    'application/octet-stream',
+    'Unknown type',
+  );
 });
 
 test('MIME_TYPES has common extensions', () => {
@@ -114,12 +142,18 @@ test('MIME_TYPES has common extensions', () => {
 console.log('\n--- Security Tests ---');
 
 test('isPathSafe blocks path traversal', () => {
-  assertFalse(isPathSafe('/etc/../etc/passwd', ['/home']), 'Should block .. traversal');
+  assertFalse(
+    isPathSafe('/etc/../etc/passwd', ['/home']),
+    'Should block .. traversal',
+  );
   assertFalse(isPathSafe('/path\0/file', ['/path']), 'Should block null bytes');
 });
 
 test('isPathSafe allows valid paths', () => {
-  assertTrue(isPathSafe('/tmp/test.md', ['/tmp']), 'Should allow path in allowed dir');
+  assertTrue(
+    isPathSafe('/tmp/test.md', ['/tmp']),
+    'Should allow path in allowed dir',
+  );
 });
 
 test('sanitizeErrorMessage removes paths', () => {
@@ -146,20 +180,36 @@ test('resolveImages preserves absolute URLs', () => {
 test('resolveImages handles reference-style definitions', () => {
   const md = '![Step 1 Initial]\n\n[Step 1 Initial]: ./screenshots/step1.png';
   const resolved = resolveImages(md, '/base/path');
-  assertIncludes(resolved, '/file/', 'Should include /file/ route in ref definition');
-  assertIncludes(resolved, '/base/path/screenshots/step1.png', 'Should resolve relative path');
+  assertIncludes(
+    resolved,
+    '/file/',
+    'Should include /file/ route in ref definition',
+  );
+  assertIncludes(
+    resolved,
+    '/base/path/screenshots/step1.png',
+    'Should resolve relative path',
+  );
 });
 
 test('resolveImages handles reference-style with titles', () => {
   const md = '[logo]: ./images/logo.png "Company Logo"';
   const resolved = resolveImages(md, '/project');
-  assertIncludes(resolved, '/file/project/images/logo.png', 'Should resolve path with title');
+  assertIncludes(
+    resolved,
+    '/file/project/images/logo.png',
+    'Should resolve path with title',
+  );
 });
 
 test('resolveImages handles inline images with titles', () => {
   const md = '![Alt](./image.png "Title text")';
   const resolved = resolveImages(md, '/base');
-  assertIncludes(resolved, '/file/base/image.png', 'Should resolve inline with title');
+  assertIncludes(
+    resolved,
+    '/file/base/image.png',
+    'Should resolve inline with title',
+  );
 });
 
 test('addHeadingIds adds id attributes', () => {
@@ -177,7 +227,8 @@ test('addHeadingIds handles duplicates', () => {
 });
 
 test('generateTOC extracts headings', () => {
-  const html = '<h1 id="one">One</h1><h2 id="two">Two</h2><h3 id="three">Three</h3>';
+  const html =
+    '<h1 id="one">One</h1><h2 id="two">Two</h2><h3 id="three">Three</h3>';
   const toc = generateTOC(html);
   assertEqual(toc.length, 3, 'Should find 3 headings');
   assertEqual(toc[0].level, 1, 'First should be h1');
@@ -209,17 +260,23 @@ function setupTestPlan() {
     fs.mkdirSync(testPlanDir, { recursive: true });
   }
 
-  fs.writeFileSync(testPlanFile, `# Test Plan
+  fs.writeFileSync(
+    testPlanFile,
+    `# Test Plan
 
 | Phase | Name | Status | Link |
 |-------|------|--------|------|
 | 1 | Test Phase | Pending | [phase-01-test.md](./phase-01-test.md) |
-`);
+`,
+  );
 
-  fs.writeFileSync(testPhaseFile, `# Phase 1: Test Phase
+  fs.writeFileSync(
+    testPhaseFile,
+    `# Phase 1: Test Phase
 
 Content here.
-`);
+`,
+  );
 }
 
 function cleanupTestPlan() {

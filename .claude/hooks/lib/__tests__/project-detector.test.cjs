@@ -33,7 +33,7 @@ const {
 
   // Helpers
   execSafe,
-  execFileSafe
+  execFileSafe,
 } = require('../project-detector.cjs');
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -59,7 +59,10 @@ function createMockGitRepo(dir, options = {}) {
 
   if (options.worktree) {
     // Create .git file (worktree style) instead of directory
-    fs.writeFileSync(path.join(dir, '.git'), `gitdir: ${options.gitdir || '/tmp/main/.git/worktrees/test'}`);
+    fs.writeFileSync(
+      path.join(dir, '.git'),
+      `gitdir: ${options.gitdir || '/tmp/main/.git/worktrees/test'}`,
+    );
   } else {
     // Create .git directory
     fs.mkdirSync(path.join(dir, '.git'), { recursive: true });
@@ -161,7 +164,10 @@ describe('isGitRepo', () => {
     fs.mkdirSync(symlinkDir, { recursive: true });
 
     try {
-      fs.symlinkSync(path.join(actualGitDir, '.git'), path.join(symlinkDir, '.git'));
+      fs.symlinkSync(
+        path.join(actualGitDir, '.git'),
+        path.join(symlinkDir, '.git'),
+      );
       expect(isGitRepo(symlinkDir)).toBe(true);
     } catch (e) {
       // Skip if symlinks not supported (Windows without admin)
@@ -299,8 +305,12 @@ describe('isValidPythonPath', () => {
 
   test('returns true for valid Python binary', () => {
     // Try common Python paths
-    const commonPaths = ['/usr/bin/python3', '/usr/bin/python', '/usr/local/bin/python3'];
-    const validPath = commonPaths.find(p => {
+    const commonPaths = [
+      '/usr/bin/python3',
+      '/usr/bin/python',
+      '/usr/local/bin/python3',
+    ];
+    const validPath = commonPaths.find((p) => {
       try {
         return fs.existsSync(p) && fs.statSync(p).isFile();
       } catch (e) {
@@ -429,7 +439,10 @@ describe('detectProjectType', () => {
   });
 
   test('detects monorepo from package.json workspaces', () => {
-    fs.writeFileSync('package.json', JSON.stringify({ workspaces: ['packages/*'] }));
+    fs.writeFileSync(
+      'package.json',
+      JSON.stringify({ workspaces: ['packages/*'] }),
+    );
     expect(detectProjectType()).toBe('monorepo');
   });
 
@@ -518,34 +531,52 @@ describe('detectFramework', () => {
   });
 
   test('detects Next.js', () => {
-    fs.writeFileSync('package.json', JSON.stringify({ dependencies: { next: '^14.0.0' } }));
+    fs.writeFileSync(
+      'package.json',
+      JSON.stringify({ dependencies: { next: '^14.0.0' } }),
+    );
     expect(detectFramework()).toBe('next');
   });
 
   test('detects React', () => {
-    fs.writeFileSync('package.json', JSON.stringify({ dependencies: { react: '^18.0.0' } }));
+    fs.writeFileSync(
+      'package.json',
+      JSON.stringify({ dependencies: { react: '^18.0.0' } }),
+    );
     expect(detectFramework()).toBe('react');
   });
 
   test('detects Vue', () => {
-    fs.writeFileSync('package.json', JSON.stringify({ dependencies: { vue: '^3.0.0' } }));
+    fs.writeFileSync(
+      'package.json',
+      JSON.stringify({ dependencies: { vue: '^3.0.0' } }),
+    );
     expect(detectFramework()).toBe('vue');
   });
 
   test('detects Astro', () => {
-    fs.writeFileSync('package.json', JSON.stringify({ dependencies: { astro: '^4.0.0' } }));
+    fs.writeFileSync(
+      'package.json',
+      JSON.stringify({ dependencies: { astro: '^4.0.0' } }),
+    );
     expect(detectFramework()).toBe('astro');
   });
 
   test('detects Express', () => {
-    fs.writeFileSync('package.json', JSON.stringify({ dependencies: { express: '^4.0.0' } }));
+    fs.writeFileSync(
+      'package.json',
+      JSON.stringify({ dependencies: { express: '^4.0.0' } }),
+    );
     expect(detectFramework()).toBe('express');
   });
 
   test('Next.js takes precedence over React', () => {
-    fs.writeFileSync('package.json', JSON.stringify({
-      dependencies: { next: '^14.0.0', react: '^18.0.0' }
-    }));
+    fs.writeFileSync(
+      'package.json',
+      JSON.stringify({
+        dependencies: { next: '^14.0.0', react: '^18.0.0' },
+      }),
+    );
     expect(detectFramework()).toBe('next');
   });
 });
@@ -700,7 +731,9 @@ describe('Edge Cases (Issue #455)', () => {
   describe('Process.cwd() edge case', () => {
     test('isGitRepo handles invalid startDir gracefully', () => {
       // Pass a path that doesn't exist
-      expect(() => isGitRepo('/this/path/definitely/does/not/exist')).not.toThrow();
+      expect(() =>
+        isGitRepo('/this/path/definitely/does/not/exist'),
+      ).not.toThrow();
     });
   });
 });

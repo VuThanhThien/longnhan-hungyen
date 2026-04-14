@@ -18,7 +18,9 @@ export function MediaManager() {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
   const [newFolderName, setNewFolderName] = useState('');
   const { data: folders = [], isLoading: isFoldersLoading } = useMediaFolders();
-  const { data: items = [], isLoading } = useMediaLibrary(selectedFolder ?? undefined);
+  const { data: items = [], isLoading } = useMediaLibrary(
+    selectedFolder ?? undefined,
+  );
   const uploadMutation = useUploadMedia();
   const deleteMutation = useDeleteMedia();
   const createFolderMutation = useCreateMediaFolder();
@@ -26,7 +28,10 @@ export function MediaManager() {
 
   async function upload(file: File) {
     if (!selectedFolder) {
-      toast({ title: 'Hãy chọn thư mục trước khi upload', variant: 'destructive' });
+      toast({
+        title: 'Hãy chọn thư mục trước khi upload',
+        variant: 'destructive',
+      });
       return;
     }
 
@@ -100,7 +105,9 @@ export function MediaManager() {
       {!selectedFolder ? (
         <div className="space-y-3">
           <p className="text-sm text-gray-600">Chọn thư mục để xem ảnh</p>
-          {isFoldersLoading ? <p className="text-sm text-gray-500">Đang tải thư mục...</p> : null}
+          {isFoldersLoading ? (
+            <p className="text-sm text-gray-500">Đang tải thư mục...</p>
+          ) : null}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {folders.map((folder) => (
               <button
@@ -113,7 +120,9 @@ export function MediaManager() {
                   <Folder className="h-5 w-5 text-green-700" />
                   <div>
                     <p className="font-medium text-gray-900">{folder.name}</p>
-                    <p className="text-xs text-gray-500">{folder.itemCount} files</p>
+                    <p className="text-xs text-gray-500">
+                      {folder.itemCount} files
+                    </p>
                   </div>
                 </div>
                 <Trash2
@@ -131,7 +140,11 @@ export function MediaManager() {
       ) : (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="outline" onClick={() => setSelectedFolder(null)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setSelectedFolder(null)}
+            >
               Quay lại thư mục
             </Button>
             <span className="inline-flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 text-sm">
@@ -157,13 +170,22 @@ export function MediaManager() {
             </label>
           </div>
 
-          {isLoading ? <p className="text-sm text-gray-500">Đang tải ảnh...</p> : null}
+          {isLoading ? (
+            <p className="text-sm text-gray-500">Đang tải ảnh...</p>
+          ) : null}
 
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {items.map((item) => (
-              <div key={item.id} className="overflow-hidden rounded-md border border-gray-200">
+              <div
+                key={item.id}
+                className="overflow-hidden rounded-md border border-gray-200"
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={item.url} alt={item.filename || 'media'} className="h-36 w-full object-cover" />
+                <img
+                  src={item.url}
+                  alt={item.filename || 'media'}
+                  className="h-36 w-full object-cover"
+                />
                 <div className="space-y-2 p-2">
                   <button
                     type="button"

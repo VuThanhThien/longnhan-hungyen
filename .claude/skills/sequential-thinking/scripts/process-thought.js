@@ -17,7 +17,8 @@ const path = require('path');
 
 // Configuration
 const HISTORY_FILE = path.join(__dirname, '.thought-history.json');
-const DISABLE_LOGGING = process.env.DISABLE_THOUGHT_LOGGING?.toLowerCase() === 'true';
+const DISABLE_LOGGING =
+  process.env.DISABLE_THOUGHT_LOGGING?.toLowerCase() === 'true';
 
 class ThoughtProcessor {
   constructor() {
@@ -43,10 +44,14 @@ class ThoughtProcessor {
   saveHistory() {
     fs.writeFileSync(
       HISTORY_FILE,
-      JSON.stringify({
-        thoughtHistory: this.thoughtHistory,
-        branches: this.branches
-      }, null, 2)
+      JSON.stringify(
+        {
+          thoughtHistory: this.thoughtHistory,
+          branches: this.branches,
+        },
+        null,
+        2,
+      ),
     );
   }
 
@@ -61,15 +66,27 @@ class ThoughtProcessor {
   validateThought(input) {
     const errors = [];
 
-    if (!input.thought || typeof input.thought !== 'string' || input.thought.trim() === '') {
+    if (
+      !input.thought ||
+      typeof input.thought !== 'string' ||
+      input.thought.trim() === ''
+    ) {
       errors.push('Invalid thought: must be a non-empty string');
     }
 
-    if (!input.thoughtNumber || typeof input.thoughtNumber !== 'number' || input.thoughtNumber < 1) {
+    if (
+      !input.thoughtNumber ||
+      typeof input.thoughtNumber !== 'number' ||
+      input.thoughtNumber < 1
+    ) {
       errors.push('Invalid thoughtNumber: must be a positive number');
     }
 
-    if (!input.totalThoughts || typeof input.totalThoughts !== 'number' || input.totalThoughts < 1) {
+    if (
+      !input.totalThoughts ||
+      typeof input.totalThoughts !== 'number' ||
+      input.totalThoughts < 1
+    ) {
       errors.push('Invalid totalThoughts: must be a positive number');
     }
 
@@ -78,15 +95,25 @@ class ThoughtProcessor {
     }
 
     // Optional field validations
-    if (input.isRevision !== undefined && typeof input.isRevision !== 'boolean') {
+    if (
+      input.isRevision !== undefined &&
+      typeof input.isRevision !== 'boolean'
+    ) {
       errors.push('Invalid isRevision: must be a boolean');
     }
 
-    if (input.revisesThought !== undefined && (typeof input.revisesThought !== 'number' || input.revisesThought < 1)) {
+    if (
+      input.revisesThought !== undefined &&
+      (typeof input.revisesThought !== 'number' || input.revisesThought < 1)
+    ) {
       errors.push('Invalid revisesThought: must be a positive number');
     }
 
-    if (input.branchFromThought !== undefined && (typeof input.branchFromThought !== 'number' || input.branchFromThought < 1)) {
+    if (
+      input.branchFromThought !== undefined &&
+      (typeof input.branchFromThought !== 'number' ||
+        input.branchFromThought < 1)
+    ) {
       errors.push('Invalid branchFromThought: must be a positive number');
     }
 
@@ -94,7 +121,10 @@ class ThoughtProcessor {
       errors.push('Invalid branchId: must be a string');
     }
 
-    if (input.needsMoreThoughts !== undefined && typeof input.needsMoreThoughts !== 'boolean') {
+    if (
+      input.needsMoreThoughts !== undefined &&
+      typeof input.needsMoreThoughts !== 'boolean'
+    ) {
       errors.push('Invalid needsMoreThoughts: must be a boolean');
     }
 
@@ -108,7 +138,7 @@ class ThoughtProcessor {
       return {
         success: false,
         errors,
-        status: 'failed'
+        status: 'failed',
       };
     }
 
@@ -128,7 +158,7 @@ class ThoughtProcessor {
       branchFromThought: input.branchFromThought,
       branchId: input.branchId,
       needsMoreThoughts: input.needsMoreThoughts,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     // Add to history
@@ -152,7 +182,7 @@ class ThoughtProcessor {
       nextThoughtNeeded: thoughtData.nextThoughtNeeded,
       branches: Object.keys(this.branches),
       thoughtHistoryLength: this.thoughtHistory.length,
-      timestamp: thoughtData.timestamp
+      timestamp: thoughtData.timestamp,
     };
   }
 
@@ -160,7 +190,7 @@ class ThoughtProcessor {
     return {
       thoughts: this.thoughtHistory,
       branches: this.branches,
-      totalThoughts: this.thoughtHistory.length
+      totalThoughts: this.thoughtHistory.length,
     };
   }
 }
@@ -206,7 +236,9 @@ if (require.main === module) {
 
   if (input.reset) {
     processor.resetHistory();
-    console.log(JSON.stringify({ success: true, message: 'History reset' }, null, 2));
+    console.log(
+      JSON.stringify({ success: true, message: 'History reset' }, null, 2),
+    );
     process.exit(0);
   }
 
@@ -225,7 +257,7 @@ if (require.main === module) {
     revisesThought: input.revision,
     branchFromThought: input.branch,
     branchId: input.branchId,
-    needsMoreThoughts: input.needsMore
+    needsMoreThoughts: input.needsMore,
   };
 
   const result = processor.processThought(thoughtInput);

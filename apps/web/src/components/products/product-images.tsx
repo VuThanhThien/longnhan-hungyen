@@ -2,6 +2,7 @@
 
 // Product image gallery with thumbnail switcher — client component for interactivity
 
+import Image from 'next/image';
 import { useState } from 'react';
 
 interface ProductImagesProps {
@@ -9,7 +10,10 @@ interface ProductImagesProps {
   productName: string;
 }
 
-export default function ProductImages({ images, productName }: ProductImagesProps) {
+export default function ProductImages({
+  images,
+  productName,
+}: ProductImagesProps) {
   const [activeIndex, setActiveIndex] = useState(0);
 
   if (images.length === 0) {
@@ -24,13 +28,13 @@ export default function ProductImages({ images, productName }: ProductImagesProp
     <div className="flex flex-col gap-3">
       {/* Main image — CSS zoom on hover */}
       <div className="group/zoom relative aspect-square rounded-xl overflow-hidden bg-gray-50">
-        <img
-          src={images[activeIndex]}
+        <Image
+          src={images[activeIndex] ?? ''}
           alt={`${productName} - ảnh ${activeIndex + 1}`}
-          loading={activeIndex === 0 ? 'eager' : 'lazy'}
-          fetchPriority={activeIndex === 0 ? 'high' : 'auto'}
-          decoding={activeIndex === 0 ? 'sync' : 'async'}
-          className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover/zoom:scale-110"
+          fill
+          priority={activeIndex === 0}
+          sizes="(min-width: 768px) 512px, 100vw"
+          className="object-cover transition-transform duration-300 group-hover/zoom:scale-110"
         />
       </div>
 
@@ -43,15 +47,17 @@ export default function ProductImages({ images, productName }: ProductImagesProp
               onClick={() => setActiveIndex(index)}
               aria-label={`Xem ảnh ${index + 1}`}
               className={`relative w-16 h-16 rounded-lg overflow-hidden border-2 transition-colors ${
-                index === activeIndex ? 'border-green-600' : 'border-transparent hover:border-green-300'
+                index === activeIndex
+                  ? 'border-green-600'
+                  : 'border-transparent hover:border-green-300'
               }`}
             >
-              <img
+              <Image
                 src={src}
                 alt={`${productName} thumbnail ${index + 1}`}
-                loading="lazy"
-                decoding="async"
-                className="absolute inset-0 h-full w-full object-cover"
+                fill
+                sizes="64px"
+                className="object-cover"
               />
             </button>
           ))}

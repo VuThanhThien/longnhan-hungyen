@@ -9,14 +9,20 @@ interface ScrollRevealProps {
   className?: string;
 }
 
-export default function ScrollReveal({ children, delayMs = 0, className = '' }: ScrollRevealProps) {
+export default function ScrollReveal({
+  children,
+  delayMs = 0,
+  className = '',
+}: ScrollRevealProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reducedMotion = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
     if (reducedMotion) {
-      setIsVisible(true);
+      queueMicrotask(() => setIsVisible(true));
       return;
     }
 

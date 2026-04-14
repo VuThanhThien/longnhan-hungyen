@@ -12,7 +12,7 @@ const {
   extractPlanMetadata,
   generateTimelineStats,
   generateActivityHeatmap,
-  normalizeStatus
+  normalizeStatus,
 } = require('./plan-metadata-extractor.cjs');
 
 /**
@@ -29,23 +29,26 @@ function calculateProgress(phases) {
     total: phases.length,
     completed: 0,
     inProgress: 0,
-    pending: 0
+    pending: 0,
   };
 
   for (const phase of phases) {
     const status = (phase.status || '').toLowerCase();
     if (status === 'completed' || status === 'done') {
       stats.completed++;
-    } else if (status === 'in-progress' || status === 'in progress' || status === 'active') {
+    } else if (
+      status === 'in-progress' ||
+      status === 'in progress' ||
+      status === 'active'
+    ) {
       stats.inProgress++;
     } else {
       stats.pending++;
     }
   }
 
-  stats.percentage = stats.total > 0
-    ? Math.round((stats.completed / stats.total) * 100)
-    : 0;
+  stats.percentage =
+    stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
 
   return stats;
 }
@@ -62,7 +65,7 @@ function parsePlanName(dirName) {
   // Convert kebab-case to Title Case
   return withoutDate
     .split('-')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 }
 
@@ -88,7 +91,11 @@ function deriveStatus(stats, headerStatus) {
     if (normalized.includes('progress') || normalized.includes('active')) {
       return 'in-progress';
     }
-    if (normalized.includes('pending') || normalized.includes('todo') || normalized.includes('planned')) {
+    if (
+      normalized.includes('pending') ||
+      normalized.includes('todo') ||
+      normalized.includes('planned')
+    ) {
       return 'pending';
     }
   }
@@ -134,9 +141,10 @@ function getPlanMetadata(planFilePath) {
       progress: progress.percentage,
       lastModified: stats.mtime.toISOString(),
       // Use frontmatter status if hasFrontmatter (already normalized), otherwise derive from phases
-      status: richMeta.hasFrontmatter && richMeta.headerStatus
-        ? normalizeStatus(richMeta.headerStatus)
-        : deriveStatus(progress, richMeta.headerStatus),
+      status:
+        richMeta.hasFrontmatter && richMeta.headerStatus
+          ? normalizeStatus(richMeta.headerStatus)
+          : deriveStatus(progress, richMeta.headerStatus),
       // Rich metadata
       createdDate: richMeta.createdDate,
       completedDate: richMeta.completedDate,
@@ -151,10 +159,13 @@ function getPlanMetadata(planFilePath) {
       description: richMeta.description,
       tags: richMeta.tags || [],
       assignee: richMeta.assignee,
-      title: richMeta.title
+      title: richMeta.title,
     };
   } catch (err) {
-    console.error(`[plan-scanner] Error reading plan: ${planFilePath}`, err.message);
+    console.error(
+      `[plan-scanner] Error reading plan: ${planFilePath}`,
+      err.message,
+    );
     return null;
   }
 }
@@ -193,7 +204,7 @@ function isPathSafe(targetPath, baseDir) {
 function scanPlans(plansDir, options = {}) {
   const {
     maxDepth = 2,
-    exclude = ['node_modules', '.git', 'templates', 'reports', 'research']
+    exclude = ['node_modules', '.git', 'templates', 'reports', 'research'],
   } = options;
 
   const resolvedBase = path.resolve(plansDir);
@@ -217,7 +228,10 @@ function scanPlans(plansDir, options = {}) {
     try {
       entries = fs.readdirSync(dir, { withFileTypes: true });
     } catch (err) {
-      console.error(`[plan-scanner] Cannot read directory: ${dir}`, err.message);
+      console.error(
+        `[plan-scanner] Cannot read directory: ${dir}`,
+        err.message,
+      );
       return;
     }
 
@@ -268,5 +282,5 @@ module.exports = {
   isPathSafe,
   // Re-export timeline helpers
   generateTimelineStats,
-  generateActivityHeatmap
+  generateActivityHeatmap,
 };

@@ -2,7 +2,7 @@
  * Dashboard Controls
  * Client-side sorting, filtering, and search for plans dashboard
  */
-(function() {
+(function () {
   'use strict';
 
   // State
@@ -10,7 +10,7 @@
     sort: 'date-desc',
     filter: 'all',
     search: '',
-    view: 'kanban' // 'kanban' or 'grid'
+    view: 'kanban', // 'kanban' or 'grid'
   };
 
   // Status column config
@@ -19,7 +19,7 @@
     { id: 'in-progress', label: 'In Progress', color: 'in-progress' },
     { id: 'in-review', label: 'In Review', color: 'in-review' },
     { id: 'completed', label: 'Done', color: 'completed' },
-    { id: 'cancelled', label: 'Cancelled', color: 'cancelled' }
+    { id: 'cancelled', label: 'Cancelled', color: 'cancelled' },
   ];
 
   // Elements
@@ -105,10 +105,10 @@
     }
 
     // Filter pills
-    document.querySelectorAll('.filter-pill').forEach(pill => {
+    document.querySelectorAll('.filter-pill').forEach((pill) => {
       pill.addEventListener('click', () => {
         // Update active state
-        document.querySelectorAll('.filter-pill').forEach(p => {
+        document.querySelectorAll('.filter-pill').forEach((p) => {
           p.classList.remove('active');
           p.setAttribute('aria-pressed', 'false');
         });
@@ -138,14 +138,15 @@
 
     // Filter by status
     if (state.filter !== 'all') {
-      filtered = filtered.filter(p => p.status === state.filter);
+      filtered = filtered.filter((p) => p.status === state.filter);
     }
 
     // Filter by search
     if (state.search) {
-      filtered = filtered.filter(p =>
-        p.name.toLowerCase().includes(state.search) ||
-        p.id.toLowerCase().includes(state.search)
+      filtered = filtered.filter(
+        (p) =>
+          p.name.toLowerCase().includes(state.search) ||
+          p.id.toLowerCase().includes(state.search),
       );
     }
 
@@ -177,23 +178,25 @@
     }
 
     updateURL();
-    announce(`Showing ${filtered.length} plan${filtered.length !== 1 ? 's' : ''}`);
+    announce(
+      `Showing ${filtered.length} plan${filtered.length !== 1 ? 's' : ''}`,
+    );
   }
 
   /**
    * Render grid with filtered plans
    */
   function renderGrid(plans) {
-    const visibleIds = new Set(plans.map(p => p.id));
+    const visibleIds = new Set(plans.map((p) => p.id));
 
     // Hide/show cards and set order
-    document.querySelectorAll('.plan-card').forEach(card => {
+    document.querySelectorAll('.plan-card').forEach((card) => {
       const id = card.dataset.id;
       const isVisible = visibleIds.has(id);
       card.style.display = isVisible ? '' : 'none';
 
       if (isVisible) {
-        const index = plans.findIndex(p => p.id === id);
+        const index = plans.findIndex((p) => p.id === id);
         card.style.order = index;
       }
     });
@@ -232,7 +235,7 @@
     const searchInput = document.getElementById('plan-search');
     if (searchInput) searchInput.value = state.search;
 
-    document.querySelectorAll('.filter-pill').forEach(p => {
+    document.querySelectorAll('.filter-pill').forEach((p) => {
       const isActive = p.dataset.filter === state.filter;
       p.classList.toggle('active', isActive);
       p.setAttribute('aria-pressed', String(isActive));
@@ -272,7 +275,11 @@
    */
   function setupKeyboardNav() {
     grid?.addEventListener('keydown', (e) => {
-      const cards = [...document.querySelectorAll('.plan-card:not([style*="display: none"])')];
+      const cards = [
+        ...document.querySelectorAll(
+          '.plan-card:not([style*="display: none"])',
+        ),
+      ];
       const current = document.activeElement;
       const index = cards.indexOf(current);
 
@@ -319,7 +326,9 @@
 
     // Check saved preference
     const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const prefersDark = window.matchMedia(
+      '(prefers-color-scheme: dark)',
+    ).matches;
     const initialTheme = savedTheme || (prefersDark ? 'dark' : 'light');
 
     document.documentElement.setAttribute('data-theme', initialTheme);
@@ -345,7 +354,7 @@
     state.view = savedView;
     updateViewMode();
 
-    toggleBtns.forEach(btn => {
+    toggleBtns.forEach((btn) => {
       btn.addEventListener('click', () => {
         const view = btn.dataset.view;
         if (view === state.view) return;
@@ -365,7 +374,7 @@
     const body = document.body;
 
     // Update toggle buttons
-    document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+    document.querySelectorAll('.view-toggle-btn').forEach((btn) => {
       const isActive = btn.dataset.view === state.view;
       btn.classList.toggle('active', isActive);
       btn.setAttribute('aria-pressed', String(isActive));
@@ -392,14 +401,15 @@
 
     // Filter by status (only for grid view, kanban shows all columns)
     if (state.filter !== 'all' && state.view === 'grid') {
-      filtered = filtered.filter(p => p.status === state.filter);
+      filtered = filtered.filter((p) => p.status === state.filter);
     }
 
     // Filter by search
     if (state.search) {
-      filtered = filtered.filter(p =>
-        p.name.toLowerCase().includes(state.search) ||
-        p.id.toLowerCase().includes(state.search)
+      filtered = filtered.filter(
+        (p) =>
+          p.name.toLowerCase().includes(state.search) ||
+          p.id.toLowerCase().includes(state.search),
       );
     }
 
@@ -434,20 +444,21 @@
 
     // Group plans by status
     const grouped = {};
-    STATUS_COLUMNS.forEach(col => {
+    STATUS_COLUMNS.forEach((col) => {
       grouped[col.id] = [];
     });
 
     // Apply search filter for kanban
     let filteredPlans = plans;
     if (state.search) {
-      filteredPlans = plans.filter(p =>
-        p.name.toLowerCase().includes(state.search) ||
-        p.id.toLowerCase().includes(state.search)
+      filteredPlans = plans.filter(
+        (p) =>
+          p.name.toLowerCase().includes(state.search) ||
+          p.id.toLowerCase().includes(state.search),
       );
     }
 
-    filteredPlans.forEach(plan => {
+    filteredPlans.forEach((plan) => {
       const status = plan.status || 'pending';
       if (grouped[status]) {
         grouped[status].push(plan);
@@ -457,11 +468,12 @@
     });
 
     // Generate column HTML
-    const columnsHtml = STATUS_COLUMNS.map(col => {
+    const columnsHtml = STATUS_COLUMNS.map((col) => {
       const columnPlans = grouped[col.id];
-      const cardsHtml = columnPlans.length > 0
-        ? columnPlans.map(plan => renderKanbanCard(plan)).join('')
-        : `<div class="kanban-empty">
+      const cardsHtml =
+        columnPlans.length > 0
+          ? columnPlans.map((plan) => renderKanbanCard(plan)).join('')
+          : `<div class="kanban-empty">
             <svg class="kanban-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <rect x="3" y="3" width="18" height="18" rx="2"/>
               <path d="M9 9h6M9 13h6M9 17h4"/>
@@ -500,8 +512,10 @@
     if (plan.priority) {
       const p = String(plan.priority).toUpperCase();
       let priorityClass = '';
-      if (p === 'P1' || p === 'HIGH' || p === 'CRITICAL') priorityClass = 'priority-high';
-      else if (p === 'P2' || p === 'MEDIUM' || p === 'NORMAL') priorityClass = 'priority-medium';
+      if (p === 'P1' || p === 'HIGH' || p === 'CRITICAL')
+        priorityClass = 'priority-high';
+      else if (p === 'P2' || p === 'MEDIUM' || p === 'NORMAL')
+        priorityClass = 'priority-medium';
       else if (p === 'P3' || p === 'LOW') priorityClass = 'priority-low';
       if (priorityClass) {
         priorityHtml = `<span class="kanban-card-priority ${priorityClass}">${escapeHtml(plan.priority)}</span>`;
@@ -511,7 +525,10 @@
     // Description (truncated)
     let descriptionHtml = '';
     if (plan.description) {
-      const desc = plan.description.length > 80 ? plan.description.slice(0, 77) + '...' : plan.description;
+      const desc =
+        plan.description.length > 80
+          ? plan.description.slice(0, 77) + '...'
+          : plan.description;
       descriptionHtml = `<p class="kanban-card-description">${escapeHtml(desc)}</p>`;
     }
 
@@ -521,7 +538,9 @@
       const visibleTags = plan.tags.slice(0, 3);
       const hiddenCount = plan.tags.length - 3;
       tagsHtml = '<div class="kanban-card-tags">';
-      tagsHtml += visibleTags.map(tag => `<span class="kanban-card-tag">${escapeHtml(tag)}</span>`).join('');
+      tagsHtml += visibleTags
+        .map((tag) => `<span class="kanban-card-tag">${escapeHtml(tag)}</span>`)
+        .join('');
       if (hiddenCount > 0) {
         tagsHtml += `<span class="kanban-card-tag tag-more">+${hiddenCount}</span>`;
       }

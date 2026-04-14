@@ -7,8 +7,17 @@ import {
   useMemo,
   useState,
 } from 'react';
-import { AuthActionsContext, AuthContext, AuthTokensContext, type AuthUser, type TokensInfo } from './auth-context';
-import { getTokensInfo, setTokensInfo as setTokensInfoToStorage } from './auth-tokens-info';
+import {
+  AuthActionsContext,
+  AuthContext,
+  AuthTokensContext,
+  type AuthUser,
+  type TokensInfo,
+} from './auth-context';
+import {
+  getTokensInfo,
+  setTokensInfo as setTokensInfoToStorage,
+} from './auth-tokens-info';
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -93,7 +102,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
   return (
     <AuthContext.Provider value={contextValue}>
       <AuthActionsContext.Provider value={contextActionsValue}>
-        <AuthTokensContext.Provider value={contextTokensValue}>{children}</AuthTokensContext.Provider>
+        <AuthTokensContext.Provider value={contextTokensValue}>
+          {children}
+        </AuthTokensContext.Provider>
       </AuthActionsContext.Provider>
     </AuthContext.Provider>
   );

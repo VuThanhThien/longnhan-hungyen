@@ -8,6 +8,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "format": "pnpm -w prettier --write \"packages/types/src/**/*.ts\"",
     "type-check": "tsc --noEmit",
     "build": "tsc"
   },

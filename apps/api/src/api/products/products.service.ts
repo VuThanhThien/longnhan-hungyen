@@ -6,8 +6,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
 import slugify from 'slugify';
 import { DataSource, Repository } from 'typeorm';
-import { CreateProductReqDto } from './dto/create-product.req.dto';
 import { CreateProductVariantReqDto } from './dto/create-product-variant.req.dto';
+import { CreateProductReqDto } from './dto/create-product.req.dto';
 import { ProductQueryReqDto } from './dto/product-query.req.dto';
 import { ProductResDto } from './dto/product.res.dto';
 import { UpdateProductVariantReqDto } from './dto/update-product-variant.req.dto';
@@ -227,7 +227,10 @@ export class ProductsService {
     variantId: Uuid,
     dto: UpdateProductVariantReqDto,
   ): Promise<ProductResDto> {
-    const variant = await this.variantRepo.findOneBy({ id: variantId, productId });
+    const variant = await this.variantRepo.findOneBy({
+      id: variantId,
+      productId,
+    });
     if (!variant) {
       throw new NotFoundException('Product variant not found');
     }
@@ -270,8 +273,14 @@ export class ProductsService {
   }
 
   /** Admin: delete a variant */
-  async deleteVariant(productId: Uuid, variantId: Uuid): Promise<ProductResDto> {
-    const variant = await this.variantRepo.findOneBy({ id: variantId, productId });
+  async deleteVariant(
+    productId: Uuid,
+    variantId: Uuid,
+  ): Promise<ProductResDto> {
+    const variant = await this.variantRepo.findOneBy({
+      id: variantId,
+      productId,
+    });
     if (!variant) {
       throw new NotFoundException('Product variant not found');
     }

@@ -39,7 +39,9 @@ export default function ArticleContent({ article }: ArticleContentProps) {
       )}
 
       {/* Meta */}
-      <time className="text-sm text-gray-400 block mb-3">{formatDate(publishedDate)}</time>
+      <time className="text-sm text-gray-400 block mb-3">
+        {formatDate(publishedDate)}
+      </time>
 
       {/* Title */}
       <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight mb-4">

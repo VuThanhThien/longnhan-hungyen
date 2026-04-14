@@ -9,10 +9,10 @@ const { send } = require('../lib/sender.cjs');
 
 // Discord embed colors
 const COLORS = {
-  Stop: 5763719,         // Green
+  Stop: 5763719, // Green
   SubagentStop: 3447003, // Blue
   AskUserPrompt: 15844367, // Yellow
-  default: 10070709,     // Gray
+  default: 10070709, // Gray
 };
 
 /**
@@ -67,7 +67,11 @@ function buildStopEmbed(input) {
     footer: { text: `Project • ${projectName}` },
     fields: [
       { name: '⏰ Time', value: formatTimestamp(), inline: true },
-      { name: '🆔 Session', value: `\`${truncateSessionId(sessionId)}\``, inline: true },
+      {
+        name: '🆔 Session',
+        value: `\`${truncateSessionId(sessionId)}\``,
+        inline: true,
+      },
       { name: '📍 Location', value: `\`${cwd || 'Unknown'}\``, inline: false },
     ],
   };
@@ -93,7 +97,11 @@ function buildSubagentStopEmbed(input) {
     fields: [
       { name: '⏰ Time', value: formatTimestamp(), inline: true },
       { name: '🔧 Agent Type', value: agentType, inline: true },
-      { name: '🆔 Session', value: `\`${truncateSessionId(sessionId)}\``, inline: true },
+      {
+        name: '🆔 Session',
+        value: `\`${truncateSessionId(sessionId)}\``,
+        inline: true,
+      },
       { name: '📍 Location', value: `\`${cwd || 'Unknown'}\``, inline: false },
     ],
   };
@@ -117,7 +125,11 @@ function buildAskUserPromptEmbed(input) {
     footer: { text: `Project • ${projectName}` },
     fields: [
       { name: '⏰ Time', value: formatTimestamp(), inline: true },
-      { name: '🆔 Session', value: `\`${truncateSessionId(sessionId)}\``, inline: true },
+      {
+        name: '🆔 Session',
+        value: `\`${truncateSessionId(sessionId)}\``,
+        inline: true,
+      },
       { name: '📍 Location', value: `\`${cwd || 'Unknown'}\``, inline: false },
     ],
   };
@@ -143,7 +155,11 @@ function buildDefaultEmbed(input) {
     fields: [
       { name: '⏰ Time', value: formatTimestamp(), inline: true },
       { name: '📋 Event', value: hookType, inline: true },
-      { name: '🆔 Session', value: `\`${truncateSessionId(sessionId)}\``, inline: true },
+      {
+        name: '🆔 Session',
+        value: `\`${truncateSessionId(sessionId)}\``,
+        inline: true,
+      },
       { name: '📍 Location', value: `\`${cwd || 'Unknown'}\``, inline: false },
     ],
   };

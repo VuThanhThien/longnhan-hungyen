@@ -12,14 +12,23 @@ interface VariantSelectorProps {
 }
 
 function formatPrice(price: number): string {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+  }).format(price);
 }
 
-export default function VariantSelector({ variants, selectedId, onSelect }: VariantSelectorProps) {
+export default function VariantSelector({
+  variants,
+  selectedId,
+  onSelect,
+}: VariantSelectorProps) {
   const activeVariants = variants.filter((v) => v.active || v.isActive);
 
   if (activeVariants.length === 0) {
-    return <p className="text-sm text-gray-500">Sản phẩm hiện chưa có loại nào.</p>;
+    return (
+      <p className="text-sm text-gray-500">Sản phẩm hiện chưa có loại nào.</p>
+    );
   }
 
   return (
@@ -40,13 +49,17 @@ export default function VariantSelector({ variants, selectedId, onSelect }: Vari
                 isSelected
                   ? 'border-green-600 bg-green-50 text-green-800'
                   : outOfStock
-                  ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-                  : 'border-gray-300 bg-white text-gray-700 hover:border-green-400'
+                    ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                    : 'border-gray-300 bg-white text-gray-700 hover:border-green-400'
               }`}
             >
               <span>{variant.label ?? variant.name}</span>
-              <span className="ml-2 text-green-700 font-semibold">{formatPrice(variant.price)}</span>
-              {outOfStock && <span className="ml-1 text-xs text-red-400">(Hết hàng)</span>}
+              <span className="ml-2 text-green-700 font-semibold">
+                {formatPrice(variant.price)}
+              </span>
+              {outOfStock && (
+                <span className="ml-1 text-xs text-red-400">(Hết hàng)</span>
+              )}
             </button>
           );
         })}

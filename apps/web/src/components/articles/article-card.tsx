@@ -36,16 +36,22 @@ export default function ArticleCard({ article }: ArticleCardProps) {
             className="object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : (
-          <div className="flex items-center justify-center h-full text-5xl text-gray-300">📰</div>
+          <div className="flex items-center justify-center h-full text-5xl text-gray-300">
+            📰
+          </div>
         )}
       </div>
       <div className="p-4">
-        <time className="text-xs text-gray-400 mb-1 block">{formatDate(publishedDate)}</time>
+        <time className="text-xs text-gray-400 mb-1 block">
+          {formatDate(publishedDate)}
+        </time>
         <h3 className="font-semibold text-gray-900 text-sm leading-snug mb-2 line-clamp-2 group-hover:text-green-700 transition-colors">
           {article.title}
         </h3>
         {excerpt && (
-          <p className="text-xs text-gray-500 line-clamp-3 leading-relaxed">{excerpt}</p>
+          <p className="text-xs text-gray-500 line-clamp-3 leading-relaxed">
+            {excerpt}
+          </p>
         )}
       </div>
     </Link>

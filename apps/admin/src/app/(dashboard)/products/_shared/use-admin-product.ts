@@ -10,4 +10,3 @@ export function useAdminProduct(productId?: string) {
     queryFn: () => adminClientGet<Product>(`/products/admin/${productId}`),
   });
 }
-

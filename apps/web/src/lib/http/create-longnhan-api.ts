@@ -1,6 +1,10 @@
 import axios, { type AxiosInstance, isAxiosError } from 'axios';
 import Cookies from 'js-cookie';
-import { AUTH_TOKEN_KEY, parseAuthTokens, type AuthTokens } from '@/lib/auth-token';
+import {
+  AUTH_TOKEN_KEY,
+  parseAuthTokens,
+  type AuthTokens,
+} from '@/lib/auth-token';
 
 function extractMessage(error: unknown): string {
   if (isAxiosError(error)) {

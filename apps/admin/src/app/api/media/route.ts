@@ -13,7 +13,8 @@ export async function GET(request: Request) {
   const text = await upstream.text();
   if (!text) return new NextResponse(null, { status: upstream.status });
 
-  const contentType = upstream.headers.get('content-type') || 'application/json';
+  const contentType =
+    upstream.headers.get('content-type') || 'application/json';
   return new NextResponse(text, {
     status: upstream.status,
     headers: { 'content-type': contentType },

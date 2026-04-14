@@ -19,7 +19,10 @@ export async function submitOrder(formData: FormData): Promise<void> {
     province: formData.get('province') || undefined,
     notes: formData.get('notes') || undefined,
     paymentMethod: formData.get('paymentMethod'),
-    items: JSON.parse(itemsRaw as string) as { variantId: string; qty: number }[],
+    items: JSON.parse(itemsRaw as string) as {
+      variantId: string;
+      qty: number;
+    }[],
   };
 
   const { data } = await apiServer.post<{ code: string }>('/orders', body);

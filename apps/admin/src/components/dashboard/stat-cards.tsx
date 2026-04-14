@@ -51,7 +51,9 @@ export function StatCards({ stats }: StatCardsProps) {
       {cards.map((card) => (
         <Card key={card.title}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">{card.title}</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-500">
+              {card.title}
+            </CardTitle>
             <div className={`rounded-md p-2 ${card.bg}`}>
               <card.icon className={`h-4 w-4 ${card.color}`} />
             </div>

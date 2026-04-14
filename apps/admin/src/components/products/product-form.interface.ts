@@ -17,4 +17,3 @@ export interface VariantDraft {
   sortOrder: number;
   active: boolean;
 }
-

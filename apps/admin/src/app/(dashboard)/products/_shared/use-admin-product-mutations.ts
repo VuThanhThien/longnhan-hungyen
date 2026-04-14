@@ -1,8 +1,15 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { parseProductPayload } from '@/lib/admin-form-parsers';
-import { adminClientDelete, adminClientPost, adminClientPut } from '@/lib/admin-client';
-import { PRODUCTS_ADMIN_PATHS, PRODUCTS_ADMIN_TOAST } from './products.constant';
+import {
+  adminClientDelete,
+  adminClientPost,
+  adminClientPut,
+} from '@/lib/admin-client';
+import {
+  PRODUCTS_ADMIN_PATHS,
+  PRODUCTS_ADMIN_TOAST,
+} from './products.constant';
 import { adminProductQueryKey } from './products.utils';
 
 export function useCreateProductMutation(options: { onDone: () => void }) {
@@ -21,7 +28,10 @@ export function useCreateProductMutation(options: { onDone: () => void }) {
   });
 }
 
-export function useUpdateProductMutation(productId?: string, options?: { onDone?: () => void }) {
+export function useUpdateProductMutation(
+  productId?: string,
+  options?: { onDone?: () => void },
+) {
   return useMutation({
     mutationFn: async (formData: FormData) => {
       if (!productId) {
@@ -51,14 +61,19 @@ export function useUpdateProductVariantSkuMutation(productId?: string) {
       if (!productId) {
         throw new Error('Missing productId');
       }
-      await adminClientPut(`/products/${productId}/variants/${input.variantId}`, {
-        skuCode: input.skuCode,
-      });
+      await adminClientPut(
+        `/products/${productId}/variants/${input.variantId}`,
+        {
+          skuCode: input.skuCode,
+        },
+      );
     },
     onSuccess: async () => {
       toast.success(PRODUCTS_ADMIN_TOAST.updateVariantSuccess);
       if (productId) {
-        await queryClient.invalidateQueries({ queryKey: adminProductQueryKey(productId) });
+        await queryClient.invalidateQueries({
+          queryKey: adminProductQueryKey(productId),
+        });
       }
     },
     onError: () => {
@@ -88,7 +103,9 @@ export function useCreateProductVariantMutation(productId?: string) {
     onSuccess: async () => {
       toast.success(PRODUCTS_ADMIN_TOAST.createVariantSuccess);
       if (productId) {
-        await queryClient.invalidateQueries({ queryKey: adminProductQueryKey(productId) });
+        await queryClient.invalidateQueries({
+          queryKey: adminProductQueryKey(productId),
+        });
       }
     },
     onError: () => {
@@ -116,12 +133,17 @@ export function useUpdateProductVariantMutation(productId?: string) {
       if (!productId) {
         throw new Error('Missing productId');
       }
-      await adminClientPut(`/products/${productId}/variants/${input.variantId}`, input.patch);
+      await adminClientPut(
+        `/products/${productId}/variants/${input.variantId}`,
+        input.patch,
+      );
     },
     onSuccess: async () => {
       toast.success(PRODUCTS_ADMIN_TOAST.updateVariantSuccess);
       if (productId) {
-        await queryClient.invalidateQueries({ queryKey: adminProductQueryKey(productId) });
+        await queryClient.invalidateQueries({
+          queryKey: adminProductQueryKey(productId),
+        });
       }
     },
     onError: () => {
@@ -143,7 +165,9 @@ export function useDeleteProductVariantMutation(productId?: string) {
     onSuccess: async () => {
       toast.success(PRODUCTS_ADMIN_TOAST.deleteVariantSuccess);
       if (productId) {
-        await queryClient.invalidateQueries({ queryKey: adminProductQueryKey(productId) });
+        await queryClient.invalidateQueries({
+          queryKey: adminProductQueryKey(productId),
+        });
       }
     },
     onError: () => {
@@ -152,8 +176,10 @@ export function useDeleteProductVariantMutation(productId?: string) {
   });
 }
 
-export function onProductsAdminDone(router: { push: (href: string) => void; refresh: () => void }) {
+export function onProductsAdminDone(router: {
+  push: (href: string) => void;
+  refresh: () => void;
+}) {
   router.push(PRODUCTS_ADMIN_PATHS.list);
   router.refresh();
 }
-

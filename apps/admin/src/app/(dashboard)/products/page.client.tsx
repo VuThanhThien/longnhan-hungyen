@@ -8,7 +8,14 @@ import { useSearchParams } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import { ListPagination } from '@/components/admin/list-pagination';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { buildAdminListQuery } from '@/lib/admin-list-query';
 import { toPaginated } from '@/lib/admin-data';
 import { formatCurrency } from '@/lib/utils';
@@ -43,7 +50,11 @@ export default function ProductsPageClient() {
     );
   }, [page, params.category, params.q]);
 
-  const { data: raw, isLoading, isError } = useQuery({
+  const {
+    data: raw,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['products', 'admin', queryString],
     queryFn: () => adminClientGet<unknown>(`/products/admin?${queryString}`),
   });
@@ -80,7 +91,11 @@ export default function ProductsPageClient() {
             <CardTitle className="text-base">Bộ lọc</CardTitle>
           </CardHeader>
           <CardContent>
-            <form className="grid grid-cols-1 gap-4 md:grid-cols-4" method="get" action="/products">
+            <form
+              className="grid grid-cols-1 gap-4 md:grid-cols-4"
+              method="get"
+              action="/products"
+            >
               <div className="space-y-1 md:col-span-2">
                 <label className="text-sm text-gray-600" htmlFor="q">
                   Tìm theo tên
@@ -130,8 +145,14 @@ export default function ProductsPageClient() {
             </Link>
           </CardHeader>
           <CardContent>
-            {isLoading ? <div className="py-8 text-sm text-gray-500">Đang tải…</div> : null}
-            {isError ? <div className="py-8 text-sm text-red-600">Tải dữ liệu thất bại</div> : null}
+            {isLoading ? (
+              <div className="py-8 text-sm text-gray-500">Đang tải…</div>
+            ) : null}
+            {isError ? (
+              <div className="py-8 text-sm text-red-600">
+                Tải dữ liệu thất bại
+              </div>
+            ) : null}
             <Table>
               <TableHeader>
                 <TableRow>
@@ -149,7 +170,9 @@ export default function ProductsPageClient() {
                     <TableCell>{product.name}</TableCell>
                     <TableCell>{product.category}</TableCell>
                     <TableCell>{formatCurrency(product.basePrice)}</TableCell>
-                    <TableCell>{product.active ? 'active' : 'inactive'}</TableCell>
+                    <TableCell>
+                      {product.active ? 'active' : 'inactive'}
+                    </TableCell>
                     <TableCell>{product.variants.length}</TableCell>
                     <TableCell className="space-x-3">
                       <Link
@@ -161,17 +184,28 @@ export default function ProductsPageClient() {
                       <button
                         type="button"
                         className="text-sm text-red-600 hover:underline disabled:opacity-60"
-                        disabled={deleteMutation.isPending && deletingId === String(product.id)}
-                        onClick={() => deleteMutation.mutate(String(product.id))}
+                        disabled={
+                          deleteMutation.isPending &&
+                          deletingId === String(product.id)
+                        }
+                        onClick={() =>
+                          deleteMutation.mutate(String(product.id))
+                        }
                       >
-                        {deleteMutation.isPending && deletingId === String(product.id) ? 'Đang xóa…' : 'Xóa'}
+                        {deleteMutation.isPending &&
+                        deletingId === String(product.id)
+                          ? 'Đang xóa…'
+                          : 'Xóa'}
                       </button>
                     </TableCell>
                   </TableRow>
                 ))}
                 {products.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-8 text-center text-gray-500">
+                    <TableCell
+                      colSpan={6}
+                      className="py-8 text-center text-gray-500"
+                    >
                       Chưa có sản phẩm phù hợp
                     </TableCell>
                   </TableRow>
@@ -194,4 +228,3 @@ export default function ProductsPageClient() {
     </div>
   );
 }
-

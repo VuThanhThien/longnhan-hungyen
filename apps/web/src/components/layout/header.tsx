@@ -32,8 +32,8 @@ export default function Header() {
           />
         </Link>
 
-        <div className="pointer-events-none absolute inset-0 hidden items-center justify-center px-28 md:flex">
-          <HeaderSearchBar className="pointer-events-auto w-full max-w-xl" />
+        <div className="hidden min-w-0 flex-1 items-center justify-center md:flex">
+          <HeaderSearchBar className="w-full max-w-xl" />
         </div>
 
         <div className="relative z-10 ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
@@ -48,11 +48,16 @@ export default function Header() {
               <span className="text-[10px] font-semibold uppercase tracking-wide text-(--brand-forest-muted) sm:text-[11px]">
                 Giao hàng tận nơi
               </span>
-              <span className="text-sm font-bold tabular-nums">{phoneDisplay}</span>
+              <span className="text-sm font-bold tabular-nums">
+                {phoneDisplay}
+              </span>
             </span>
           </a>
 
-          <div className="hidden h-8 w-px bg-(--brand-forest)/15 sm:block" aria-hidden />
+          <div
+            className="hidden h-8 w-px bg-(--brand-forest)/15 sm:block"
+            aria-hidden
+          />
 
           <HeaderCartButton />
 

@@ -9,5 +9,6 @@ When adding/changing DB fields in `apps/api` (TypeORM):
   - run `pnpm --filter @longnhan/api migration:run` (aka “migration:up”)
 
 Notes:
+
 - Always check the generated migration content before running it.
 - If the generated migration misses something, fix the entity and re-generate (don’t hand-edit unless necessary).

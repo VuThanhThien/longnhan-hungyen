@@ -1,10 +1,28 @@
 'use client';
 
-import { PropsWithChildren, useCallback, useEffect, useMemo, useState } from 'react';
-import { AuthActionsContext, AuthContext, AuthTokensContext, type AuthUser, type TokensInfo } from './auth-context';
-import { getTokensInfo, setTokensInfo as setTokensInfoToStorage } from './auth-tokens-info';
+import {
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import {
+  AuthActionsContext,
+  AuthContext,
+  AuthTokensContext,
+  type AuthUser,
+  type TokensInfo,
+} from './auth-context';
+import {
+  getTokensInfo,
+  setTokensInfo as setTokensInfoToStorage,
+} from './auth-tokens-info';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:3001/api/v1';
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.API_URL ||
+  'http://localhost:3001/api/v1';
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [isLoaded, setIsLoaded] = useState(false);
@@ -31,7 +49,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const loadData = useCallback(async () => {
     const tokens = getTokensInfo();
-    console.log("🚀 ~ AuthProvider ~ tokens:", tokens)
+    console.log('🚀 ~ AuthProvider ~ tokens:', tokens);
 
     try {
       if (!tokens?.accessToken) return;
@@ -61,12 +79,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const contextValue = useMemo(() => ({ user, isLoaded }), [user, isLoaded]);
   const contextActionsValue = useMemo(() => ({ setUser, logOut }), [logOut]);
-  const contextTokensValue = useMemo(() => ({ setTokensInfo }), [setTokensInfo]);
+  const contextTokensValue = useMemo(
+    () => ({ setTokensInfo }),
+    [setTokensInfo],
+  );
 
   return (
     <AuthContext.Provider value={contextValue}>
       <AuthActionsContext.Provider value={contextActionsValue}>
-        <AuthTokensContext.Provider value={contextTokensValue}>{children}</AuthTokensContext.Provider>
+        <AuthTokensContext.Provider value={contextTokensValue}>
+          {children}
+        </AuthTokensContext.Provider>
       </AuthActionsContext.Provider>
     </AuthContext.Provider>
   );

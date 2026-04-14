@@ -3,7 +3,15 @@
  * Execute JavaScript in page context
  * Usage: node evaluate.js --script "document.title" [--url https://example.com]
  */
-import { getBrowser, getPage, closeBrowser, disconnectBrowser, parseArgs, outputJSON, outputError } from './lib/browser.js';
+import {
+  getBrowser,
+  getPage,
+  closeBrowser,
+  disconnectBrowser,
+  parseArgs,
+  outputJSON,
+  outputError,
+} from './lib/browser.js';
 
 async function evaluate() {
   const args = parseArgs(process.argv.slice(2));
@@ -15,7 +23,7 @@ async function evaluate() {
 
   try {
     const browser = await getBrowser({
-      headless: args.headless
+      headless: args.headless,
     });
 
     const page = await getPage(browser);
@@ -23,7 +31,7 @@ async function evaluate() {
     // Navigate if URL provided
     if (args.url) {
       await page.goto(args.url, {
-        waitUntil: args['wait-until'] || 'networkidle2'
+        waitUntil: args['wait-until'] || 'networkidle2',
       });
     }
 
@@ -36,7 +44,7 @@ async function evaluate() {
     outputJSON({
       success: true,
       result: result,
-      url: page.url()
+      url: page.url(),
     });
 
     // Default: disconnect to keep browser running for session persistence

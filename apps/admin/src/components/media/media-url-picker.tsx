@@ -2,7 +2,10 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from '@/hooks/use-toast';
-import { useMediaLibrary, useUploadMedia } from '@/features/media/hooks/use-media-library';
+import {
+  useMediaLibrary,
+  useUploadMedia,
+} from '@/features/media/hooks/use-media-library';
 
 interface MediaUrlPickerProps {
   value: string;
@@ -10,7 +13,11 @@ interface MediaUrlPickerProps {
   folder?: string;
 }
 
-export function MediaUrlPicker({ value, onChange, folder = 'products' }: MediaUrlPickerProps) {
+export function MediaUrlPicker({
+  value,
+  onChange,
+  folder = 'products',
+}: MediaUrlPickerProps) {
   const [open, setOpen] = useState(false);
   const { data: library = [], isLoading } = useMediaLibrary();
   const uploadMutation = useUploadMedia();
@@ -19,7 +26,10 @@ export function MediaUrlPicker({ value, onChange, folder = 'products' }: MediaUr
 
   function toggleLibrary() {
     if (library.length === 0 && !isLoading) {
-      toast({ title: 'Không có media hoặc chưa tải xong', variant: 'destructive' });
+      toast({
+        title: 'Không có media hoặc chưa tải xong',
+        variant: 'destructive',
+      });
       return;
     }
     setOpen((prev) => !prev);
@@ -81,7 +91,11 @@ export function MediaUrlPicker({ value, onChange, folder = 'products' }: MediaUr
       {preview ? (
         <div className="rounded-md border border-gray-200 p-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={preview} alt="preview" className="h-32 w-32 rounded-md object-cover" />
+          <img
+            src={preview}
+            alt="preview"
+            className="h-32 w-32 rounded-md object-cover"
+          />
         </div>
       ) : null}
 
@@ -98,7 +112,11 @@ export function MediaUrlPicker({ value, onChange, folder = 'products' }: MediaUr
               className="overflow-hidden rounded-md border border-gray-100 hover:border-green-300"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={item.url} alt={item.filename || 'media'} className="h-24 w-full object-cover" />
+              <img
+                src={item.url}
+                alt={item.filename || 'media'}
+                className="h-24 w-full object-cover"
+              />
             </button>
           ))}
         </div>

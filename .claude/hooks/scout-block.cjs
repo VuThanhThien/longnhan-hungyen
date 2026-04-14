@@ -32,7 +32,7 @@ try {
     checkScoutBlock,
     isBuildCommand,
     isVenvExecutable,
-    isAllowedCommand
+    isAllowedCommand,
   } = require('./lib/scout-checker.cjs');
   const { isHookEnabled } = require('./lib/ck-config-utils.cjs');
 
@@ -43,7 +43,9 @@ try {
 
   // Import formatters (kept local as they're Claude-specific output)
   const { formatBlockedError } = require('./scout-block/error-formatter.cjs');
-  const { formatBroadPatternError } = require('./scout-block/broad-pattern-detector.cjs');
+  const {
+    formatBroadPatternError,
+  } = require('./scout-block/broad-pattern-detector.cjs');
 
   const { createHookTimer } = require('./lib/hook-logger.cjs');
 
@@ -89,8 +91,8 @@ try {
       options: {
         claudeDir,
         adfIgnorePath: path.join(claudeDir, 'config', 'adf-ignore.txt'),
-        checkBroadPatterns: true
-      }
+        checkBroadPatterns: true,
+      },
     });
 
     // Handle allowed commands
@@ -101,11 +103,14 @@ try {
 
     // Handle broad pattern blocks
     if (result.blocked && result.isBroadPattern) {
-      const errorMsg = formatBroadPatternError({
-        blocked: true,
-        reason: result.reason,
-        suggestions: result.suggestions
-      }, claudeDir);
+      const errorMsg = formatBroadPatternError(
+        {
+          blocked: true,
+          reason: result.reason,
+          suggestions: result.suggestions,
+        },
+        claudeDir,
+      );
       console.error(errorMsg);
       timer.end({ tool: toolName, status: 'block', exit: 2 });
       process.exit(2);
@@ -117,7 +122,7 @@ try {
         path: result.path,
         pattern: result.pattern,
         tool: toolName,
-        claudeDir: claudeDir
+        claudeDir: claudeDir,
       });
       console.error(errorMsg);
       timer.end({ tool: toolName, status: 'block', exit: 2 });
@@ -127,7 +132,6 @@ try {
     // All paths allowed
     timer.end({ tool: toolName, status: 'ok', exit: 0 });
     process.exit(0);
-
   } catch (error) {
     // Fail-open for unexpected errors
     console.error('WARN: Hook error, allowing operation -', error.message);
@@ -140,8 +144,15 @@ try {
     const p = require('path');
     const logDir = p.join(__dirname, '.logs');
     if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
-    fs.appendFileSync(p.join(logDir, 'hook-log.jsonl'),
-      JSON.stringify({ ts: new Date().toISOString(), hook: p.basename(__filename, '.cjs'), status: 'crash', error: e.message }) + '\n');
+    fs.appendFileSync(
+      p.join(logDir, 'hook-log.jsonl'),
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        hook: p.basename(__filename, '.cjs'),
+        status: 'crash',
+        error: e.message,
+      }) + '\n',
+    );
   } catch (_) {}
   process.exit(0); // fail-open
 }

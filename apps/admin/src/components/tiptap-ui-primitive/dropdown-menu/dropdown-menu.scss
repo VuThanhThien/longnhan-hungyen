@@ -37,24 +37,24 @@
   transition-duration: 100ms;
 }
 
-.tiptap-dropdown-menu-content[data-side="bottom"] {
+.tiptap-dropdown-menu-content[data-side='bottom'] {
   --slide-y: -0.5rem;
 }
-.tiptap-dropdown-menu-content[data-side="top"] {
+.tiptap-dropdown-menu-content[data-side='top'] {
   --slide-y: 0.5rem;
 }
-.tiptap-dropdown-menu-content[data-side="left"] {
+.tiptap-dropdown-menu-content[data-side='left'] {
   --slide-x: 0.5rem;
 }
-.tiptap-dropdown-menu-content[data-side="right"] {
+.tiptap-dropdown-menu-content[data-side='right'] {
   --slide-x: -0.5rem;
 }
 
-.tiptap-dropdown-menu-content[data-state="open"] {
+.tiptap-dropdown-menu-content[data-state='open'] {
   animation: dropdown-in 100ms ease forwards;
 }
 
-.tiptap-dropdown-menu-content[data-state="closed"] {
+.tiptap-dropdown-menu-content[data-state='closed'] {
   animation: dropdown-out 100ms ease forwards;
   overflow: hidden;
 }
@@ -78,24 +78,24 @@
   transition-duration: 100ms;
 }
 
-.tiptap-dropdown-menu-sub-content[data-side="bottom"] {
+.tiptap-dropdown-menu-sub-content[data-side='bottom'] {
   --slide-y: -0.5rem;
 }
-.tiptap-dropdown-menu-sub-content[data-side="top"] {
+.tiptap-dropdown-menu-sub-content[data-side='top'] {
   --slide-y: 0.5rem;
 }
-.tiptap-dropdown-menu-sub-content[data-side="left"] {
+.tiptap-dropdown-menu-sub-content[data-side='left'] {
   --slide-x: 0.5rem;
 }
-.tiptap-dropdown-menu-sub-content[data-side="right"] {
+.tiptap-dropdown-menu-sub-content[data-side='right'] {
   --slide-x: -0.5rem;
 }
 
-.tiptap-dropdown-menu-sub-content[data-state="open"] {
+.tiptap-dropdown-menu-sub-content[data-state='open'] {
   animation: dropdown-in 100ms ease forwards;
 }
 
-.tiptap-dropdown-menu-sub-content[data-state="closed"] {
+.tiptap-dropdown-menu-sub-content[data-state='closed'] {
   animation: dropdown-out 100ms ease forwards;
 }
 
@@ -134,17 +134,17 @@
   color: var(--tt-dropdown-menu-label-color);
 }
 
-.tiptap-dropdown-menu-label[data-inset="true"] {
+.tiptap-dropdown-menu-label[data-inset='true'] {
   padding-left: 1.75rem;
 }
 
 .tiptap-dropdown-menu-group,
-.tiptap-dropdown-menu-group[data-orientation="vertical"] {
+.tiptap-dropdown-menu-group[data-orientation='vertical'] {
   display: flex;
   flex-direction: column;
 }
 
-.tiptap-dropdown-menu-group[data-orientation="horizontal"] {
+.tiptap-dropdown-menu-group[data-orientation='horizontal'] {
   display: flex;
   flex-direction: row;
   align-items: center;

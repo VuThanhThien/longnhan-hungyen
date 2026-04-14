@@ -10,7 +10,15 @@
  *   By default, browser stays running for session persistence
  *   Use --close true to fully close browser
  */
-import { getBrowser, getPage, closeBrowser, disconnectBrowser, parseArgs, outputJSON, outputError } from './lib/browser.js';
+import {
+  getBrowser,
+  getPage,
+  closeBrowser,
+  disconnectBrowser,
+  parseArgs,
+  outputJSON,
+  outputError,
+} from './lib/browser.js';
 import { parseSelector, getElement, enhanceError } from './lib/selector.js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -43,7 +51,9 @@ async function compressImageIfNeeded(filePath, maxSizeMB = 5) {
   }
 
   if (!sharp) {
-    console.error('Warning: Sharp not installed. Run npm install to enable automatic compression.');
+    console.error(
+      'Warning: Sharp not installed. Run npm install to enable automatic compression.',
+    );
     return { compressed: false, originalSize, finalSize: originalSize };
   }
 
@@ -68,9 +78,7 @@ async function compressImageIfNeeded(filePath, maxSizeMB = 5) {
         .toBuffer();
     } else if (ext === '.webp') {
       // WebP: quality 80
-      outputBuffer = await sharp(imageBuffer)
-        .webp({ quality: 80 })
-        .toBuffer();
+      outputBuffer = await sharp(imageBuffer).webp({ quality: 80 }).toBuffer();
     } else {
       // Other formats: convert to JPEG
       outputBuffer = await sharp(imageBuffer)
@@ -113,7 +121,7 @@ async function screenshot() {
 
   try {
     const browser = await getBrowser({
-      headless: args.headless
+      headless: args.headless,
     });
 
     const page = await getPage(browser);
@@ -121,7 +129,7 @@ async function screenshot() {
     // Navigate if URL provided
     if (args.url) {
       await page.goto(args.url, {
-        waitUntil: args['wait-until'] || 'networkidle2'
+        waitUntil: args['wait-until'] || 'networkidle2',
       });
     }
 
@@ -132,7 +140,7 @@ async function screenshot() {
     const screenshotOptions = {
       path: args.output,
       type: args.format || 'png',
-      fullPage: args['full-page'] === 'true'
+      fullPage: args['full-page'] === 'true',
     };
 
     if (args.quality) {
@@ -158,19 +166,26 @@ async function screenshot() {
       success: true,
       output: path.resolve(args.output),
       size: buffer.length,
-      url: page.url()
+      url: page.url(),
     };
 
     // Compress image if needed (unless --no-compress flag is set)
     if (args['no-compress'] !== 'true') {
       const maxSize = args['max-size'] ? parseFloat(args['max-size']) : 5;
-      const compressionResult = await compressImageIfNeeded(args.output, maxSize);
+      const compressionResult = await compressImageIfNeeded(
+        args.output,
+        maxSize,
+      );
 
       if (compressionResult.compressed) {
         result.compressed = true;
         result.originalSize = compressionResult.originalSize;
         result.size = compressionResult.finalSize;
-        result.compressionRatio = ((1 - compressionResult.finalSize / compressionResult.originalSize) * 100).toFixed(2) + '%';
+        result.compressionRatio =
+          (
+            (1 - compressionResult.finalSize / compressionResult.originalSize) *
+            100
+          ).toFixed(2) + '%';
       }
     }
 

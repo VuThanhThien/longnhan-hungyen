@@ -1,6 +1,9 @@
 import { httpClient } from '@/lib/http-client';
 
-export async function adminClientGet<T>(path: string, params?: Record<string, string | number | boolean | undefined | null>) {
+export async function adminClientGet<T>(
+  path: string,
+  params?: Record<string, string | number | boolean | undefined | null>,
+) {
   const res = await httpClient.get(path, { params });
   const json = res.data;
   if (
@@ -31,4 +34,3 @@ export async function adminClientDelete<T>(path: string) {
   const json = res.data;
   return (json?.data ?? json) as T;
 }
-

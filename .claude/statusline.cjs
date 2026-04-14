@@ -14,7 +14,17 @@ const fs = require('fs');
 const path = require('path');
 
 // Import modular components
-const { green, yellow, red, cyan, magenta, dim, coloredBar, RESET, shouldUseColor } = require('./hooks/lib/colors.cjs');
+const {
+  green,
+  yellow,
+  red,
+  cyan,
+  magenta,
+  dim,
+  coloredBar,
+  RESET,
+  shouldUseColor,
+} = require('./hooks/lib/colors.cjs');
 const { parseTranscript } = require('./hooks/lib/transcript-parser.cjs');
 const { countConfigs } = require('./hooks/lib/config-counter.cjs');
 const { loadConfig } = require('./hooks/lib/ck-config-utils.cjs');
@@ -28,7 +38,9 @@ const AUTOCOMPACT_BUFFER = 45000;
  */
 function expandHome(filePath) {
   const homeDir = os.homedir();
-  return filePath.startsWith(homeDir) ? filePath.replace(homeDir, '~') : filePath;
+  return filePath.startsWith(homeDir)
+    ? filePath.replace(homeDir, '~')
+    : filePath;
 }
 
 /**
@@ -54,7 +66,9 @@ function visibleLength(str) {
   // Strip ANSI escape codes
   const noAnsi = str.replace(/\x1b\[[0-9;]*m/g, '');
   // Count emojis (they render as ~2 cols) - common emoji ranges
-  const emojiMatches = noAnsi.match(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu) || [];
+  const emojiMatches =
+    noAnsi.match(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu) ||
+    [];
   return noAnsi.length + emojiMatches.length; // +1 per emoji (base length + 1 = 2 cols)
 }
 
@@ -63,9 +77,16 @@ function visibleLength(str) {
  */
 function formatElapsed(startTime, endTime) {
   if (!startTime) return '0s';
-  const start = startTime instanceof Date ? startTime.getTime() : new Date(startTime).getTime();
+  const start =
+    startTime instanceof Date
+      ? startTime.getTime()
+      : new Date(startTime).getTime();
   if (isNaN(start)) return '0s';
-  const end = endTime ? (endTime instanceof Date ? endTime.getTime() : new Date(endTime).getTime()) : Date.now();
+  const end = endTime
+    ? endTime instanceof Date
+      ? endTime.getTime()
+      : new Date(endTime).getTime()
+    : Date.now();
   if (isNaN(end)) return '0s';
   const ms = end - start;
   if (ms < 0 || ms < 1000) return '<1s';
@@ -82,7 +103,7 @@ async function readStdin() {
   return new Promise((resolve, reject) => {
     const chunks = [];
     stdin.setEncoding('utf8');
-    stdin.on('data', chunk => chunks.push(chunk));
+    stdin.on('data', (chunk) => chunks.push(chunk));
     stdin.on('end', () => resolve(chunks.join('')));
     stdin.on('error', reject);
   });
@@ -153,7 +174,9 @@ function renderSessionLines(ctx) {
   const statsItems = [];
   // if (ctx.costText) statsItems.push(`💵 ${ctx.costText.replace(/(\.\d{2})\d+/, '$1')}`);
   if (ctx.linesAdded > 0 || ctx.linesRemoved > 0) {
-    statsItems.push(`📝 ${green(`+${ctx.linesAdded}`)} ${red(`-${ctx.linesRemoved}`)}`);
+    statsItems.push(
+      `📝 ${green(`+${ctx.linesAdded}`)} ${red(`-${ctx.linesRemoved}`)}`,
+    );
   }
   const statsPart = statsItems.join('  ');
 
@@ -212,8 +235,8 @@ function renderAgentsLines(transcript) {
   const { agents } = transcript;
   if (!agents || agents.length === 0) return [];
 
-  const running = agents.filter(a => a.status === 'running');
-  const completed = agents.filter(a => a.status === 'completed');
+  const running = agents.filter((a) => a.status === 'running');
+  const completed = agents.filter((a) => a.status === 'completed');
 
   // Sort all by startTime (safe NaN handling)
   const allAgents = [...running, ...completed];
@@ -238,15 +261,16 @@ function renderAgentsLines(transcript) {
   const toShow = collapsed.slice(-4);
 
   // Build compact flow line with dots and ×N for duplicates
-  const flowParts = toShow.map(group => {
+  const flowParts = toShow.map((group) => {
     const icon = group.status === 'running' ? yellow('●') : dim('○');
     const suffix = group.count > 1 ? ` ×${group.count}` : '';
     return `${icon} ${group.type}${suffix}`;
   });
 
   const lines = [];
-  const completedCount = agents.filter(a => a.status === 'completed').length;
-  const flowSuffix = completedCount > 2 ? ` ${dim(`(${completedCount} done)`)}` : '';
+  const completedCount = agents.filter((a) => a.status === 'completed').length;
+  const flowSuffix =
+    completedCount > 2 ? ` ${dim(`(${completedCount} done)`)}` : '';
   lines.push(flowParts.join(' → ') + flowSuffix);
 
   // Add indented task description for running agent, or last completed if none running
@@ -255,9 +279,10 @@ function renderAgentsLines(transcript) {
   const detailAgent = runningAgent || lastCompleted;
 
   if (detailAgent && detailAgent.description) {
-    const desc = detailAgent.description.length > 50
-      ? detailAgent.description.slice(0, 47) + '...'
-      : detailAgent.description;
+    const desc =
+      detailAgent.description.length > 50
+        ? detailAgent.description.slice(0, 47) + '...'
+        : detailAgent.description;
     const elapsed = formatElapsed(detailAgent.startTime, detailAgent.endTime);
     const icon = detailAgent.status === 'running' ? yellow('▸') : dim('▸');
     lines.push(`   ${icon} ${desc} ${dim(`(${elapsed})`)}`);
@@ -274,9 +299,9 @@ function renderTodosLine(transcript) {
   const { todos } = transcript;
   if (!todos || todos.length === 0) return null;
 
-  const inProgress = todos.find(t => t.status === 'in_progress');
-  const completedCount = todos.filter(t => t.status === 'completed').length;
-  const pendingCount = todos.filter(t => t.status === 'pending').length;
+  const inProgress = todos.find((t) => t.status === 'in_progress');
+  const completedCount = todos.filter((t) => t.status === 'completed').length;
+  const pendingCount = todos.filter((t) => t.status === 'pending').length;
   const total = todos.length;
 
   if (!inProgress) {
@@ -285,9 +310,10 @@ function renderTodosLine(transcript) {
     }
     // Show pending if no in_progress
     if (pendingCount > 0) {
-      const nextPending = todos.find(t => t.status === 'pending');
+      const nextPending = todos.find((t) => t.status === 'pending');
       const nextTask = nextPending?.content || 'Next task';
-      const display = nextTask.length > 40 ? nextTask.slice(0, 37) + '...' : nextTask;
+      const display =
+        nextTask.length > 40 ? nextTask.slice(0, 37) + '...' : nextTask;
       return `${dim('○')} Next: ${display} ${dim(`(${completedCount} done, ${pendingCount} pending)`)}`;
     }
     return null;
@@ -295,7 +321,8 @@ function renderTodosLine(transcript) {
 
   // Show activeForm (present continuous) if available, else content
   const displayText = inProgress.activeForm || inProgress.content;
-  const display = displayText.length > 50 ? displayText.slice(0, 47) + '...' : displayText;
+  const display =
+    displayText.length > 50 ? displayText.slice(0, 47) + '...' : displayText;
   return `${yellow('▸')} ${display} ${dim(`(${completedCount} done, ${pendingCount} pending)`)}`;
 }
 
@@ -304,7 +331,7 @@ function renderTodosLine(transcript) {
  * Format: "🤖 opus 4.5  🔋 50%  ⏰ 2h 16m (38%)  🌿 branch  📁 ~/path"
  */
 function renderMinimal(ctx) {
-  const out = s => console.log(s.replace(/ /g, '\u00A0'));
+  const out = (s) => console.log(s.replace(/ /g, '\u00A0'));
   // Line 1: Model (Claude Code reads line 1 for internal context)
   out(`🤖 Model: ${ctx.modelName}`);
   // Line 2: Context + Window time
@@ -365,7 +392,9 @@ function render(ctx, singleLineMode = false) {
 
   // Output all lines with non-breaking spaces for alignment
   for (const line of lines) {
-    const outputLine = shouldUseColor ? `${RESET}${line.replace(/ /g, '\u00A0')}` : line;
+    const outputLine = shouldUseColor
+      ? `${RESET}${line.replace(/ /g, '\u00A0')}`
+      : line;
     console.log(outputLine);
   }
 }
@@ -404,7 +433,10 @@ async function main() {
     try {
       const sessionId = data.session_id;
       if (sessionId) {
-        const sessionPath = path.join(os.tmpdir(), `ck-session-${sessionId}.json`);
+        const sessionPath = path.join(
+          os.tmpdir(),
+          `ck-session-${sessionId}.json`,
+        );
         if (fs.existsSync(sessionPath)) {
           const session = JSON.parse(fs.readFileSync(sessionPath, 'utf8'));
           const planPath = session.activePlan?.trim();
@@ -424,26 +456,36 @@ async function main() {
     let totalTokens = 0;
 
     if (contextSize > 0 && contextSize > AUTOCOMPACT_BUFFER) {
-      totalTokens = (usage.input_tokens ?? 0) +
-                    (usage.cache_creation_input_tokens ?? 0) +
-                    (usage.cache_read_input_tokens ?? 0);
+      totalTokens =
+        (usage.input_tokens ?? 0) +
+        (usage.cache_creation_input_tokens ?? 0) +
+        (usage.cache_read_input_tokens ?? 0);
 
       // Add buffer to match /context calculation
-      contextPercent = Math.min(100, Math.round(((totalTokens + AUTOCOMPACT_BUFFER) / contextSize) * 100));
+      contextPercent = Math.min(
+        100,
+        Math.round(((totalTokens + AUTOCOMPACT_BUFFER) / contextSize) * 100),
+      );
     }
 
     // Write context data to temp file for hooks to read
     const sessionId = data.session_id;
     if (sessionId && contextSize > 0) {
       try {
-        const contextDataPath = path.join(os.tmpdir(), `ck-context-${sessionId}.json`);
-        fs.writeFileSync(contextDataPath, JSON.stringify({
-          percent: contextPercent,
-          tokens: totalTokens,
-          size: contextSize,
-          usage: usage,
-          timestamp: Date.now()
-        }));
+        const contextDataPath = path.join(
+          os.tmpdir(),
+          `ck-context-${sessionId}.json`,
+        );
+        fs.writeFileSync(
+          contextDataPath,
+          JSON.stringify({
+            percent: contextPercent,
+            tokens: totalTokens,
+            size: contextSize,
+            usage: usage,
+            timestamp: Date.now(),
+          }),
+        );
       } catch {}
     }
 
@@ -452,12 +494,17 @@ async function main() {
     const transcriptPath = data.transcript_path;
 
     // Parse transcript for tools/agents/todos
-    const transcript = transcriptPath ? await parseTranscript(transcriptPath) : { tools: [], agents: [], todos: [], sessionStart: null };
+    const transcript = transcriptPath
+      ? await parseTranscript(transcriptPath)
+      : { tools: [], agents: [], todos: [], sessionStart: null };
 
     // Read actual reset time and utilization from usage limits cache (written by usage-context-awareness hook)
     let usagePercent = null;
     try {
-      const usageCachePath = path.join(os.tmpdir(), 'ck-usage-limits-cache.json');
+      const usageCachePath = path.join(
+        os.tmpdir(),
+        'ck-usage-limits-cache.json',
+      );
       if (fs.existsSync(usageCachePath)) {
         const cache = JSON.parse(fs.readFileSync(usageCachePath, 'utf8'));
 
@@ -470,7 +517,9 @@ async function main() {
           const resetAt = fiveHour?.resets_at;
           if (resetAt) {
             const resetTime = new Date(resetAt);
-            const remaining = Math.floor(resetTime.getTime() / 1000) - Math.floor(Date.now() / 1000);
+            const remaining =
+              Math.floor(resetTime.getTime() / 1000) -
+              Math.floor(Date.now() / 1000);
             if (remaining > 0 && remaining < 18000) {
               const rh = Math.floor(remaining / 3600);
               const rm = Math.floor((remaining % 3600) / 60);
@@ -484,9 +533,10 @@ async function main() {
     // Cost and lines changed
     const billingMode = env.CLAUDE_BILLING_MODE || 'api';
     const costUSD = data.cost?.total_cost_usd;
-    const costText = billingMode === 'api' && costUSD && /^\d+(\.\d+)?$/.test(String(costUSD))
-      ? `$${parseFloat(costUSD).toFixed(4)}`
-      : null;
+    const costText =
+      billingMode === 'api' && costUSD && /^\d+(\.\d+)?$/.test(String(costUSD))
+        ? `$${parseFloat(costUSD).toFixed(4)}`
+        : null;
     const linesAdded = data.cost?.total_lines_added || 0;
     const linesRemoved = data.cost?.total_lines_removed || 0;
 
@@ -510,11 +560,15 @@ async function main() {
       linesAdded,
       linesRemoved,
       configs,
-      transcript
+      transcript,
     };
 
     // Load config and get statusline mode
-    const config = loadConfig({ includeProject: false, includeAssertions: false, includeLocale: false });
+    const config = loadConfig({
+      includeProject: false,
+      includeAssertions: false,
+      includeLocale: false,
+    });
     const statuslineMode = config.statusline || 'full';
 
     // Render based on mode
@@ -533,7 +587,6 @@ async function main() {
         render(ctx, false);
         break;
     }
-
   } catch (err) {
     // Fallback: output minimal single line on any error
     console.log('📁 ' + (process.cwd() || 'unknown'));

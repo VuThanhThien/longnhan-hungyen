@@ -4,7 +4,10 @@ interface ProductPdpShareButtonsProps {
   productUrl: string;
 }
 
-export default function ProductPdpShareButtons({ productName, productUrl }: ProductPdpShareButtonsProps) {
+export default function ProductPdpShareButtons({
+  productName,
+  productUrl,
+}: ProductPdpShareButtonsProps) {
   const encodedUrl = encodeURIComponent(productUrl);
   const encodedTitle = encodeURIComponent(productName);
 

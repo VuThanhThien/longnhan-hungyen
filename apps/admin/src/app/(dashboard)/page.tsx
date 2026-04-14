@@ -51,7 +51,9 @@ export default async function DashboardPage() {
             {/* placeholder for quick stats */}
           </div>
         </div>
-        <RecentOrders orders={Array.isArray(recentOrders) ? recentOrders : []} />
+        <RecentOrders
+          orders={Array.isArray(recentOrders) ? recentOrders : []}
+        />
       </main>
     </div>
   );

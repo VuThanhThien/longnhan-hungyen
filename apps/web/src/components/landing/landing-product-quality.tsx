@@ -1,4 +1,7 @@
-import { LANDING_PRODUCT_TYPES, LANDING_QUALITY } from '@/data/landing-page-content';
+import {
+  LANDING_PRODUCT_TYPES,
+  LANDING_QUALITY,
+} from '@/data/landing-page-content';
 import { SectionHeading } from './section-heading';
 
 export function LandingProductQuality() {
@@ -15,8 +18,12 @@ export function LandingProductQuality() {
               key={item.title}
               className="rounded-sm border border-[var(--brand-forest)]/12 bg-[var(--brand-cream)]/50 p-8 shadow-sm transition hover:border-[var(--brand-gold)]/40 hover:shadow-md"
             >
-              <h3 className="landing-heading text-xl font-semibold text-[var(--brand-forest)]">{item.title}</h3>
-              <p className="mt-3 text-[var(--brand-forest-muted)] leading-relaxed">{item.description}</p>
+              <h3 className="landing-heading text-xl font-semibold text-[var(--brand-forest)]">
+                {item.title}
+              </h3>
+              <p className="mt-3 text-[var(--brand-forest-muted)] leading-relaxed">
+                {item.description}
+              </p>
             </li>
           ))}
         </ul>

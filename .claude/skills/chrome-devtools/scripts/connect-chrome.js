@@ -15,7 +15,14 @@
  *   - Avoiding Puppeteer's bundled Chromium
  */
 import { spawn } from 'child_process';
-import { getBrowser, getPage, disconnectBrowser, parseArgs, outputJSON, outputError } from './lib/browser.js';
+import {
+  getBrowser,
+  getPage,
+  disconnectBrowser,
+  parseArgs,
+  outputJSON,
+  outputError,
+} from './lib/browser.js';
 
 /**
  * Get Chrome executable path based on OS
@@ -30,7 +37,7 @@ function getChromeExecutablePath() {
       const paths = [
         `${process.env['PROGRAMFILES']}/Google/Chrome/Application/chrome.exe`,
         `${process.env['PROGRAMFILES(X86)']}/Google/Chrome/Application/chrome.exe`,
-        `${process.env.LOCALAPPDATA}/Google/Chrome/Application/chrome.exe`
+        `${process.env.LOCALAPPDATA}/Google/Chrome/Application/chrome.exe`,
       ];
       // Return first path (user should have Chrome installed in standard location)
       return paths[0];
@@ -49,12 +56,12 @@ function launchChromeWithDebugging(port = 9222) {
   const args = [
     `--remote-debugging-port=${port}`,
     '--no-first-run',
-    '--no-default-browser-check'
+    '--no-default-browser-check',
   ];
 
   const chrome = spawn(chromePath, args, {
     detached: true,
-    stdio: 'ignore'
+    stdio: 'ignore',
   });
 
   chrome.unref();
@@ -78,7 +85,7 @@ async function waitForDebugEndpoint(browserUrl, timeout = 10000) {
     } catch {
       // Not ready yet
     }
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 500));
   }
   return false;
 }
@@ -96,7 +103,11 @@ async function connectChrome() {
       // Wait for debug endpoint
       const ready = await waitForDebugEndpoint(browserUrl);
       if (!ready) {
-        outputError(new Error(`Chrome did not start within timeout. Check if port ${port} is available.`));
+        outputError(
+          new Error(
+            `Chrome did not start within timeout. Check if port ${port} is available.`,
+          ),
+        );
         return;
       }
     }
@@ -109,7 +120,7 @@ async function connectChrome() {
     if (args.url) {
       await page.goto(args.url, {
         waitUntil: args['wait-until'] || 'networkidle2',
-        timeout: parseInt(args.timeout || '30000')
+        timeout: parseInt(args.timeout || '30000'),
       });
     }
 
@@ -121,7 +132,7 @@ async function connectChrome() {
       title: await page.title(),
       hint: args.launch
         ? 'Chrome launched with debugging. Browser window is visible.'
-        : 'Connected to existing Chrome instance.'
+        : 'Connected to existing Chrome instance.',
     };
 
     outputJSON(result);
@@ -132,11 +143,13 @@ async function connectChrome() {
   } catch (error) {
     // Provide helpful error message
     if (error.message.includes('ECONNREFUSED')) {
-      outputError(new Error(
-        `Could not connect to Chrome at ${browserUrl}. ` +
-        `Make sure Chrome is running with: ` +
-        `chrome --remote-debugging-port=${port}`
-      ));
+      outputError(
+        new Error(
+          `Could not connect to Chrome at ${browserUrl}. ` +
+            `Make sure Chrome is running with: ` +
+            `chrome --remote-debugging-port=${port}`,
+        ),
+      );
     } else {
       outputError(error);
     }

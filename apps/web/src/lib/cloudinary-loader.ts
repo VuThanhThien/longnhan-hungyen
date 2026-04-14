@@ -7,7 +7,11 @@ interface CloudinaryLoaderParams {
   quality?: number;
 }
 
-export default function cloudinaryLoader({ src, width, quality }: CloudinaryLoaderParams): string {
+export default function cloudinaryLoader({
+  src,
+  width,
+  quality,
+}: CloudinaryLoaderParams): string {
   const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD || 'demo';
   const params = ['f_auto', 'c_limit', `w_${width}`, `q_${quality ?? 'auto'}`];
   // src may already be a full Cloudinary URL or just a public_id

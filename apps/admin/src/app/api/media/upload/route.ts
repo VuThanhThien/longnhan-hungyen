@@ -14,15 +14,19 @@ export async function POST(request: Request) {
   const payload = new FormData();
   payload.set('file', file);
 
-  const upstream = await forwardAdminApi(`/media/upload?folder=${encodeURIComponent(folder)}`, {
-    method: 'POST',
-    body: payload,
-  });
+  const upstream = await forwardAdminApi(
+    `/media/upload?folder=${encodeURIComponent(folder)}`,
+    {
+      method: 'POST',
+      body: payload,
+    },
+  );
 
   const text = await upstream.text();
   if (!text) return new NextResponse(null, { status: upstream.status });
 
-  const contentType = upstream.headers.get('content-type') || 'application/json';
+  const contentType =
+    upstream.headers.get('content-type') || 'application/json';
   return new NextResponse(text, {
     status: upstream.status,
     headers: { 'content-type': contentType },

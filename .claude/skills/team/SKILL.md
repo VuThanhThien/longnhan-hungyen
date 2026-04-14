@@ -1,8 +1,8 @@
 ---
 name: team
-description: "Orchestrate Agent Teams for parallel multi-session collaboration. Use for research, implementation, review, and debug workflows requiring independent teammates."
+description: 'Orchestrate Agent Teams for parallel multi-session collaboration. Use for research, implementation, review, and debug workflows requiring independent teammates.'
 version: 2.1.0
-argument-hint: "<template> <context> [--devs|--researchers|--reviewers N] [--delegate]"
+argument-hint: '<template> <context> [--devs|--researchers|--reviewers N] [--delegate]'
 ---
 
 # Agent Teams - CK-Native Orchestration Engine
@@ -20,6 +20,7 @@ Coordinate multiple independent Claude Code sessions. Each teammate has own cont
 **Templates:** `research`, `cook`, `code-review`, `debug`
 
 **Flags:**
+
 - `--devs N` | `--researchers N` | `--reviewers N` | `--debuggers N` — team size
 - `--plan-approval` / `--no-plan-approval` — plan gate (default: on for cook)
 - `--delegate` — lead only coordinates, never touches code
@@ -27,6 +28,7 @@ Coordinate multiple independent Claude Code sessions. Each teammate has own cont
 ## Execution Protocol
 
 **Pre-flight (MANDATORY — merged into step 2 of every template):**
+
 1. Step 2 of every template calls `TeamCreate(team_name: "...", ...)`. Do NOT check whether the tool exists first — just call it.
 2. If the call SUCCEEDS: continue with the template.
 3. If the call returns an ERROR or is unrecognized: **STOP. Tell user:** "Agent Teams requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in settings.json. Team mode is not available."
@@ -59,7 +61,7 @@ CK Context:
 
 ## ON `/team research <topic>` [--researchers N]:
 
-*Wraps /research skill — scope, gather, analyze, report.*
+_Wraps /research skill — scope, gather, analyze, report._
 
 IMMEDIATELY execute in order:
 
@@ -100,7 +102,7 @@ IMMEDIATELY execute in order:
 
 ## ON `/team cook <plan-path-or-description>` [--devs N]:
 
-*Wraps /cook skill — plan, code, test, review, finalize.*
+_Wraps /cook skill — plan, code, test, review, finalize._
 
 IMMEDIATELY execute in order:
 
@@ -130,6 +132,7 @@ IMMEDIATELY execute in order:
    - Tester runs full test suite, reports pass/fail
 
 6. **DOCS SYNC EVAL** (MANDATORY for cook — from /cook finalize):
+
    ```
    Docs impact: [none|minor|major]
    Action: [no update needed — <reason>] | [updated <page>] | [needs separate PR]
@@ -144,7 +147,7 @@ IMMEDIATELY execute in order:
 
 ## ON `/team review <scope>` [--reviewers N]:
 
-*Wraps /code-review skill — scout, review, synthesize with evidence gates.*
+_Wraps /code-review skill — scout, review, synthesize with evidence gates._
 
 IMMEDIATELY execute in order:
 
@@ -182,7 +185,7 @@ IMMEDIATELY execute in order:
 
 ## ON `/team debug <issue>` [--debuggers N]:
 
-*Wraps /fix skill — root-cause-first, adversarial hypotheses, disprove to converge.*
+_Wraps /fix skill — root-cause-first, adversarial hypotheses, disprove to converge._
 
 IMMEDIATELY execute in order:
 
@@ -221,6 +224,7 @@ IMMEDIATELY execute in order:
 ## Agent Memory
 
 Agents with `memory: project` retain learnings across team sessions. Memory persists in `.claude/agent-memory/<name>/` (gitignored). Useful for:
+
 - Code reviewer remembering project conventions
 - Debugger recalling past failure patterns
 - Tester tracking flaky tests and coverage gaps
@@ -230,6 +234,7 @@ Agents with `memory: project` retain learnings across team sessions. Memory pers
 ## Agent Memory
 
 Agents with `memory: project` retain learnings across team sessions. Memory persists in `.claude/agent-memory/<name>/` (gitignored). Useful for:
+
 - Code reviewer remembering project conventions
 - Debugger recalling past failure patterns
 - Tester tracking flaky tests and coverage gaps
@@ -238,24 +243,24 @@ Agents with `memory: project` retain learnings across team sessions. Memory pers
 
 ## When to Use Agent Teams vs Subagents
 
-| Scenario | Subagents (Task tool) | Agent Teams |
-|----------|----------------------|-------------|
-| Focused task (test, lint, single review) | **Yes** | Overkill |
-| Sequential chain (plan → code → test) | **Yes** | No |
-| 3+ independent parallel workstreams | Maybe | **Yes** |
-| Competing debug hypotheses | No | **Yes** |
-| Cross-layer work (FE + BE + tests) | Maybe | **Yes** |
-| Workers need to discuss/challenge findings | No | **Yes** |
-| Token budget is tight | **Yes** | No (high cost) |
+| Scenario                                   | Subagents (Task tool) | Agent Teams    |
+| ------------------------------------------ | --------------------- | -------------- |
+| Focused task (test, lint, single review)   | **Yes**               | Overkill       |
+| Sequential chain (plan → code → test)      | **Yes**               | No             |
+| 3+ independent parallel workstreams        | Maybe                 | **Yes**        |
+| Competing debug hypotheses                 | No                    | **Yes**        |
+| Cross-layer work (FE + BE + tests)         | Maybe                 | **Yes**        |
+| Workers need to discuss/challenge findings | No                    | **Yes**        |
+| Token budget is tight                      | **Yes**               | No (high cost) |
 
 ## Token Budget
 
-| Template | Estimated Tokens | Model Strategy |
-|----------|-----------------|----------------|
-| Research (3) | ~150K-300K | haiku for all |
-| Cook (4) | ~400K-800K | sonnet for devs, haiku for tester |
-| Review (3) | ~100K-200K | haiku for all |
-| Debug (3) | ~200K-400K | sonnet for all |
+| Template     | Estimated Tokens | Model Strategy                    |
+| ------------ | ---------------- | --------------------------------- |
+| Research (3) | ~150K-300K       | haiku for all                     |
+| Cook (4)     | ~400K-800K       | sonnet for devs, haiku for tester |
+| Review (3)   | ~100K-200K       | haiku for all                     |
+| Debug (3)    | ~200K-400K       | sonnet for all                    |
 
 ## Error Recovery
 

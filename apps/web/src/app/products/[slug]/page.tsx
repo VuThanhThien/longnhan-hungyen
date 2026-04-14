@@ -1,6 +1,3 @@
-import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
-import type { Product } from '@longnhan/types';
 import OrderForm from '@/components/orders/order-form';
 import ProductImages from '@/components/products/product-images';
 import ProductPdpHero from '@/components/products/product-pdp-hero';
@@ -9,7 +6,14 @@ import RelatedProducts from '@/components/products/related-products';
 import Breadcrumb from '@/components/ui/breadcrumb';
 import { fetchApi, fetchPaginated } from '@/lib/api-client';
 import { SITE_URL } from '@/lib/constants';
-import { buildBreadcrumbSchema, buildProductSchema } from '@/lib/structured-data';
+import { buildSeoMetadata } from '@/lib/seo';
+import {
+  buildBreadcrumbSchema,
+  buildProductSchema,
+} from '@/lib/structured-data';
+import type { Product } from '@longnhan/types';
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 
 export const revalidate = 60;
 
@@ -25,30 +29,44 @@ async function getProduct(slug: string): Promise<Product | null> {
   }
 }
 
-export async function generateMetadata({ params }: ProductDetailPageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: ProductDetailPageProps): Promise<Metadata> {
   const { slug } = await params;
   const product = await getProduct(slug);
 
   if (!product) {
-    return { title: 'Khong tim thay san pham' };
+    return buildSeoMetadata({
+      title: 'Không tìm thấy sản phẩm',
+      canonicalPath: `${SITE_URL}/products/${slug}`,
+    });
   }
 
   const summary = product.summary ?? product.description ?? null;
+  const firstImage =
+    product.featuredImageUrl ??
+    (product.images ?? [])[0] ??
+    product.imageUrls?.[0] ??
+    undefined;
 
-  return {
+  return buildSeoMetadata({
     title: product.name,
     description: summary ?? `Chi tiet san pham ${product.name}.`,
-    openGraph: {
-      title: product.name,
-      description: summary ?? undefined,
-      images: product.featuredImageUrl
-        ? [product.featuredImageUrl]
-        : (product.images ?? []).slice(0, 1),
-    },
-  };
+    canonicalPath: `/products/${product.slug}`,
+    ...(firstImage
+      ? {
+          ogImage: {
+            url: firstImage,
+            alt: product.name,
+          },
+        }
+      : null),
+  });
 }
 
-export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
+export default async function ProductDetailPage({
+  params,
+}: ProductDetailPageProps) {
   const { slug } = await params;
   const product = await getProduct(slug);
 
@@ -62,7 +80,9 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
       category: product.category,
       limit: 8,
     });
-    relatedProducts = relatedResponse.data.filter((item) => item.slug !== product.slug).slice(0, 4);
+    relatedProducts = relatedResponse.data
+      .filter((item) => item.slug !== product.slug)
+      .slice(0, 4);
   } catch {
     relatedProducts = [];
   }
@@ -81,7 +101,12 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
 
   const productSchema = buildProductSchema(product);
   const images = product.images ?? [];
-  const imageList = images.length > 0 ? images : product.featuredImageUrl ? [product.featuredImageUrl] : [];
+  const imageList =
+    images.length > 0
+      ? images
+      : product.featuredImageUrl
+        ? [product.featuredImageUrl]
+        : [];
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8">

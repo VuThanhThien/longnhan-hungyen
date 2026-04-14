@@ -23,7 +23,12 @@ const os = require('os');
 const { spawn, execSync } = require('child_process');
 
 const { findAvailablePort, DEFAULT_PORT } = require('./lib/port-finder.cjs');
-const { writePidFile, stopAllServers, setupShutdownHandlers, findRunningInstances } = require('./lib/process-mgr.cjs');
+const {
+  writePidFile,
+  stopAllServers,
+  setupShutdownHandlers,
+  findRunningInstances,
+} = require('./lib/process-mgr.cjs');
 const { createHttpServer } = require('./lib/http-server.cjs');
 
 /**
@@ -38,7 +43,7 @@ function parseArgs(argv) {
     stop: false,
     background: false,
     foreground: false,
-    isChild: false
+    isChild: false,
   };
 
   for (let i = 2; i < argv.length; i++) {
@@ -152,7 +157,9 @@ async function main() {
   }
 
   // Resolve plans directory
-  const plansDir = path.isAbsolute(args.dir) ? args.dir : path.resolve(cwd, args.dir);
+  const plansDir = path.isAbsolute(args.dir)
+    ? args.dir
+    : path.resolve(cwd, args.dir);
 
   if (!fs.existsSync(plansDir) || !fs.statSync(plansDir).isDirectory()) {
     console.error(`Error: Directory not found: ${args.dir}`);
@@ -162,20 +169,28 @@ async function main() {
   // Background mode - spawn child and exit (legacy mode for manual runs)
   // Skip if --foreground is set (for Claude Code background tasks)
   if (args.background && !args.foreground && !args.isChild) {
-    const childArgs = ['--dir', plansDir, '--port', String(args.port), '--host', args.host, '--child'];
+    const childArgs = [
+      '--dir',
+      plansDir,
+      '--port',
+      String(args.port),
+      '--host',
+      args.host,
+      '--child',
+    ];
     if (args.open) childArgs.push('--open');
 
     const child = spawn(process.execPath, [__filename, ...childArgs], {
       detached: true,
       stdio: 'ignore',
-      cwd: cwd
+      cwd: cwd,
     });
     child.unref();
 
-    await new Promise(r => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 500));
 
     const instances = findRunningInstances();
-    const instance = instances.find(i => i.port >= args.port);
+    const instance = instances.find((i) => i.port >= args.port);
     const port = instance ? instance.port : args.port;
 
     const { url, networkUrl } = buildUrl(args.host, port, plansDir);
@@ -186,7 +201,7 @@ async function main() {
       dir: plansDir,
       port,
       host: args.host,
-      mode: 'kanban'
+      mode: 'kanban',
     };
     if (networkUrl) result.networkUrl = networkUrl;
 
@@ -207,7 +222,7 @@ async function main() {
   const server = createHttpServer({
     assetsDir,
     allowedDirs,
-    plansDir
+    plansDir,
   });
 
   // Start server
@@ -226,7 +241,7 @@ async function main() {
         dir: plansDir,
         port,
         host: args.host,
-        mode: 'kanban'
+        mode: 'kanban',
       };
       if (networkUrl) result.networkUrl = networkUrl;
       console.log(JSON.stringify(result));
@@ -254,7 +269,7 @@ async function main() {
   });
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error(`Error: ${err.message}`);
   process.exit(1);
 });

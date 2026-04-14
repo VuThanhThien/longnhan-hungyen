@@ -16,8 +16,19 @@ export function CategoryNavCards() {
             <span className="flex-1 text-sm font-semibold text-(--brand-forest) group-hover:text-(--brand-leaf)">
               {cat.label}
             </span>
-            <svg className="h-4 w-4 shrink-0 text-(--brand-forest-muted) transition group-hover:translate-x-0.5 group-hover:text-(--brand-leaf)" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            <svg
+              className="h-4 w-4 shrink-0 text-(--brand-forest-muted) transition group-hover:translate-x-0.5 group-hover:text-(--brand-leaf)"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
             </svg>
           </Link>
         ))}

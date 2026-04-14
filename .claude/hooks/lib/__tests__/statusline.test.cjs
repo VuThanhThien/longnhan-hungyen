@@ -23,20 +23,20 @@ const {
   magenta,
   dim,
   RESET,
-  getContextColor
+  getContextColor,
 } = require('../colors.cjs');
 
 const {
   parseTranscript,
   processEntry,
-  extractTarget
+  extractTarget,
 } = require('../transcript-parser.cjs');
 
 const {
   countConfigs,
   countRulesInDir,
   countMcpServersInFile,
-  countHooksInFile
+  countHooksInFile,
 } = require('../config-counter.cjs');
 
 // Test framework
@@ -59,7 +59,9 @@ function test(name, fn) {
 
 function assertEquals(actual, expected, msg = '') {
   if (actual !== expected) {
-    throw new Error(`${msg}\n  Expected: ${JSON.stringify(expected)}\n  Actual: ${JSON.stringify(actual)}`);
+    throw new Error(
+      `${msg}\n  Expected: ${JSON.stringify(expected)}\n  Actual: ${JSON.stringify(actual)}`,
+    );
   }
 }
 
@@ -77,7 +79,9 @@ function assertFalse(condition, msg = '') {
 
 function assertContains(actual, search, msg = '') {
   if (!actual.includes(search)) {
-    throw new Error(`${msg}\n  Expected to contain: ${search}\n  Actual: ${actual}`);
+    throw new Error(
+      `${msg}\n  Expected to contain: ${search}\n  Actual: ${actual}`,
+    );
   }
 }
 
@@ -103,21 +107,45 @@ test('colors.cjs exports required functions', () => {
   assertTrue(typeof magenta === 'function', 'magenta should be function');
   assertTrue(typeof dim === 'function', 'dim should be function');
   assertTrue(typeof coloredBar === 'function', 'coloredBar should be function');
-  assertTrue(typeof getContextColor === 'function', 'getContextColor should be function');
+  assertTrue(
+    typeof getContextColor === 'function',
+    'getContextColor should be function',
+  );
   assertTrue(RESET === '\x1b[0m', 'RESET should be proper escape code');
 });
 
 test('transcript-parser.cjs exports required functions', () => {
-  assertTrue(typeof parseTranscript === 'function', 'parseTranscript should be function');
-  assertTrue(typeof processEntry === 'function', 'processEntry should be function');
-  assertTrue(typeof extractTarget === 'function', 'extractTarget should be function');
+  assertTrue(
+    typeof parseTranscript === 'function',
+    'parseTranscript should be function',
+  );
+  assertTrue(
+    typeof processEntry === 'function',
+    'processEntry should be function',
+  );
+  assertTrue(
+    typeof extractTarget === 'function',
+    'extractTarget should be function',
+  );
 });
 
 test('config-counter.cjs exports required functions', () => {
-  assertTrue(typeof countConfigs === 'function', 'countConfigs should be function');
-  assertTrue(typeof countRulesInDir === 'function', 'countRulesInDir should be function');
-  assertTrue(typeof countMcpServersInFile === 'function', 'countMcpServersInFile should be function');
-  assertTrue(typeof countHooksInFile === 'function', 'countHooksInFile should be function');
+  assertTrue(
+    typeof countConfigs === 'function',
+    'countConfigs should be function',
+  );
+  assertTrue(
+    typeof countRulesInDir === 'function',
+    'countRulesInDir should be function',
+  );
+  assertTrue(
+    typeof countMcpServersInFile === 'function',
+    'countMcpServersInFile should be function',
+  );
+  assertTrue(
+    typeof countHooksInFile === 'function',
+    'countHooksInFile should be function',
+  );
 });
 
 // ============================================================================
@@ -133,7 +161,7 @@ test('green() wraps text with color codes or returns plain text', () => {
   const result = green(text);
   assertTrue(
     result === text || result.includes(text),
-    'green() should return colored or plain text'
+    'green() should return colored or plain text',
   );
 });
 
@@ -165,7 +193,7 @@ test('dim() returns valid output', () => {
 test('shouldUseColor is boolean', () => {
   assertTrue(
     typeof shouldUseColor === 'boolean',
-    'shouldUseColor should be boolean'
+    'shouldUseColor should be boolean',
   );
 });
 
@@ -243,7 +271,10 @@ test('coloredBar clamping: >100 percent treated as 100', () => {
 test('coloredBar respects custom width', () => {
   const bar6 = coloredBar(50, 6);
   const bar20 = coloredBar(50, 20);
-  assertTrue(bar6.length < bar20.length, 'Width=6 should be shorter than width=20');
+  assertTrue(
+    bar6.length < bar20.length,
+    'Width=6 should be shorter than width=20',
+  );
 });
 
 // ============================================================================
@@ -255,7 +286,9 @@ console.log('TEST 5: Transcript Parser - Empty/Non-existent');
 console.log('═══════════════════════════════════════════════════════\n');
 
 test('parseTranscript returns empty result for non-existent file', async () => {
-  const result = await parseTranscript('/tmp/nonexistent-transcript-12345.jsonl');
+  const result = await parseTranscript(
+    '/tmp/nonexistent-transcript-12345.jsonl',
+  );
   assertEquals(result.tools.length, 0, 'tools should be empty array');
   assertEquals(result.agents.length, 0, 'agents should be empty array');
   assertEquals(result.todos.length, 0, 'todos should be empty array');
@@ -284,7 +317,10 @@ console.log('TEST 6: Transcript Parser - Real JSONL File');
 console.log('═══════════════════════════════════════════════════════\n');
 
 // Create temporary test transcript
-const tmpTranscript = path.join(os.tmpdir(), `test-transcript-${Date.now()}.jsonl`);
+const tmpTranscript = path.join(
+  os.tmpdir(),
+  `test-transcript-${Date.now()}.jsonl`,
+);
 const sampleTranscriptData = [
   {
     timestamp: '2026-01-06T12:00:00Z',
@@ -294,10 +330,10 @@ const sampleTranscriptData = [
           type: 'tool_use',
           id: 'tool-1',
           name: 'Read',
-          input: { file_path: '/home/user/file.txt' }
-        }
-      ]
-    }
+          input: { file_path: '/home/user/file.txt' },
+        },
+      ],
+    },
   },
   {
     timestamp: '2026-01-06T12:01:00Z',
@@ -306,10 +342,10 @@ const sampleTranscriptData = [
         {
           type: 'tool_result',
           tool_use_id: 'tool-1',
-          is_error: false
-        }
-      ]
-    }
+          is_error: false,
+        },
+      ],
+    },
   },
   {
     timestamp: '2026-01-06T12:02:00Z',
@@ -319,10 +355,10 @@ const sampleTranscriptData = [
           type: 'tool_use',
           id: 'tool-2',
           name: 'Bash',
-          input: { command: 'git status' }
-        }
-      ]
-    }
+          input: { command: 'git status' },
+        },
+      ],
+    },
   },
   {
     timestamp: '2026-01-06T12:03:00Z',
@@ -332,10 +368,14 @@ const sampleTranscriptData = [
           type: 'tool_use',
           id: 'agent-1',
           name: 'Task',
-          input: { subagent_type: 'researcher', model: 'claude-opus', description: 'Research topic' }
-        }
-      ]
-    }
+          input: {
+            subagent_type: 'researcher',
+            model: 'claude-opus',
+            description: 'Research topic',
+          },
+        },
+      ],
+    },
   },
   {
     timestamp: '2026-01-06T12:04:00Z',
@@ -344,10 +384,10 @@ const sampleTranscriptData = [
         {
           type: 'tool_result',
           tool_use_id: 'agent-1',
-          is_error: false
-        }
-      ]
-    }
+          is_error: false,
+        },
+      ],
+    },
   },
   {
     timestamp: '2026-01-06T12:05:00Z',
@@ -359,17 +399,28 @@ const sampleTranscriptData = [
           name: 'TodoWrite',
           input: {
             todos: [
-              { content: 'First task', status: 'completed', activeForm: 'Completing first task' },
-              { content: 'Second task', status: 'in_progress', activeForm: 'Working on second task' }
-            ]
-          }
-        }
-      ]
-    }
-  }
+              {
+                content: 'First task',
+                status: 'completed',
+                activeForm: 'Completing first task',
+              },
+              {
+                content: 'Second task',
+                status: 'in_progress',
+                activeForm: 'Working on second task',
+              },
+            ],
+          },
+        },
+      ],
+    },
+  },
 ];
 
-fs.writeFileSync(tmpTranscript, sampleTranscriptData.map(d => JSON.stringify(d)).join('\n'));
+fs.writeFileSync(
+  tmpTranscript,
+  sampleTranscriptData.map((d) => JSON.stringify(d)).join('\n'),
+);
 
 test('parseTranscript reads valid JSONL file', async () => {
   const result = await parseTranscript(tmpTranscript);
@@ -381,15 +432,18 @@ test('parseTranscript reads valid JSONL file', async () => {
 test('parseTranscript tracks tools correctly', async () => {
   const result = await parseTranscript(tmpTranscript);
   assertTrue(result.tools.length >= 2, 'Should track at least 2 tools');
-  const toolNames = result.tools.map(t => t.name);
+  const toolNames = result.tools.map((t) => t.name);
   assertContains(toolNames.join(','), 'Read', 'Should contain Read tool');
   assertContains(toolNames.join(','), 'Bash', 'Should contain Bash tool');
 });
 
 test('parseTranscript marks tool status correctly', async () => {
   const result = await parseTranscript(tmpTranscript);
-  const completedTools = result.tools.filter(t => t.status === 'completed');
-  assertTrue(completedTools.length > 0, 'Should have at least one completed tool');
+  const completedTools = result.tools.filter((t) => t.status === 'completed');
+  assertTrue(
+    completedTools.length > 0,
+    'Should have at least one completed tool',
+  );
 });
 
 test('parseTranscript tracks agents correctly', async () => {
@@ -403,13 +457,15 @@ test('parseTranscript tracks agents correctly', async () => {
 test('parseTranscript tracks todos correctly', async () => {
   const result = await parseTranscript(tmpTranscript);
   assertTrue(result.todos.length >= 2, 'Should track todos');
-  const inProgressTodos = result.todos.filter(t => t.status === 'in_progress');
+  const inProgressTodos = result.todos.filter(
+    (t) => t.status === 'in_progress',
+  );
   assertTrue(inProgressTodos.length > 0, 'Should have in_progress todo');
 });
 
 test('parseTranscript extracts targets from tools', async () => {
   const result = await parseTranscript(tmpTranscript);
-  const readTool = result.tools.find(t => t.name === 'Read');
+  const readTool = result.tools.find((t) => t.name === 'Read');
   if (readTool) {
     assertTrue(readTool.target, 'Read tool should have target');
     assertContains(readTool.target, 'file.txt', 'Should contain file path');
@@ -431,12 +487,20 @@ test('extractTarget: Read tool', () => {
 
 test('extractTarget: Write tool', () => {
   const target = extractTarget('Write', { file_path: '/home/user/output.txt' });
-  assertEquals(target, '/home/user/output.txt', 'Should extract file_path from Write');
+  assertEquals(
+    target,
+    '/home/user/output.txt',
+    'Should extract file_path from Write',
+  );
 });
 
 test('extractTarget: Edit tool', () => {
   const target = extractTarget('Edit', { path: '/home/user/config.json' });
-  assertEquals(target, '/home/user/config.json', 'Should extract path from Edit');
+  assertEquals(
+    target,
+    '/home/user/config.json',
+    'Should extract path from Edit',
+  );
 });
 
 test('extractTarget: Glob tool', () => {
@@ -455,7 +519,8 @@ test('extractTarget: Bash tool (short command)', () => {
 });
 
 test('extractTarget: Bash tool (long command truncated)', () => {
-  const longCmd = 'npm install --save-dev @types/node @types/jest @types/react @types/react-dom @types/webpack';
+  const longCmd =
+    'npm install --save-dev @types/node @types/jest @types/react @types/react-dom @types/webpack';
   const target = extractTarget('Bash', { command: longCmd });
   assertTrue(target.endsWith('...'), 'Should truncate long command with ...');
   assertTrue(target.length <= 33, 'Should be max 30 chars + ...');
@@ -531,10 +596,22 @@ test('countConfigs: returns object with expected properties', () => {
 
 test('countConfigs: all counts are numbers', () => {
   const result = countConfigs('/tmp');
-  assertEquals(typeof result.claudeMdCount, 'number', 'claudeMdCount should be number');
-  assertEquals(typeof result.rulesCount, 'number', 'rulesCount should be number');
+  assertEquals(
+    typeof result.claudeMdCount,
+    'number',
+    'claudeMdCount should be number',
+  );
+  assertEquals(
+    typeof result.rulesCount,
+    'number',
+    'rulesCount should be number',
+  );
   assertEquals(typeof result.mcpCount, 'number', 'mcpCount should be number');
-  assertEquals(typeof result.hooksCount, 'number', 'hooksCount should be number');
+  assertEquals(
+    typeof result.hooksCount,
+    'number',
+    'hooksCount should be number',
+  );
 });
 
 test('countConfigs: handles null/undefined cwd gracefully', () => {
@@ -566,10 +643,10 @@ test('processEntry handles entry without timestamp', () => {
           type: 'tool_use',
           id: 'tool-1',
           name: 'Bash',
-          input: { command: 'ls' }
-        }
-      ]
-    }
+          input: { command: 'ls' },
+        },
+      ],
+    },
   };
 
   processEntry(entry, toolMap, agentMap, latestTodos, result);
@@ -597,9 +674,9 @@ test('processEntry handles malformed tool_result', () => {
     timestamp: '2026-01-06T12:00:00Z',
     message: {
       content: [
-        { type: 'tool_result' } // missing tool_use_id
-      ]
-    }
+        { type: 'tool_result' }, // missing tool_use_id
+      ],
+    },
   };
 
   processEntry(entry, toolMap, agentMap, latestTodos, result);
@@ -616,23 +693,28 @@ console.log('TEST 10: Performance Test');
 console.log('═══════════════════════════════════════════════════════\n');
 
 test('parseTranscript processes 100 entries <100ms', async () => {
-  const largeTranscript = path.join(os.tmpdir(), `perf-transcript-${Date.now()}.jsonl`);
+  const largeTranscript = path.join(
+    os.tmpdir(),
+    `perf-transcript-${Date.now()}.jsonl`,
+  );
   const lines = [];
 
   for (let i = 0; i < 100; i++) {
-    lines.push(JSON.stringify({
-      timestamp: new Date().toISOString(),
-      message: {
-        content: [
-          {
-            type: 'tool_use',
-            id: `tool-${i}`,
-            name: 'Bash',
-            input: { command: 'echo test' }
-          }
-        ]
-      }
-    }));
+    lines.push(
+      JSON.stringify({
+        timestamp: new Date().toISOString(),
+        message: {
+          content: [
+            {
+              type: 'tool_use',
+              id: `tool-${i}`,
+              name: 'Bash',
+              input: { command: 'echo test' },
+            },
+          ],
+        },
+      }),
+    );
   }
 
   fs.writeFileSync(largeTranscript, lines.join('\n'));
@@ -641,7 +723,10 @@ test('parseTranscript processes 100 entries <100ms', async () => {
     const start = Date.now();
     await parseTranscript(largeTranscript);
     const elapsed = Date.now() - start;
-    assertTrue(elapsed < 100, `Should parse 100 entries in <100ms, took ${elapsed}ms`);
+    assertTrue(
+      elapsed < 100,
+      `Should parse 100 entries in <100ms, took ${elapsed}ms`,
+    );
   } finally {
     fs.unlinkSync(largeTranscript);
   }
@@ -653,7 +738,10 @@ test('coloredBar(50, 12) renders in <1ms', () => {
     coloredBar(50, 12);
   }
   const elapsed = Date.now() - start;
-  assertTrue(elapsed < 50, `1000 bar renders should be <50ms, took ${elapsed}ms`);
+  assertTrue(
+    elapsed < 50,
+    `1000 bar renders should be <50ms, took ${elapsed}ms`,
+  );
 });
 
 // ============================================================================
@@ -678,7 +766,7 @@ console.log(`Failed: ${failed}`);
 
 if (failed > 0) {
   console.log('\nFailed Tests:');
-  failures.forEach(f => {
+  failures.forEach((f) => {
     console.log(`  ✗ ${f.name}`);
     console.log(`    ${f.error.split('\n')[0]}`);
   });

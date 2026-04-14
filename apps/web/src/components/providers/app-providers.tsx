@@ -26,7 +26,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
           <NuqsAdapter>{children}</NuqsAdapter>
         </Suspense>
         {process.env.NODE_ENV === 'development' ? (
-          <ReactQueryDevtools buttonPosition="bottom-left" initialIsOpen={false} />
+          <ReactQueryDevtools
+            buttonPosition="bottom-left"
+            initialIsOpen={false}
+          />
         ) : null}
       </AuthProvider>
     </QueryClientProvider>

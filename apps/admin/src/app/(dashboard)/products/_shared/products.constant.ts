@@ -14,4 +14,3 @@ export const PRODUCTS_ADMIN_TOAST = {
   deleteVariantSuccess: 'Đã xoá biến thể',
   deleteVariantError: 'Xoá biến thể thất bại',
 } as const;
-

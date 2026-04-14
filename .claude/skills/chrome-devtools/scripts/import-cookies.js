@@ -15,7 +15,16 @@
  *   5. Use other scripts (screenshot, navigate) with authenticated session
  */
 import fs from 'fs';
-import { getBrowser, getPage, closeBrowser, disconnectBrowser, parseArgs, outputJSON, outputError, saveAuthSession } from './lib/browser.js';
+import {
+  getBrowser,
+  getPage,
+  closeBrowser,
+  disconnectBrowser,
+  parseArgs,
+  outputJSON,
+  outputError,
+  saveAuthSession,
+} from './lib/browser.js';
 
 /**
  * Parse cookies from EditThisCookie/Cookie-Editor JSON format
@@ -23,7 +32,7 @@ import { getBrowser, getPage, closeBrowser, disconnectBrowser, parseArgs, output
  * @returns {Array} - Normalized cookie array for Puppeteer
  */
 function parseJsonCookies(cookies) {
-  return cookies.map(cookie => {
+  return cookies.map((cookie) => {
     // Handle different property names from various extensions
     const normalized = {
       name: cookie.name,
@@ -32,16 +41,17 @@ function parseJsonCookies(cookies) {
       path: cookie.path || '/',
       httpOnly: cookie.httpOnly ?? false,
       secure: cookie.secure ?? false,
-      sameSite: cookie.sameSite || 'Lax'
+      sameSite: cookie.sameSite || 'Lax',
     };
 
     // Handle expiration (different extensions use different names)
     if (cookie.expirationDate) {
       normalized.expires = cookie.expirationDate;
     } else if (cookie.expires) {
-      normalized.expires = typeof cookie.expires === 'number'
-        ? cookie.expires
-        : new Date(cookie.expires).getTime() / 1000;
+      normalized.expires =
+        typeof cookie.expires === 'number'
+          ? cookie.expires
+          : new Date(cookie.expires).getTime() / 1000;
     }
 
     return normalized;
@@ -75,7 +85,7 @@ function parseNetscapeCookies(content) {
       secure: secure.toUpperCase() === 'TRUE',
       httpOnly: false, // Netscape format doesn't include httpOnly
       expires: parseInt(expires, 10) || undefined,
-      sameSite: 'Lax'
+      sameSite: 'Lax',
     });
   }
 
@@ -125,7 +135,7 @@ async function importCookies() {
     if (format === 'json') {
       const parsed = JSON.parse(fileContent);
       // Handle both array and object with cookies property
-      const cookieArray = Array.isArray(parsed) ? parsed : (parsed.cookies || []);
+      const cookieArray = Array.isArray(parsed) ? parsed : parsed.cookies || [];
       cookies = parseJsonCookies(cookieArray);
     } else {
       cookies = parseNetscapeCookies(fileContent);
@@ -142,7 +152,7 @@ async function importCookies() {
 
   try {
     const browser = await getBrowser({
-      headless: args.headless
+      headless: args.headless,
     });
 
     const page = await getPage(browser);
@@ -150,15 +160,17 @@ async function importCookies() {
     // Navigate to URL first to establish domain context
     await page.goto(args.url, {
       waitUntil: args['wait-until'] || 'networkidle2',
-      timeout: parseInt(args.timeout || '30000')
+      timeout: parseInt(args.timeout || '30000'),
     });
 
     // Filter cookies by domain if --strict-domain is set
     let cookiesToApply = cookies;
     if (args['strict-domain']) {
       const urlDomain = new URL(args.url).hostname;
-      cookiesToApply = cookies.filter(c => {
-        const cookieDomain = c.domain.startsWith('.') ? c.domain.slice(1) : c.domain;
+      cookiesToApply = cookies.filter((c) => {
+        const cookieDomain = c.domain.startsWith('.')
+          ? c.domain.slice(1)
+          : c.domain;
         return urlDomain.endsWith(cookieDomain);
       });
     }
@@ -181,11 +193,11 @@ async function importCookies() {
       url: args.url,
       imported: {
         total: cookiesToApply.length,
-        names: cookiesToApply.map(c => c.name)
+        names: cookiesToApply.map((c) => c.name),
       },
       persisted: true,
       finalUrl: page.url(),
-      title: await page.title()
+      title: await page.title(),
     };
 
     outputJSON(result);

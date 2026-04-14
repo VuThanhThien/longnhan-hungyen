@@ -59,24 +59,26 @@ export function parseProductPayload(formData: FormData): ProductPayload {
     // we forward it too (API maps it into `summary`).
     description: String(formData.get('description') || '').trim() || undefined,
     summary: String(formData.get('summary') || '').trim() || undefined,
-    descriptionHtml: String(formData.get('descriptionHtml') || '').trim() || undefined,
+    descriptionHtml:
+      String(formData.get('descriptionHtml') || '').trim() || undefined,
     basePrice: toInt(formData.get('basePrice'), 0),
     category: String(formData.get('category') || '').trim(),
-    featuredImageUrl: String(formData.get('featuredImageUrl') || '').trim() || undefined,
+    featuredImageUrl:
+      String(formData.get('featuredImageUrl') || '').trim() || undefined,
     videoUrl: String(formData.get('videoUrl') || '').trim() || undefined,
     active: String(formData.get('active') || '') === 'on',
     images,
     variants: variants
       .filter((variant) => variant.label.trim().length > 0)
       .map((variant, index) => ({
-      label: variant.label.trim(),
-      weightG: variant.weightG || undefined,
-      price: Number(variant.price || 0),
-      stock: Number(variant.stock || 0),
-      skuCode: variant.skuCode || undefined,
-      sortOrder: variant.sortOrder ?? index,
-      active: variant.active ?? true,
-    })),
+        label: variant.label.trim(),
+        weightG: variant.weightG || undefined,
+        price: Number(variant.price || 0),
+        stock: Number(variant.stock || 0),
+        skuCode: variant.skuCode || undefined,
+        sortOrder: variant.sortOrder ?? index,
+        active: variant.active ?? true,
+      })),
   };
 }
 
@@ -92,9 +94,11 @@ export function parseArticlePayload(formData: FormData): ArticlePayload {
     title: String(formData.get('title') || '').trim(),
     excerpt: String(formData.get('excerpt') || '').trim() || undefined,
     contentHtml: String(formData.get('contentHtml') || '').trim(),
-    featuredImageUrl: String(formData.get('featuredImageUrl') || '').trim() || undefined,
+    featuredImageUrl:
+      String(formData.get('featuredImageUrl') || '').trim() || undefined,
     metaTitle: String(formData.get('metaTitle') || '').trim() || undefined,
-    metaDescription: String(formData.get('metaDescription') || '').trim() || undefined,
+    metaDescription:
+      String(formData.get('metaDescription') || '').trim() || undefined,
     tags,
     published: publish,
   };

@@ -24,9 +24,8 @@ const {
   isBlockedDirName,
   normalizeExtractedPath,
   BLOCKED_DIR_NAMES,
-  EXCLUDE_FLAGS
+  EXCLUDE_FLAGS,
 } = require('../../scout-block/path-extractor.cjs');
-
 
 // ═══════════════════════════════════════════════════════════════════════════
 // extractFromToolInput — direct path params
@@ -49,13 +48,19 @@ describe('extractFromToolInput', () => {
   });
 
   it('extracts multiple params at once', () => {
-    const paths = extractFromToolInput({ file_path: 'a.ts', path: 'src', pattern: '*.js' });
+    const paths = extractFromToolInput({
+      file_path: 'a.ts',
+      path: 'src',
+      pattern: '*.js',
+    });
     assert.strictEqual(paths.length, 3);
   });
 
   it('extracts from command field', () => {
-    const paths = extractFromToolInput({ command: 'cat node_modules/pkg/index.js' });
-    assert.ok(paths.some(p => p.includes('node_modules')));
+    const paths = extractFromToolInput({
+      command: 'cat node_modules/pkg/index.js',
+    });
+    assert.ok(paths.some((p) => p.includes('node_modules')));
   });
 
   it('returns empty for null/undefined input', () => {
@@ -75,13 +80,11 @@ describe('extractFromToolInput', () => {
   });
 });
 
-
 // ═══════════════════════════════════════════════════════════════════════════
 // extractFromCommand — token extraction from bash commands
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('extractFromCommand', () => {
-
   // --- Blocked directory names ---
   describe('blocked directory extraction', () => {
     it('extracts "node_modules" as blocked dir', () => {
@@ -139,22 +142,22 @@ describe('extractFromCommand', () => {
   describe('nested path extraction', () => {
     it('extracts nested node_modules path', () => {
       const paths = extractFromCommand('ls packages/web/node_modules');
-      assert.ok(paths.some(p => p.includes('node_modules')));
+      assert.ok(paths.some((p) => p.includes('node_modules')));
     });
 
     it('extracts dist/bundle.js', () => {
       const paths = extractFromCommand('cat dist/bundle.js');
-      assert.ok(paths.some(p => p.includes('dist')));
+      assert.ok(paths.some((p) => p.includes('dist')));
     });
 
     it('extracts .venv/lib/python3.11', () => {
       const paths = extractFromCommand('cat .venv/lib/python3.11/site.py');
-      assert.ok(paths.some(p => p.includes('.venv')));
+      assert.ok(paths.some((p) => p.includes('.venv')));
     });
 
     it('extracts path with file extension', () => {
       const paths = extractFromCommand('cat src/index.ts');
-      assert.ok(paths.some(p => p === 'src/index.ts'));
+      assert.ok(paths.some((p) => p === 'src/index.ts'));
     });
   });
 
@@ -166,7 +169,10 @@ describe('extractFromCommand', () => {
       for (const kw of keywords) {
         // When used as the command itself (first token), it's skipped
         const paths = extractFromCommand(`${kw} src/file.ts`);
-        assert.ok(!paths.includes(kw), `"${kw}" should not be extracted as path`);
+        assert.ok(
+          !paths.includes(kw),
+          `"${kw}" should not be extracted as path`,
+        );
       }
     });
 
@@ -185,17 +191,17 @@ describe('extractFromCommand', () => {
   describe('quoted path extraction', () => {
     it('extracts double-quoted path', () => {
       const paths = extractFromCommand('cat "src/my file.ts"');
-      assert.ok(paths.some(p => p.includes('src/my file.ts')));
+      assert.ok(paths.some((p) => p.includes('src/my file.ts')));
     });
 
     it('extracts single-quoted path', () => {
       const paths = extractFromCommand("cat 'src/my file.ts'");
-      assert.ok(paths.some(p => p.includes('src/my file.ts')));
+      assert.ok(paths.some((p) => p.includes('src/my file.ts')));
     });
 
     it('extracts quoted path with blocked dir', () => {
       const paths = extractFromCommand("cat 'node_modules/pkg/index.js'");
-      assert.ok(paths.some(p => p.includes('node_modules')));
+      assert.ok(paths.some((p) => p.includes('node_modules')));
     });
   });
 
@@ -203,8 +209,11 @@ describe('extractFromCommand', () => {
   describe('exclude flag handling', () => {
     it('skips value after --exclude', () => {
       const paths = extractFromCommand('grep --exclude node_modules src/');
-      assert.ok(!paths.includes('node_modules'), '--exclude value should be skipped');
-      assert.ok(paths.some(p => p.includes('src')));
+      assert.ok(
+        !paths.includes('node_modules'),
+        '--exclude value should be skipped',
+      );
+      assert.ok(paths.some((p) => p.includes('src')));
     });
 
     it('skips value after --ignore', () => {
@@ -223,7 +232,9 @@ describe('extractFromCommand', () => {
     });
 
     it('skips value after --exclude-dir', () => {
-      const paths = extractFromCommand('grep --exclude-dir node_modules pattern src/');
+      const paths = extractFromCommand(
+        'grep --exclude-dir node_modules pattern src/',
+      );
       assert.ok(!paths.includes('node_modules'));
     });
   });
@@ -237,12 +248,12 @@ describe('extractFromCommand', () => {
 
     it('skips shell pipe operator', () => {
       const paths = extractFromCommand('cat src/file.ts | head');
-      assert.ok(!paths.some(p => p === '|'));
+      assert.ok(!paths.some((p) => p === '|'));
     });
 
     it('skips redirect operators', () => {
       const paths = extractFromCommand('echo test > output.txt');
-      assert.ok(!paths.some(p => p === '>'));
+      assert.ok(!paths.some((p) => p === '>'));
     });
 
     it('skips numeric values', () => {
@@ -264,44 +275,44 @@ describe('extractFromCommand', () => {
 
     it('handles cd to absolute path', () => {
       const paths = extractFromCommand('cd /Users/kai/project');
-      assert.ok(paths.some(p => p.includes('/Users/kai/project')));
+      assert.ok(paths.some((p) => p.includes('/Users/kai/project')));
     });
 
     it('handles env var prefix before command', () => {
       // NODE_ENV=production is not a path
       const paths = extractFromCommand('NODE_ENV=production npm run build');
-      assert.ok(!paths.some(p => p === 'NODE_ENV=production'));
+      assert.ok(!paths.some((p) => p === 'NODE_ENV=production'));
     });
 
     it('handles multiple files in one command', () => {
       const paths = extractFromCommand('cat src/a.ts src/b.ts');
-      assert.ok(paths.some(p => p === 'src/a.ts'));
-      assert.ok(paths.some(p => p === 'src/b.ts'));
+      assert.ok(paths.some((p) => p === 'src/a.ts'));
+      assert.ok(paths.some((p) => p === 'src/b.ts'));
     });
 
     it('handles relative path ./src/file.ts', () => {
       const paths = extractFromCommand('cat ./src/file.ts');
-      assert.ok(paths.some(p => p.includes('src/file.ts')));
+      assert.ok(paths.some((p) => p.includes('src/file.ts')));
     });
 
     it('handles parent path ../other/file.ts', () => {
       const paths = extractFromCommand('cat ../other/file.ts');
-      assert.ok(paths.some(p => p.includes('../other/file.ts')));
+      assert.ok(paths.some((p) => p.includes('../other/file.ts')));
     });
 
     it('handles git commands with paths', () => {
       const paths = extractFromCommand('git diff src/index.ts');
-      assert.ok(paths.some(p => p === 'src/index.ts'));
+      assert.ok(paths.some((p) => p === 'src/index.ts'));
     });
 
     it('handles chmod on a file', () => {
       const paths = extractFromCommand('chmod +x scripts/deploy.sh');
-      assert.ok(paths.some(p => p === 'scripts/deploy.sh'));
+      assert.ok(paths.some((p) => p === 'scripts/deploy.sh'));
     });
 
     it('handles mkdir -p with path', () => {
       const paths = extractFromCommand('mkdir -p src/components/auth');
-      assert.ok(paths.some(p => p.includes('src/components/auth')));
+      assert.ok(paths.some((p) => p.includes('src/components/auth')));
     });
   });
 
@@ -322,8 +333,8 @@ describe('extractFromCommand', () => {
     it('handles command with no path-like tokens', () => {
       const paths = extractFromCommand('echo hello world');
       // "hello" and "world" don't look like paths
-      assert.ok(!paths.some(p => p === 'hello'));
-      assert.ok(!paths.some(p => p === 'world'));
+      assert.ok(!paths.some((p) => p === 'hello'));
+      assert.ok(!paths.some((p) => p === 'world'));
     });
 
     it('handles single-token command', () => {
@@ -338,7 +349,6 @@ describe('extractFromCommand', () => {
     });
   });
 });
-
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Helper functions — unit tests
@@ -430,7 +440,17 @@ describe('isSkippableToken', () => {
 
 describe('isCommandKeyword', () => {
   it('recognizes shell commands', () => {
-    const commands = ['echo', 'cat', 'ls', 'cd', 'rm', 'cp', 'mv', 'find', 'grep'];
+    const commands = [
+      'echo',
+      'cat',
+      'ls',
+      'cd',
+      'rm',
+      'cp',
+      'mv',
+      'find',
+      'grep',
+    ];
     for (const cmd of commands) {
       assert.ok(isCommandKeyword(cmd), `"${cmd}" should be a keyword`);
     }
@@ -497,7 +517,10 @@ describe('isBlockedDirName', () => {
 
 describe('normalizeExtractedPath', () => {
   it('trims whitespace', () => {
-    assert.strictEqual(normalizeExtractedPath('  src/file.ts  '), 'src/file.ts');
+    assert.strictEqual(
+      normalizeExtractedPath('  src/file.ts  '),
+      'src/file.ts',
+    );
   });
 
   it('removes surrounding double quotes', () => {

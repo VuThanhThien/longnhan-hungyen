@@ -20,14 +20,18 @@ function runScript(script, args = [], timeout = 10000) {
   return new Promise((resolve) => {
     const proc = spawn('node', [path.join(scriptsDir, script), ...args], {
       timeout,
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     let stdout = '';
     let stderr = '';
 
-    proc.stdout.on('data', (data) => { stdout += data; });
-    proc.stderr.on('data', (data) => { stderr += data; });
+    proc.stdout.on('data', (data) => {
+      stdout += data;
+    });
+    proc.stderr.on('data', (data) => {
+      stderr += data;
+    });
 
     proc.on('close', (code) => {
       resolve({ code, stdout, stderr, combined: stdout + stderr });
@@ -39,7 +43,13 @@ function runScript(script, args = [], timeout = 10000) {
 
     setTimeout(() => {
       proc.kill('SIGTERM');
-      resolve({ code: null, stdout, stderr, timedOut: true, combined: stdout + stderr });
+      resolve({
+        code: null,
+        stdout,
+        stderr,
+        timedOut: true,
+        combined: stdout + stderr,
+      });
     }, timeout);
   });
 }
@@ -55,8 +65,9 @@ describe('chrome-devtools error handling', () => {
       const result = await runScript('console.js', []);
       assert.strictEqual(result.code, 1);
       // Either app-level error (--url required) or module error (puppeteer not found)
-      const hasError = result.combined.toLowerCase().includes('error') ||
-                       result.combined.includes('--url');
+      const hasError =
+        result.combined.toLowerCase().includes('error') ||
+        result.combined.includes('--url');
       assert.ok(hasError, 'Expected error in output');
     });
   });
@@ -90,7 +101,13 @@ describe('chrome-devtools error handling', () => {
   });
 
   describe('all scripts exit code consistency', () => {
-    const scripts = ['console.js', 'evaluate.js', 'navigate.js', 'network.js', 'performance.js'];
+    const scripts = [
+      'console.js',
+      'evaluate.js',
+      'navigate.js',
+      'network.js',
+      'performance.js',
+    ];
 
     for (const script of scripts) {
       it(`${script} should exit 1 on invalid input or error`, async () => {

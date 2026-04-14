@@ -12,7 +12,11 @@ interface UpdateOrderStatusInput {
 
 export function useUpdateOrderStatus() {
   return useMutation({
-    mutationFn: ({ orderId, orderStatus, paymentStatus }: UpdateOrderStatusInput) =>
+    mutationFn: ({
+      orderId,
+      orderStatus,
+      paymentStatus,
+    }: UpdateOrderStatusInput) =>
       ordersApi.updateStatus(orderId, { orderStatus, paymentStatus }),
   });
 }

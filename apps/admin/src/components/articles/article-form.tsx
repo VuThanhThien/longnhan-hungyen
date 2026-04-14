@@ -28,9 +28,18 @@ const articleFormSchema = yup.object({
 
 type ArticleFormValues = yup.InferType<typeof articleFormSchema>;
 
-export function ArticleForm({ initialArticle, submitLabel, onSubmit, isSubmitting }: ArticleFormProps) {
-  const [featuredImageUrl, setFeaturedImageUrl] = useState(initialArticle?.featuredImageUrl || '');
-  const [contentHtml, setContentHtml] = useState(initialArticle?.contentHtml || '<p></p>');
+export function ArticleForm({
+  initialArticle,
+  submitLabel,
+  onSubmit,
+  isSubmitting,
+}: ArticleFormProps) {
+  const [featuredImageUrl, setFeaturedImageUrl] = useState(
+    initialArticle?.featuredImageUrl || '',
+  );
+  const [contentHtml, setContentHtml] = useState(
+    initialArticle?.contentHtml || '<p></p>',
+  );
 
   return (
     <ArticleFormInner
@@ -69,7 +78,9 @@ function ArticleFormInner({
     setValue,
     formState: { errors },
   } = useForm<ArticleFormValues>({
-    resolver: yupResolver(articleFormSchema) as unknown as Resolver<ArticleFormValues>,
+    resolver: yupResolver(
+      articleFormSchema,
+    ) as unknown as Resolver<ArticleFormValues>,
     defaultValues: {
       title: initialArticle?.title || '',
       excerpt: initialArticle?.excerpt || '',
@@ -114,7 +125,9 @@ function ArticleFormInner({
             required
             className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
           />
-          {errors.title?.message ? <p className="text-xs text-red-600">{errors.title.message}</p> : null}
+          {errors.title?.message ? (
+            <p className="text-xs text-red-600">{errors.title.message}</p>
+          ) : null}
         </div>
         <div className="flex items-end">
           <label className="inline-flex items-center gap-2 text-sm text-gray-700">
@@ -136,12 +149,18 @@ function ArticleFormInner({
       <div className="space-y-1">
         <label className="text-sm text-gray-600">Nội dung (Tiptap)</label>
         <TiptapHtmlEditor value={contentHtml} onChange={setContentHtml} />
-        {errors.contentHtml?.message ? <p className="text-xs text-red-600">{errors.contentHtml.message}</p> : null}
+        {errors.contentHtml?.message ? (
+          <p className="text-xs text-red-600">{errors.contentHtml.message}</p>
+        ) : null}
       </div>
 
       <div className="space-y-2">
         <label className="text-sm text-gray-600">Ảnh đại diện bài viết</label>
-        <MediaUrlPicker value={featuredImageUrl} onChange={setFeaturedImageUrl} folder="articles" />
+        <MediaUrlPicker
+          value={featuredImageUrl}
+          onChange={setFeaturedImageUrl}
+          folder="articles"
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -153,7 +172,9 @@ function ArticleFormInner({
           />
         </div>
         <div className="space-y-1">
-          <label className="text-sm text-gray-600">Tags (phân tách bằng dấu phẩy)</label>
+          <label className="text-sm text-gray-600">
+            Tags (phân tách bằng dấu phẩy)
+          </label>
           <input
             {...register('tags')}
             className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"

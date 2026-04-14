@@ -4,7 +4,10 @@ import { ChevronDownIcon, MagnifyingGlassIcon } from '@radix-ui/react-icons';
 import { useQueryStates } from 'nuqs';
 import { useRouter } from 'next/navigation';
 import { useCallback } from 'react';
-import { productSearchParamsParsers, serializeProductSearchUrl } from '@/lib/product-search-params';
+import {
+  productSearchParamsParsers,
+  serializeProductSearchUrl,
+} from '@/lib/product-search-params';
 
 const ACCENT = '#E8A240';
 
@@ -23,7 +26,9 @@ export default function HeaderSearchBar({
   className = '',
 }: HeaderSearchBarProps) {
   const router = useRouter();
-  const [{ q, category }, setSearchParams] = useQueryStates(productSearchParamsParsers);
+  const [{ q, category }, setSearchParams] = useQueryStates(
+    productSearchParamsParsers,
+  );
 
   const submit = useCallback(() => {
     const trimmed = (q ?? '').trim();
@@ -100,10 +105,7 @@ export default function HeaderSearchBar({
         style={{ backgroundColor: ACCENT, borderColor: ACCENT }}
         aria-label="Tìm kiếm"
       >
-        <MagnifyingGlassIcon
-          className="h-5 w-5 text-[#5c2e20]"
-          aria-hidden
-        />
+        <MagnifyingGlassIcon className="h-5 w-5 text-[#5c2e20]" aria-hidden />
       </button>
     </form>
   );

@@ -3,7 +3,10 @@ import { AUTH_TOKEN_KEY, parseAuthTokens } from '@/lib/auth-token';
 
 const API_URL = process.env.API_URL || 'http://localhost:3001/api/v1';
 
-export async function adminFetch<T>(path: string, options?: RequestInit): Promise<T> {
+export async function adminFetch<T>(
+  path: string,
+  options?: RequestInit,
+): Promise<T> {
   const cookieStore = await cookies();
   const token =
     parseAuthTokens(cookieStore.get(AUTH_TOKEN_KEY)?.value)?.accessToken ||

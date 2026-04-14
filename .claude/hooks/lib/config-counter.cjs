@@ -69,7 +69,10 @@ function countRulesInDir(rulesDir, depth = 0) {
 }
 
 function countConfigs(cwd) {
-  let claudeMdCount = 0, rulesCount = 0, mcpCount = 0, hooksCount = 0;
+  let claudeMdCount = 0,
+    rulesCount = 0,
+    mcpCount = 0,
+    hooksCount = 0;
   const homeDir = os.homedir();
   const claudeDir = path.join(homeDir, '.claude');
 
@@ -79,14 +82,18 @@ function countConfigs(cwd) {
   const userSettings = path.join(claudeDir, 'settings.json');
   mcpCount += countMcpServersInFile(userSettings);
   hooksCount += countHooksInFile(userSettings);
-  mcpCount += countMcpServersInFile(path.join(homeDir, '.claude.json'), userSettings);
+  mcpCount += countMcpServersInFile(
+    path.join(homeDir, '.claude.json'),
+    userSettings,
+  );
 
   // Project scope
   if (cwd) {
     if (fs.existsSync(path.join(cwd, 'CLAUDE.md'))) claudeMdCount++;
     if (fs.existsSync(path.join(cwd, 'CLAUDE.local.md'))) claudeMdCount++;
     if (fs.existsSync(path.join(cwd, '.claude', 'CLAUDE.md'))) claudeMdCount++;
-    if (fs.existsSync(path.join(cwd, '.claude', 'CLAUDE.local.md'))) claudeMdCount++;
+    if (fs.existsSync(path.join(cwd, '.claude', 'CLAUDE.local.md')))
+      claudeMdCount++;
     rulesCount += countRulesInDir(path.join(cwd, '.claude', 'rules'));
     mcpCount += countMcpServersInFile(path.join(cwd, '.mcp.json'));
     const projectSettings = path.join(cwd, '.claude', 'settings.json');
@@ -100,4 +107,10 @@ function countConfigs(cwd) {
   return { claudeMdCount, rulesCount, mcpCount, hooksCount };
 }
 
-module.exports = { countConfigs, getMcpServerNames, countMcpServersInFile, countHooksInFile, countRulesInDir };
+module.exports = {
+  countConfigs,
+  getMcpServerNames,
+  countMcpServersInFile,
+  countHooksInFile,
+  countRulesInDir,
+};

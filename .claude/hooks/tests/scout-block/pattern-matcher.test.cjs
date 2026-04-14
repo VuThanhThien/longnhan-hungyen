@@ -17,11 +17,10 @@ const {
   createMatcher,
   matchPath,
   findMatchingPattern,
-  DEFAULT_PATTERNS
+  DEFAULT_PATTERNS,
 } = require('../../scout-block/pattern-matcher.cjs');
 
 const FIXTURES_DIR = path.join(__dirname, 'fixtures');
-
 
 // ═══════════════════════════════════════════════════════════════════════════
 // loadPatterns
@@ -29,7 +28,9 @@ const FIXTURES_DIR = path.join(__dirname, 'fixtures');
 
 describe('loadPatterns', () => {
   it('loads patterns from fixture file', () => {
-    const patterns = loadPatterns(path.join(FIXTURES_DIR, 'adf-ignore-default.txt'));
+    const patterns = loadPatterns(
+      path.join(FIXTURES_DIR, 'adf-ignore-default.txt'),
+    );
     assert.ok(patterns.includes('node_modules'));
     assert.ok(patterns.includes('dist'));
     assert.ok(patterns.includes('build'));
@@ -46,29 +47,36 @@ describe('loadPatterns', () => {
   });
 
   it('filters out comments', () => {
-    const patterns = loadPatterns(path.join(FIXTURES_DIR, 'adf-ignore-default.txt'));
-    assert.ok(!patterns.some(p => p.startsWith('#')));
+    const patterns = loadPatterns(
+      path.join(FIXTURES_DIR, 'adf-ignore-default.txt'),
+    );
+    assert.ok(!patterns.some((p) => p.startsWith('#')));
   });
 
   it('filters out empty lines', () => {
-    const patterns = loadPatterns(path.join(FIXTURES_DIR, 'adf-ignore-default.txt'));
+    const patterns = loadPatterns(
+      path.join(FIXTURES_DIR, 'adf-ignore-default.txt'),
+    );
     assert.ok(!patterns.includes(''));
   });
 
   it('loads custom patterns', () => {
-    const patterns = loadPatterns(path.join(FIXTURES_DIR, 'adf-ignore-custom.txt'));
+    const patterns = loadPatterns(
+      path.join(FIXTURES_DIR, 'adf-ignore-custom.txt'),
+    );
     assert.ok(patterns.includes('out'));
     assert.ok(patterns.includes('.cache'));
     assert.ok(patterns.includes('*.pyc'));
   });
 
   it('loads negation patterns', () => {
-    const patterns = loadPatterns(path.join(FIXTURES_DIR, 'adf-ignore-negation.txt'));
+    const patterns = loadPatterns(
+      path.join(FIXTURES_DIR, 'adf-ignore-negation.txt'),
+    );
     assert.ok(patterns.includes('!src/vendor'));
     assert.ok(patterns.includes('!dist/public'));
   });
 });
-
 
 // ═══════════════════════════════════════════════════════════════════════════
 // matchPath — simple directory names
@@ -145,7 +153,6 @@ describe('matchPath - directory blocking', () => {
   });
 });
 
-
 // ═══════════════════════════════════════════════════════════════════════════
 // matchPath — allowed paths
 // ═══════════════════════════════════════════════════════════════════════════
@@ -184,13 +191,14 @@ describe('matchPath - allowed paths', () => {
   });
 });
 
-
 // ═══════════════════════════════════════════════════════════════════════════
 // matchPath — negation patterns
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('matchPath - negation patterns', () => {
-  const patterns = loadPatterns(path.join(FIXTURES_DIR, 'adf-ignore-negation.txt'));
+  const patterns = loadPatterns(
+    path.join(FIXTURES_DIR, 'adf-ignore-negation.txt'),
+  );
   const matcher = createMatcher(patterns);
 
   it('blocks vendor by default', () => {
@@ -217,7 +225,6 @@ describe('matchPath - negation patterns', () => {
   });
 });
 
-
 // ═══════════════════════════════════════════════════════════════════════════
 // matchPath — path normalization
 // ═══════════════════════════════════════════════════════════════════════════
@@ -241,13 +248,14 @@ describe('matchPath - normalization', () => {
   });
 });
 
-
 // ═══════════════════════════════════════════════════════════════════════════
 // matchPath — custom patterns
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('matchPath - custom adf-ignore.txt', () => {
-  const patterns = loadPatterns(path.join(FIXTURES_DIR, 'adf-ignore-custom.txt'));
+  const patterns = loadPatterns(
+    path.join(FIXTURES_DIR, 'adf-ignore-custom.txt'),
+  );
   const matcher = createMatcher(patterns);
 
   it('blocks "out" directory', () => {
@@ -270,7 +278,6 @@ describe('matchPath - custom adf-ignore.txt', () => {
   });
 });
 
-
 // ═══════════════════════════════════════════════════════════════════════════
 // findMatchingPattern
 // ═══════════════════════════════════════════════════════════════════════════
@@ -287,7 +294,10 @@ describe('findMatchingPattern', () => {
   });
 
   it('returns first non-negation pattern as fallback', () => {
-    const pattern = findMatchingPattern(['!.env', 'node_modules'], 'something_unknown');
+    const pattern = findMatchingPattern(
+      ['!.env', 'node_modules'],
+      'something_unknown',
+    );
     assert.strictEqual(pattern, 'node_modules');
   });
 });

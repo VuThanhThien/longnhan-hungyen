@@ -26,7 +26,9 @@ interface OrderFormProps {
 
 export default function OrderForm({ variants, productName }: OrderFormProps) {
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
-    variants.find((v) => (v.active || v.isActive) && (v.stock ?? v.stockQuantity ?? 0) > 0)?.id ?? null,
+    variants.find(
+      (v) => (v.active || v.isActive) && (v.stock ?? v.stockQuantity ?? 0) > 0,
+    )?.id ?? null,
   );
   const [quantity, setQuantity] = useState(1);
   const [variantError, setVariantError] = useState(false);
@@ -51,9 +53,11 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
     },
   });
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const paymentMethod = watch('paymentMethod');
   const selectedVariant = variants.find((v) => v.id === selectedVariantId);
-  const selectedVariantStock = selectedVariant?.stock ?? selectedVariant?.stockQuantity ?? 0;
+  const selectedVariantStock =
+    selectedVariant?.stock ?? selectedVariant?.stockQuantity ?? 0;
   const totalAmount = selectedVariant ? selectedVariant.price * quantity : 0;
 
   const onValidSubmit = (values: OrderFormValues) => {
@@ -76,14 +80,19 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
     if (values.notes) {
       fd.set('notes', values.notes);
     }
-    fd.set('items', JSON.stringify([{ variantId: selectedVariantId, qty: quantity }]));
+    fd.set(
+      'items',
+      JSON.stringify([{ variantId: selectedVariantId, qty: quantity }]),
+    );
 
     startTransition(async () => {
       try {
         await submitOrder(fd);
       } catch (err) {
         setSubmitError(
-          err instanceof Error ? err.message : 'Đặt hàng thất bại, vui lòng thử lại.',
+          err instanceof Error
+            ? err.message
+            : 'Đặt hàng thất bại, vui lòng thử lại.',
         );
       }
     });
@@ -103,7 +112,9 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
           }}
         />
         {variantError ? (
-          <p className="mt-2 text-sm text-red-600">Vui lòng chọn loại sản phẩm.</p>
+          <p className="mt-2 text-sm text-red-600">
+            Vui lòng chọn loại sản phẩm.
+          </p>
         ) : null}
       </div>
 
@@ -122,8 +133,16 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
           </span>
           <button
             type="button"
-            onClick={() => setQuantity(Math.min(selectedVariantStock || quantity + 1, quantity + 1))}
-            disabled={selectedVariantStock > 0 ? quantity >= selectedVariantStock : false}
+            onClick={() =>
+              setQuantity(
+                Math.min(selectedVariantStock || quantity + 1, quantity + 1),
+              )
+            }
+            disabled={
+              selectedVariantStock > 0
+                ? quantity >= selectedVariantStock
+                : false
+            }
             className="px-3 py-2 text-gray-600 hover:bg-gray-50 text-lg font-bold disabled:opacity-40 disabled:cursor-not-allowed"
           >
             +
@@ -131,20 +150,29 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
         </div>
         {selectedVariant ? (
           <span className="text-green-700 font-bold text-sm ml-2">
-            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(
-              totalAmount,
-            )}
+            {new Intl.NumberFormat('vi-VN', {
+              style: 'currency',
+              currency: 'VND',
+            }).format(totalAmount)}
           </span>
         ) : null}
         {selectedVariantStock > 0 ? (
-          <span className="text-xs text-gray-500">Tồn kho: {selectedVariantStock}</span>
+          <span className="text-xs text-gray-500">
+            Tồn kho: {selectedVariantStock}
+          </span>
         ) : null}
       </div>
 
-      <form onSubmit={handleSubmit(onValidSubmit)} className="flex flex-col gap-4">
+      <form
+        onSubmit={handleSubmit(onValidSubmit)}
+        className="flex flex-col gap-4"
+      >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label htmlFor="customerName" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="customerName"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Họ tên <span className="text-red-500">*</span>
             </label>
             <input
@@ -156,11 +184,16 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
               {...register('customerName')}
             />
             {errors.customerName ? (
-              <p className="mt-1 text-xs text-red-600">{errors.customerName.message}</p>
+              <p className="mt-1 text-xs text-red-600">
+                {errors.customerName.message}
+              </p>
             ) : null}
           </div>
           <div>
-            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="phone"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Số điện thoại <span className="text-red-500">*</span>
             </label>
             <input
@@ -172,13 +205,18 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
               {...register('phone')}
             />
             {errors.phone ? (
-              <p className="mt-1 text-xs text-red-600">{errors.phone.message}</p>
+              <p className="mt-1 text-xs text-red-600">
+                {errors.phone.message}
+              </p>
             ) : null}
           </div>
         </div>
 
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="email"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Email
           </label>
           <input
@@ -195,7 +233,10 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
         </div>
 
         <div>
-          <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="address"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Địa chỉ giao hàng <span className="text-red-500">*</span>
           </label>
           <input
@@ -207,12 +248,17 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
             {...register('address')}
           />
           {errors.address ? (
-            <p className="mt-1 text-xs text-red-600">{errors.address.message}</p>
+            <p className="mt-1 text-xs text-red-600">
+              {errors.address.message}
+            </p>
           ) : null}
         </div>
 
         <div>
-          <label htmlFor="province" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="province"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Tỉnh/Thành phố <span className="text-red-500">*</span>
           </label>
           <select
@@ -228,7 +274,9 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
             ))}
           </select>
           {errors.province ? (
-            <p className="mt-1 text-xs text-red-600">{errors.province.message}</p>
+            <p className="mt-1 text-xs text-red-600">
+              {errors.province.message}
+            </p>
           ) : null}
         </div>
 
@@ -238,7 +286,10 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
           </span>
           <div className="flex flex-col gap-2">
             {PAYMENT_METHODS.map((method) => (
-              <label key={method.value} className="flex items-center gap-2 cursor-pointer">
+              <label
+                key={method.value}
+                className="flex items-center gap-2 cursor-pointer"
+              >
                 <input
                   type="radio"
                   value={method.value}
@@ -250,7 +301,9 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
             ))}
           </div>
           {errors.paymentMethod ? (
-            <p className="mt-1 text-xs text-red-600">{errors.paymentMethod.message}</p>
+            <p className="mt-1 text-xs text-red-600">
+              {errors.paymentMethod.message}
+            </p>
           ) : null}
         </div>
 
@@ -259,7 +312,10 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
         ) : null}
 
         <div>
-          <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="notes"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             Ghi chú
           </label>
           <textarea

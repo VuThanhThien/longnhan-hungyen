@@ -24,7 +24,8 @@ export function useMediaFolders() {
 export function useUploadMedia() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ file, folder }: { file: File; folder?: string }) => mediaApi.upload(file, folder),
+    mutationFn: ({ file, folder }: { file: File; folder?: string }) =>
+      mediaApi.upload(file, folder),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: MEDIA_QUERY_KEY });
       void queryClient.invalidateQueries({ queryKey: MEDIA_FOLDERS_QUERY_KEY });

@@ -10,7 +10,13 @@ const fs = require('fs');
 const path = require('path');
 
 const scriptPath = path.join(__dirname, '..', 'scout-block', 'scout-block.sh');
-const adfIgnorePath = path.join(__dirname, '..', '..', 'config', 'adf-ignore.txt');
+const adfIgnorePath = path.join(
+  __dirname,
+  '..',
+  '..',
+  'config',
+  'adf-ignore.txt',
+);
 const adfIgnoreBackupPath = adfIgnorePath + '.backup';
 
 // Backup original adf-ignore.txt if exists
@@ -26,7 +32,7 @@ function runTest(name, input, expected) {
     execSync(`bash "${scriptPath}"`, {
       input: inputJson,
       encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
     const actual = 'ALLOWED';
     const success = actual === expected;
@@ -34,7 +40,13 @@ function runTest(name, input, expected) {
   } catch (error) {
     const actual = error.status === 2 ? 'BLOCKED' : 'ERROR';
     const success = actual === expected;
-    return { name, expected, actual, success, error: error.stderr?.toString().trim() };
+    return {
+      name,
+      expected,
+      actual,
+      success,
+      error: error.stderr?.toString().trim(),
+    };
   }
 }
 
@@ -64,13 +76,15 @@ console.log('--- Test 1: Default patterns from adf-ignore.txt ---');
 let result = runTest(
   'node_modules blocked (default)',
   { tool_name: 'Read', tool_input: { file_path: 'node_modules/pkg.json' } },
-  'BLOCKED'
+  'BLOCKED',
 );
 if (result.success) {
   console.log(`✓ ${result.name}: ${result.actual}`);
   passed++;
 } else {
-  console.log(`✗ ${result.name}: expected ${result.expected}, got ${result.actual}`);
+  console.log(
+    `✗ ${result.name}: expected ${result.expected}, got ${result.actual}`,
+  );
   failed++;
 }
 
@@ -81,26 +95,30 @@ writeAdfIgnore(['# Custom ignore', 'vendor']);
 result = runTest(
   'vendor blocked (custom)',
   { tool_name: 'Read', tool_input: { file_path: 'vendor/lib.js' } },
-  'BLOCKED'
+  'BLOCKED',
 );
 if (result.success) {
   console.log(`✓ ${result.name}: ${result.actual}`);
   passed++;
 } else {
-  console.log(`✗ ${result.name}: expected ${result.expected}, got ${result.actual}`);
+  console.log(
+    `✗ ${result.name}: expected ${result.expected}, got ${result.actual}`,
+  );
   failed++;
 }
 
 result = runTest(
   'node_modules ALLOWED when not in adf-ignore.txt',
   { tool_name: 'Read', tool_input: { file_path: 'node_modules/pkg.json' } },
-  'ALLOWED'
+  'ALLOWED',
 );
 if (result.success) {
   console.log(`✓ ${result.name}: ${result.actual}`);
   passed++;
 } else {
-  console.log(`✗ ${result.name}: expected ${result.expected}, got ${result.actual}`);
+  console.log(
+    `✗ ${result.name}: expected ${result.expected}, got ${result.actual}`,
+  );
   failed++;
 }
 
@@ -111,82 +129,100 @@ writeAdfIgnore(['vendor', 'temp', '.cache']);
 result = runTest(
   'vendor blocked',
   { tool_name: 'Grep', tool_input: { pattern: 'test', path: 'vendor' } },
-  'BLOCKED'
+  'BLOCKED',
 );
 if (result.success) {
   console.log(`✓ ${result.name}: ${result.actual}`);
   passed++;
 } else {
-  console.log(`✗ ${result.name}: expected ${result.expected}, got ${result.actual}`);
+  console.log(
+    `✗ ${result.name}: expected ${result.expected}, got ${result.actual}`,
+  );
   failed++;
 }
 
 result = runTest(
   'temp blocked',
   { tool_name: 'Bash', tool_input: { command: 'ls temp/' } },
-  'BLOCKED'
+  'BLOCKED',
 );
 if (result.success) {
   console.log(`✓ ${result.name}: ${result.actual}`);
   passed++;
 } else {
-  console.log(`✗ ${result.name}: expected ${result.expected}, got ${result.actual}`);
+  console.log(
+    `✗ ${result.name}: expected ${result.expected}, got ${result.actual}`,
+  );
   failed++;
 }
 
 result = runTest(
   '.cache blocked',
   { tool_name: 'Glob', tool_input: { pattern: '.cache/**' } },
-  'BLOCKED'
+  'BLOCKED',
 );
 if (result.success) {
   console.log(`✓ ${result.name}: ${result.actual}`);
   passed++;
 } else {
-  console.log(`✗ ${result.name}: expected ${result.expected}, got ${result.actual}`);
+  console.log(
+    `✗ ${result.name}: expected ${result.expected}, got ${result.actual}`,
+  );
   failed++;
 }
 
 result = runTest(
   'src still allowed',
   { tool_name: 'Read', tool_input: { file_path: 'src/index.js' } },
-  'ALLOWED'
+  'ALLOWED',
 );
 if (result.success) {
   console.log(`✓ ${result.name}: ${result.actual}`);
   passed++;
 } else {
-  console.log(`✗ ${result.name}: expected ${result.expected}, got ${result.actual}`);
+  console.log(
+    `✗ ${result.name}: expected ${result.expected}, got ${result.actual}`,
+  );
   failed++;
 }
 
 // Test 4: Comments and empty lines ignored
 console.log('\n--- Test 4: Comments and empty lines handled ---');
-writeAdfIgnore(['# This is a comment', '', 'blockeddir', '# Another comment', '']);
+writeAdfIgnore([
+  '# This is a comment',
+  '',
+  'blockeddir',
+  '# Another comment',
+  '',
+]);
 
 result = runTest(
   'blockeddir blocked',
   { tool_name: 'Read', tool_input: { file_path: 'blockeddir/file.txt' } },
-  'BLOCKED'
+  'BLOCKED',
 );
 if (result.success) {
   console.log(`✓ ${result.name}: ${result.actual}`);
   passed++;
 } else {
-  console.log(`✗ ${result.name}: expected ${result.expected}, got ${result.actual}`);
+  console.log(
+    `✗ ${result.name}: expected ${result.expected}, got ${result.actual}`,
+  );
   failed++;
 }
 
 result = runTest(
   'otherdir allowed',
   { tool_name: 'Read', tool_input: { file_path: 'otherdir/file.txt' } },
-  'ALLOWED'
+  'ALLOWED',
 );
 if (result.success) {
   console.log(`✓ ${result.name}: ${result.actual}`);
   passed++;
 } else {
-  console.log(`✗ ${result.name}: expected ${result.expected}, got ${result.actual}`);
+  console.log(
+    `✗ ${result.name}: expected ${result.expected}, got ${result.actual}`,
+  );
   failed++;
 }
 

@@ -27,15 +27,19 @@ function runHook(env = {}) {
   return new Promise((resolve, reject) => {
     const proc = spawn('node', [HOOK_PATH], {
       cwd: process.cwd(),
-      env: { ...process.env, ...env }
+      env: { ...process.env, ...env },
     });
 
     let stdout = '';
     let stderr = '';
     let settled = false;
 
-    proc.stdout.on('data', (data) => { stdout += data.toString(); });
-    proc.stderr.on('data', (data) => { stderr += data.toString(); });
+    proc.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+    proc.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
     proc.stdin.end();
 
     const timeoutId = setTimeout(() => {
@@ -87,7 +91,7 @@ describe('descriptive-name.cjs', () => {
       assert.strictEqual(
         parsed.hookSpecificOutput.hookEventName,
         'PreToolUse',
-        'hookEventName should be PreToolUse'
+        'hookEventName should be PreToolUse',
       );
     });
 
@@ -97,7 +101,7 @@ describe('descriptive-name.cjs', () => {
       assert.strictEqual(
         parsed.hookSpecificOutput.permissionDecision,
         'allow',
-        'Should always allow Write operations'
+        'Should always allow Write operations',
       );
     });
 
@@ -106,11 +110,11 @@ describe('descriptive-name.cjs', () => {
 
       assert.ok(
         parsed.hookSpecificOutput.additionalContext,
-        'Should include additionalContext'
+        'Should include additionalContext',
       );
       assert.ok(
         parsed.hookSpecificOutput.additionalContext.length > 0,
-        'additionalContext should not be empty'
+        'additionalContext should not be empty',
       );
     });
   });
@@ -122,11 +126,11 @@ describe('descriptive-name.cjs', () => {
 
       assert.ok(
         context.includes('kebab-case') && context.includes('JS/TS/Python'),
-        'Should mention kebab-case for JS/TS/Python/shell'
+        'Should mention kebab-case for JS/TS/Python/shell',
       );
       assert.ok(
         context.includes('.sh'),
-        'Should mention .sh extension for shell scripts'
+        'Should mention .sh extension for shell scripts',
       );
     });
 
@@ -136,23 +140,20 @@ describe('descriptive-name.cjs', () => {
 
       assert.ok(
         context.includes('PascalCase'),
-        'Should mention PascalCase for C#/Java/Kotlin/Swift'
+        'Should mention PascalCase for C#/Java/Kotlin/Swift',
       );
-      assert.ok(
-        context.includes('.cs'),
-        'Should mention .cs extension for C#'
-      );
+      assert.ok(context.includes('.cs'), 'Should mention .cs extension for C#');
       assert.ok(
         context.includes('.java'),
-        'Should mention .java extension for Java'
+        'Should mention .java extension for Java',
       );
       assert.ok(
         context.includes('.kt'),
-        'Should mention .kt extension for Kotlin'
+        'Should mention .kt extension for Kotlin',
       );
       assert.ok(
         context.includes('.swift'),
-        'Should mention .swift extension for Swift'
+        'Should mention .swift extension for Swift',
       );
     });
 
@@ -162,15 +163,15 @@ describe('descriptive-name.cjs', () => {
 
       assert.ok(
         context.includes('snake_case'),
-        'Should mention snake_case for Go/Rust'
+        'Should mention snake_case for Go/Rust',
       );
       assert.ok(
         context.includes('.go') || context.includes('Go'),
-        'Should mention Go extension or language'
+        'Should mention Go extension or language',
       );
       assert.ok(
         context.includes('.rs') || context.includes('Rust'),
-        'Should mention Rust extension or language'
+        'Should mention Rust extension or language',
       );
     });
 
@@ -181,7 +182,7 @@ describe('descriptive-name.cjs', () => {
       // The old implementation used "MUST use kebab-case" which caused issues
       assert.ok(
         !context.includes('must use kebab'),
-        'Should NOT use strict "MUST use kebab-case" language'
+        'Should NOT use strict "MUST use kebab-case" language',
       );
     });
 
@@ -191,7 +192,7 @@ describe('descriptive-name.cjs', () => {
 
       assert.ok(
         context.includes('prefer'),
-        'Should use soft "prefer" language for kebab-case'
+        'Should use soft "prefer" language for kebab-case',
       );
     });
 
@@ -200,8 +201,10 @@ describe('descriptive-name.cjs', () => {
       const context = parsed.hookSpecificOutput.additionalContext;
 
       assert.ok(
-        context.includes('Grep') || context.includes('Glob') || context.includes('Search'),
-        'Should mention LLM tools (Grep, Glob, Search) for discoverability'
+        context.includes('Grep') ||
+          context.includes('Glob') ||
+          context.includes('Search'),
+        'Should mention LLM tools (Grep, Glob, Search) for discoverability',
       );
     });
   });
@@ -211,7 +214,9 @@ describe('descriptive-name.cjs', () => {
     let originalCwd;
 
     beforeEach(() => {
-      tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'descriptive-name-test-'));
+      tempDir = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'descriptive-name-test-'),
+      );
       originalCwd = process.cwd();
     });
 
@@ -231,7 +236,7 @@ describe('descriptive-name.cjs', () => {
       fs.mkdirSync(configDir, { recursive: true });
       fs.writeFileSync(
         path.join(configDir, 'adf-config.json'),
-        JSON.stringify({ hooks: { 'descriptive-name': false } })
+        JSON.stringify({ hooks: { 'descriptive-name': false } }),
       );
 
       // Copy hook and its dependencies to temp dir
@@ -243,21 +248,29 @@ describe('descriptive-name.cjs', () => {
       fs.copyFileSync(HOOK_PATH, path.join(hooksDir, 'descriptive-name.cjs'));
       fs.copyFileSync(
         path.join(__dirname, '..', 'lib', 'ck-config-utils.cjs'),
-        path.join(libDir, 'ck-config-utils.cjs')
+        path.join(libDir, 'ck-config-utils.cjs'),
       );
 
       // Run from temp dir
       const { stdout, exitCode } = await new Promise((resolve, reject) => {
-        const proc = spawn('node', [path.join(hooksDir, 'descriptive-name.cjs')], {
-          cwd: tempDir,
-          env: process.env
-        });
+        const proc = spawn(
+          'node',
+          [path.join(hooksDir, 'descriptive-name.cjs')],
+          {
+            cwd: tempDir,
+            env: process.env,
+          },
+        );
 
         let stdout = '';
         let stderr = '';
 
-        proc.stdout.on('data', (data) => { stdout += data.toString(); });
-        proc.stderr.on('data', (data) => { stderr += data.toString(); });
+        proc.stdout.on('data', (data) => {
+          stdout += data.toString();
+        });
+        proc.stderr.on('data', (data) => {
+          stderr += data.toString();
+        });
         proc.stdin.end();
 
         proc.on('close', (code) => resolve({ stdout, stderr, exitCode: code }));
@@ -270,7 +283,11 @@ describe('descriptive-name.cjs', () => {
       });
 
       assert.strictEqual(exitCode, 0, 'Should exit with code 0 when disabled');
-      assert.strictEqual(stdout.trim(), '', 'Should output nothing when disabled');
+      assert.strictEqual(
+        stdout.trim(),
+        '',
+        'Should output nothing when disabled',
+      );
     });
   });
 
@@ -282,11 +299,11 @@ describe('descriptive-name.cjs', () => {
 
       assert.ok(
         hookContent.includes('catch (error)'),
-        'Hook should have error handling'
+        'Hook should have error handling',
       );
       assert.ok(
         hookContent.includes('process.exit(0)'),
-        'Hook should fail open (exit 0) on errors'
+        'Hook should fail open (exit 0) on errors',
       );
     });
   });

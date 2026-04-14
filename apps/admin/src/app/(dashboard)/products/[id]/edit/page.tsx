@@ -8,7 +8,10 @@ import { ProductVariantSkuForm } from '@/components/products/product-variant-sku
 import { ProductVariantsCrudForm } from '@/components/products/product-variants-crud-form';
 import type { AdminIdParams } from '../../_shared/products.interface';
 import { useAdminProduct } from '../../_shared/use-admin-product';
-import { onProductsAdminDone, useUpdateProductMutation } from '../../_shared/use-admin-product-mutations';
+import {
+  onProductsAdminDone,
+  useUpdateProductMutation,
+} from '../../_shared/use-admin-product-mutations';
 
 export default function ProductEditPage() {
   const router = useRouter();
@@ -16,7 +19,9 @@ export default function ProductEditPage() {
   const id = params?.id;
 
   const { data: product, isLoading, isError } = useAdminProduct(id);
-  const mutation = useUpdateProductMutation(id, { onDone: () => onProductsAdminDone(router) });
+  const mutation = useUpdateProductMutation(id, {
+    onDone: () => onProductsAdminDone(router),
+  });
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -28,8 +33,14 @@ export default function ProductEditPage() {
               <CardTitle className="text-base">Cập nhật sản phẩm</CardTitle>
             </CardHeader>
             <CardContent>
-              {isLoading ? <div className="py-8 text-sm text-gray-500">Đang tải…</div> : null}
-              {isError ? <div className="py-8 text-sm text-red-600">Không tìm thấy sản phẩm</div> : null}
+              {isLoading ? (
+                <div className="py-8 text-sm text-gray-500">Đang tải…</div>
+              ) : null}
+              {isError ? (
+                <div className="py-8 text-sm text-red-600">
+                  Không tìm thấy sản phẩm
+                </div>
+              ) : null}
               {product ? (
                 <ProductForm
                   initialProduct={product}
@@ -45,10 +56,15 @@ export default function ProductEditPage() {
           {product ? (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Cập nhật SKU biến thể</CardTitle>
+                <CardTitle className="text-base">
+                  Cập nhật SKU biến thể
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <ProductVariantSkuForm productId={product.id} variants={product.variants} />
+                <ProductVariantSkuForm
+                  productId={product.id}
+                  variants={product.variants}
+                />
               </CardContent>
             </Card>
           ) : null}
@@ -59,7 +75,10 @@ export default function ProductEditPage() {
                 <CardTitle className="text-base">Biến thể (CRUD)</CardTitle>
               </CardHeader>
               <CardContent>
-                <ProductVariantsCrudForm productId={product.id} variants={product.variants} />
+                <ProductVariantsCrudForm
+                  productId={product.id}
+                  variants={product.variants}
+                />
               </CardContent>
             </Card>
           ) : null}

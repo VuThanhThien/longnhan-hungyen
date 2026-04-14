@@ -15,12 +15,22 @@ const { renderDashboard } = require('./dashboard-renderer.cjs');
 let generateFullPage = null;
 let mdViewerAssetsDir = null;
 try {
-  const mdViewerDir = path.join(__dirname, '..', '..', '..', 'markdown-novel-viewer');
+  const mdViewerDir = path.join(
+    __dirname,
+    '..',
+    '..',
+    '..',
+    'markdown-novel-viewer',
+  );
   mdViewerAssetsDir = path.join(mdViewerDir, 'assets');
   // We need to call the server's generateFullPage function
   // Since it's not exported, we'll create a minimal wrapper
-  const { renderMarkdownFile, renderTOCHtml } = require(path.join(mdViewerDir, 'scripts', 'lib', 'markdown-renderer.cjs'));
-  const { generateNavSidebar, generateNavFooter, detectPlan } = require(path.join(mdViewerDir, 'scripts', 'lib', 'plan-navigator.cjs'));
+  const { renderMarkdownFile, renderTOCHtml } = require(
+    path.join(mdViewerDir, 'scripts', 'lib', 'markdown-renderer.cjs'),
+  );
+  const { generateNavSidebar, generateNavFooter, detectPlan } = require(
+    path.join(mdViewerDir, 'scripts', 'lib', 'plan-navigator.cjs'),
+  );
 
   generateFullPage = (filePath, options = {}) => {
     const { html, toc, frontmatter, title } = renderMarkdownFile(filePath);
@@ -28,7 +38,9 @@ try {
     const navSidebar = generateNavSidebar(filePath);
     const navFooter = generateNavFooter(filePath);
     const planInfo = detectPlan(filePath);
-    const { getNavigationContext } = require(path.join(mdViewerDir, 'scripts', 'lib', 'plan-navigator.cjs'));
+    const { getNavigationContext } = require(
+      path.join(mdViewerDir, 'scripts', 'lib', 'plan-navigator.cjs'),
+    );
     const navContext = getNavigationContext(filePath);
 
     const templatePath = path.join(mdViewerAssetsDir, 'template.html');
@@ -46,18 +58,20 @@ try {
     // Generate header nav (prev/next)
     let headerNav = '';
     if (navContext.prev || navContext.next) {
-      const prevBtn = navContext.prev && fs.existsSync(navContext.prev.file)
-        ? `<a href="/view?file=${encodeURIComponent(navContext.prev.file)}" class="header-nav-btn prev" title="${navContext.prev.name}">
+      const prevBtn =
+        navContext.prev && fs.existsSync(navContext.prev.file)
+          ? `<a href="/view?file=${encodeURIComponent(navContext.prev.file)}" class="header-nav-btn prev" title="${navContext.prev.name}">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
             <span>Prev</span>
           </a>`
-        : '';
-      const nextBtn = navContext.next && fs.existsSync(navContext.next.file)
-        ? `<a href="/view?file=${encodeURIComponent(navContext.next.file)}" class="header-nav-btn next" title="${navContext.next.name}">
+          : '';
+      const nextBtn =
+        navContext.next && fs.existsSync(navContext.next.file)
+          ? `<a href="/view?file=${encodeURIComponent(navContext.next.file)}" class="header-nav-btn next" title="${navContext.next.name}">
             <span>Next</span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
           </a>`
-        : '';
+          : '';
       headerNav = `<div class="header-nav">${prevBtn}${nextBtn}</div>`;
     }
 
@@ -86,7 +100,7 @@ let allowedBaseDirs = [];
  * @param {string[]} dirs - Array of allowed directory paths
  */
 function setAllowedDirs(dirs) {
-  allowedBaseDirs = dirs.map(d => path.resolve(d));
+  allowedBaseDirs = dirs.map((d) => path.resolve(d));
 }
 
 /**
@@ -102,7 +116,7 @@ function isPathSafe(filePath) {
   if (allowedBaseDirs.length === 0) {
     return true;
   }
-  return allowedBaseDirs.some(dir => resolved.startsWith(dir));
+  return allowedBaseDirs.some((dir) => resolved.startsWith(dir));
 }
 
 // MIME types
@@ -116,7 +130,7 @@ const MIME_TYPES = {
   '.jpeg': 'image/jpeg',
   '.gif': 'image/gif',
   '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon'
+  '.ico': 'image/x-icon',
 };
 
 function getMimeType(filePath) {
@@ -130,7 +144,11 @@ function sendResponse(res, statusCode, contentType, content) {
 }
 
 function sendError(res, statusCode, message) {
-  sendResponse(res, statusCode, 'text/html', `
+  sendResponse(
+    res,
+    statusCode,
+    'text/html',
+    `
     <!DOCTYPE html>
     <html>
     <head><title>Error ${statusCode}</title></head>
@@ -139,7 +157,8 @@ function sendError(res, statusCode, message) {
       <p>${message}</p>
     </body>
     </html>
-  `);
+  `,
+  );
 }
 
 function serveFile(res, filePath, skipValidation = false) {
@@ -215,7 +234,15 @@ function createHttpServer(options) {
       }
 
       if (!dir) {
-        sendResponse(res, 200, 'application/json', JSON.stringify({ plans: [], error: 'Plans directory not configured' }));
+        sendResponse(
+          res,
+          200,
+          'application/json',
+          JSON.stringify({
+            plans: [],
+            error: 'Plans directory not configured',
+          }),
+        );
         return;
       }
 
@@ -224,7 +251,12 @@ function createHttpServer(options) {
         sendResponse(res, 200, 'application/json', JSON.stringify({ plans }));
       } catch (err) {
         console.error('[http-server] API error:', err.message);
-        sendResponse(res, 500, 'application/json', JSON.stringify({ error: 'Error scanning plans' }));
+        sendResponse(
+          res,
+          500,
+          'application/json',
+          JSON.stringify({ error: 'Error scanning plans' }),
+        );
       }
       return;
     }
@@ -306,5 +338,5 @@ module.exports = {
   serveFile,
   isPathSafe,
   setAllowedDirs,
-  MIME_TYPES
+  MIME_TYPES,
 };

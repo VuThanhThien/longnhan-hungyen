@@ -39,12 +39,12 @@
 }
 
 /* Layout variants */
-.simple-editor-wrapper[data-layout="fullpage"] {
+.simple-editor-wrapper[data-layout='fullpage'] {
   min-height: 100vh;
   overflow: auto;
 }
 
-.simple-editor-wrapper[data-layout="embedded"] {
+.simple-editor-wrapper[data-layout='embedded'] {
   border: 1px solid var(--tt-editor-surface-border);
   border-radius: 12px;
   background: var(--tt-editor-surface);
@@ -53,7 +53,8 @@
 }
 
 /* Notion-ish toolbar treatment for embedded mode */
-.simple-editor-wrapper[data-layout="embedded"] .tiptap-toolbar[data-variant="fixed"] {
+.simple-editor-wrapper[data-layout='embedded']
+  .tiptap-toolbar[data-variant='fixed'] {
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--tt-editor-surface-border);

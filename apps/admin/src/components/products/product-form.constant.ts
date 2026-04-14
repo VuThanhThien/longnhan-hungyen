@@ -18,4 +18,3 @@ export const productFormSchema = yup.object({
 });
 
 export type ProductFormValues = yup.InferType<typeof productFormSchema>;
-

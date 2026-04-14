@@ -3,12 +3,17 @@ import type { PaginatedResponse } from '@/lib/types/api-paginated';
 
 const baseURL =
   typeof window === 'undefined'
-    ? process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1'
+    ? process.env.API_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      'http://localhost:3001/api/v1'
     : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
 export const apiClient = createLongnhanApi(baseURL);
 
-export async function fetchApi<T>(path: string, init?: { method?: string; body?: unknown }): Promise<T> {
+export async function fetchApi<T>(
+  path: string,
+  init?: { method?: string; body?: unknown },
+): Promise<T> {
   const method = init?.method ?? 'GET';
   if (method === 'GET' || !init?.body) {
     const { data } = await apiClient.get<T>(path);

@@ -3,10 +3,13 @@ import type { NextRequest } from 'next/server';
 import { AUTH_TOKEN_KEY, parseAuthTokens } from '@/lib/auth-token';
 
 export function proxy(request: NextRequest) {
-  const parsedAuth = parseAuthTokens(request.cookies.get(AUTH_TOKEN_KEY)?.value);
+  const parsedAuth = parseAuthTokens(
+    request.cookies.get(AUTH_TOKEN_KEY)?.value,
+  );
   const accessToken =
-    (parsedAuth?.tokenExpires && parsedAuth.tokenExpires > Date.now() ? parsedAuth.accessToken : undefined) ||
-    request.cookies.get('token')?.value;
+    (parsedAuth?.tokenExpires && parsedAuth.tokenExpires > Date.now()
+      ? parsedAuth.accessToken
+      : undefined) || request.cookies.get('token')?.value;
   const isLoginPage = request.nextUrl.pathname === '/login';
 
   if (!accessToken && !isLoginPage) {

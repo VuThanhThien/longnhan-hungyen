@@ -2,9 +2,13 @@
   "name": "longnhantongtran",
   "private": true,
   "pnpm": {
-    "ignoredBuiltDependencies": ["sharp", "unrs-resolver"]
+    "ignoredBuiltDependencies": [
+      "sharp",
+      "unrs-resolver"
+    ]
   },
   "scripts": {
+    "prepare": "husky || true",
     "dev": "turbo dev",
     "dev:api": "pnpm --filter @longnhan/api dev",
     "dev:web": "pnpm --filter @longnhan/web dev",
@@ -14,6 +18,7 @@
     "build:web": "pnpm --filter @longnhan/web build",
     "build:admin": "pnpm --filter @longnhan/admin build",
     "lint": "turbo lint",
+    "lint:fix": "turbo lint:fix",
     "lint:api": "pnpm --filter @longnhan/api lint",
     "lint:web": "pnpm --filter @longnhan/web lint",
     "lint:admin": "pnpm --filter @longnhan/admin lint",
@@ -25,12 +30,19 @@
     "type-check:api": "pnpm --filter @longnhan/api type-check",
     "type-check:web": "pnpm --filter @longnhan/web type-check",
     "type-check:admin": "pnpm --filter @longnhan/admin type-check",
+    "lint-staged": "lint-staged",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
     "docker:reset": "docker compose down -v && docker compose up -d"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.6",
+    "prettier": "^3.6.2",
+    "prettier-plugin-organize-imports": "^4.2.0",
     "turbo": "^2.5.0",
     "typescript": "^5.4.0"
   },

@@ -15,7 +15,10 @@ export function useProductsList(params?: {
   return useQuery({
     queryKey: queryKeys.products.list(params),
     queryFn: async () => {
-      const { data } = await apiClient.get<PaginatedResponse<Product>>('/products', { params });
+      const { data } = await apiClient.get<PaginatedResponse<Product>>(
+        '/products',
+        { params },
+      );
       return data;
     },
   });

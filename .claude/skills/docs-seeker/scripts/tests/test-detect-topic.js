@@ -4,7 +4,11 @@
  * Tests for detect-topic.js
  */
 
-const { detectTopic, normalizeTopic, normalizeLibrary } = require('../detect-topic');
+const {
+  detectTopic,
+  normalizeTopic,
+  normalizeLibrary,
+} = require('../detect-topic');
 
 // Test counter
 let passed = 0;
@@ -36,7 +40,11 @@ console.log('Running detect-topic.js tests...\n');
 
 // Test normalizeTopic
 console.log('## Testing normalizeTopic()');
-assertEqual(normalizeTopic('date picker'), 'date', 'Normalize multi-word topic');
+assertEqual(
+  normalizeTopic('date picker'),
+  'date',
+  'Normalize multi-word topic',
+);
 assertEqual(normalizeTopic('OAuth'), 'oauth', 'Normalize OAuth');
 assertEqual(normalizeTopic('Server-Side'), 'server', 'Normalize Server-Side');
 assertEqual(normalizeTopic('caching'), 'caching', 'Normalize caching');
@@ -45,7 +53,11 @@ assertEqual(normalizeTopic('caching'), 'caching', 'Normalize caching');
 console.log('\n## Testing normalizeLibrary()');
 assertEqual(normalizeLibrary('Next.js'), 'next.js', 'Normalize Next.js');
 assertEqual(normalizeLibrary('shadcn/ui'), 'shadcn/ui', 'Normalize shadcn/ui');
-assertEqual(normalizeLibrary('Better Auth'), 'better-auth', 'Normalize Better Auth');
+assertEqual(
+  normalizeLibrary('Better Auth'),
+  'better-auth',
+  'Normalize Better Auth',
+);
 
 // Test topic-specific queries
 console.log('\n## Testing topic-specific queries');
@@ -58,7 +70,10 @@ assertEqual(topicQuery1.library, 'shadcn/ui', 'Query 1 library is "shadcn/ui"');
 
 const topicQuery2 = detectTopic('Next.js caching strategies');
 assert(topicQuery2 !== null, 'Detect topic-specific query 2');
-assert(topicQuery2 && topicQuery2.isTopicSpecific === true, 'Query 2 is topic-specific');
+assert(
+  topicQuery2 && topicQuery2.isTopicSpecific === true,
+  'Query 2 is topic-specific',
+);
 if (topicQuery2) {
   assertEqual(topicQuery2.topic, 'caching', 'Query 2 topic is "caching"');
   assertEqual(topicQuery2.library, 'next.js', 'Query 2 library is "next.js"');

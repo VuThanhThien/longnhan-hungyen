@@ -1,9 +1,9 @@
 ---
 name: debug
-description: "Debug systematically with root cause analysis before fixes. Use for bugs, test failures, unexpected behavior, performance issues, call stack tracing, multi-layer validation, log analysis, CI/CD failures, database diagnostics, system investigation."
+description: 'Debug systematically with root cause analysis before fixes. Use for bugs, test failures, unexpected behavior, performance issues, call stack tracing, multi-layer validation, log analysis, CI/CD failures, database diagnostics, system investigation.'
 version: 4.0.0
 languages: all
-argument-hint: "[error or issue description]"
+argument-hint: '[error or issue description]'
 ---
 
 # Debugging & System Investigation
@@ -112,6 +112,7 @@ Frontend fix   → frontend-verification.md (Chrome/devtools)
 ## Red Flags
 
 Stop and follow process if thinking:
+
 - "Quick fix for now, investigate later"
 - "Just try changing X and see if it works"
 - "It's probably X, let me fix that"

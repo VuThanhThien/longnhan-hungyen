@@ -25,7 +25,9 @@ export function UserMenu() {
               <User className="h-4 w-4" />
             </AvatarFallback>
           </Avatar>
-          <span className="text-sm font-medium text-gray-700 hidden sm:block">Admin</span>
+          <span className="text-sm font-medium text-gray-700 hidden sm:block">
+            Admin
+          </span>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">

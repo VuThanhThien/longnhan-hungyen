@@ -10,8 +10,12 @@ export const productSearchParamsParsers = {
   category: parseAsString,
 };
 
-export const productSearchParamsCache = createSearchParamsCache(productSearchParamsParsers);
+export const productSearchParamsCache = createSearchParamsCache(
+  productSearchParamsParsers,
+);
 
 export const loadProductSearchParams = createLoader(productSearchParamsParsers);
 
-export const serializeProductSearchUrl = createSerializer(productSearchParamsParsers);
+export const serializeProductSearchUrl = createSerializer(
+  productSearchParamsParsers,
+);

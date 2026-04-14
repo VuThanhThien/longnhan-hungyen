@@ -8,7 +8,14 @@ import { Header } from '@/components/layout/header';
 import { ListPagination } from '@/components/admin/list-pagination';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { buildAdminListQuery } from '@/lib/admin-list-query';
 import { toPaginated } from '@/lib/admin-data';
 import { formatCurrency, formatDateShort } from '@/lib/utils';
@@ -17,7 +24,13 @@ import type { Order } from '@longnhan/types';
 
 const PAGE_LIMIT = 30;
 
-const orderStatuses = ['pending', 'confirmed', 'shipping', 'delivered', 'cancelled'];
+const orderStatuses = [
+  'pending',
+  'confirmed',
+  'shipping',
+  'delivered',
+  'cancelled',
+];
 const paymentStatuses = ['pending', 'paid', 'failed'];
 
 /** URL stores YYYY-MM-DD; API expects ISO date strings */
@@ -57,7 +70,11 @@ export default function OrdersPageClient() {
     { limit: PAGE_LIMIT, defaultPage: 1 },
   );
 
-  const { data: raw, isLoading, isError } = useQuery({
+  const {
+    data: raw,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['orders', query],
     queryFn: () => adminClientGet<unknown>(`/orders?${query}`),
   });
@@ -80,7 +97,11 @@ export default function OrdersPageClient() {
             <CardTitle className="text-base">Bộ lọc</CardTitle>
           </CardHeader>
           <CardContent>
-            <form className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-6" method="get" action="/orders">
+            <form
+              className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-6"
+              method="get"
+              action="/orders"
+            >
               <div className="space-y-1">
                 <label className="text-sm text-gray-600" htmlFor="orderStatus">
                   Trạng thái đơn
@@ -100,7 +121,10 @@ export default function OrdersPageClient() {
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="text-sm text-gray-600" htmlFor="paymentStatus">
+                <label
+                  className="text-sm text-gray-600"
+                  htmlFor="paymentStatus"
+                >
                   Thanh toán
                 </label>
                 <select
@@ -158,8 +182,14 @@ export default function OrdersPageClient() {
             <CardTitle className="text-base">Danh sách đơn</CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoading ? <div className="py-8 text-sm text-gray-500">Đang tải…</div> : null}
-            {isError ? <div className="py-8 text-sm text-red-600">Tải dữ liệu thất bại</div> : null}
+            {isLoading ? (
+              <div className="py-8 text-sm text-gray-500">Đang tải…</div>
+            ) : null}
+            {isError ? (
+              <div className="py-8 text-sm text-red-600">
+                Tải dữ liệu thất bại
+              </div>
+            ) : null}
             <Table>
               <TableHeader>
                 <TableRow>
@@ -197,7 +227,10 @@ export default function OrdersPageClient() {
                 ))}
                 {orders.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="py-8 text-center text-gray-500">
+                    <TableCell
+                      colSpan={7}
+                      className="py-8 text-center text-gray-500"
+                    >
                       Không có đơn hàng phù hợp
                     </TableCell>
                   </TableRow>
@@ -220,4 +253,3 @@ export default function OrdersPageClient() {
     </div>
   );
 }
-

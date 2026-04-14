@@ -19,7 +19,13 @@ function normalizeStatus(status) {
   if (!status) return 'pending';
   const s = String(status).toLowerCase().trim();
   if (s === 'complete' || s === 'completed' || s === 'done') return 'completed';
-  if (s === 'in-progress' || s === 'in_progress' || s === 'active' || s === 'wip') return 'in-progress';
+  if (
+    s === 'in-progress' ||
+    s === 'in_progress' ||
+    s === 'active' ||
+    s === 'wip'
+  )
+    return 'in-progress';
   if (s === 'cancelled' || s === 'canceled') return 'cancelled';
   if (s === 'in-review' || s === 'review') return 'in-review';
   return 'pending';
@@ -63,7 +69,7 @@ function extractFromFrontmatter(content) {
       tags: Array.isArray(data.tags) ? data.tags : [],
       createdDate: data.created ? new Date(data.created) : null,
       completedDate: data.completed ? new Date(data.completed) : null,
-      assignee: data.assignee || null
+      assignee: data.assignee || null,
     };
   } catch (e) {
     // YAML parse error - fall back to regex
@@ -135,14 +141,16 @@ function extractHeaderMetadata(content) {
     issue: null,
     branch: null,
     planId: null,
-    headerStatus: null
+    headerStatus: null,
   };
 
   // Only look at first ~50 lines for header metadata
   const headerSection = content.split('\n').slice(0, 50).join('\n');
 
   // **Created:** 2025-12-01 or **Date:** 2025-12-11
-  const createdMatch = headerSection.match(/\*\*(?:Created|Date):?\*\*:?\s*(\d{4}-\d{2}-\d{2})/i);
+  const createdMatch = headerSection.match(
+    /\*\*(?:Created|Date):?\*\*:?\s*(\d{4}-\d{2}-\d{2})/i,
+  );
   if (createdMatch) {
     metadata.createdDate = new Date(createdMatch[1]);
   }
@@ -151,26 +159,34 @@ function extractHeaderMetadata(content) {
   const statusMatch = headerSection.match(/\*\*Status:?\*\*:?\s*(.+)/i);
   if (statusMatch) {
     metadata.headerStatus = statusMatch[1].trim();
-    const completedMatch = statusMatch[1].match(/(?:complete|done).*?(\d{4}-\d{2}-\d{2})/i);
+    const completedMatch = statusMatch[1].match(
+      /(?:complete|done).*?(\d{4}-\d{2}-\d{2})/i,
+    );
     if (completedMatch) {
       metadata.completedDate = new Date(completedMatch[1]);
     }
   }
 
   // **Priority:** P1 - High
-  const priorityMatch = headerSection.match(/\*\*Priority:?\*\*:?\s*(P[0-3]|High|Medium|Low)/i);
+  const priorityMatch = headerSection.match(
+    /\*\*Priority:?\*\*:?\s*(P[0-3]|High|Medium|Low)/i,
+  );
   if (priorityMatch) {
     metadata.priority = priorityMatch[1].toUpperCase();
   }
 
   // **Issue:** #74 or **Issue**: https://github.com/.../issues/74
-  const issueMatch = headerSection.match(/\*\*Issue:?\*\*:?\s*(?:#(\d+)|.*?issues\/(\d+))/i);
+  const issueMatch = headerSection.match(
+    /\*\*Issue:?\*\*:?\s*(?:#(\d+)|.*?issues\/(\d+))/i,
+  );
   if (issueMatch) {
     metadata.issue = issueMatch[1] || issueMatch[2];
   }
 
   // **Branch:** `kai/feat/feature-name` or **Branch:** kai/feat/feature-name
-  const branchMatch = headerSection.match(/\*\*Branch:?\*\*:?\s*`?([^`\n]+)`?/i);
+  const branchMatch = headerSection.match(
+    /\*\*Branch:?\*\*:?\s*`?([^`\n]+)`?/i,
+  );
   if (branchMatch) {
     metadata.branch = branchMatch[1].trim();
   }
@@ -222,13 +238,14 @@ function parseEffortToHours(effortStr) {
 function extractEffortFromTable(content) {
   const result = {
     totalEffort: 0,
-    phaseEfforts: []
+    phaseEfforts: [],
   };
 
   // Match table rows with effort column
   // Pattern: | Phase | Description | Status | Effort |
   // Or: | [Phase 1](path) | Description | Status | 4h |
-  const tableRowRegex = /\|[^|]*\|[^|]*\|[^|]*\|\s*(\d+(?:\.\d+)?\s*(?:h|m|d|hours?|min|days?)?)\s*\|/gi;
+  const tableRowRegex =
+    /\|[^|]*\|[^|]*\|[^|]*\|\s*(\d+(?:\.\d+)?\s*(?:h|m|d|hours?|min|days?)?)\s*\|/gi;
 
   let match;
   let phaseNum = 1;
@@ -239,7 +256,7 @@ function extractEffortFromTable(content) {
       result.phaseEfforts.push({
         phase: phaseNum,
         effort,
-        effortStr
+        effortStr,
       });
       result.totalEffort += effort;
       phaseNum++;
@@ -300,14 +317,18 @@ function extractPlanMetadata(planFilePath) {
 
   // Merge frontmatter with regex fallback
   // Frontmatter takes priority, regex fills gaps
-  const createdDate = frontmatter?.createdDate || headerMeta.createdDate || dirDate || null;
-  const completedDate = frontmatter?.completedDate || headerMeta.completedDate || null;
-  const priority = frontmatter?.priority || normalizePriority(headerMeta.priority);
+  const createdDate =
+    frontmatter?.createdDate || headerMeta.createdDate || dirDate || null;
+  const completedDate =
+    frontmatter?.completedDate || headerMeta.completedDate || null;
+  const priority =
+    frontmatter?.priority || normalizePriority(headerMeta.priority);
   const issue = frontmatter?.issue || headerMeta.issue;
   const branch = frontmatter?.branch || headerMeta.branch;
 
   // Extract description: frontmatter > Overview section
-  const description = frontmatter?.description || extractDescriptionFromOverview(content);
+  const description =
+    frontmatter?.description || extractDescriptionFromOverview(content);
 
   // Tags from frontmatter only (no regex extraction for tags)
   const tags = frontmatter?.tags || [];
@@ -337,9 +358,7 @@ function extractPlanMetadata(planFilePath) {
 
     // Effort
     totalEffortHours: totalEffort,
-    totalEffortFormatted: totalEffort > 0
-      ? `${totalEffort.toFixed(1)}h`
-      : null,
+    totalEffortFormatted: totalEffort > 0 ? `${totalEffort.toFixed(1)}h` : null,
     phaseEfforts: effortData.phaseEfforts,
 
     // Metadata (merged from frontmatter + regex)
@@ -355,7 +374,7 @@ function extractPlanMetadata(planFilePath) {
     headerStatus: frontmatter?.status || headerMeta.headerStatus,
 
     // Source indicator for debugging
-    hasFrontmatter: !!frontmatter
+    hasFrontmatter: !!frontmatter,
   };
 }
 
@@ -376,7 +395,7 @@ function generateTimelineStats(plans) {
     totalEffortHours: 0,
     completedEffortHours: 0,
     thisWeekCompleted: 0,
-    thisMonthCompleted: 0
+    thisMonthCompleted: 0,
   };
 
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -406,8 +425,14 @@ function generateTimelineStats(plans) {
     if (plan.durationDays > 0) {
       totalDuration += plan.durationDays;
       durationCount++;
-      if (!stats.longestPlan || plan.durationDays > stats.longestPlan.durationDays) {
-        stats.longestPlan = { name: plan.name, durationDays: plan.durationDays };
+      if (
+        !stats.longestPlan ||
+        plan.durationDays > stats.longestPlan.durationDays
+      ) {
+        stats.longestPlan = {
+          name: plan.name,
+          durationDays: plan.durationDays,
+        };
       }
     }
 
@@ -417,9 +442,8 @@ function generateTimelineStats(plans) {
     }
   }
 
-  stats.avgDurationDays = durationCount > 0
-    ? Math.round(totalDuration / durationCount)
-    : 0;
+  stats.avgDurationDays =
+    durationCount > 0 ? Math.round(totalDuration / durationCount) : 0;
 
   return stats;
 }
@@ -456,9 +480,12 @@ function generateActivityHeatmap(plans) {
 
     weeks.push({
       weekStart: weekStart.toISOString(),
-      weekLabel: weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      weekLabel: weekStart.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+      }),
       activity,
-      level: activity === 0 ? 0 : activity === 1 ? 1 : activity <= 3 ? 2 : 3
+      level: activity === 0 ? 0 : activity === 1 ? 1 : activity <= 3 ? 2 : 3,
     });
   }
 
@@ -485,5 +512,5 @@ module.exports = {
 
   // Statistics generators
   generateTimelineStats,
-  generateActivityHeatmap
+  generateActivityHeatmap,
 };

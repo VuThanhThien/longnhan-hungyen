@@ -8,7 +8,14 @@ import { useSearchParams } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import { ListPagination } from '@/components/admin/list-pagination';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { buildAdminListQuery } from '@/lib/admin-list-query';
 import { toPaginated } from '@/lib/admin-data';
 import { formatDateShort } from '@/lib/utils';
@@ -43,7 +50,11 @@ export default function ArticlesPageClient() {
     );
   }, [page, params.q, params.tag]);
 
-  const { data: raw, isLoading, isError } = useQuery({
+  const {
+    data: raw,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['articles', 'admin', queryString],
     queryFn: () => adminClientGet<unknown>(`/articles/admin?${queryString}`),
   });
@@ -80,7 +91,11 @@ export default function ArticlesPageClient() {
             <CardTitle className="text-base">Bộ lọc</CardTitle>
           </CardHeader>
           <CardContent>
-            <form className="grid grid-cols-1 gap-4 md:grid-cols-4" method="get" action="/articles">
+            <form
+              className="grid grid-cols-1 gap-4 md:grid-cols-4"
+              method="get"
+              action="/articles"
+            >
               <div className="space-y-1 md:col-span-2">
                 <label className="text-sm text-gray-600" htmlFor="q">
                   Tìm theo tiêu đề
@@ -130,8 +145,14 @@ export default function ArticlesPageClient() {
             </Link>
           </CardHeader>
           <CardContent>
-            {isLoading ? <div className="py-8 text-sm text-gray-500">Đang tải…</div> : null}
-            {isError ? <div className="py-8 text-sm text-red-600">Tải dữ liệu thất bại</div> : null}
+            {isLoading ? (
+              <div className="py-8 text-sm text-gray-500">Đang tải…</div>
+            ) : null}
+            {isError ? (
+              <div className="py-8 text-sm text-red-600">
+                Tải dữ liệu thất bại
+              </div>
+            ) : null}
             <Table>
               <TableHeader>
                 <TableRow>
@@ -157,17 +178,28 @@ export default function ArticlesPageClient() {
                       <button
                         type="button"
                         className="text-sm text-red-600 hover:underline disabled:opacity-60"
-                        disabled={deleteMutation.isPending && deletingId === String(article.id)}
-                        onClick={() => deleteMutation.mutate(String(article.id))}
+                        disabled={
+                          deleteMutation.isPending &&
+                          deletingId === String(article.id)
+                        }
+                        onClick={() =>
+                          deleteMutation.mutate(String(article.id))
+                        }
                       >
-                        {deleteMutation.isPending && deletingId === String(article.id) ? 'Đang xóa…' : 'Xóa'}
+                        {deleteMutation.isPending &&
+                        deletingId === String(article.id)
+                          ? 'Đang xóa…'
+                          : 'Xóa'}
                       </button>
                     </TableCell>
                   </TableRow>
                 ))}
                 {articles.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="py-8 text-center text-gray-500">
+                    <TableCell
+                      colSpan={4}
+                      className="py-8 text-center text-gray-500"
+                    >
                       Chưa có bài viết phù hợp
                     </TableCell>
                   </TableRow>
@@ -190,4 +222,3 @@ export default function ArticlesPageClient() {
     </div>
   );
 }
-

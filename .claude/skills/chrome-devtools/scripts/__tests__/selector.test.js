@@ -76,63 +76,64 @@ describe('parseSelector', () => {
     it('should block javascript: injection', () => {
       assert.throws(
         () => parseSelector('//button[@onclick="javascript:alert(1)"]'),
-        /XPath injection detected.*javascript:/i
+        /XPath injection detected.*javascript:/i,
       );
     });
 
     it('should block <script tag injection', () => {
       assert.throws(
-        () => parseSelector('//div[contains(text(),"<script>alert(1)</script>")]'),
-        /XPath injection detected.*<script/i
+        () =>
+          parseSelector('//div[contains(text(),"<script>alert(1)</script>")]'),
+        /XPath injection detected.*<script/i,
       );
     });
 
     it('should block onerror= injection', () => {
       assert.throws(
         () => parseSelector('//img[@onerror="alert(1)"]'),
-        /XPath injection detected.*onerror=/i
+        /XPath injection detected.*onerror=/i,
       );
     });
 
     it('should block onload= injection', () => {
       assert.throws(
         () => parseSelector('//body[@onload="malicious()"]'),
-        /XPath injection detected.*onload=/i
+        /XPath injection detected.*onload=/i,
       );
     });
 
     it('should block onclick= injection', () => {
       assert.throws(
         () => parseSelector('//a[@onclick="steal()"]'),
-        /XPath injection detected.*onclick=/i
+        /XPath injection detected.*onclick=/i,
       );
     });
 
     it('should block eval( injection', () => {
       assert.throws(
         () => parseSelector('//div[eval("malicious")]'),
-        /XPath injection detected.*eval\(/i
+        /XPath injection detected.*eval\(/i,
       );
     });
 
     it('should block Function( injection', () => {
       assert.throws(
         () => parseSelector('//div[Function("return 1")()]'),
-        /XPath injection detected.*Function\(/i
+        /XPath injection detected.*Function\(/i,
       );
     });
 
     it('should block constructor( injection', () => {
       assert.throws(
         () => parseSelector('//div[constructor("alert(1)")()]'),
-        /XPath injection detected.*constructor\(/i
+        /XPath injection detected.*constructor\(/i,
       );
     });
 
     it('should be case-insensitive for security checks', () => {
       assert.throws(
         () => parseSelector('//div[@ONERROR="alert(1)"]'),
-        /XPath injection detected/i
+        /XPath injection detected/i,
       );
     });
 
@@ -140,7 +141,7 @@ describe('parseSelector', () => {
       const longSelector = '//' + 'a'.repeat(1001);
       assert.throws(
         () => parseSelector(longSelector),
-        /XPath selector too long/i
+        /XPath selector too long/i,
       );
     });
   });
@@ -149,28 +150,28 @@ describe('parseSelector', () => {
     it('should throw on empty string', () => {
       assert.throws(
         () => parseSelector(''),
-        /Selector must be a non-empty string/
+        /Selector must be a non-empty string/,
       );
     });
 
     it('should throw on null', () => {
       assert.throws(
         () => parseSelector(null),
-        /Selector must be a non-empty string/
+        /Selector must be a non-empty string/,
       );
     });
 
     it('should throw on undefined', () => {
       assert.throws(
         () => parseSelector(undefined),
-        /Selector must be a non-empty string/
+        /Selector must be a non-empty string/,
       );
     });
 
     it('should throw on non-string input', () => {
       assert.throws(
         () => parseSelector(123),
-        /Selector must be a non-empty string/
+        /Selector must be a non-empty string/,
       );
     });
 
@@ -193,12 +194,16 @@ describe('parseSelector', () => {
     });
 
     it('should handle complex form selector', () => {
-      const result = parseSelector('//form[@id="login-form"]//input[@type="email"]');
+      const result = parseSelector(
+        '//form[@id="login-form"]//input[@type="email"]',
+      );
       assert.strictEqual(result.type, 'xpath');
     });
 
     it('should handle descendant selector', () => {
-      const result = parseSelector('//div[@class="modal"]//button[@class="close"]');
+      const result = parseSelector(
+        '//div[@class="modal"]//button[@class="close"]',
+      );
       assert.strictEqual(result.type, 'xpath');
     });
 

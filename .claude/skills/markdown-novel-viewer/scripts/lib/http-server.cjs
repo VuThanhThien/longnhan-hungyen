@@ -24,7 +24,7 @@ let allowedBaseDirs = [];
  * @param {string[]} dirs - Array of allowed directory paths
  */
 function setAllowedDirs(dirs) {
-  allowedBaseDirs = dirs.map(d => path.resolve(d));
+  allowedBaseDirs = dirs.map((d) => path.resolve(d));
 }
 
 /**
@@ -47,7 +47,7 @@ function isPathSafe(filePath, allowedDirs = allowedBaseDirs) {
   }
 
   // Must be within one of the allowed directories
-  return allowedDirs.some(dir => resolved.startsWith(dir));
+  return allowedDirs.some((dir) => resolved.startsWith(dir));
 }
 
 /**
@@ -72,7 +72,7 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon',
   '.md': 'text/markdown',
   '.txt': 'text/plain',
-  '.pdf': 'application/pdf'
+  '.pdf': 'application/pdf',
 };
 
 /**
@@ -96,7 +96,11 @@ function sendResponse(res, statusCode, contentType, content) {
  */
 function sendError(res, statusCode, message) {
   const safeMessage = sanitizeErrorMessage(message);
-  sendResponse(res, statusCode, 'text/html', `
+  sendResponse(
+    res,
+    statusCode,
+    'text/html',
+    `
     <!DOCTYPE html>
     <html>
     <head><title>Error ${statusCode}</title></head>
@@ -105,7 +109,8 @@ function sendError(res, statusCode, message) {
       <p>${safeMessage}</p>
     </body>
     </html>
-  `);
+  `,
+  );
 }
 
 /**
@@ -153,7 +158,7 @@ function getFileIcon(filename) {
     '.toml': '⚙️',
     '.env': '🔐',
     '.sh': '💻',
-    '.bash': '💻'
+    '.bash': '💻',
   };
   return iconMap[ext] || '📄';
 }
@@ -163,7 +168,8 @@ function getFileIcon(filename) {
  */
 function renderDirectoryBrowser(dirPath, assetsDir) {
   const items = fs.readdirSync(dirPath);
-  const displayPath = dirPath.length > 50 ? '...' + dirPath.slice(-47) : dirPath;
+  const displayPath =
+    dirPath.length > 50 ? '...' + dirPath.slice(-47) : dirPath;
 
   // Separate directories and files, sort alphabetically
   const dirs = [];
@@ -328,7 +334,11 @@ function createHttpServer(options) {
       const filePath = parsedUrl.query?.file;
 
       if (!filePath) {
-        sendError(res, 400, 'Missing ?file= parameter. Use /view?file=/path/to/file.md');
+        sendError(
+          res,
+          400,
+          'Missing ?file= parameter. Use /view?file=/path/to/file.md',
+        );
         return;
       }
 
@@ -357,7 +367,11 @@ function createHttpServer(options) {
       const dirPath = parsedUrl.query?.dir;
 
       if (!dirPath) {
-        sendError(res, 400, 'Missing ?dir= parameter. Use /browse?dir=/path/to/directory');
+        sendError(
+          res,
+          400,
+          'Missing ?dir= parameter. Use /browse?dir=/path/to/directory',
+        );
         return;
       }
 
@@ -383,7 +397,11 @@ function createHttpServer(options) {
 
     // Route: / - show welcome/usage page
     if (pathname === '/') {
-      sendResponse(res, 200, 'text/html', `
+      sendResponse(
+        res,
+        200,
+        'text/html',
+        `
         <!DOCTYPE html>
         <html>
         <head>
@@ -408,7 +426,8 @@ function createHttpServer(options) {
           <p>Use the <code>/preview</code> command to start viewing files.</p>
         </body>
         </html>
-      `);
+      `,
+      );
       return;
     }
 
@@ -430,5 +449,5 @@ module.exports = {
   sanitizeErrorMessage,
   MIME_TYPES,
   renderDirectoryBrowser,
-  getFileIcon
+  getFileIcon,
 };

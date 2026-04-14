@@ -10,7 +10,10 @@ interface ProductVariantSkuFormProps {
   variants: Product['variants'];
 }
 
-export function ProductVariantSkuForm({ productId, variants }: ProductVariantSkuFormProps) {
+export function ProductVariantSkuForm({
+  productId,
+  variants,
+}: ProductVariantSkuFormProps) {
   const mutation = useUpdateProductVariantSkuMutation(productId);
 
   // Only store edits. Saved values always come from `variants`.
@@ -25,7 +28,7 @@ export function ProductVariantSkuForm({ productId, variants }: ProductVariantSku
       </div>
 
       {(variants ?? []).map((variant) => {
-        const currentSku = editsById[variant.id] ?? (variant.skuCode ?? '');
+        const currentSku = editsById[variant.id] ?? variant.skuCode ?? '';
         const savedSku = variant.skuCode ?? '';
         const isDirty = currentSku !== savedSku;
 
@@ -57,7 +60,10 @@ export function ProductVariantSkuForm({ productId, variants }: ProductVariantSku
                 disabled={mutation.isPending || !isDirty}
                 className="inline-flex h-9 items-center rounded-md bg-green-600 px-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
                 onClick={async () => {
-                  await mutation.mutateAsync({ variantId: variant.id, skuCode: currentSku });
+                  await mutation.mutateAsync({
+                    variantId: variant.id,
+                    skuCode: currentSku,
+                  });
                   setEditsById((prev) => {
                     const next = { ...prev };
                     delete next[variant.id];
@@ -67,7 +73,9 @@ export function ProductVariantSkuForm({ productId, variants }: ProductVariantSku
               >
                 Lưu SKU
               </button>
-              {isDirty ? <span className="text-xs text-amber-700">Chưa lưu</span> : null}
+              {isDirty ? (
+                <span className="text-xs text-amber-700">Chưa lưu</span>
+              ) : null}
             </div>
           </div>
         );
@@ -75,4 +83,3 @@ export function ProductVariantSkuForm({ productId, variants }: ProductVariantSku
     </div>
   );
 }
-

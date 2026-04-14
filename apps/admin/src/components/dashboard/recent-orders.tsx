@@ -4,13 +4,26 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency, formatDate } from '@/lib/utils';
 
-const orderStatusLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'warning' | 'success' | 'info' | 'outline' }> = {
-  pending:    { label: 'Chờ xác nhận', variant: 'warning' },
-  confirmed:  { label: 'Đã xác nhận',  variant: 'info' },
-  processing: { label: 'Đang xử lý',   variant: 'info' },
-  shipped:    { label: 'Đang giao',     variant: 'secondary' },
-  delivered:  { label: 'Đã giao',       variant: 'success' },
-  cancelled:  { label: 'Đã hủy',        variant: 'destructive' },
+const orderStatusLabels: Record<
+  string,
+  {
+    label: string;
+    variant:
+      | 'default'
+      | 'secondary'
+      | 'destructive'
+      | 'warning'
+      | 'success'
+      | 'info'
+      | 'outline';
+  }
+> = {
+  pending: { label: 'Chờ xác nhận', variant: 'warning' },
+  confirmed: { label: 'Đã xác nhận', variant: 'info' },
+  processing: { label: 'Đang xử lý', variant: 'info' },
+  shipped: { label: 'Đang giao', variant: 'secondary' },
+  delivered: { label: 'Đã giao', variant: 'success' },
+  cancelled: { label: 'Đã hủy', variant: 'destructive' },
 };
 
 interface RecentOrdersProps {
@@ -28,11 +41,16 @@ export function RecentOrders({ orders }: RecentOrdersProps) {
       </CardHeader>
       <CardContent>
         {orders.length === 0 ? (
-          <p className="text-sm text-gray-500 text-center py-8">Chưa có đơn hàng nào</p>
+          <p className="text-sm text-gray-500 text-center py-8">
+            Chưa có đơn hàng nào
+          </p>
         ) : (
           <div className="space-y-3">
             {orders.map((order) => {
-              const status = orderStatusLabels[order.orderStatus] ?? { label: order.orderStatus, variant: 'secondary' as const };
+              const status = orderStatusLabels[order.orderStatus] ?? {
+                label: order.orderStatus,
+                variant: 'secondary' as const,
+              };
               return (
                 <Link
                   key={order.id}
@@ -40,8 +58,12 @@ export function RecentOrders({ orders }: RecentOrdersProps) {
                   className="flex items-center justify-between rounded-md p-3 hover:bg-gray-50 transition-colors"
                 >
                   <div className="space-y-0.5">
-                    <p className="text-sm font-medium text-gray-900">{order.code}</p>
-                    <p className="text-xs text-gray-500">{order.customerName} · {formatDate(order.createdAt)}</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {order.code}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {order.customerName} · {formatDate(order.createdAt)}
+                    </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <Badge variant={status.variant}>{status.label}</Badge>

@@ -7,17 +7,24 @@ interface OrderSuccessPageProps {
 
 export const metadata: Metadata = {
   title: 'Dat hang thanh cong',
-  description: 'Don hang cua ban da duoc ghi nhan. Chung toi se lien he xac nhan som.',
+  description:
+    'Don hang cua ban da duoc ghi nhan. Chung toi se lien he xac nhan som.',
   robots: {
     index: false,
     follow: false,
   },
 };
 
-export default async function OrderSuccessPage({ searchParams }: OrderSuccessPageProps) {
+export default async function OrderSuccessPage({
+  searchParams,
+}: OrderSuccessPageProps) {
   const params = await searchParams;
   const orderCode =
-    typeof params.code === 'string' ? params.code : Array.isArray(params.code) ? params.code[0] : null;
+    typeof params.code === 'string'
+      ? params.code
+      : Array.isArray(params.code)
+        ? params.code[0]
+        : null;
 
   return (
     <section className="mx-auto max-w-3xl px-4 py-16">
@@ -25,9 +32,12 @@ export default async function OrderSuccessPage({ searchParams }: OrderSuccessPag
         <p className="text-5xl mb-4" aria-hidden="true">
           ✅
         </p>
-        <h1 className="text-2xl md:text-3xl font-bold text-green-900">Dat hang thanh cong</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-green-900">
+          Dat hang thanh cong
+        </h1>
         <p className="mt-3 text-gray-700">
-          Cam on ban da dat hang. Doi ngu Long Nhan Tong Tran se lien he xac nhan don trong thoi gian som nhat.
+          Cam on ban da dat hang. Doi ngu Long Nhan Tong Tran se lien he xac
+          nhan don trong thoi gian som nhat.
         </p>
         {orderCode ? (
           <p className="mt-4 text-sm text-green-800">

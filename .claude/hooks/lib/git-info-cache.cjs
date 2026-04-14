@@ -30,7 +30,7 @@ function execIn(cmd, cwd) {
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'ignore'],
       windowsHide: true,
-      cwd: cwd || undefined
+      cwd: cwd || undefined,
     }).trim();
   } catch {
     return '';
@@ -74,7 +74,9 @@ function writeCache(cachePath, data) {
     fs.writeFileSync(tmpPath, JSON.stringify({ timestamp: Date.now(), data }));
     fs.renameSync(tmpPath, cachePath);
   } catch {
-    try { fs.unlinkSync(tmpPath); } catch {}
+    try {
+      fs.unlinkSync(tmpPath);
+    } catch {}
   }
 }
 
@@ -83,7 +85,7 @@ function writeCache(cachePath, data) {
  */
 function countLines(str) {
   if (!str) return 0;
-  return str.split('\n').filter(l => l.trim()).length;
+  return str.split('\n').filter((l) => l.trim()).length;
 }
 
 /**
@@ -98,13 +100,19 @@ function fetchGitInfo(cwd) {
     return null;
   }
 
-  const branch = execIn('git branch --show-current', cwd) || execIn('git rev-parse --short HEAD', cwd);
+  const branch =
+    execIn('git branch --show-current', cwd) ||
+    execIn('git rev-parse --short HEAD', cwd);
   const unstaged = countLines(execIn('git diff --name-only', cwd));
   const staged = countLines(execIn('git diff --cached --name-only', cwd));
 
   // Ahead/behind — no 2>/dev/null (invalid on Windows cmd.exe)
-  let ahead = 0, behind = 0;
-  const aheadBehind = execIn('git rev-list --left-right --count @{u}...HEAD', cwd);
+  let ahead = 0,
+    behind = 0;
+  const aheadBehind = execIn(
+    'git rev-list --left-right --count @{u}...HEAD',
+    cwd,
+  );
   if (aheadBehind) {
     const parts = aheadBehind.split(/\s+/);
     behind = parseInt(parts[0], 10) || 0;
@@ -137,7 +145,9 @@ function getGitInfo(cwd = process.cwd()) {
  * Invalidate cache for a directory (call after file changes to trigger fresh git query)
  */
 function invalidateCache(cwd = process.cwd()) {
-  try { fs.unlinkSync(getCachePath(cwd)); } catch {}
+  try {
+    fs.unlinkSync(getCachePath(cwd));
+  } catch {}
 }
 
 module.exports = { getGitInfo, invalidateCache };

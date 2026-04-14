@@ -51,6 +51,7 @@ Tasks are **session-scoped** — they disappear when the session ends. Plan file
 ## Cross-Session Resume
 
 When user runs `/cook path/to/plan.md` in a new session:
+
 1. `TaskList()` → empty (tasks died with old session)
 2. Read plan files → re-hydrate from unchecked `[ ]` items
 3. Already-checked `[x]` = done, creates tasks only for remaining work
@@ -59,6 +60,7 @@ When user runs `/cook path/to/plan.md` in a new session:
 ## Compound Interest Effect
 
 Each hydration cycle makes specs smarter:
+
 - **Session 1:** Execute first tasks, establish patterns
 - **Session 2:** See completed work, build on established patterns
 - **Session 3:** Full context of prior sessions, fewer clarifications needed
@@ -73,7 +75,7 @@ Plan files MUST have frontmatter with these fields:
 ---
 title: Feature name
 description: Brief description
-status: in-progress  # pending | in-progress | completed
+status: in-progress # pending | in-progress | completed
 priority: P1
 effort: medium
 branch: feature-branch

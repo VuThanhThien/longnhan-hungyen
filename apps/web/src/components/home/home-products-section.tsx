@@ -11,12 +11,20 @@ interface HomeProductsSectionProps {
 }
 
 export function HomeProductsSection({ products }: HomeProductsSectionProps) {
-  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
+  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(
+    null,
+  );
 
   return (
     <>
-      <HomeProductsByCategory products={products} onQuickView={setQuickViewProduct} />
-      <ProductQuickViewModal product={quickViewProduct} onClose={() => setQuickViewProduct(null)} />
+      <HomeProductsByCategory
+        products={products}
+        onQuickView={setQuickViewProduct}
+      />
+      <ProductQuickViewModal
+        product={quickViewProduct}
+        onClose={() => setQuickViewProduct(null)}
+      />
     </>
   );
 }

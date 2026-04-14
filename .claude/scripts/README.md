@@ -140,6 +140,7 @@ python .claude/scripts/generate_catalogs.py --help
 ### Input Files
 
 Located in the same directory as the script:
+
 - `skills_data.yaml` - Source data for skills
 
 ### Output

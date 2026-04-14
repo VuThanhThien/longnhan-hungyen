@@ -1,7 +1,7 @@
 ---
 name: project-management
-description: "Track progress, update plan statuses, manage Claude Tasks, generate reports, coordinate docs updates. Use for project oversight, status checks, plan completion, task hydration, cross-session continuity."
-argument-hint: "[task: status, hydrate, sync, report]"
+description: 'Track progress, update plan statuses, manage Claude Tasks, generate reports, coordinate docs updates. Use for project oversight, status checks, plan completion, task hydration, cross-session continuity.'
+argument-hint: '[task: status, hydrate, sync, report]'
 ---
 
 # Project Management
@@ -23,24 +23,29 @@ Project oversight and coordination using Claude native Tasks with persistent pla
 ## Core Capabilities
 
 ### 1. Task Operations
+
 Load: `references/task-operations.md`
 
 Use `TaskCreate`, `TaskUpdate`, `TaskGet`, `TaskList` to manage session-scoped tasks.
+
 - Create tasks with metadata (phase, priority, effort, planDir, phaseFile)
 - Track status: `pending` → `in_progress` → `completed`
 - Manage dependencies with `addBlockedBy` / `addBlocks`
 - Coordinate parallel agents with scoped ownership
 
 ### 2. Session Bridging (Hydration Pattern)
+
 Load: `references/hydration-workflow.md`
 
 Tasks are ephemeral. Plan files are persistent. The hydration pattern bridges them:
+
 - **Hydrate:** Read plan `[ ]` items → `TaskCreate` per unchecked item
 - **Work:** `TaskUpdate` tracks progress in real-time
 - **Sync-back:** Reconcile all completed tasks against all phase files, update `[ ]` → `[x]`, update YAML frontmatter status
 - **Resume:** Next session re-hydrates from remaining `[ ]` items
 
 ### 3. Progress Tracking
+
 Load: `references/progress-tracking.md`
 
 - Scan `./plans/*/plan.md` for active plans
@@ -50,9 +55,11 @@ Load: `references/progress-tracking.md`
 - Verify acceptance criteria met before marking complete
 
 ### 4. Documentation Coordination
+
 Load: `references/documentation-triggers.md`
 
 Trigger `./docs` updates when:
+
 - Phase status changes, major features complete
 - API contracts change, architecture decisions made
 - Security patches applied, breaking changes occur
@@ -60,9 +67,11 @@ Trigger `./docs` updates when:
 Delegate to `docs-manager` subagent for actual updates.
 
 ### 5. Status Reporting
+
 Load: `references/reporting-patterns.md`
 
 Generate reports: session summaries, plan completion, multi-plan overviews.
+
 - Use naming: `{reports-path}/pm-{date}-{time}-{slug}.md`
 - Sacrifice grammar for brevity; use tables over prose
 - List unresolved questions at end
@@ -97,7 +106,7 @@ All `plan.md` files MUST have:
 ```yaml
 ---
 title: Feature name
-status: in-progress  # pending | in-progress | completed
+status: in-progress # pending | in-progress | completed
 priority: P1
 effort: medium
 branch: feature-branch

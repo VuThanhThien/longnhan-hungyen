@@ -36,12 +36,12 @@ const plans = [
     progress: 0,
     lastModified: '2025-12-11T10:00:00Z',
     path: '"><script>alert(1)</script><"',
-    phases: { completed: 0, inProgress: 0, pending: 1, total: 1 }
-  }
+    phases: { completed: 0, inProgress: 0, pending: 1, total: 1 },
+  },
 ];
 
 const html = renderer.renderDashboard(plans, {
-  assetsDir: 'nonexistent' // Use fallback template
+  assetsDir: 'nonexistent', // Use fallback template
 });
 
 console.log('\nTest 3: Full dashboard render');
@@ -50,7 +50,10 @@ console.log(`Input: Malicious plan name and path`);
 // JSON will also contain escaped content but that's safe
 const cardSectionStart = html.indexOf('<article');
 const cardSectionEnd = html.indexOf('</article>');
-const cardContent = cardSectionStart !== -1 ? html.substring(cardSectionStart, cardSectionEnd) : '';
+const cardContent =
+  cardSectionStart !== -1
+    ? html.substring(cardSectionStart, cardSectionEnd)
+    : '';
 const hasEscapedInCard = cardContent.includes('&lt;script&gt;');
 const pass3 = hasEscapedInCard;
 console.log(`Result: ${pass3 ? 'PASS' : 'FAIL'}`);
@@ -60,7 +63,8 @@ console.log('\nTest 4: HTML structure validity');
 const hasDoctype = html.includes('<!DOCTYPE html');
 const hasHtmlClose = html.includes('</html>');
 const hasMain = html.includes('<main');
-const hasPlans = html.includes('{{plans-grid}}') || html.includes('class="plans-grid"');
+const hasPlans =
+  html.includes('{{plans-grid}}') || html.includes('class="plans-grid"');
 console.log(`DOCTYPE: ${hasDoctype ? 'PASS' : 'FAIL'}`);
 console.log(`Closing HTML: ${hasHtmlClose ? 'PASS' : 'FAIL'}`);
 console.log(`Main element: ${hasMain ? 'PASS' : 'FAIL'}`);

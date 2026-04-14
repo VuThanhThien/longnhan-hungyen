@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+set -e
+
+pnpm lint
+pnpm type-check
+
+changed_files="$(git diff --name-only HEAD HEAD~ -- '*.ts' '*.tsx' '*.js' '*.jsx' || true)"
+if [ -z "$changed_files" ]; then
+  exit 0
+fi
+
+if echo "$changed_files" | grep -qE '^apps/api/'; then
+  pnpm --filter @longnhan/api test
+fi
+

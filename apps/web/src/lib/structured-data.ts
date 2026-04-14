@@ -2,7 +2,12 @@
 // Used on product pages, article pages, and all pages (organization + breadcrumb)
 
 import type { Product, Article } from '@longnhan/types';
-import { SITE_URL, SITE_NAME, CONTACT_PHONE, CONTACT_ADDRESS } from './constants';
+import {
+  SITE_URL,
+  SITE_NAME,
+  CONTACT_PHONE,
+  CONTACT_ADDRESS,
+} from './constants';
 
 /** Organization schema — included in root layout */
 export function buildOrganizationSchema() {
@@ -38,11 +43,16 @@ export function buildBreadcrumbSchema(items: { name: string; url: string }[]) {
 /** Product schema with VND pricing */
 export function buildProductSchema(product: Product) {
   const activeVariants = product.variants.filter((v) => v.active || v.isActive);
-  const variantsForPrice = activeVariants.length > 0 ? activeVariants : product.variants;
+  const variantsForPrice =
+    activeVariants.length > 0 ? activeVariants : product.variants;
   const lowestPrice =
-    variantsForPrice.length > 0 ? Math.min(...variantsForPrice.map((v) => v.price)) : product.basePrice;
+    variantsForPrice.length > 0
+      ? Math.min(...variantsForPrice.map((v) => v.price))
+      : product.basePrice;
   const highestPrice =
-    variantsForPrice.length > 0 ? Math.max(...variantsForPrice.map((v) => v.price)) : product.basePrice;
+    variantsForPrice.length > 0
+      ? Math.max(...variantsForPrice.map((v) => v.price))
+      : product.basePrice;
   const imageList = product.images?.length
     ? product.images
     : product.imageUrls?.length

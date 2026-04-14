@@ -21,8 +21,19 @@ export default function BackToTopButton() {
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       className="fixed bottom-20 right-4 z-40 rounded-full border border-(--brand-gold)/40 bg-(--brand-cream) p-2.5 shadow-md transition hover:bg-(--brand-gold)/10 md:bottom-6"
     >
-      <svg className="h-5 w-5 text-(--brand-forest)" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+      <svg
+        className="h-5 w-5 text-(--brand-forest)"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M5 15l7-7 7 7"
+        />
       </svg>
     </button>
   );

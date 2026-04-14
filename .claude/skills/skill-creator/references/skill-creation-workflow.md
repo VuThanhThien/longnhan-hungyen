@@ -5,6 +5,7 @@
 ## Step 1: Understand with Concrete Examples
 
 Gather real usage patterns via `AskUserQuestion` tool:
+
 - "What tasks should this skill handle?"
 - "Give examples of how it would be used?"
 - "What phrases should trigger this skill?"
@@ -14,6 +15,7 @@ Conclude when functionality scope is clear.
 ## Step 2: Research
 
 Activate `/docs-seeker` and `/research` skills. Research:
+
 - Best practices & industry standards
 - Existing CLI tools (`npx`, `bunx`, `pipx`) for reuse
 - Workflows & case studies
@@ -25,12 +27,14 @@ Write reports for next step.
 ## Step 3: Plan Reusable Contents
 
 Analyze each example:
+
 1. How to execute from scratch?
 2. Prefer existing CLI tools over custom code
 3. What scripts/references/assets enable repeated execution?
 4. Check skills catalog — avoid duplication, reuse existing
 
 **Patterns:**
+
 - Repeated code → `scripts/` (Python/Node.js, with tests)
 - Repeated discovery → `references/` (schemas, docs, APIs)
 - Repeated boilerplate → `assets/` (templates, images)
@@ -51,6 +55,7 @@ Skip if skill already exists (go to Step 5).
 ## Step 5: Edit the Skill
 
 ### 5a: Implement Resources
+
 Start with `scripts/`, `references/`, `assets/` identified in Step 3.
 Delete unused example files from initialization.
 May require user input (brand assets, configs, etc.).
@@ -61,6 +66,7 @@ May require user input (brand assets, configs, etc.).
 **Size:** Under 150 lines. Move details to `references/`.
 
 Answer these in SKILL.md:
+
 1. Purpose (2-3 sentences)
 2. When to use (trigger conditions)
 3. How to use (reference all bundled resources)
@@ -68,6 +74,7 @@ Answer these in SKILL.md:
 ### 5c: Benchmark Optimization
 
 **MUST** include for high Skillmark scores:
+
 - **Scope declaration** — "This skill handles X. Does NOT handle Y."
 - **Security policy** — Refusal instructions + leakage prevention
 - **Structured workflows** — Numbered steps covering all expected concepts

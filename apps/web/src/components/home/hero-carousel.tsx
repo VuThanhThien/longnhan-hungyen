@@ -39,7 +39,11 @@ export function HeroCarousel() {
           Tinh hoa Phố Hiến
         </p>
         <h1 className="landing-heading max-w-xl text-4xl font-semibold leading-tight text-(--brand-forest) sm:text-5xl lg:text-[3.25rem] transition-opacity duration-500">
-          {lines.map((line, i) => <span key={i} className="block">{line}</span>)}
+          {lines.map((line, i) => (
+            <span key={i} className="block">
+              {line}
+            </span>
+          ))}
         </h1>
         <p className="mt-6 max-w-lg text-lg leading-relaxed text-(--brand-forest-muted)">
           {slide.subhead}
@@ -62,8 +66,25 @@ export function HeroCarousel() {
         {/* Dot indicators */}
         {count > 1 && (
           <div className="mt-8 flex items-center gap-4">
-            <button type="button" onClick={prev} aria-label="Slide trước" className="rounded-full p-1 text-(--brand-forest-muted) transition hover:text-(--brand-forest)">
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            <button
+              type="button"
+              onClick={prev}
+              aria-label="Slide trước"
+              className="rounded-full p-1 text-(--brand-forest-muted) transition hover:text-(--brand-forest)"
+            >
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
             </button>
             <div className="flex gap-2">
               {LANDING_HERO_SLIDES.map((_, i) => (
@@ -76,8 +97,25 @@ export function HeroCarousel() {
                 />
               ))}
             </div>
-            <button type="button" onClick={next} aria-label="Slide tiếp" className="rounded-full p-1 text-(--brand-forest-muted) transition hover:text-(--brand-forest)">
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            <button
+              type="button"
+              onClick={next}
+              aria-label="Slide tiếp"
+              className="rounded-full p-1 text-(--brand-forest-muted) transition hover:text-(--brand-forest)"
+            >
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
             </button>
           </div>
         )}

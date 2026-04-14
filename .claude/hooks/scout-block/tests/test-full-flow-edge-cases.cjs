@@ -3,13 +3,17 @@
  * test-full-flow-edge-cases.cjs - Edge case validation for full hook flow
  */
 
-const BUILD_COMMAND_PATTERN = /^(npm|pnpm|yarn|bun)\s+([^\s]+\s+)*(run\s+)?(build|test|lint|dev|start|install|ci|add|remove|update|publish|pack|init|create|exec)/;
-const TOOL_COMMAND_PATTERN = /^(npx|pnpx|bunx|tsc|esbuild|vite|webpack|rollup|turbo|nx|jest|vitest|mocha|eslint|prettier|go|cargo|make|mvn|gradle|dotnet)/;
+const BUILD_COMMAND_PATTERN =
+  /^(npm|pnpm|yarn|bun)\s+([^\s]+\s+)*(run\s+)?(build|test|lint|dev|start|install|ci|add|remove|update|publish|pack|init|create|exec)/;
+const TOOL_COMMAND_PATTERN =
+  /^(npx|pnpx|bunx|tsc|esbuild|vite|webpack|rollup|turbo|nx|jest|vitest|mocha|eslint|prettier|go|cargo|make|mvn|gradle|dotnet)/;
 
 function isBuildCommand(command) {
   if (!command || typeof command !== 'string') return false;
   const trimmed = command.trim();
-  return BUILD_COMMAND_PATTERN.test(trimmed) || TOOL_COMMAND_PATTERN.test(trimmed);
+  return (
+    BUILD_COMMAND_PATTERN.test(trimmed) || TOOL_COMMAND_PATTERN.test(trimmed)
+  );
 }
 
 console.log('=== FULL FLOW EDGE CASE VALIDATION ===\n');
@@ -27,7 +31,11 @@ const tests = [
   { cmd: 'go test ./...', expect: true, desc: 'go test' },
 
   // Should be BLOCKED (goes through path extraction)
-  { cmd: 'docker build .', expect: false, desc: 'docker build (not in allowlist)' },
+  {
+    cmd: 'docker build .',
+    expect: false,
+    desc: 'docker build (not in allowlist)',
+  },
   { cmd: 'cd proj && go build', expect: false, desc: 'chained with cd first' },
   { cmd: 'GOOS=linux go build', expect: false, desc: 'env var prefix' },
   { cmd: 'sudo go build', expect: false, desc: 'sudo prefix' },
@@ -47,7 +55,9 @@ for (const t of tests) {
     console.log(`\x1b[32m✓\x1b[0m ${t.desc}: "${t.cmd}" → ${result}`);
     passed++;
   } else {
-    console.log(`\x1b[31m✗\x1b[0m ${t.desc}: "${t.cmd}" → ${result} (expected ${t.expect})`);
+    console.log(
+      `\x1b[31m✗\x1b[0m ${t.desc}: "${t.cmd}" → ${result} (expected ${t.expect})`,
+    );
     failed++;
   }
 }
@@ -58,9 +68,18 @@ console.log(`\nResults: ${passed} passed, ${failed} failed`);
 console.log('\n=== EDGE CASES REQUIRING ATTENTION ===\n');
 
 const edgeCases = [
-  { cmd: 'docker build .', issue: 'docker not in TOOL_COMMAND_PATTERN - should it be?' },
-  { cmd: 'cd proj && go build', issue: 'Chained commands: first segment checked, not individual commands' },
-  { cmd: 'GOOS=linux go build', issue: 'Env var prefix breaks regex start anchor' },
+  {
+    cmd: 'docker build .',
+    issue: 'docker not in TOOL_COMMAND_PATTERN - should it be?',
+  },
+  {
+    cmd: 'cd proj && go build',
+    issue: 'Chained commands: first segment checked, not individual commands',
+  },
+  {
+    cmd: 'GOOS=linux go build',
+    issue: 'Env var prefix breaks regex start anchor',
+  },
   { cmd: 'php artisan build', issue: 'php/artisan not in patterns' },
   { cmd: 'bundle exec build', issue: 'ruby bundler not in patterns' },
 ];

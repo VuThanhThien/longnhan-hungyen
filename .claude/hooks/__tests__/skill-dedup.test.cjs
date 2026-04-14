@@ -21,7 +21,7 @@ const {
   doShadow,
   restoreOrphanedSkills,
   cleanupShadowedDir,
-  SKIP_DIRS
+  SKIP_DIRS,
 } = require('../skill-dedup.cjs');
 
 // -- Test helpers ------------------------------------------------------------
@@ -117,8 +117,11 @@ describe('findOverlaps', () => {
 
   it('finds overlapping names', () => {
     assert.deepStrictEqual(
-      findOverlaps(['cook', 'brainstorm', 'git'], ['cook', 'seo', 'brainstorm']),
-      ['cook', 'brainstorm']
+      findOverlaps(
+        ['cook', 'brainstorm', 'git'],
+        ['cook', 'seo', 'brainstorm'],
+      ),
+      ['cook', 'brainstorm'],
     );
   });
 
@@ -143,7 +146,10 @@ describe('resolvePaths', () => {
     assert.strictEqual(result.globalDir, '/global');
     assert.strictEqual(result.localDir, '/local');
     assert.strictEqual(result.shadowedDir, '/local/.shadowed');
-    assert.strictEqual(result.manifestFile, '/local/.shadowed/.dedup-manifest.json');
+    assert.strictEqual(
+      result.manifestFile,
+      '/local/.shadowed/.dedup-manifest.json',
+    );
   });
 });
 
@@ -270,10 +276,13 @@ describe('handleSessionEnd', () => {
     fs.mkdirSync(paths.shadowedDir, { recursive: true });
     createSkill(paths.shadowedDir, 'cook', '# Cook (marketing)');
     createSkill(paths.shadowedDir, 'brainstorm', '# Brainstorm (marketing)');
-    fs.writeFileSync(paths.manifestFile, JSON.stringify({
-      shadowedAt: new Date().toISOString(),
-      skills: ['cook', 'brainstorm']
-    }));
+    fs.writeFileSync(
+      paths.manifestFile,
+      JSON.stringify({
+        shadowedAt: new Date().toISOString(),
+        skills: ['cook', 'brainstorm'],
+      }),
+    );
 
     const result = handleSessionEnd(paths);
 
@@ -332,7 +341,10 @@ describe('handleSessionEnd', () => {
     // Should not overwrite existing local
     assert.deepStrictEqual(result.restored, []);
     // Local version preserved
-    const content = fs.readFileSync(path.join(paths.localDir, 'cook', 'SKILL.md'), 'utf8');
+    const content = fs.readFileSync(
+      path.join(paths.localDir, 'cook', 'SKILL.md'),
+      'utf8',
+    );
     assert.strictEqual(content, '# Cook local version');
   });
 });
@@ -381,7 +393,10 @@ describe('full session cycle', () => {
     assert.ok(!fs.existsSync(paths.shadowedDir));
 
     // Content preserved
-    const cookContent = fs.readFileSync(path.join(paths.localDir, 'cook', 'SKILL.md'), 'utf8');
+    const cookContent = fs.readFileSync(
+      path.join(paths.localDir, 'cook', 'SKILL.md'),
+      'utf8',
+    );
     assert.strictEqual(cookContent, '# Cook v2.0.0');
   });
 
@@ -432,7 +447,10 @@ describe('full session cycle', () => {
     assert.ok(!fs.existsSync(paths.shadowedDir));
 
     // Content preserved through crash recovery
-    const content = fs.readFileSync(path.join(paths.localDir, 'cook', 'SKILL.md'), 'utf8');
+    const content = fs.readFileSync(
+      path.join(paths.localDir, 'cook', 'SKILL.md'),
+      'utf8',
+    );
     assert.strictEqual(content, '# Original local');
   });
 
@@ -491,9 +509,15 @@ describe('edge cases', () => {
     createSkill(paths.globalDir, 'cook');
     createSkill(paths.localDir, 'cook');
     // Add extra files to local skill
-    fs.writeFileSync(path.join(paths.localDir, 'cook', 'README.md'), '# Readme');
+    fs.writeFileSync(
+      path.join(paths.localDir, 'cook', 'README.md'),
+      '# Readme',
+    );
     fs.mkdirSync(path.join(paths.localDir, 'cook', 'scripts'));
-    fs.writeFileSync(path.join(paths.localDir, 'cook', 'scripts', 'run.sh'), '#!/bin/bash');
+    fs.writeFileSync(
+      path.join(paths.localDir, 'cook', 'scripts', 'run.sh'),
+      '#!/bin/bash',
+    );
 
     handleSessionStart(paths);
     handleSessionEnd(paths);
@@ -501,7 +525,9 @@ describe('edge cases', () => {
     // All files preserved
     assert.ok(fs.existsSync(path.join(paths.localDir, 'cook', 'SKILL.md')));
     assert.ok(fs.existsSync(path.join(paths.localDir, 'cook', 'README.md')));
-    assert.ok(fs.existsSync(path.join(paths.localDir, 'cook', 'scripts', 'run.sh')));
+    assert.ok(
+      fs.existsSync(path.join(paths.localDir, 'cook', 'scripts', 'run.sh')),
+    );
   });
 
   it('handles empty .shadowed directory on SessionEnd', () => {
@@ -514,9 +540,12 @@ describe('edge cases', () => {
 
   it('handles manifest referencing skills not in .shadowed', () => {
     fs.mkdirSync(paths.shadowedDir, { recursive: true });
-    fs.writeFileSync(paths.manifestFile, JSON.stringify({
-      skills: ['cook', 'ghost-skill']
-    }));
+    fs.writeFileSync(
+      paths.manifestFile,
+      JSON.stringify({
+        skills: ['cook', 'ghost-skill'],
+      }),
+    );
     createSkill(paths.shadowedDir, 'cook');
     // ghost-skill doesn't exist in .shadowed
 

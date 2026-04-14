@@ -23,7 +23,9 @@ function loadThrottleState() {
     }
   } catch (err) {
     // Corrupted file - start fresh
-    console.error(`[sender] Throttle file corrupted, resetting: ${err.message}`);
+    console.error(
+      `[sender] Throttle file corrupted, resetting: ${err.message}`,
+    );
   }
   return {};
 }
@@ -115,7 +117,6 @@ async function send(provider, url, body, headers = {}) {
     // Success - clear any previous throttle
     clearThrottle(provider);
     return { success: true };
-
   } catch (err) {
     // Network error - record for throttling
     recordError(provider);

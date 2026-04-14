@@ -31,11 +31,12 @@ function getYouTubeId(url: string): string | null {
 }
 
 export default function VideoSection({ videoUrls }: VideoSectionProps) {
-  const urls = useMemo(() => (videoUrls ?? []).filter(Boolean) as string[], [videoUrls]);
+  const urls = useMemo(
+    () => (videoUrls ?? []).filter(Boolean) as string[],
+    [videoUrls],
+  );
   const [active, setActive] = useState(0);
   const thumbRefs = useRef<Array<HTMLButtonElement | null>>([]);
-
-  if (urls.length === 0) return null;
 
   const videoIds = useMemo(() => {
     const ids = urls.map((u) => getYouTubeId(u)).filter(Boolean) as string[];
@@ -44,14 +45,21 @@ export default function VideoSection({ videoUrls }: VideoSectionProps) {
 
   const safeActive = Math.min(active, Math.max(0, videoIds.length - 1));
   const activeId = videoIds[safeActive];
-  if (!activeId) return null;
 
   useEffect(() => {
-    thumbRefs.current[safeActive]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-  }, [safeActive]);
+    if (!videoIds[safeActive]) return;
+    thumbRefs.current[safeActive]?.scrollIntoView({
+      behavior: 'smooth',
+      inline: 'center',
+      block: 'nearest',
+    });
+  }, [safeActive, videoIds]);
 
-  const prev = () => setActive((a) => (a - 1 + videoIds.length) % videoIds.length);
+  const prev = () =>
+    setActive((a) => (a - 1 + videoIds.length) % videoIds.length);
   const next = () => setActive((a) => (a + 1) % videoIds.length);
+
+  if (urls.length === 0 || videoIds.length === 0 || !activeId) return null;
 
   return (
     <section id="video" className="py-16 bg-gray-50">
@@ -115,7 +123,9 @@ export default function VideoSection({ videoUrls }: VideoSectionProps) {
                       'relative shrink-0 overflow-hidden rounded-lg border shadow-sm transition',
                       'w-40 sm:w-44',
                       'snap-start',
-                      isActive ? 'border-green-700 ring-2 ring-green-700/20' : 'border-green-900/10 hover:border-green-900/25',
+                      isActive
+                        ? 'border-green-700 ring-2 ring-green-700/20'
+                        : 'border-green-900/10 hover:border-green-900/25',
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-700/40',
                     ].join(' ')}
                   >

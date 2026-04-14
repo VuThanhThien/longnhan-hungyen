@@ -13,12 +13,12 @@ import { toast } from '@/hooks/use-toast';
 import { useUpdateOrderStatus } from '@/features/orders/hooks/use-update-order-status';
 
 const orderStatusLabels: Record<OrderStatus, string> = {
-  [OrderStatus.PENDING]:    'Chờ xác nhận',
-  [OrderStatus.CONFIRMED]:  'Đã xác nhận',
+  [OrderStatus.PENDING]: 'Chờ xác nhận',
+  [OrderStatus.CONFIRMED]: 'Đã xác nhận',
   [OrderStatus.PROCESSING]: 'Đang xử lý',
-  [OrderStatus.SHIPPED]:    'Đang giao',
-  [OrderStatus.DELIVERED]:  'Đã giao',
-  [OrderStatus.CANCELLED]:  'Đã hủy',
+  [OrderStatus.SHIPPED]: 'Đang giao',
+  [OrderStatus.DELIVERED]: 'Đã giao',
+  [OrderStatus.CANCELLED]: 'Đã hủy',
 };
 
 const selectableStatuses: OrderStatus[] = [
@@ -35,7 +35,11 @@ interface OrderStatusSelectProps {
   onStatusChange?: (newStatus: OrderStatus) => void;
 }
 
-export function OrderStatusSelect({ orderId, currentStatus, onStatusChange }: OrderStatusSelectProps) {
+export function OrderStatusSelect({
+  orderId,
+  currentStatus,
+  onStatusChange,
+}: OrderStatusSelectProps) {
   const [status, setStatus] = useState<OrderStatus>(currentStatus);
   const updateStatusMutation = useUpdateOrderStatus();
 
@@ -55,7 +59,11 @@ export function OrderStatusSelect({ orderId, currentStatus, onStatusChange }: Or
   }
 
   return (
-    <Select value={status} onValueChange={handleChange} disabled={updateStatusMutation.isPending}>
+    <Select
+      value={status}
+      onValueChange={handleChange}
+      disabled={updateStatusMutation.isPending}
+    >
       <SelectTrigger className="w-44">
         <SelectValue />
       </SelectTrigger>

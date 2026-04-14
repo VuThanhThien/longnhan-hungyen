@@ -13,4 +13,3 @@ export function coerceToHtml(value: string) {
 
   return `<p>${escaped.replaceAll('\n', '<br />')}</p>`;
 }
-

@@ -15,7 +15,11 @@ export default function ArticleEditPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
 
-  const { data: article, isLoading, isError } = useQuery({
+  const {
+    data: article,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['articles', 'admin', id],
     enabled: Boolean(id),
     queryFn: () => adminClientGet<Article>(`/articles/admin/${id}`),
@@ -46,8 +50,14 @@ export default function ArticleEditPage() {
             <CardTitle className="text-base">Cập nhật bài viết</CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoading ? <div className="py-8 text-sm text-gray-500">Đang tải…</div> : null}
-            {isError ? <div className="py-8 text-sm text-red-600">Không tìm thấy bài viết</div> : null}
+            {isLoading ? (
+              <div className="py-8 text-sm text-gray-500">Đang tải…</div>
+            ) : null}
+            {isError ? (
+              <div className="py-8 text-sm text-red-600">
+                Không tìm thấy bài viết
+              </div>
+            ) : null}
             {article ? (
               <ArticleForm
                 initialArticle={article}

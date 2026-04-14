@@ -13,7 +13,10 @@ export type SlashItem = {
   title: string;
   description?: string;
   keywords?: string;
-  command: (opts: { editor: Editor; range: { from: number; to: number } }) => void;
+  command: (opts: {
+    editor: Editor;
+    range: { from: number; to: number };
+  }) => void;
 };
 
 function slashItems(): SlashItem[] {
@@ -30,21 +33,36 @@ function slashItems(): SlashItem[] {
       title: 'Tiêu đề 1',
       keywords: 'h1 heading',
       command: ({ editor, range }) => {
-        editor.chain().focus().deleteRange(range).setHeading({ level: 1 }).run();
+        editor
+          .chain()
+          .focus()
+          .deleteRange(range)
+          .setHeading({ level: 1 })
+          .run();
       },
     },
     {
       title: 'Tiêu đề 2',
       keywords: 'h2 heading',
       command: ({ editor, range }) => {
-        editor.chain().focus().deleteRange(range).setHeading({ level: 2 }).run();
+        editor
+          .chain()
+          .focus()
+          .deleteRange(range)
+          .setHeading({ level: 2 })
+          .run();
       },
     },
     {
       title: 'Tiêu đề 3',
       keywords: 'h3 heading',
       command: ({ editor, range }) => {
-        editor.chain().focus().deleteRange(range).setHeading({ level: 3 }).run();
+        editor
+          .chain()
+          .focus()
+          .deleteRange(range)
+          .setHeading({ level: 3 })
+          .run();
       },
     },
     {
@@ -90,7 +108,8 @@ function filterSlashItems(query: string): SlashItem[] {
   const items = slashItems();
   if (!q) return items;
   return items.filter((item) => {
-    const hay = `${item.title} ${item.keywords ?? ''} ${item.description ?? ''}`.toLowerCase();
+    const hay =
+      `${item.title} ${item.keywords ?? ''} ${item.description ?? ''}`.toLowerCase();
     return hay.includes(q);
   });
 }
@@ -120,7 +139,9 @@ export const SlashCommandList = forwardRef<SlashListHandle, SlashListProps>(
       onKeyDown: ({ event }: SuggestionKeyDown) => {
         if (event.key === 'ArrowUp') {
           event.preventDefault();
-          setSelected((i) => (i + items.length - 1) % Math.max(items.length, 1));
+          setSelected(
+            (i) => (i + items.length - 1) % Math.max(items.length, 1),
+          );
           return true;
         }
         if (event.key === 'ArrowDown') {
@@ -154,22 +175,27 @@ export const SlashCommandList = forwardRef<SlashListHandle, SlashListProps>(
             type="button"
             className={cn(
               'flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-gray-900 transition-colors',
-              index === selected ? 'bg-gray-100' : 'hover:bg-gray-50'
+              index === selected ? 'bg-gray-100' : 'hover:bg-gray-50',
             )}
             onClick={() => command(item)}
           >
             <span className="font-medium">{item.title}</span>
             {item.description ? (
-              <span className="text-xs font-normal text-gray-500">{item.description}</span>
+              <span className="text-xs font-normal text-gray-500">
+                {item.description}
+              </span>
             ) : null}
           </button>
         ))}
       </div>
     );
-  }
+  },
 );
 
-function updateSlashListPosition(renderer: ReactRenderer, clientRect?: (() => DOMRect | null) | null) {
+function updateSlashListPosition(
+  renderer: ReactRenderer,
+  clientRect?: (() => DOMRect | null) | null,
+) {
   const rect = clientRect?.();
   const el = renderer.element as HTMLElement;
   if (!rect) {

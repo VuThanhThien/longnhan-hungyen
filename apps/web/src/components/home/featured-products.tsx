@@ -15,7 +15,9 @@ export default function FeaturedProducts({ products }: FeaturedProductsProps) {
     <section className="py-14 bg-white">
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-2xl md:text-3xl font-bold text-green-900">Sản phẩm nổi bật</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-green-900">
+            Sản phẩm nổi bật
+          </h2>
           <Link
             href="/products"
             className="text-sm font-medium text-green-700 hover:text-green-900 underline underline-offset-2"

@@ -19,7 +19,15 @@
  *   By default, browser stays running for session persistence
  *   Use --close true to fully close browser
  */
-import { getBrowser, getPage, closeBrowser, disconnectBrowser, parseArgs, outputJSON, outputError } from './lib/browser.js';
+import {
+  getBrowser,
+  getPage,
+  closeBrowser,
+  disconnectBrowser,
+  parseArgs,
+  outputJSON,
+  outputError,
+} from './lib/browser.js';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -32,13 +40,17 @@ async function selectRef() {
   }
 
   if (!args.action) {
-    outputError(new Error('--action is required (click, fill, screenshot, text, focus, hover)'));
+    outputError(
+      new Error(
+        '--action is required (click, fill, screenshot, text, focus, hover)',
+      ),
+    );
     return;
   }
 
   try {
     const browser = await getBrowser({
-      headless: args.headless
+      headless: args.headless,
     });
 
     const page = await getPage(browser);
@@ -47,11 +59,15 @@ async function selectRef() {
     const element = await page.evaluateHandle((ref) => {
       const refs = window.__chromeDevToolsRefs;
       if (!refs) {
-        throw new Error('No refs available. Run aria-snapshot.js first to generate refs.');
+        throw new Error(
+          'No refs available. Run aria-snapshot.js first to generate refs.',
+        );
       }
       const el = refs.get(ref);
       if (!el) {
-        throw new Error(`Ref "${ref}" not found. Available refs: ${Array.from(refs.keys()).join(', ')}`);
+        throw new Error(
+          `Ref "${ref}" not found. Available refs: ${Array.from(refs.keys()).join(', ')}`,
+        );
       }
       return el;
     }, args.ref);
@@ -64,7 +80,7 @@ async function selectRef() {
     let result = {
       success: true,
       ref: args.ref,
-      action: args.action
+      action: args.action,
     };
 
     // Perform action
@@ -96,7 +112,10 @@ async function selectRef() {
         break;
 
       case 'text':
-        const text = await page.evaluate(el => el.textContent?.trim(), elementHandle);
+        const text = await page.evaluate(
+          (el) => el.textContent?.trim(),
+          elementHandle,
+        );
         result.text = text;
         break;
 
@@ -111,7 +130,9 @@ async function selectRef() {
         break;
 
       default:
-        throw new Error(`Unknown action: ${args.action}. Valid actions: click, fill, screenshot, text, focus, hover`);
+        throw new Error(
+          `Unknown action: ${args.action}. Valid actions: click, fill, screenshot, text, focus, hover`,
+        );
     }
 
     outputJSON(result);

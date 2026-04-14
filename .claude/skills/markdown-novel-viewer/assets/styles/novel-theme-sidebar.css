@@ -174,10 +174,19 @@
   flex-shrink: 0;
 }
 
-.status-dot.pending { background: #d4a574; }
-.status-dot.in-progress { background: #4a90d9; }
-.status-dot.completed, .status-dot.done { background: #5cb85c; }
-.status-dot.overview { background: #8b4513; }
+.status-dot.pending {
+  background: #d4a574;
+}
+.status-dot.in-progress {
+  background: #4a90d9;
+}
+.status-dot.completed,
+.status-dot.done {
+  background: #5cb85c;
+}
+.status-dot.overview {
+  background: #8b4513;
+}
 
 /* Unavailable/Planned phases */
 .phase-item.unavailable {
@@ -286,7 +295,7 @@
   color: #155724;
 }
 
-[data-theme="dark"] .badge-done {
+[data-theme='dark'] .badge-done {
   background: #1e3a2f;
   color: #75d49b;
 }
@@ -296,7 +305,7 @@
   color: #004085;
 }
 
-[data-theme="dark"] .badge-progress {
+[data-theme='dark'] .badge-progress {
   background: #1a3a5c;
   color: #6db3f2;
 }
@@ -313,7 +322,9 @@
   margin-top: 0.25rem;
   overflow: hidden;
   max-height: 500px;
-  transition: max-height 0.3s ease, opacity 0.2s ease;
+  transition:
+    max-height 0.3s ease,
+    opacity 0.2s ease;
 }
 
 .phase-group.collapsed .phase-items {

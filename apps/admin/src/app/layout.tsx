@@ -14,7 +14,11 @@ export const metadata: Metadata = {
   description: 'Trang quản trị Long Nhãn Hưng Yên',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="vi" className={`${geist.variable} h-full`}>
       <body className="h-full antialiased bg-gray-50">

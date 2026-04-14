@@ -12,7 +12,10 @@ interface ProductCardProps {
 }
 
 function formatPrice(price: number): string {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+  }).format(price);
 }
 
 function getPriceRange(product: Product): string {
@@ -21,12 +24,18 @@ function getPriceRange(product: Product): string {
   const prices = activeVariants.map((v) => v.price);
   const min = Math.min(...prices);
   const max = Math.max(...prices);
-  return min === max ? formatPrice(min) : `${formatPrice(min)} – ${formatPrice(max)}`;
+  return min === max
+    ? formatPrice(min)
+    : `${formatPrice(min)} – ${formatPrice(max)}`;
 }
 
-export default function ProductCard({ product, onQuickView }: ProductCardProps) {
+export default function ProductCard({
+  product,
+  onQuickView,
+}: ProductCardProps) {
   const images = product.images ?? [];
-  const coverImage = product.featuredImageUrl ?? images[0] ?? product.imageUrls?.[0];
+  const coverImage =
+    product.featuredImageUrl ?? images[0] ?? product.imageUrls?.[0];
   const summary = getProductLandingDescription(product);
   const isOutOfStock =
     product.variants.length > 0 &&
@@ -42,12 +51,16 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
           <Image
             src={coverImage}
             alt={product.name}
-            fill
+            width={600}
+            height={600}
+            loading="eager"
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
+            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : (
-          <div className="flex items-center justify-center h-full text-5xl text-gray-300">🌿</div>
+          <div className="flex items-center justify-center h-full text-5xl text-gray-300">
+            🌿
+          </div>
         )}
 
         {/* Out of stock overlay */}
@@ -77,8 +90,12 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
         <h3 className="font-semibold text-gray-900 text-sm leading-snug mb-1 line-clamp-2">
           {product.name}
         </h3>
-        {summary ? <p className="text-xs text-gray-600 line-clamp-2 mt-1">{summary}</p> : null}
-        <p className="text-green-700 font-bold text-sm">{getPriceRange(product)}</p>
+        {summary ? (
+          <p className="text-xs text-gray-600 line-clamp-2 mt-1">{summary}</p>
+        ) : null}
+        <p className="text-green-700 font-bold text-sm">
+          {getPriceRange(product)}
+        </p>
       </div>
     </Link>
   );

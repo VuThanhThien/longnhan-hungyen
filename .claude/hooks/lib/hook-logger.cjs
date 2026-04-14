@@ -35,7 +35,10 @@ function ensureLogDir() {
 function rotateIfNeeded() {
   try {
     if (!fs.existsSync(LOG_FILE)) return;
-    const lines = fs.readFileSync(LOG_FILE, 'utf-8').split('\n').filter(Boolean);
+    const lines = fs
+      .readFileSync(LOG_FILE, 'utf-8')
+      .split('\n')
+      .filter(Boolean);
     if (lines.length >= MAX_LINES) {
       const truncated = lines.slice(-TRUNCATE_TO).join('\n') + '\n';
       fs.writeFileSync(LOG_FILE, truncated, 'utf-8');
@@ -62,7 +65,7 @@ function logHook(hookName, data) {
       dur: data.dur || 0,
       status: data.status || 'ok',
       exit: data.exit !== undefined ? data.exit : 0,
-      error: data.error || ''
+      error: data.error || '',
     };
 
     fs.appendFileSync(LOG_FILE, JSON.stringify(entry) + '\n', 'utf-8');
@@ -82,11 +85,11 @@ function createHookTimer(hookName) {
     end(data = {}) {
       const dur = Date.now() - start;
       logHook(hookName, { ...data, dur });
-    }
+    },
   };
 }
 
 module.exports = {
   logHook,
-  createHookTimer
+  createHookTimer,
 };

@@ -63,7 +63,10 @@ function findRunningInstances() {
 
   for (const file of files) {
     if (file.startsWith(PID_PREFIX) && file.endsWith('.pid')) {
-      const port = parseInt(file.replace(PID_PREFIX, '').replace('.pid', ''), 10);
+      const port = parseInt(
+        file.replace(PID_PREFIX, '').replace('.pid', ''),
+        10,
+      );
       const pid = readPidFile(port);
       if (pid) {
         // Check if process is actually running
@@ -146,5 +149,5 @@ module.exports = {
   stopServer,
   stopAllServers,
   setupShutdownHandlers,
-  PID_PREFIX
+  PID_PREFIX,
 };

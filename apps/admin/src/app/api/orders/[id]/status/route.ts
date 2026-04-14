@@ -14,7 +14,10 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (body?.paymentStatus) payload.paymentStatus = body.paymentStatus;
 
   if (!payload.orderStatus && !payload.paymentStatus) {
-    return NextResponse.json({ message: 'Missing status payload' }, { status: 400 });
+    return NextResponse.json(
+      { message: 'Missing status payload' },
+      { status: 400 },
+    );
   }
 
   const upstream = await forwardAdminApi(`/orders/${id}/status`, {
@@ -25,7 +28,8 @@ export async function PATCH(request: Request, context: RouteContext) {
   const text = await upstream.text();
   if (!text) return new NextResponse(null, { status: upstream.status });
 
-  const contentType = upstream.headers.get('content-type') || 'application/json';
+  const contentType =
+    upstream.headers.get('content-type') || 'application/json';
   return new NextResponse(text, {
     status: upstream.status,
     headers: { 'content-type': contentType },

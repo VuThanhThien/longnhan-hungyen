@@ -47,6 +47,15 @@ export const metadata: Metadata = {
     siteName: 'Long Nhãn Tống Trân',
     title: LANDING_SEO.title,
     description: LANDING_SEO.description,
+    url: SITE_URL,
+    images: [
+      {
+        url: '/banner-web2.png',
+        width: 1200,
+        height: 630,
+        alt: LANDING_SEO.title,
+      },
+    ],
   },
   robots: {
     index: true,
@@ -54,11 +63,16 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   const orgSchema = buildOrganizationSchema();
 
   return (
-    <html lang="vi" className={`${geistSans.variable} ${seagullDisplay.variable} h-full`}>
+    <html
+      lang="vi"
+      className={`${geistSans.variable} ${seagullDisplay.variable} h-full`}
+    >
       <head>
         <script
           type="application/ld+json"

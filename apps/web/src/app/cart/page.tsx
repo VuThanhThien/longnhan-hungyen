@@ -12,7 +12,10 @@ export default function CartPage() {
       <h1 className="text-2xl font-semibold">Giỏ hàng</h1>
       <p className="mt-4 text-(--brand-forest-muted)">
         Chưa có sản phẩm trong giỏ.{' '}
-        <Link href="/products" className="font-medium text-(--brand-leaf) underline underline-offset-2 hover:text-(--brand-forest)">
+        <Link
+          href="/products"
+          className="font-medium text-(--brand-leaf) underline underline-offset-2 hover:text-(--brand-forest)"
+        >
           Xem sản phẩm
         </Link>
       </p>
