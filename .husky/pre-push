@@ -3,10 +3,29 @@
 
 set -e
 
+changed_files="$(git diff --name-only HEAD HEAD~ -- '*.ts' '*.tsx' '*.js' '*.jsx' '*.json' '*.css' '*.scss' '*.md' || true)"
+
+if [ -n "$changed_files" ]; then
+  if echo "$changed_files" | grep -qE '^packages/types/'; then
+    pnpm --filter @longnhan/types build
+  fi
+
+  if echo "$changed_files" | grep -qE '^apps/api/'; then
+    pnpm --filter @longnhan/api build
+  fi
+
+  if echo "$changed_files" | grep -qE '^apps/web/'; then
+    pnpm --filter @longnhan/web build
+  fi
+
+  if echo "$changed_files" | grep -qE '^apps/admin/'; then
+    pnpm --filter @longnhan/admin build
+  fi
+fi
+
 pnpm lint
 pnpm type-check
 
-changed_files="$(git diff --name-only HEAD HEAD~ -- '*.ts' '*.tsx' '*.js' '*.jsx' || true)"
 if [ -z "$changed_files" ]; then
   exit 0
 fi

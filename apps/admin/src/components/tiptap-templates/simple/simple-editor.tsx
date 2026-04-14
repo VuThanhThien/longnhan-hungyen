@@ -67,7 +67,6 @@ import { useWindowSize } from '@/hooks/use-window-size';
 import { useCursorVisibility } from '@/hooks/use-cursor-visibility';
 
 // --- Components ---
-import { ThemeToggle } from '@/components/tiptap-templates/simple/theme-toggle';
 
 // --- Lib ---
 import { cn } from '@/lib/utils';
@@ -155,12 +154,6 @@ const MainToolbarContent = ({
       <Spacer />
 
       {isMobile && showThemeToggle ? <ToolbarSeparator /> : null}
-
-      {showThemeToggle ? (
-        <ToolbarGroup>
-          <ThemeToggle />
-        </ToolbarGroup>
-      ) : null}
     </>
   );
 };
@@ -314,7 +307,7 @@ export function SimpleEditor({
               onHighlighterClick={() => setMobileView('highlighter')}
               onLinkClick={() => setMobileView('link')}
               isMobile={isMobile}
-              showThemeToggle={showThemeToggle}
+              showThemeToggle={false}
             />
           ) : (
             <MobileToolbarContent
