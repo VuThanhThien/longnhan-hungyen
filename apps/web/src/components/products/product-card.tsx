@@ -9,6 +9,8 @@ import { getProductLandingDescription } from '@/lib/product-description';
 interface ProductCardProps {
   product: Product;
   onQuickView?: (product: Product) => void;
+  /** Set on the first card in a grid so the listing LCP image loads early. */
+  imagePriority?: boolean;
 }
 
 function formatPrice(price: number): string {
@@ -32,6 +34,7 @@ function getPriceRange(product: Product): string {
 export default function ProductCard({
   product,
   onQuickView,
+  imagePriority = false,
 }: ProductCardProps) {
   const images = product.images ?? [];
   const coverImage =
@@ -53,7 +56,7 @@ export default function ProductCard({
             alt={product.name}
             width={600}
             height={600}
-            loading="eager"
+            priority={imagePriority}
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
           />

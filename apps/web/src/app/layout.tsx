@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Geist } from 'next/font/google';
 import localFont from 'next/font/local';
 import './globals.css';
@@ -8,8 +8,9 @@ import Footer from '@/components/layout/footer';
 import FloatingContactWidget from '@/components/layout/floating-contact-widget';
 import BackToTopButton from '@/components/ui/back-to-top-button';
 import { buildOrganizationSchema } from '@/lib/structured-data';
-import { SITE_URL } from '@/lib/constants';
 import { LANDING_SEO } from '@/data/landing-page-content';
+import { SITE_URL } from '@/lib/constants';
+import { PWA_CONFIG } from '@/lib/pwa-config';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -33,29 +34,50 @@ const seagullDisplay = localFont({
   display: 'swap',
 });
 
+export const viewport: Viewport = {
+  themeColor: PWA_CONFIG.themeColor,
+  colorScheme: 'light',
+};
+
 export const metadata: Metadata = {
   title: {
-    default: LANDING_SEO.title,
+    default: PWA_CONFIG.documentTitle,
     template: '%s | Long Nhãn Tống Trân',
   },
-  description: LANDING_SEO.description,
+  description: PWA_CONFIG.description,
   keywords: [...LANDING_SEO.keywords],
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || SITE_URL),
+  applicationName: PWA_CONFIG.name,
+  icons: {
+    icon: [{ url: PWA_CONFIG.icons.src, type: 'image/png' }],
+    apple: [{ url: PWA_CONFIG.icons.src, type: 'image/png' }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: PWA_CONFIG.name,
+    statusBarStyle: 'black-translucent',
+  },
   openGraph: {
     type: 'website',
     locale: 'vi_VN',
-    siteName: 'Long Nhãn Tống Trân',
-    title: LANDING_SEO.title,
-    description: LANDING_SEO.description,
-    url: SITE_URL,
+    siteName: PWA_CONFIG.name,
+    title: PWA_CONFIG.documentTitle,
+    description: PWA_CONFIG.description,
+    url: PWA_CONFIG.siteUrl,
     images: [
       {
-        url: '/banner-web2.png',
-        width: 1200,
-        height: 630,
-        alt: LANDING_SEO.title,
+        url: PWA_CONFIG.heroImage.path,
+        width: PWA_CONFIG.heroImage.width,
+        height: PWA_CONFIG.heroImage.height,
+        alt: PWA_CONFIG.heroImage.alt,
       },
     ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: PWA_CONFIG.documentTitle,
+    description: PWA_CONFIG.description,
+    images: [PWA_CONFIG.heroImage.path],
   },
   robots: {
     index: true,

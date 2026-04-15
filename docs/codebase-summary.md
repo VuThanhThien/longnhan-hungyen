@@ -1,6 +1,6 @@
 # Codebase Summary
 
-**Generated:** 2026-04-13  
+**Generated:** 2026-04-15  
 **Project:** Long Nhan Hung Yen — e-commerce monorepo (API + storefront + admin)  
 **Phase status:** [Project Roadmap](./project-roadmap.md) (canonical). Storefront Phase 4 is complete; ongoing work is Phases 5–7.
 
@@ -387,9 +387,11 @@ Reusable NestJS modules:
 
 **API/data:** `lib/api-client.ts`, `lib/api-server.ts`, `lib/http/create-longnhan-api.ts`, TanStack Query usage; default public API base `http://localhost:3001/api/v1` via env (see `NEXT_PUBLIC_API_URL`).
 
-**Assets:** `apps/web/public/` — raster/WebP/PNG used by layout and landing (not under `src/`).
+**Assets:** `apps/web/public/` — raster/WebP/PNG used by layout and landing (not under `src/`). **`public/sw.js`** — service worker (offline shell, asset caching, `/service-unavailable` routing on 502/503/504 or network failure).
 
-**Key libraries (storefront):** `next`, `react`, `@tanstack/react-query`, `nuqs`, `zustand`, `axios`, `motion`, `react-hook-form`, `yup`, `@longnhan/types`.
+**Landing / home caching:** `app/page.tsx` uses **`'use cache'`** with **`cacheTag('home-featured-products')`** and **`cacheLife({ revalidate: 300 })`** for featured products. Browser caching and offline behavior are documented under **Storefront → Landing page & cache strategy** in [System Architecture](./system-architecture.md).
+
+**Key libraries (storefront):** `next`, `react`, `@tanstack/react-query`, `nuqs`, `zustand`, `axios`, `motion`, `react-hook-form`, `yup`, `@longnhan/types`, `sonner` (offline / connection toasts with the SW).
 
 ### 7. Shared Types Package (@longnhan/types)
 

@@ -11,8 +11,7 @@ import { fetchPaginated } from '@/lib/api-client';
 import { buildSeoMetadata } from '@/lib/seo';
 import type { Product } from '@longnhan/types';
 import type { Metadata } from 'next';
-
-export const revalidate = 300;
+import { cacheLife, cacheTag } from 'next/cache';
 
 export const metadata: Metadata = buildSeoMetadata({
   title: LANDING_SEO.title,
@@ -27,6 +26,9 @@ export const metadata: Metadata = buildSeoMetadata({
 });
 
 async function getHomeProducts(): Promise<Product[]> {
+  'use cache';
+  cacheTag('home-featured-products');
+  cacheLife({ revalidate: 300 });
   try {
     const response = await fetchPaginated<Product>('/products', { limit: 8 });
     return response.data;

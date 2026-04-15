@@ -40,16 +40,16 @@ pnpm dev:admin    # admin only (http://localhost:3002)
 
 ## Local Services
 
-| Service  | URL                       | Purpose              |
-|----------|---------------------------|----------------------|
-| API      | http://localhost:3001     | REST API             |
-| Swagger  | http://localhost:3001/api-docs | API docs        |
-| Web      | http://localhost:3000     | Storefront           |
-| Admin    | http://localhost:3002     | Admin panel          |
-| PostgreSQL | localhost:5435        | Database (Docker)    |
-| MailDev  | http://localhost:1080     | Email testing UI     |
-| Redis    | localhost:6380          | Cache / BullMQ       |
-| pgAdmin  | http://localhost:5050     | Database UI          |
+| Service    | URL                            | Purpose           |
+| ---------- | ------------------------------ | ----------------- |
+| API        | http://localhost:3001          | REST API          |
+| Swagger    | http://localhost:3001/api-docs | API docs          |
+| Web        | http://localhost:3000          | Storefront        |
+| Admin      | http://localhost:3002          | Admin panel       |
+| PostgreSQL | localhost:5435                 | Database (Docker) |
+| MailDev    | http://localhost:1080          | Email testing UI  |
+| Redis      | localhost:6380                 | Cache / BullMQ    |
+| pgAdmin    | http://localhost:5050          | Database UI       |
 
 ## Docker
 
@@ -71,7 +71,7 @@ pnpm docker:reset  # reset volumes & restart
 ```
 apps/
   api/        # NestJS REST API (@longnhan/api)
-  web/        # Next.js storefront (@longnhan/web)
+  web/        # Next.js storefront/landing page (@longnhan/web)
   admin/      # Next.js admin panel (@longnhan/admin)
 packages/     # Shared packages
 docs/         # Project documentation

@@ -1,6 +1,6 @@
 # System Architecture
 
-**Last Updated:** 2026-04-13
+**Last Updated:** 2026-04-15
 
 ---
 
@@ -71,6 +71,7 @@ longnhantongtran/
 ### 1. API/Presentation Layer (src/api/)
 
 **Modules** (feature-driven)
+
 - **UserModule** — User CRUD, profile management
 - **AuthModule** — JWT auth, sign-in/up, password reset
 - **HealthModule** — Liveness/readiness probes
@@ -81,6 +82,7 @@ longnhantongtran/
 - **DashboardModule** — Admin analytics + statistics
 
 Each module follows standard NestJS structure:
+
 ```
 {module}/
 ├── entities/          # Database models
@@ -94,12 +96,14 @@ Each module follows standard NestJS structure:
 ### 2. Shared Layer (src/common/, src/libs/)
 
 **Shared DTOs & Interfaces**
+
 - `common/dto/` — Common request/response structures
 - `common/interfaces/` — TypeScript interfaces
 - `common/types/` — Type definitions
 - `common/constants/` — Global constants (enums, numbers, strings)
 
 **Shared Modules (libs/)**
+
 - Reusable NestJS modules available across apps
 - Centralized configuration management
 - Common validators, transformers
@@ -107,38 +111,45 @@ Each module follows standard NestJS structure:
 ### 3. Infrastructure Layer
 
 #### Authentication & Authorization (src/guards/, src/auth/)
+
 - **JwtAuthGuard** — JWT token validation
 - **RolesGuard** — Role-based access control
 - **ApiPublic** decorator — Mark endpoints as public
 - **ApiAuth** decorator — Mark endpoints as admin-only
 
 #### Database (src/database/)
+
 - **Entities** — TypeORM entity definitions per module
 - **Migrations** — Auto-generated via TypeORM CLI
 - **Seeds** — Sample data seeding with Faker
 - **Data Source** — TypeORM configuration
 
 #### Email Service (src/mail/)
+
 - **MailerService** — Nodemailer + NestJS Mailer wrapper
 - **Templates** — Handlebars email templates
 - HTML emails for: sign-up, reset password, order confirmation, etc.
 
 #### Caching (src/shared/cache/)
+
 - **CacheManager** — Redis integration via cache-manager
 - TTL-based expiration strategy
 - Key-value storage for frequently accessed data
 
 #### Background Jobs (src/background/)
+
 - **BullMQ** — Queue processor for async tasks
 - Email delivery, bulk operations, async reporting
 - Configurable retries and failure handling
 
 #### Global Error Handling (src/exceptions/, src/filters/)
+
 - **Custom Exceptions** — Domain-specific error classes
 - **ExceptionFilter** — Unified error response formatting
 - Consistent HTTP status codes and error messages
 
 #### Logging & Monitoring (src/interceptors/)
+
 - **Pino** logger integration
 - Request/response logging via nestjs-pino
 - Performance metrics capture
@@ -146,6 +157,7 @@ Each module follows standard NestJS structure:
 ### 4. Configuration Layer (src/config/)
 
 Environment-driven configuration using `@nestjs/config`:
+
 - Database connection settings (host, port, credentials, SSL)
 - JWT secrets and token expiration
 - Email SMTP settings
@@ -162,6 +174,7 @@ All values from `.env` file with validation.
 **Framework:** Next.js 16 App Router + React 19 + Tailwind CSS v4 + Radix UI
 
 ### Pages & Routes
+
 - `/login` — Admin authentication (form → Server Action → /api/auth/login)
 - `/(dashboard)/` — Dashboard home (stats cards, revenue chart, recent orders)
 - `/(dashboard)/products` — Products CRUD (list, create, edit)
@@ -172,11 +185,13 @@ All values from `.env` file with validation.
 ### Data Access Patterns
 
 **Server-side (Server Components):**
+
 - `lib/admin-api-client.ts` — Server fetch wrapper that includes auth token from cookies
 - `lib/admin-data.ts` — Data fetching utilities for dashboards/lists
 - Uses `revalidatePath()` after mutations to sync cached component state
 
 **Client-side (Client Components):**
+
 - `lib/http-client.ts` — Axios instance configured for client-side requests
 - React Query hooks in `features/` (media, orders)
 - `useQuery()` for fetching, `useMutation()` for mutations
@@ -185,6 +200,7 @@ All values from `.env` file with validation.
 ### API Proxy Routes (apps/admin/src/app/api/)
 
 Maps admin requests to backend NestJS API:
+
 - `POST /api/auth/login` — Admin login
 - `GET /api/auth/refresh` — Token refresh
 - `POST /api/auth/logout` — Session logout
@@ -198,12 +214,14 @@ Maps admin requests to backend NestJS API:
 - `GET/POST/PUT/DELETE /api/articles/*` — Article CRUD proxies
 
 ### Authentication Pattern
+
 - Cookie: `long-nhan-hy-admin-auth-token-data`
 - Protected routes check auth in layout-level Server Components
 - Token refresh interceptor: auto-refresh 60 seconds before expiry
 - Logout clears cookie + redirects to /login
 
 ### State Management
+
 - **Global Context:** AuthProvider for user & auth state
 - **Query Cache:** React Query (stale 30s for lists, mutation invalidation)
 - **UI Toast:** Radix UI toast notifications for success/error feedback
@@ -216,13 +234,14 @@ Maps admin requests to backend NestJS API:
 
 ### Routes (representative)
 
-| Area | Location | Notes |
-|------|----------|--------|
-| Marketing home | `src/app/page.tsx` | Landing sections composed from `components/home` / `components/landing` |
-| Products | `src/app/products/page.tsx`, `src/app/products/[slug]/page.tsx` | Listing + PDP; listing participates in URL-driven search/filter via shared parsers |
-| Articles | `src/app/articles/…` | List + detail |
-| Order success | `src/app/order-success/` | Post-checkout |
-| Cart | `src/app/cart/` | Guest cart UI backed by client store |
+| Area                | Location                                                        | Notes                                                                                                |
+| ------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Marketing home      | `src/app/page.tsx`                                              | Landing sections composed from `components/home` / `components/landing`                              |
+| Products            | `src/app/products/page.tsx`, `src/app/products/[slug]/page.tsx` | Listing + PDP; listing participates in URL-driven search/filter via shared parsers                   |
+| Articles            | `src/app/articles/…`                                            | List + detail                                                                                        |
+| Order success       | `src/app/order-success/`                                        | Post-checkout                                                                                        |
+| Cart                | `src/app/cart/`                                                 | Guest cart UI backed by client store                                                                 |
+| Service unavailable | `src/app/service-unavailable/`                                  | User-facing 503-style page; `robots: noindex`; precached by `public/sw.js` for offline / origin-down |
 
 ### URL state (search / filters)
 
@@ -244,11 +263,48 @@ Server and client code call the Nest API using **`NEXT_PUBLIC_API_URL` / `API_UR
 
 Raster/WebP/PNG live under **`apps/web/public/`** and are referenced via `next/image` or CSS `url('/…')`.
 
+### Landing page & cache strategy
+
+The home route (`src/app/page.tsx`) combines **server-side caching (Next.js)** with a **service worker** in the browser. They address different layers: the server cache keeps API-backed HTML fresh; the SW improves resilience when the network or origin misbehaves.
+
+#### 1. Server: Cache Components + tagged home data
+
+Featured products on the landing page are loaded in **`getHomeProducts()`** using:
+
+- **`'use cache'`** — result is memoized per Next.js Cache Components rules.
+- **`cacheTag('home-featured-products')`** — allows targeted invalidation when product data changes (via `updateTag` / revalidation flows).
+- **`cacheLife({ revalidate: 300 })`** — **300 seconds (5 minutes)** max staleness for that cached segment before Next considers it eligible for refresh.
+
+So when users are **online**, the storefront prefers **fresh server-rendered output** on a predictable schedule, independent of the service worker.
+
+#### 2. Browser: Service Worker (`apps/web/public/sw.js`)
+
+Registered from **`src/components/pwa/offline-support.tsx`** in **production** (or when **`NEXT_PUBLIC_ENABLE_SW=true`** for local testing). The script version is identified by a **`VERSION`** constant (e.g. `longnhan-web-sw-v3`); **bump `VERSION` when changing SW caching behavior** so `activate` drops obsolete Cache Storage buckets.
+
+| Layer                                                        | Strategy                                  | Purpose                                                                                                                                                                                 |
+| ------------------------------------------------------------ | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **HTML navigations**                                         | Network-first; cache successful responses | When online, always try the network first so **HTML matches the latest deploy**; update the **pages** cache on success. If the network fails, fall back to cached documents (e.g. `/`). |
+| **`/_next/static/*`**                                        | Stale-while-revalidate                    | JS/CSS chunks (including hashed filenames) and other build output: serve cache immediately, **refresh in the background** when possible.                                                |
+| **Public assets** (`*.css`, images, fonts under same origin) | Stale-while-revalidate                    | Fast repeat visits and offline-friendly shell for static files.                                                                                                                         |
+| **Not intercepted**                                          | Pass-through                              | **`/api/*`**, **`/monitoring`** (Sentry tunnel), **`/_next/data/*`** — not cached by this SW so API and Next data/RSC requests stay authoritative.                                      |
+
+**Install precache:** `/` and **`/service-unavailable`** so a minimal shell exists after the SW has installed at least once while online.
+
+**Upstream errors:** HTTP **502 / 503 / 504** on a navigation, or a **network error**, triggers a **302 redirect to `/service-unavailable`**, which is then served from cache or the network. The route **`src/app/service-unavailable/`** is the full Next.js page; the SW also ships a tiny **inline HTML 503** fallback if no cache entry exists. Special-case: requests that are **already** for `/service-unavailable` avoid redirect loops.
+
+**HTTP headers:** `next.config.ts` sets **`Cache-Control: no-cache, no-store, must-revalidate`** for **`/sw.js`** so browsers revalidate the worker script and pick up new `VERSION` deployments.
+
+#### 3. Client UX
+
+- **`OfflineSupport`** listens for **`online` / `offline`** and shows **Sonner** toasts (connection lost / back online).
+- **TanStack Query** defaults in **`app-providers.tsx`** (e.g. `staleTime`) apply to client-fetched data on pages that use hooks; they are separate from the SW **HTTP** cache.
+
 ---
 
 ## Media Module Architecture
 
 **Backend (apps/api/src/api/media/):**
+
 - Entity: `media.entity.ts` — Cloudinary metadata, JSONB folder tracking
 - Service: `media.service.ts` — Cloudinary API integration
 - Controller: `media.controller.ts` — REST endpoints
@@ -260,6 +316,7 @@ Raster/WebP/PNG live under **`apps/web/public/`** and are referenced via `next/i
 - Provider: `cloudinary.provider.ts` — Cloudinary SDK wrapper
 
 **Endpoints:**
+
 - `POST /media/upload` — Upload file to Cloudinary
 - `GET /media` — List media with folder/search filtering
 - `DELETE /media/:id` — Delete file from Cloudinary & database
@@ -267,6 +324,7 @@ Raster/WebP/PNG live under **`apps/web/public/`** and are referenced via `next/i
 - `GET /media/folders` — List folders
 
 **Admin UI (apps/admin/src/components/media/):**
+
 - `MediaManager` — Folder nav, upload, list display
 - `MediaUrlPicker` — Modal to select/insert media URLs into forms
 - `useMediaHooks()` — React Query hooks for fetch/upload/delete
@@ -356,6 +414,7 @@ Services:
 ```
 
 **Use Cases**
+
 - Local development without API container
 - Staging testing with full stack
 - Production infrastructure reference
@@ -363,6 +422,7 @@ Services:
 ### Local Development Stack (docker-compose.local.yml)
 
 Extends production setup + adds:
+
 ```yaml
 Services:
   ├── [all from production]
@@ -373,6 +433,7 @@ Services:
 ```
 
 **Launch**
+
 ```bash
 docker compose -f docker-compose.local.yml up --build -d
 # API available at http://localhost:3000
@@ -446,45 +507,50 @@ Media (Cloudinary references)
 
 Local base URL (per [root README](../README.md)): `http://localhost:3001/api/v1` · Swagger: `http://localhost:3001/api-docs`
 
-| Module | Endpoints | Auth |
-|--------|-----------|------|
-| **Auth** | `POST /auth/sign-up`, `POST /auth/sign-in`, `POST /auth/refresh`, `POST /auth/forgot-password` | Public/JWT |
-| **Users** | `GET /users/:id`, `PUT /users/:id`, `GET /users` (admin) | JWT |
-| **Products** | `GET /products`, `GET /products/admin` (admin), `GET /products/:slug`, `GET /products/admin/:id` (admin), `POST /products` (admin), `PUT /products/:id` (admin), `PUT /products/:productId/variants/:variantId` (admin), `DELETE /products/:id` (admin) | Public/Admin |
-| **Orders** | `POST /orders`, `GET /orders`, `GET /orders/:id`, `PATCH /orders/:id/status` (admin) | Public/JWT/Admin |
-| **Articles** | `GET /articles`, `GET /articles/admin` (admin), `GET /articles/:slug`, `GET /articles/admin/:id` (admin), `POST /articles` (admin), `PUT /articles/:id` (admin), `DELETE /articles/:id` (admin) | Public/Admin |
-| **Media** | `POST /media/upload` (admin), `GET /media` (admin), `DELETE /media/:id` (admin) | Admin |
-| **Dashboard** | `GET /dashboard/stats?period=today\|week\|month\|all` | Admin |
-| **Health** | `GET /health` | Public |
+| Module        | Endpoints                                                                                                                                                                                                                                               | Auth             |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| **Auth**      | `POST /auth/sign-up`, `POST /auth/sign-in`, `POST /auth/refresh`, `POST /auth/forgot-password`                                                                                                                                                          | Public/JWT       |
+| **Users**     | `GET /users/:id`, `PUT /users/:id`, `GET /users` (admin)                                                                                                                                                                                                | JWT              |
+| **Products**  | `GET /products`, `GET /products/admin` (admin), `GET /products/:slug`, `GET /products/admin/:id` (admin), `POST /products` (admin), `PUT /products/:id` (admin), `PUT /products/:productId/variants/:variantId` (admin), `DELETE /products/:id` (admin) | Public/Admin     |
+| **Orders**    | `POST /orders`, `GET /orders`, `GET /orders/:id`, `PATCH /orders/:id/status` (admin)                                                                                                                                                                    | Public/JWT/Admin |
+| **Articles**  | `GET /articles`, `GET /articles/admin` (admin), `GET /articles/:slug`, `GET /articles/admin/:id` (admin), `POST /articles` (admin), `PUT /articles/:id` (admin), `DELETE /articles/:id` (admin)                                                         | Public/Admin     |
+| **Media**     | `POST /media/upload` (admin), `GET /media` (admin), `DELETE /media/:id` (admin)                                                                                                                                                                         | Admin            |
+| **Dashboard** | `GET /dashboard/stats?period=today\|week\|month\|all`                                                                                                                                                                                                   | Admin            |
+| **Health**    | `GET /health`                                                                                                                                                                                                                                           | Public           |
 
 ---
 
 ## Security Architecture
 
 ### Authentication
+
 - **Method:** JWT (JSON Web Tokens)
 - **Secret Storage:** Environment variables (`AUTH_JWT_SECRET`)
 - **Token Lifetime:** Configurable (default 1 day)
 - **Refresh Tokens:** Separate secret, longer lifetime (default 365 days)
 
 ### Authorization
+
 - **Model:** RBAC (Role-Based Access Control)
 - **Roles:** admin, user
 - **Assignment:** Database column (manual for now)
 - **Enforcement:** Guards on controller methods
 
 ### Password Security
+
 - **Hash Algorithm:** Argon2 (current best practice)
 - **Storage:** Hashed only in database
 - **Comparison:** Timing-safe via argon2 package
 
 ### CORS
+
 - **Config:** `APP_CORS_ORIGIN` environment variable
 - **Methods:** GET, HEAD, PUT, PATCH, POST, DELETE
 - **Credentials:** Allowed when same-origin
 - **Wildcard:** Disabled in production
 
 ### Helmet
+
 - Sets security headers: X-Frame-Options, X-XSS-Protection, CSP, etc.
 - Enabled by default in main.ts
 
@@ -493,17 +559,20 @@ Local base URL (per [root README](../README.md)): `http://localhost:3001/api/v1`
 ## Performance Considerations
 
 ### Caching Strategy
+
 - **Products/Articles:** Cache with TTL, invalidate on create/update
 - **User data:** Cache profile, invalidate on change
 - **Dashboard stats:** Cache per period, refresh daily
 
 ### Database Optimization
+
 - **Indexing:** Add indexes on: user_id, product_id, slug, created_at
 - **Query optimization:** Use select() to limit fields
 - **Pagination:** Always use limit/offset or cursor for large datasets
 - **Lazy loading:** Avoid N+1 queries with eager loading
 
 ### Async Processing
+
 - **Email:** Queue via BullMQ, process in background
 - **Bulk operations:** Use queue for large data processing
 - **File operations:** Upload to Cloudinary asynchronously
@@ -513,6 +582,7 @@ Local base URL (per [root README](../README.md)): `http://localhost:3001/api/v1`
 ## Deployment Architecture
 
 ### Environment Promotion Path
+
 ```
 Local Development
   ↓
@@ -522,6 +592,7 @@ Production (kubernetes/managed container)
 ```
 
 ### Production Checklist
+
 - [ ] ENV vars set (no .env file in production)
 - [ ] Database backups configured
 - [ ] Redis persistence enabled
@@ -538,6 +609,7 @@ Production (kubernetes/managed container)
 ## Development Workflow
 
 ### Local Setup
+
 ```bash
 # Install dependencies
 pnpm install
@@ -553,6 +625,7 @@ pnpm dev
 ```
 
 ### Code Quality Gates
+
 - **Linting:** ESLint (via `pnpm lint`)
 - **Formatting:** Prettier (via `pnpm format`)
 - **Type checking:** TypeScript (via `pnpm type-check`)
@@ -560,6 +633,7 @@ pnpm dev
 - **Pre-commit:** Husky + lint-staged (automatic)
 
 ### Database Workflow
+
 ```bash
 # Generate migration from entities
 pnpm migration:generate src/database/migrations/MyMigration
@@ -579,17 +653,20 @@ pnpm seed:run
 ## Scalability Considerations
 
 ### Horizontal Scaling
+
 - **Stateless API** — JWT tokens, no session storage
 - **External cache** — Redis for shared state
 - **Queue-based** — BullMQ with Redis backend supports distributed processing
 - **CDN** — Cloudinary handles media distribution
 
 ### Vertical Scaling
+
 - **Database** — Connection pooling, query optimization
 - **Caching** — Strategic TTL to reduce DB load
 - **Monitoring** — Identify bottlenecks via Pino logs
 
 ### Future Improvements
+
 - Add API rate limiting (express-rate-limit)
 - Implement request/response compression
 - Add GraphQL layer (alternative to REST)
@@ -600,18 +677,18 @@ pnpm seed:run
 
 ## Technology Decisions
 
-| Decision | Rationale |
-|----------|-----------|
-| NestJS | Enterprise-grade framework, strong typing, modular architecture |
-| TypeScript | Type safety, better IDE support, self-documenting code |
-| PostgreSQL | Mature RDBMS, ACID compliance, JSON support, great TypeORM support |
-| TypeORM | Declarative entities, migration management, works with PostgreSQL well |
-| JWT | Stateless auth, scalable, industry standard |
-| Argon2 | Cryptographically secure, resistant to GPU/ASIC attacks |
-| BullMQ | Redis-backed queues, reliable job processing, good DX |
-| Cloudinary | Handled media CDN, image optimization, secure uploads |
-| pnpm | Faster than npm, disk-efficient, monorepo-friendly |
-| Turborepo | Fast builds, task caching, monorepo orchestration |
+| Decision   | Rationale                                                              |
+| ---------- | ---------------------------------------------------------------------- |
+| NestJS     | Enterprise-grade framework, strong typing, modular architecture        |
+| TypeScript | Type safety, better IDE support, self-documenting code                 |
+| PostgreSQL | Mature RDBMS, ACID compliance, JSON support, great TypeORM support     |
+| TypeORM    | Declarative entities, migration management, works with PostgreSQL well |
+| JWT        | Stateless auth, scalable, industry standard                            |
+| Argon2     | Cryptographically secure, resistant to GPU/ASIC attacks                |
+| BullMQ     | Redis-backed queues, reliable job processing, good DX                  |
+| Cloudinary | Handled media CDN, image optimization, secure uploads                  |
+| pnpm       | Faster than npm, disk-efficient, monorepo-friendly                     |
+| Turborepo  | Fast builds, task caching, monorepo orchestration                      |
 
 ---
 
@@ -626,4 +703,3 @@ pnpm seed:run
 - **Interceptor** — Middleware for request/response transformation
 - **Filter** — Exception handler
 - **Decorator** — Function annotation (e.g., @Post, @UseGuards)
-

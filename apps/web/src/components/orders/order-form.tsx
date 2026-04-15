@@ -6,6 +6,7 @@ import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { submitOrder } from '@/actions/order-actions';
 import VariantSelector from '@/components/products/variant-selector';
+import { Button } from '@/components/ui/button';
 import { PAYMENT_METHODS, PROVINCES } from '@/lib/constants';
 import {
   orderFormSchema,
@@ -336,13 +337,14 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
           </p>
         ) : null}
 
-        <button
+        <Button
           type="submit"
-          disabled={isPending || !selectedVariantId}
-          className="w-full bg-green-700 text-white font-bold py-3 rounded-xl hover:bg-green-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-base"
+          loading={isPending}
+          disabled={!selectedVariantId}
+          className="h-auto w-full rounded-xl bg-green-700 py-3 text-base font-bold text-white hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {isPending ? 'Đang xử lý...' : `Đặt hàng — ${productName}`}
-        </button>
+          {isPending ? 'Đang xử lý…' : `Đặt hàng — ${productName}`}
+        </Button>
       </form>
     </section>
   );

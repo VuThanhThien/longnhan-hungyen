@@ -2,6 +2,7 @@
 
 // YouTube embed section — featured video + thumbnail carousel
 
+import Image from 'next/image';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 interface VideoSectionProps {
@@ -129,11 +130,12 @@ export default function VideoSection({ videoUrls }: VideoSectionProps) {
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-700/40',
                     ].join(' ')}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
+                    <Image
                       src={`https://img.youtube.com/vi/${id}/hqdefault.jpg`}
                       alt={`Video thumbnail ${idx + 1}`}
-                      loading="lazy"
+                      width={480}
+                      height={360}
+                      sizes="(max-width: 640px) 160px, 176px"
                       className="aspect-video w-full object-cover"
                     />
                     <div className="absolute inset-0 grid place-items-center">

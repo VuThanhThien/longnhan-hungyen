@@ -14,18 +14,40 @@ import {
 import type { Product } from '@longnhan/types';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-
-export const revalidate = 60;
+import { cacheLife, cacheTag } from 'next/cache';
 
 interface ProductDetailPageProps {
   params: Promise<{ slug: string }>;
 }
 
 async function getProduct(slug: string): Promise<Product | null> {
+  'use cache';
+  cacheLife({ revalidate: 60 });
+  cacheTag('products', `product-${slug}`);
   try {
     return await fetchApi<Product>(`/products/${slug}`);
   } catch {
     return null;
+  }
+}
+
+async function getRelatedProducts(
+  category: string | undefined,
+  excludeSlug: string,
+): Promise<Product[]> {
+  'use cache';
+  cacheLife({ revalidate: 60 });
+  cacheTag('related-products', `cat:${category ?? ''}`, `ex:${excludeSlug}`);
+  try {
+    const relatedResponse = await fetchPaginated<Product>('/products', {
+      category,
+      limit: 8,
+    });
+    return relatedResponse.data
+      .filter((item) => item.slug !== excludeSlug)
+      .slice(0, 4);
+  } catch {
+    return [];
   }
 }
 
@@ -74,18 +96,10 @@ export default async function ProductDetailPage({
     notFound();
   }
 
-  let relatedProducts: Product[] = [];
-  try {
-    const relatedResponse = await fetchPaginated<Product>('/products', {
-      category: product.category,
-      limit: 8,
-    });
-    relatedProducts = relatedResponse.data
-      .filter((item) => item.slug !== product.slug)
-      .slice(0, 4);
-  } catch {
-    relatedProducts = [];
-  }
+  const relatedProducts = await getRelatedProducts(
+    product.category,
+    product.slug,
+  );
 
   const breadcrumbItems = [
     { label: 'Trang chủ', url: '/' },

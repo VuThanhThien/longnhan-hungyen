@@ -7,8 +7,26 @@ import Breadcrumb from '@/components/ui/breadcrumb';
 import { fetchPaginated } from '@/lib/api-client';
 import { loadProductSearchParams } from '@/lib/product-search-params';
 import { buildSeoMetadata } from '@/lib/seo';
+import { cacheLife, cacheTag } from 'next/cache';
 
-export const revalidate = 60;
+async function getProductsListing(
+  category: string | undefined,
+  q: string | undefined,
+): Promise<Product[]> {
+  'use cache';
+  cacheLife({ revalidate: 60 });
+  cacheTag('products-list', `cat:${category ?? ''}`, `q:${q ?? ''}`);
+  try {
+    const response = await fetchPaginated<Product>('/products', {
+      category,
+      q,
+      limit: 24,
+    });
+    return response.data;
+  } catch {
+    return [];
+  }
+}
 
 interface ProductsPageProps {
   searchParams: Promise<SearchParams>;
@@ -31,17 +49,7 @@ export default async function ProductsPage({
   const category = categoryRaw ?? undefined;
   const q = qRaw ?? undefined;
 
-  let products: Product[] = [];
-  try {
-    const response = await fetchPaginated<Product>('/products', {
-      category,
-      q,
-      limit: 24,
-    });
-    products = response.data;
-  } catch {
-    products = [];
-  }
+  const products = await getProductsListing(category, q);
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8">

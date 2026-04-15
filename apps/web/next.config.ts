@@ -2,12 +2,36 @@ import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
 
 const nextConfig: NextConfig = {
+  cacheComponents: true,
+  poweredByHeader: false,
+  async headers() {
+    return [
+      {
+        source: '/sw.js',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+        ],
+      },
+    ];
+  },
+  experimental: {
+    optimizePackageImports: ['lucide-react'],
+  },
   images: {
+    formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       {
         protocol: 'https',
         hostname: 'tinhhoaphohien.vn',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'img.youtube.com',
+        pathname: '/vi/**',
       },
     ],
   },
@@ -35,7 +59,7 @@ export default sentryEnabled && sentryAuthToken && sentryOrg && sentryProject
 
       // Uncomment to route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
       // This can increase your server load as well as your hosting bill.
-      // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-
+      // Note: Check that the configured route will not match with your Next.js proxy, otherwise reporting of client-
       // side errors will fail.
       // tunnelRoute: "/monitoring",
 

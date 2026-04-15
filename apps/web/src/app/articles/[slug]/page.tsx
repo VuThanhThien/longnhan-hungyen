@@ -3,33 +3,26 @@ import { notFound } from 'next/navigation';
 import type { Article } from '@longnhan/types';
 import ArticleContent from '@/components/articles/article-content';
 import Breadcrumb from '@/components/ui/breadcrumb';
-import { fetchApi, fetchPaginated } from '@/lib/api-client';
+import { fetchApi } from '@/lib/api-client';
 import { SITE_URL } from '@/lib/constants';
 import {
   buildArticleSchema,
   buildBreadcrumbSchema,
 } from '@/lib/structured-data';
-
-export const revalidate = 3600;
+import { cacheLife, cacheTag } from 'next/cache';
 
 interface ArticleDetailPageProps {
   params: Promise<{ slug: string }>;
 }
 
 async function getArticle(slug: string): Promise<Article | null> {
+  'use cache';
+  cacheLife({ revalidate: 3600 });
+  cacheTag('articles', `article-${slug}`);
   try {
     return await fetchApi<Article>(`/articles/${slug}`);
   } catch {
     return null;
-  }
-}
-
-export async function generateStaticParams() {
-  try {
-    const response = await fetchPaginated<Article>('/articles', { limit: 200 });
-    return response.data.map((article) => ({ slug: article.slug }));
-  } catch {
-    return [];
   }
 }
 

@@ -3,8 +3,19 @@ import type { Article } from '@longnhan/types';
 import ArticleCard from '@/components/articles/article-card';
 import Breadcrumb from '@/components/ui/breadcrumb';
 import { fetchPaginated } from '@/lib/api-client';
+import { cacheLife, cacheTag } from 'next/cache';
 
-export const revalidate = 3600;
+async function getArticles(): Promise<Article[]> {
+  'use cache';
+  cacheLife({ revalidate: 3600 });
+  cacheTag('articles');
+  try {
+    const response = await fetchPaginated<Article>('/articles', { limit: 24 });
+    return response.data;
+  } catch {
+    return [];
+  }
+}
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
@@ -14,13 +25,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ArticlesPage() {
-  let articles: Article[] = [];
-  try {
-    const response = await fetchPaginated<Article>('/articles', { limit: 24 });
-    articles = response.data;
-  } catch {
-    articles = [];
-  }
+  const articles = await getArticles();
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8">

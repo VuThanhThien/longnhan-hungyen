@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
+import { Loader2 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
@@ -52,25 +53,48 @@ export type ButtonProps = (
      * without Radix `Slot`, so it can be used from both server and client.
      */
     asChild?: boolean;
+    /** Shows spinner, disables interaction, sets `aria-busy`. Ignored when `asChild`. */
+    loading?: boolean;
+    /** Present on union for `asChild` + native button usage. */
+    disabled?: boolean;
   };
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild, ...props }, ref) => {
+  (
+    {
+      className,
+      variant,
+      size,
+      asChild,
+      loading,
+      disabled,
+      children,
+      ...props
+    },
+    ref,
+  ) => {
     const classes = cn(buttonVariants({ variant, size }), className);
+    const isLoading = Boolean(loading);
 
     if (asChild) {
-      const { children, ...childProps } = props as Extract<
-        ButtonProps,
-        { asChild: true }
-      >;
+      const child = children as React.ReactElement<{ className?: string }>;
+      const passthrough = props as Record<string, unknown>;
 
-      return React.cloneElement(children, {
-        ...(childProps as Record<string, unknown>),
-        className: cn(classes, children.props.className),
+      return React.cloneElement(child, {
+        ...passthrough,
+        className: cn(classes, child.props.className),
       });
     }
 
     const buttonProps = props as React.ButtonHTMLAttributes<HTMLButtonElement>;
+    const spinnerSize =
+      size === 'sm'
+        ? 'size-3.5'
+        : size === 'lg'
+          ? 'size-5'
+          : size === 'icon'
+            ? 'size-4'
+            : 'size-4';
 
     return (
       <button
@@ -78,7 +102,22 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         type={buttonProps.type ?? 'button'}
         className={classes}
         {...buttonProps}
-      />
+        disabled={disabled || isLoading}
+        aria-busy={isLoading || undefined}
+      >
+        {isLoading ? (
+          <>
+            <Loader2
+              className={cn('shrink-0 animate-spin', spinnerSize)}
+              aria-hidden
+            />
+            <span className="sr-only">Đang xử lý</span>
+            {children}
+          </>
+        ) : (
+          children
+        )}
+      </button>
     );
   },
 );
