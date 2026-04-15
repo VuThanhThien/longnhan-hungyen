@@ -7,7 +7,10 @@ import { submitOrder } from '@/actions/order-actions';
 import { CheckoutCustomerForm } from '@/components/checkout/checkout-customer-form';
 import { CheckoutOrderSummary } from '@/components/checkout/checkout-order-summary';
 import { SHIPPING_FLAT_VND } from '@/lib/constants';
-import type { OrderFormValues } from '@/lib/validation/order-form-schema';
+import {
+  orderItemsSchema,
+  type OrderFormValues,
+} from '@/lib/validation/order/order-schemas';
 import { useCartStore } from '@/services/cart/cart-store';
 
 function cartSubtotal(lines: { quantity: number; unitPriceVnd: number }[]) {
@@ -43,6 +46,16 @@ export function CheckoutPageContent() {
   const onSubmit = (values: OrderFormValues) => {
     setSubmitError(null);
 
+    const items = lines.map((l) => ({
+      variantId: l.variantId,
+      qty: l.quantity,
+    }));
+    const parsedItems = orderItemsSchema.safeParse(items);
+    if (!parsedItems.success) {
+      setSubmitError('Giỏ hàng không hợp lệ, vui lòng kiểm tra lại.');
+      return;
+    }
+
     const fd = new FormData();
     fd.set('customerName', values.customerName);
     fd.set('phone', values.phone);
@@ -51,12 +64,7 @@ export function CheckoutPageContent() {
     fd.set('province', values.province);
     fd.set('paymentMethod', values.paymentMethod);
     if (values.notes) fd.set('notes', values.notes);
-    fd.set(
-      'items',
-      JSON.stringify(
-        lines.map((l) => ({ variantId: l.variantId, qty: l.quantity })),
-      ),
-    );
+    fd.set('items', JSON.stringify(parsedItems.data));
 
     startTransition(async () => {
       try {

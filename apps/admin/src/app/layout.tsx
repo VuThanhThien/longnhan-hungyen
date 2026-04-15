@@ -24,7 +24,7 @@ export default function RootLayout({
       <body className="h-full antialiased bg-gray-50">
         <QueryProvider>
           {children}
-          <Toaster richColors closeButton />
+          <Toaster richColors closeButton position="top-right" />
         </QueryProvider>
       </body>
     </html>

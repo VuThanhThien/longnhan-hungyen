@@ -1,14 +1,14 @@
 'use client';
 
-import { yupResolver } from '@hookform/resolvers/yup';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 
 import { Button } from '@/components/ui/button';
 import { PAYMENT_METHODS, PROVINCES } from '@/lib/constants';
 import {
-  orderFormSchema,
+  orderCustomerSchema as orderFormSchema,
   type OrderFormValues,
-} from '@/lib/validation/order-form-schema';
+} from '@/lib/validation/order/order-schemas';
 import QrPaymentInfo from '@/components/orders/qr-payment-info';
 
 function inputClass(invalid: boolean) {
@@ -36,7 +36,7 @@ export function CheckoutCustomerForm({
     watch,
     formState: { errors },
   } = useForm<OrderFormValues>({
-    resolver: yupResolver(orderFormSchema),
+    resolver: zodResolver(orderFormSchema),
     defaultValues: {
       customerName: '',
       phone: '',

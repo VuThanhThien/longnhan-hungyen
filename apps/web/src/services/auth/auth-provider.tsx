@@ -49,7 +49,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const loadData = useCallback(async () => {
     const tokens = getTokensInfo();
-    console.log('🚀 ~ AuthProvider ~ tokens:', tokens);
 
     try {
       if (!tokens?.accessToken) return;

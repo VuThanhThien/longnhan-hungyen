@@ -29,12 +29,14 @@ export default async function OrderSuccessPage({
   searchParams,
 }: OrderSuccessPageProps) {
   const params = await searchParams;
-  const orderCode =
+  const codeFromQuery =
     typeof params.code === 'string'
-      ? params.code
+      ? params.code.slice(0, 64)
       : Array.isArray(params.code)
-        ? params.code[0]
+        ? params.code[0]?.slice(0, 64)
         : null;
+
+  const orderCode = codeFromQuery;
 
   return (
     <section className="mx-auto max-w-xl px-4 py-12 md:py-20">
@@ -67,6 +69,7 @@ export default async function OrderSuccessPage({
               <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-background text-muted-foreground shadow-sm ring-1 ring-border/60">
                 <Package className="size-5" aria-hidden />
               </span>
+              {/* TODO: link go to tracking page */}
               <div className="min-w-0">
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Mã đơn hàng

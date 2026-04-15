@@ -1,24 +1,11 @@
-import axios, { type AxiosInstance, isAxiosError } from 'axios';
+import axios, { type AxiosInstance } from 'axios';
 import Cookies from 'js-cookie';
 import {
   AUTH_TOKEN_KEY,
   parseAuthTokens,
   type AuthTokens,
 } from '@/lib/auth-token';
-
-function extractMessage(error: unknown): string {
-  if (isAxiosError(error)) {
-    const payload = error.response?.data;
-    if (payload && typeof payload === 'object') {
-      const msg = (payload as { message?: string | string[] }).message;
-      if (typeof msg === 'string') return msg;
-      if (Array.isArray(msg)) return msg.join(', ');
-    }
-    return error.message;
-  }
-  if (error instanceof Error) return error.message;
-  return 'Request failed';
-}
+import { extractErrorMessage } from '@/lib/http/extract-error-message';
 
 export function createLongnhanApi(baseURL: string): AxiosInstance {
   const instance = axios.create({
@@ -114,7 +101,7 @@ export function createLongnhanApi(baseURL: string): AxiosInstance {
       }
       return response;
     },
-    (error) => Promise.reject(new Error(extractMessage(error))),
+    (error) => Promise.reject(new Error(extractErrorMessage(error))),
   );
 
   return instance;

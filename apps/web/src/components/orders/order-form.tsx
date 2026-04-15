@@ -1,24 +1,28 @@
 'use client';
 
-import { yupResolver } from '@hookform/resolvers/yup';
+import { zodResolver } from '@hookform/resolvers/zod';
 import type { ProductVariant } from '@longnhan/types';
 import { useState, useTransition } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { submitOrder } from '@/actions/order-actions';
 import VariantSelector from '@/components/products/variant-selector';
 import { Button } from '@/components/ui/button';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { PAYMENT_METHODS, PROVINCES } from '@/lib/constants';
 import {
-  orderFormSchema,
+  orderCustomerSchema as orderFormSchema,
   type OrderFormValues,
-} from '@/lib/validation/order-form-schema';
+} from '@/lib/validation/order/order-schemas';
 import QrPaymentInfo from './qr-payment-info';
-
-function inputClass(invalid: boolean) {
-  return `w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 ${
-    invalid ? 'border-red-500 bg-red-50/40' : 'border-gray-300'
-  }`;
-}
 
 interface OrderFormProps {
   variants: ProductVariant[];
@@ -36,13 +40,8 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const {
-    register,
-    handleSubmit,
-    watch,
-    formState: { errors },
-  } = useForm<OrderFormValues>({
-    resolver: yupResolver(orderFormSchema),
+  const form = useForm<OrderFormValues>({
+    resolver: zodResolver(orderFormSchema),
     defaultValues: {
       customerName: '',
       phone: '',
@@ -54,8 +53,10 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
     },
   });
 
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const paymentMethod = watch('paymentMethod');
+  const paymentMethod = useWatch({
+    control: form.control,
+    name: 'paymentMethod',
+  });
   const selectedVariant = variants.find((v) => v.id === selectedVariantId);
   const selectedVariantStock =
     selectedVariant?.stock ?? selectedVariant?.stockQuantity ?? 0;
@@ -164,188 +165,188 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
         ) : null}
       </div>
 
-      <form
-        onSubmit={handleSubmit(onValidSubmit)}
-        className="flex flex-col gap-4"
-      >
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label
-              htmlFor="customerName"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Họ tên <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="customerName"
-              type="text"
-              autoComplete="name"
-              placeholder="Nguyễn Văn A"
-              className={inputClass(!!errors.customerName)}
-              {...register('customerName')}
-            />
-            {errors.customerName ? (
-              <p className="mt-1 text-xs text-red-600">
-                {errors.customerName.message}
-              </p>
-            ) : null}
-          </div>
-          <div>
-            <label
-              htmlFor="phone"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Số điện thoại <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="phone"
-              type="tel"
-              autoComplete="tel"
-              placeholder="0987 654 321"
-              className={inputClass(!!errors.phone)}
-              {...register('phone')}
-            />
-            {errors.phone ? (
-              <p className="mt-1 text-xs text-red-600">
-                {errors.phone.message}
-              </p>
-            ) : null}
-          </div>
-        </div>
-
-        <div>
-          <label
-            htmlFor="email"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="email"
-            placeholder="example@email.com"
-            className={inputClass(!!errors.email)}
-            {...register('email')}
-          />
-          {errors.email ? (
-            <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>
-          ) : null}
-        </div>
-
-        <div>
-          <label
-            htmlFor="address"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Địa chỉ giao hàng <span className="text-red-500">*</span>
-          </label>
-          <input
-            id="address"
-            type="text"
-            autoComplete="street-address"
-            placeholder="Số nhà, đường, phường/xã, quận/huyện"
-            className={inputClass(!!errors.address)}
-            {...register('address')}
-          />
-          {errors.address ? (
-            <p className="mt-1 text-xs text-red-600">
-              {errors.address.message}
-            </p>
-          ) : null}
-        </div>
-
-        <div>
-          <label
-            htmlFor="province"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Tỉnh/Thành phố <span className="text-red-500">*</span>
-          </label>
-          <select
-            id="province"
-            className={`${inputClass(!!errors.province)} bg-white`}
-            {...register('province')}
-          >
-            <option value="">Chọn tỉnh/thành</option>
-            {PROVINCES.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
-          {errors.province ? (
-            <p className="mt-1 text-xs text-red-600">
-              {errors.province.message}
-            </p>
-          ) : null}
-        </div>
-
-        <div>
-          <span className="block text-sm font-medium text-gray-700 mb-2">
-            Phương thức thanh toán <span className="text-red-500">*</span>
-          </span>
-          <div className="flex flex-col gap-2">
-            {PAYMENT_METHODS.map((method) => (
-              <label
-                key={method.value}
-                className="flex items-center gap-2 cursor-pointer"
-              >
-                <input
-                  type="radio"
-                  value={method.value}
-                  className="text-green-600"
-                  {...register('paymentMethod')}
-                />
-                <span className="text-sm text-gray-700">{method.label}</span>
-              </label>
-            ))}
-          </div>
-          {errors.paymentMethod ? (
-            <p className="mt-1 text-xs text-red-600">
-              {errors.paymentMethod.message}
-            </p>
-          ) : null}
-        </div>
-
-        {paymentMethod === 'bank_transfer' ? (
-          <QrPaymentInfo totalAmount={totalAmount} />
-        ) : null}
-
-        <div>
-          <label
-            htmlFor="notes"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Ghi chú
-          </label>
-          <textarea
-            id="notes"
-            rows={3}
-            placeholder="Ghi chú đơn hàng (tuỳ chọn)"
-            className={`${inputClass(!!errors.notes)} resize-none`}
-            {...register('notes')}
-          />
-          {errors.notes ? (
-            <p className="mt-1 text-xs text-red-600">{errors.notes.message}</p>
-          ) : null}
-        </div>
-
-        {submitError ? (
-          <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-            {submitError}
-          </p>
-        ) : null}
-
-        <Button
-          type="submit"
-          loading={isPending}
-          disabled={!selectedVariantId}
-          className="h-auto w-full rounded-xl bg-green-700 py-3 text-base font-bold text-white hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60"
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(onValidSubmit)}
+          className="flex flex-col gap-4"
         >
-          {isPending ? 'Đang xử lý…' : `Đặt hàng — ${productName}`}
-        </Button>
-      </form>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="customerName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Họ tên <span className="text-red-500">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      autoComplete="name"
+                      placeholder="Nguyễn Văn A"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    Số điện thoại <span className="text-red-500">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="tel"
+                      autoComplete="tel"
+                      placeholder="0987 654 321"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    type="email"
+                    autoComplete="email"
+                    placeholder="example@email.com"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="address"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>
+                  Địa chỉ giao hàng <span className="text-red-500">*</span>
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    autoComplete="street-address"
+                    placeholder="Số nhà, đường, phường/xã, quận/huyện"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="province"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>
+                  Tỉnh/Thành phố <span className="text-red-500">*</span>
+                </FormLabel>
+                <FormControl>
+                  <select
+                    {...field}
+                    className="flex h-11 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  >
+                    <option value="">Chọn tỉnh/thành</option>
+                    {PROVINCES.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="paymentMethod"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>
+                  Phương thức thanh toán <span className="text-red-500">*</span>
+                </FormLabel>
+                <FormControl>
+                  <div className="flex flex-col gap-2">
+                    {PAYMENT_METHODS.map((method) => (
+                      <label
+                        key={method.value}
+                        className="flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm"
+                      >
+                        <input
+                          type="radio"
+                          value={method.value}
+                          checked={field.value === method.value}
+                          onChange={() => field.onChange(method.value)}
+                        />
+                        <span>{method.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {paymentMethod === 'bank_transfer' ? (
+            <QrPaymentInfo totalAmount={totalAmount} />
+          ) : null}
+
+          <FormField
+            control={form.control}
+            name="notes"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Ghi chú</FormLabel>
+                <FormControl>
+                  <Textarea
+                    {...field}
+                    rows={3}
+                    placeholder="Ghi chú đơn hàng (tuỳ chọn)"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {submitError ? (
+            <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              {submitError}
+            </p>
+          ) : null}
+
+          <Button
+            type="submit"
+            loading={isPending}
+            disabled={!selectedVariantId}
+            className="h-auto w-full rounded-xl bg-green-700 py-3 text-base font-bold text-white hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isPending ? 'Đang xử lý…' : `Đặt hàng — ${productName}`}
+          </Button>
+        </form>
+      </Form>
     </section>
   );
 }

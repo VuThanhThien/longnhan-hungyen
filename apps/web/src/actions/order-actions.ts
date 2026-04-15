@@ -1,60 +1,74 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import * as Sentry from '@sentry/nextjs';
 import { isRedirectError } from 'next/dist/client/components/redirect-error';
 
 import { apiServer } from '@/lib/api-server';
+import {
+  orderCustomerSchema,
+  orderItemsSchema,
+} from '@/lib/validation/order/order-schemas';
+import {
+  optionalString,
+  requireJsonString,
+  requireNonEmptyString,
+} from '@/lib/formdata/formdata-utils';
+import {
+  captureOrderSubmitFailure,
+  captureOrderSubmitSuccess,
+} from '@/lib/observability/order-submit-sentry';
 
 export async function submitOrder(formData: FormData): Promise<void> {
-  const itemsRaw = formData.get('items');
+  let itemsJson: unknown;
+  try {
+    itemsJson = requireJsonString(formData, 'items');
+  } catch {
+    throw new Error('Dữ liệu sản phẩm không hợp lệ');
+  }
 
-  if (!itemsRaw) {
-    throw new Error('Không có sản phẩm trong đơn hàng');
+  const rawPaymentMethod = requireNonEmptyString(formData, 'paymentMethod');
+  const customerParse = orderCustomerSchema.safeParse({
+    customerName: requireNonEmptyString(formData, 'customerName'),
+    phone: requireNonEmptyString(formData, 'phone'),
+    email: optionalString(formData, 'email') ?? '',
+    address: requireNonEmptyString(formData, 'address'),
+    province: requireNonEmptyString(formData, 'province'),
+    paymentMethod: rawPaymentMethod,
+    notes: optionalString(formData, 'notes'),
+  });
+  if (!customerParse.success) {
+    throw new Error(
+      customerParse.error.issues[0]?.message ?? 'Dữ liệu đơn hàng không hợp lệ',
+    );
+  }
+
+  const itemsParse = orderItemsSchema.safeParse(itemsJson);
+  if (!itemsParse.success) {
+    throw new Error('Dữ liệu sản phẩm không hợp lệ');
   }
 
   const body = {
-    customerName: formData.get('customerName'),
-    phone: formData.get('phone'),
-    email: formData.get('email') || undefined,
-    address: formData.get('address'),
-    province: formData.get('province') || undefined,
-    notes: formData.get('notes') || undefined,
-    paymentMethod: formData.get('paymentMethod'),
-    items: JSON.parse(itemsRaw as string) as {
-      variantId: string;
-      qty: number;
-    }[],
+    ...customerParse.data,
+    email: customerParse.data.email ? customerParse.data.email : undefined,
+    items: itemsParse.data,
   };
 
   try {
     const { data } = await apiServer.post<{ code: string }>('/orders', body);
 
-    if (process.env.NODE_ENV === 'production') {
-      Sentry.captureMessage('order_submit:success', {
-        level: 'info',
-        tags: { order_code: data.code },
-      });
+    if (!data?.code) {
+      throw new Error('Thiếu mã đơn hàng từ hệ thống');
     }
 
-    redirect(`/order-success?code=${data.code}`);
+    captureOrderSubmitSuccess(data.code);
+
+    redirect(`/order-success?code=${encodeURIComponent(data.code)}`);
   } catch (err) {
     if (isRedirectError(err)) {
       throw err;
     }
 
-    if (process.env.NODE_ENV === 'production') {
-      const status = (err as { response?: { status?: number } })?.response
-        ?.status;
-      const code = (err as { code?: string })?.code;
-      Sentry.captureException(new Error('order_submit_failed'), {
-        tags: {
-          order_submit: 'error',
-          ...(status ? { http_status: String(status) } : null),
-          ...(code ? { error_code: code } : null),
-        },
-      });
-    }
+    captureOrderSubmitFailure(err);
     throw new Error('Đặt hàng thất bại, vui lòng thử lại.');
   }
 }
