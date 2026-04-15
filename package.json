@@ -31,6 +31,7 @@
     "type-check:web": "pnpm --filter @longnhan/web type-check",
     "type-check:admin": "pnpm --filter @longnhan/admin type-check",
     "lint-staged": "lint-staged",
+    "repomix": "repomix -o repomix-output.xml --style xml",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
@@ -43,6 +44,7 @@
     "lint-staged": "^16.1.6",
     "prettier": "^3.6.2",
     "prettier-plugin-organize-imports": "^4.2.0",
+    "repomix": "^1.13.1",
     "turbo": "^2.5.0",
     "typescript": "^5.4.0"
   },

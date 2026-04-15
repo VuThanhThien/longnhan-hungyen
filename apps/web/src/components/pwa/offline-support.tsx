@@ -14,6 +14,32 @@ function isServiceWorkerEnabled() {
 }
 
 /**
+ * When SW is turned off for this build (e.g. local dev), remove any worker left
+ * from a previous prod / SW-enabled session so caching does not stick around.
+ * If `'serviceWorker'` is missing, there is no API to unregister — skip.
+ */
+async function unregisterServiceWorkersIfDisabled() {
+  if (!('serviceWorker' in navigator) || isServiceWorkerEnabled()) return;
+  try {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(
+      registrations.map((reg) =>
+        reg.unregister().then((didUnregister) => {
+          if (didUnregister) {
+            console.log(
+              `${LOG_PREFIX} unregistered (SW disabled for this environment)`,
+              reg.scope,
+            );
+          }
+        }),
+      ),
+    );
+  } catch (err) {
+    console.warn(`${LOG_PREFIX} unregister skipped`, err);
+  }
+}
+
+/**
  * Registers the service worker (prod or when NEXT_PUBLIC_ENABLE_SW=true),
  * shows offline/online toasts, and prompts SW update checks when back online.
  */
@@ -22,6 +48,8 @@ export function OfflineSupport() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    void unregisterServiceWorkersIfDisabled();
 
     let updateIntervalId: ReturnType<typeof setInterval> | undefined;
     let cancelled = false;
@@ -131,7 +159,7 @@ export function OfflineSupport() {
       if (updateIntervalId !== undefined) {
         clearInterval(updateIntervalId);
       }
-      if (onControllerChange) {
+      if (onControllerChange && 'serviceWorker' in navigator) {
         navigator.serviceWorker.removeEventListener(
           'controllerchange',
           onControllerChange,

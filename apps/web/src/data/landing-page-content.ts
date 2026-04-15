@@ -25,22 +25,26 @@ export const LANDING_BRAND = {
 } as const;
 
 export const LANDING_HERO = {
-  eyebrow: 'Tinh hoa Phố Hiến',
-  headline: 'Long nhãn Hưng Yên\nvương giả chi quả',
+  eyebrow: 'Long Nhãn Tống Trân',
+  headline: 'Dẻo thơm vị mật, ngọt thanh vị đời.',
   subhead:
-    'Hương vị cổ truyền, chọn lọc từ vườn nhãn xứ Đông — món quà quê nhà ý nghĩa cho người thân, đối tác và gia đình.',
-  primaryCta: 'Đặt hàng — COD toàn quốc',
+    'Tuyển chọn từ những trái nhãn ngon nhất vườn nhà Tống Trân - Hưng Yên. Cam kết không tẩm đường, không chất bảo quản.',
+  primaryCta: 'Xem ngay',
   secondaryCta: 'Xem Shopee',
   tertiaryCta: 'Chat Zalo',
 } as const;
 
 export const LANDING_ORIGIN = {
-  sectionTitle: 'Câu chuyện xứ nhãn',
-  sectionSubtitle: 'Gốc Phố Hiến, trọn vị quê hương',
+  sectionTitle: 'Long Nhãn Tống Trân',
+  sectionSubtitle: 'Tinh Túy Từ Vườn Nhà, Ngọt Thơm Vị Truyền Thống',
   paragraphs: [
-    'Xuôi theo triền đê tả sông Hồng về phố Hiến, những vườn nhãn xum xuê nở hoa vàng hoe tắm nắng, tới mùa thu yên bình những chùm quả nâu vàng sai trĩu như mời gọi.',
-    'Nhãn lồng Phố Hiến được biết đến từ khoảng thế kỷ 16. Cây nhãn tổ hơn bốn thế kỷ vẫn tươi tốt, vị ngọt thơm, xưa là sản vật tiến vua — được ví là “vương giả chi quả”.',
-    'Chúng tôi giữ quy trình chế biến khép kín, an toàn vệ sinh thực phẩm, để mỗi hạt long nhãn mang trọn hương vị và giá trị dinh dưỡng của đất Hưng Yên.',
+    'Sinh ra và lớn lên tại mảnh đất Tống Trân, Hưng Yên – cái nôi của những mùa nhãn lồng trĩu quả, chúng tôi tự hào mang đến cho bạn thức quà quý giá nhất của quê hương: Long nhãn sấy khô 100% nhà làm.',
+    'Không sản xuất công nghiệp đại trà, mỗi mẻ long nhãn của shop đều chứa đựng sự tỉ mỉ của người nông dân. Từ khâu chọn những trái nhãn cùi dày, mọng nước nhất trong chính khu vườn gia đình, đến việc bóc vỏ, tách hạt khéo léo và đưa vào lò sấy giữ trọn hương vị.',
+    'Vì sao bạn có thể hoàn toàn yên tâm khi chọn Long Nhãn nhà chúng tôi?',
+    'Nguồn gốc minh bạch: Thu hoạch trực tiếp từ vườn nhãn gia đình tại Tống Trân, Hưng Yên.',
+    'Chất lượng thượng hạng: Cùi nhãn sấy xong dày mình, màu vàng ươm tự nhiên, dẻo dai và mang vị ngọt thanh, thơm mùi mật quyến rũ.',
+    'An toàn tuyệt đối - Cam kết 3 KHÔNG: KHÔNG tẩm đường – KHÔNG chất bảo quản – KHÔNG chất tạo màu.',
+    'Từ món ăn vặt lành mạnh cho cả gia đình, đến nguyên liệu cho nồi chè dưỡng nhan thanh mát hay bình rượu quý biếu khách, Long Nhãn Tống Trân tự tin làm hài lòng cả những vị khách kỹ tính nhất!',
   ],
 } as const;
 
@@ -114,19 +118,39 @@ export const LANDING_TESTIMONIALS: {
 };
 
 export const LANDING_FAQ = {
-  sectionTitle: 'Câu hỏi thường gặp',
+  sectionTitle: 'Câu hỏi thường gặp (FAQ)',
   items: [
     {
-      q: 'Long nhãn bảo quản thế nào?',
-      a: 'Nơi khô ráo, thoáng mát, tránh ẩm; đóng kín sau mỗi lần dùng để giữ độ dẻo và hương vị.',
+      q: 'Long nhãn của shop có đúng là nhãn lồng Hưng Yên chính gốc không?',
+      a: 'Dạ, 100% đúng ạ! Toàn bộ sản phẩm được sấy từ những chùm nhãn lồng tươi ngon nhất tại vườn nhà mình ở Tống Trân, Phù Cừ, Hưng Yên. Vì là hàng nhà làm nên mình kiểm soát được từ khâu hái quả đến khi đóng hộp, không nhập qua trung gian hay trộn hàng vùng khác, bạn hoàn toàn yên tâm về nguồn gốc nhé!',
     },
     {
-      q: 'Có giao hàng toàn quốc không?',
-      a: 'Có — hỗ trợ giao COD và các kênh online (Shopee, TikTok). Chi tiết vận chuyển cập nhật theo chính sách từng kênh.',
+      q: 'Tại sao long nhãn nhà mình lại có vị ngọt đậm, có phải do tẩm thêm đường không?',
+      a: 'Shop cam kết KHÔNG tẩm thêm một hạt đường nào. Vị ngọt đậm đà bạn cảm nhận được chính là lượng đường tự nhiên từ mật nhãn được cô đọng lại sau quá trình sấy nhiệt lâu. Đây là điểm đặc trưng của nhãn Tống Trân: cùi dày, mọng mật nên khi khô sẽ có vị ngọt thanh rất sang, không bị khé cổ như nhãn tẩm đường công nghiệp.',
     },
     {
-      q: 'Có giấy tờ / tem nguồn gốc không?',
-      a: 'Vui lòng điền thông tin chứng nhận, OCOP hoặc tem truy xuất tại đây khi doanh nghiệp cung cấp.',
+      q: 'Sản phẩm có dùng chất bảo quản hay chất tạo màu không?',
+      a: 'Tuyệt đối không ạ. Màu vàng óng ươm của long nhãn là màu tự nhiên của cùi nhãn khi được sấy đủ độ. Nhà mình làm để gia đình dùng và bán cho khách quen lâu năm nên tiêu chí Sạch - An toàn luôn đặt lên hàng đầu. Long nhãn được sấy khô kiệt nên có thể bảo quản tự nhiên rất lâu mà không cần hóa chất.',
+    },
+    {
+      q: 'Tôi nên bảo quản long nhãn thế nào để không bị xuống màu?',
+      a: 'Long nhãn nhà mình đã được sấy rất khô. Bạn chỉ cần để nơi thoáng mát, tránh ánh nắng trực tiếp là có thể dùng trong 6 tháng. Mẹo nhỏ: Nếu bạn muốn giữ màu vàng đẹp mắt và vị dẻo ngon lâu nhất (trên 1 năm), hãy bọc kín và để trong ngăn mát tủ lạnh nhé!',
+    },
+    {
+      q: 'Long nhãn Tống Trân ngoài ăn trực tiếp thì làm món gì ngon nhất?',
+      a: `Bạn có thể biến tấu rất nhiều món:
+
+Giải nhiệt: Nấu chè hạt sen long nhãn, chè dưỡng nhan.
+
+Thư giãn: Pha trà cùng táo đỏ, kỷ tử giúp an thần, ngủ ngon.
+
+Bồi bổ: Hầm gà, chim bồ câu hoặc ngâm rượu quý.
+
+Vị ngọt thơm của nhãn Hưng Yên sẽ làm các món ăn của bạn tăng thêm hương vị đặc trưng.`,
+    },
+    {
+      q: 'Tôi có được kiểm tra hàng trước khi nhận không?',
+      a: 'Chắc chắn là có ạ! Shop khuyến khích bạn mở hộp kiểm tra màu sắc và nếm thử vị nhãn ngay khi nhận hàng. Nếu không đúng chuẩn nhãn Tống Trân, cùi mỏng hay có mùi lạ, bạn cứ hoàn hàng cho shop mà không mất bất kỳ chi phí nào. Uy tín của gia đình là quan trọng nhất!',
     },
   ],
 } as const;
@@ -158,12 +182,24 @@ export const LANDING_CHANNELS = {
 } as const;
 
 export const LANDING_TRUST = {
-  sectionTitle: 'Cam kết của chúng tôi',
+  sectionTitle: 'Cam kết từ gia đình chúng tôi',
   items: [
-    'Giao hàng COD toàn quốc — nhận hàng mới thanh toán',
-    'Đổi trả trong 7 ngày nếu sản phẩm lỗi hoặc không đúng mô tả',
-    'Quy trình chế biến khép kín, an toàn vệ sinh thực phẩm',
-    'Hỗ trợ tư vấn miễn phí qua Zalo và điện thoại',
+    {
+      title: 'Chuẩn vị quê hương',
+      body: '100% long nhãn nguồn gốc Tống Trân - Hưng Yên, cùi dày, ngọt thanh vị mật tự nhiên.',
+    },
+    {
+      title: 'Cam kết 3 KHÔNG',
+      body: 'Không tẩm đường - Không hóa chất bảo quản - Không chất tạo màu. Hoàn toàn sạch và an toàn cho sức khỏe.',
+    },
+    {
+      title: 'Mắt thấy, miệng nếm mới trả tiền',
+      body: 'Hỗ trợ giao hàng COD toàn quốc. Khách được mở hộp kiểm tra màu sắc, chất lượng trước khi thanh toán.',
+    },
+    {
+      title: 'Bảo hành tận tâm',
+      body: 'Hoàn tiền 100% hoặc 1 đổi 1 trong 7 ngày nếu sản phẩm không đúng chuẩn vị Hưng Yên hoặc có lỗi do sản xuất.',
+    },
   ],
 } as const;
 
@@ -202,10 +238,10 @@ export const LANDING_URGENCY = {
 // Phase 6 — Home Page Enhancement
 export const LANDING_HERO_SLIDES = [
   {
-    headline: 'Long nhãn Hưng Yên\nvương giả chi quả',
+    headline: 'Long nhãn Tống Trân:\n Dẻo thơm vị mật, ngọt thanh vị đời.',
     subhead:
       'Hương vị cổ truyền, chọn lọc từ vườn nhãn xứ Đông — món quà quê nhà ý nghĩa.',
-    ctaLabel: 'Đặt hàng — COD toàn quốc',
+    ctaLabel: 'Xem ngay',
     ctaHref: '/products',
     imageSrc: null as string | null,
   },

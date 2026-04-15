@@ -1,13 +1,10 @@
 import Image from 'next/image';
-import { CONTACT_PHONE } from '@/lib/constants';
 import {
   LANDING_BRAND,
   LANDING_CHANNELS,
   LANDING_HERO,
 } from '@/data/landing-page-content';
 import { SectionTitleLinkButton } from '@/components/ui/section-title-link-button';
-
-const tel = CONTACT_PHONE.replace(/\s/g, '');
 
 export function LandingHero() {
   const lines = LANDING_HERO.headline.split('\n');
@@ -37,10 +34,6 @@ export function LandingHero() {
           </p>
           <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center md:justify-start">
             <SectionTitleLinkButton
-              title={<span className="hidden" />}
-              headingAs="div"
-              className="gap-0!"
-              titleClassName="hidden"
               actionLabel={LANDING_HERO.primaryCta}
               type="primary"
               ariaLabel={
@@ -48,14 +41,10 @@ export function LandingHero() {
                   ? LANDING_HERO.primaryCta
                   : undefined
               }
-              href={`tel:${tel}`}
+              href="/products"
             />
             {LANDING_CHANNELS.shopee.href ? (
               <SectionTitleLinkButton
-                title={<span className="hidden" />}
-                headingAs="div"
-                className="gap-0!"
-                titleClassName="hidden"
                 actionLabel={LANDING_HERO.secondaryCta}
                 ariaLabel={
                   typeof LANDING_HERO.secondaryCta === 'string'

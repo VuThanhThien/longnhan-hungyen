@@ -6,10 +6,6 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-type HeadingTag = 'h2' | 'h3' | 'div';
-
-type HoverAlign = 'left' | 'right';
-
 function getLeftCapSrc(solid: boolean) {
   return solid ? '/btn47-bg-left-hover-solid.png' : '/btn47-bg-left-hover.png';
 }
@@ -21,14 +17,10 @@ function getRightCapSrc(solid: boolean) {
 }
 
 export interface SectionTitleLinkButtonBaseProps {
-  title: React.ReactNode;
   actionLabel: React.ReactNode;
-  align?: HoverAlign;
   type?: 'primary' | 'secondary';
   solid?: boolean;
-  headingAs?: HeadingTag;
   className?: string;
-  titleClassName?: string;
   buttonClassName?: string;
   disabled?: boolean;
   ariaLabel?: string;
@@ -41,22 +33,16 @@ export type SectionTitleLinkButtonPropsUnion =
 export const SectionTitleLinkButton: React.FC<
   SectionTitleLinkButtonPropsUnion
 > = ({
-  title,
   actionLabel,
   href,
   onClick,
-  align = 'right',
   type = 'secondary',
   solid = false,
-  headingAs = 'h2',
   className,
-  titleClassName,
   buttonClassName,
   disabled = false,
   ariaLabel,
 }) => {
-  const Heading = headingAs;
-  void align;
   const resolvedType = type ?? (solid ? 'primary' : 'secondary');
   const isPrimary = resolvedType === 'primary';
   const leftCap = getLeftCapSrc(false);
@@ -156,56 +142,16 @@ export const SectionTitleLinkButton: React.FC<
     'motion-reduce:transition-none motion-reduce:transform-none',
     'motion-reduce:active:scale-100 motion-reduce:active:translate-y-0',
     buttonClassName,
+    className,
   );
 
-  return (
-    <div
-      className={cn(
-        'flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between',
-        className,
-      )}
-    >
-      <Heading
-        className={cn(
-          'landing-heading text-balance text-2xl sm:text-3xl',
-          titleClassName,
-        )}
-      >
-        {title}
-      </Heading>
-
-      {href ? (
-        disabled ? (
-          <Button
-            variant="ghost"
-            className={sharedButtonClassName}
-            disabled
-            aria-label={
-              ariaLabel ??
-              (typeof actionLabel === 'string' ? actionLabel : undefined)
-            }
-          >
-            {actionContent}
-          </Button>
-        ) : (
-          <Button
-            asChild
-            variant="ghost"
-            className={sharedButtonClassName}
-            aria-label={
-              ariaLabel ??
-              (typeof actionLabel === 'string' ? actionLabel : undefined)
-            }
-          >
-            <Link href={href}>{actionContent}</Link>
-          </Button>
-        )
-      ) : (
+  if (href) {
+    if (disabled) {
+      return (
         <Button
           variant="ghost"
           className={sharedButtonClassName}
-          onClick={onClick}
-          disabled={disabled}
+          disabled
           aria-label={
             ariaLabel ??
             (typeof actionLabel === 'string' ? actionLabel : undefined)
@@ -213,8 +159,35 @@ export const SectionTitleLinkButton: React.FC<
         >
           {actionContent}
         </Button>
-      )}
-    </div>
+      );
+    }
+    return (
+      <Button
+        asChild
+        variant="ghost"
+        className={sharedButtonClassName}
+        aria-label={
+          ariaLabel ??
+          (typeof actionLabel === 'string' ? actionLabel : undefined)
+        }
+      >
+        <Link href={href}>{actionContent}</Link>
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      className={sharedButtonClassName}
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={
+        ariaLabel ?? (typeof actionLabel === 'string' ? actionLabel : undefined)
+      }
+    >
+      {actionContent}
+    </Button>
   );
 };
 

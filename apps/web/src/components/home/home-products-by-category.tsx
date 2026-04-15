@@ -31,16 +31,17 @@ export function HomeProductsByCategory({
       <div className="mx-auto max-w-6xl px-4">
         {isSingle ? (
           <>
-            <SectionTitleLinkButton
-              className="mb-8"
-              titleClassName="font-bold text-green-900 not-italic"
-              buttonClassName="text-green-700 hover:text-green-900 text-sm font-medium"
-              title="Sản phẩm nổi bật"
-              actionLabel="Xem tất cả"
-              href="/products"
-              align="right"
-              solid={false}
-            />
+            <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <h2 className="landing-heading text-balance text-2xl font-bold text-green-900 not-italic sm:text-3xl">
+                Sản phẩm nổi bật
+              </h2>
+              <SectionTitleLinkButton
+                buttonClassName="text-green-700 hover:text-green-900 text-sm font-medium"
+                actionLabel="Xem tất cả"
+                href="/products"
+                solid={false}
+              />
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {products.slice(0, 8).map((p) => (
                 <ProductCard key={p.id} product={p} onQuickView={onQuickView} />
@@ -51,17 +52,17 @@ export function HomeProductsByCategory({
           <div className="space-y-14">
             {categories.map(([cat, items]) => (
               <div key={cat}>
-                <SectionTitleLinkButton
-                  className="mb-6"
-                  headingAs="h3"
-                  titleClassName="text-xl font-bold text-green-900 capitalize not-italic"
-                  buttonClassName="text-green-700 hover:text-green-900 text-sm font-medium"
-                  title={cat}
-                  actionLabel="Xem tất cả"
-                  href={`/products?category=${encodeURIComponent(cat)}`}
-                  align="right"
-                  solid={false}
-                />
+                <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                  <h3 className="landing-heading text-xl font-bold capitalize text-green-900 not-italic">
+                    {cat}
+                  </h3>
+                  <SectionTitleLinkButton
+                    buttonClassName="text-green-700 hover:text-green-900 text-sm font-medium"
+                    actionLabel="Xem tất cả"
+                    href={`/products?category=${encodeURIComponent(cat)}`}
+                    solid={false}
+                  />
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                   {items.slice(0, 4).map((p) => (
                     <ProductCard

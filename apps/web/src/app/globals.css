@@ -122,6 +122,14 @@ body {
   opacity: 0.34;
 }
 
+/* FAQ: same lotus strip as story preset, anchored right so it reads as a vertical accent */
+.landing-section--decor-faq::before {
+  background-image: url('/bg-body-1.png');
+  background-size: clamp(200px, 26vw, 420px) auto;
+  background-position: top 10% right -20px;
+  opacity: 0.36;
+}
+
 .landing-heading {
   font-family: var(--font-display), ui-serif, 'Georgia', serif;
 }

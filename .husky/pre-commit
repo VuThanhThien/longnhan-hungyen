@@ -1,6 +1,8 @@
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 if [ "$BRANCH" = "HEAD" ] || [ "$BRANCH" = "main" ] || [ "$BRANCH" = "master" ] || [ "$BRANCH" = "develop" ]; then
   pnpm lint-staged
+  pnpm repomix
+  git add repomix-output.xml
   exit 0
 fi
 
@@ -18,4 +20,5 @@ if ! echo "$BRANCH" | grep -qE "$REGEX"; then
 fi
 
 pnpm lint-staged
-
+pnpm repomix
+git add repomix-output.xml

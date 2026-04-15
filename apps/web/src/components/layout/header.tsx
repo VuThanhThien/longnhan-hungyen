@@ -41,9 +41,7 @@ export default function Header() {
             href={`tel:${tel}`}
             className="hidden items-center gap-2.5 rounded-full border-2 border-(--brand-gold)/55 bg-linear-to-br from-(--brand-gold)/20 via-(--brand-cream) to-(--brand-gold)/10 px-3 py-1.5 text-(--brand-forest) shadow-sm transition hover:border-(--brand-gold) hover:shadow-md sm:inline-flex sm:px-4 sm:py-2"
           >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-(--brand-forest)/10 text-(--brand-leaf)">
-              <Phone className="h-4 w-4" strokeWidth={2} aria-hidden />
-            </span>
+            <Phone className="h-4 w-4" strokeWidth={2} aria-hidden />
             <span className="flex min-w-0 flex-col leading-tight">
               <span className="text-[10px] font-semibold uppercase tracking-wide text-(--brand-forest-muted) sm:text-[11px]">
                 Giao hàng tận nơi

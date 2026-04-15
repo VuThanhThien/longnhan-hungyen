@@ -1,26 +1,37 @@
+'use client';
+
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { LANDING_FAQ } from '@/data/landing-page-content';
 import { SectionHeading } from './section-heading';
 
 export function LandingFaq() {
   return (
-    <section className="bg-white px-4 py-20">
+    <section className="landing-section landing-section--decor-faq overflow-hidden border-y border-(--brand-gold)/20 bg-linear-to-b from-(--brand-cream) via-(--muted)/22 to-(--brand-cream) px-4 py-20">
       <div className="mx-auto max-w-3xl">
         <SectionHeading title={LANDING_FAQ.sectionTitle} />
-        <dl className="space-y-6">
-          {LANDING_FAQ.items.map((item) => (
-            <div
+        <Accordion
+          type="single"
+          collapsible
+          className="rounded-xl border border-(--brand-gold)/25 bg-(--surface) px-1 shadow-sm sm:px-2"
+        >
+          {LANDING_FAQ.items.map((item, index) => (
+            <AccordionItem
               key={item.q}
-              className="rounded-sm border border-[var(--brand-forest)]/10 bg-[var(--brand-cream)]/30 p-6"
+              value={`faq-${index}`}
+              className="border-(--brand-forest)/10 px-3 sm:px-4"
             >
-              <dt className="landing-heading text-lg font-semibold text-[var(--brand-forest)]">
+              <AccordionTrigger className="text-left text-[15px] sm:text-base">
                 {item.q}
-              </dt>
-              <dd className="mt-3 text-[var(--brand-forest-muted)] leading-relaxed">
-                {item.a}
-              </dd>
-            </div>
+              </AccordionTrigger>
+              <AccordionContent>{item.a}</AccordionContent>
+            </AccordionItem>
           ))}
-        </dl>
+        </Accordion>
       </div>
     </section>
   );

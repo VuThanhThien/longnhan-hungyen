@@ -25,16 +25,17 @@ export function LandingArticlesPreview({
   return (
     <section className="bg-(--brand-cream) px-4 py-16">
       <div className="mx-auto max-w-6xl">
-        <SectionTitleLinkButton
-          className="mb-8"
-          titleClassName="text-2xl font-semibold text-(--brand-forest) not-italic"
-          buttonClassName="text-sm font-medium text-(--brand-leaf) hover:text-(--brand-forest)"
-          title="Tin tức & chia sẻ"
-          actionLabel="Xem tất cả"
-          href="/articles"
-          align="right"
-          solid={false}
-        />
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <h2 className="landing-heading text-balance text-2xl font-semibold text-(--brand-forest) not-italic sm:text-3xl">
+            Tin tức & chia sẻ
+          </h2>
+          <SectionTitleLinkButton
+            buttonClassName="text-sm font-medium text-(--brand-leaf) hover:text-(--brand-forest)"
+            actionLabel="Xem tất cả"
+            href="/articles"
+            solid={false}
+          />
+        </div>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
           {articles.map((article) => {
             const cover = article.featuredImageUrl ?? article.coverImageUrl;

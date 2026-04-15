@@ -52,21 +52,21 @@ export default async function Home() {
         <LandingCategoryCarousel />
       </ScrollReveal>
       <ScrollReveal delayMs={80}>
-        <LandingStory />
+        <FeaturedProducts products={products} />
       </ScrollReveal>
       <ScrollReveal delayMs={220}>
-        <section className="landing-section landing-section--decor-cta">
-          <LandingTestimonialsTrust />
-        </section>
+        <LandingStory />
       </ScrollReveal>
       <ScrollReveal delayMs={240}>
         <LandingFaq />
       </ScrollReveal>
       <ScrollReveal delayMs={260}>
-        <FeaturedProducts products={products} />
+        <VideoSection videoUrls={productVideos} />
       </ScrollReveal>
       <ScrollReveal delayMs={280}>
-        <VideoSection videoUrls={productVideos} />
+        <section className="landing-section landing-section--decor-cta">
+          <LandingTestimonialsTrust />
+        </section>
       </ScrollReveal>
     </div>
   );
