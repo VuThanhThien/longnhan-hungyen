@@ -1,14 +1,24 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { CircleCheck, Home, Package, ShoppingBag } from 'lucide-react';
+
+import { OrderSuccessCartClearer } from '@/components/orders/order-success-cart-clearer';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from '@/components/ui/card';
 
 interface OrderSuccessPageProps {
   searchParams: Promise<{ code?: string | string[] }>;
 }
 
 export const metadata: Metadata = {
-  title: 'Dat hang thanh cong',
+  title: 'Đặt hàng thành công',
   description:
-    'Don hang cua ban da duoc ghi nhan. Chung toi se lien he xac nhan som.',
+    'Đơn hàng của bạn đã được ghi nhận. Chúng tôi sẽ liên hệ xác nhận sớm.',
   robots: {
     index: false,
     follow: false,
@@ -27,38 +37,68 @@ export default async function OrderSuccessPage({
         : null;
 
   return (
-    <section className="mx-auto max-w-3xl px-4 py-16">
-      <div className="rounded-2xl border border-green-200 bg-green-50 p-8 text-center">
-        <p className="text-5xl mb-4" aria-hidden="true">
-          ✅
-        </p>
-        <h1 className="text-2xl md:text-3xl font-bold text-green-900">
-          Dat hang thanh cong
-        </h1>
-        <p className="mt-3 text-gray-700">
-          Cam on ban da dat hang. Doi ngu Long Nhan Tong Tran se lien he xac
-          nhan don trong thoi gian som nhat.
-        </p>
-        {orderCode ? (
-          <p className="mt-4 text-sm text-green-800">
-            Ma don hang: <span className="font-bold">{orderCode}</span>
+    <section className="mx-auto max-w-xl px-4 py-12 md:py-20">
+      {orderCode ? <OrderSuccessCartClearer /> : null}
+
+      <Card
+        className="overflow-hidden border-border bg-surface text-foreground shadow-md"
+        role="status"
+        aria-live="polite"
+      >
+        <CardHeader className="items-center space-y-0 pb-2 pt-10 text-center">
+          <div
+            className="mb-6 flex size-18 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-[inset_0_1px_0_0_color-mix(in_srgb,var(--palette-offwhite)_35%,transparent)] ring-2 ring-border/80"
+            aria-hidden
+          >
+            <CircleCheck className="size-10" strokeWidth={2.25} />
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+            Đặt hàng thành công
+          </h1>
+          <p className="mt-4 max-w-md text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
+            Cảm ơn bạn đã đặt hàng. Đội ngũ Long Nhãn Tổng Trần sẽ liên hệ xác
+            nhận đơn trong thời gian sớm nhất.
           </p>
-        ) : null}
-        <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-          <Link
-            href="/products"
-            className="inline-flex items-center justify-center rounded-xl bg-green-700 px-5 py-3 text-sm font-semibold text-white hover:bg-green-600"
+        </CardHeader>
+
+        <CardContent className="pb-6 pt-2">
+          {orderCode ? (
+            <div className="mx-auto flex max-w-sm items-start gap-3 rounded-2xl border border-border bg-muted/40 px-4 py-3 text-left">
+              <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-background text-muted-foreground shadow-sm ring-1 ring-border/60">
+                <Package className="size-5" aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Mã đơn hàng
+                </p>
+                <p className="mt-0.5 break-all font-mono text-base font-semibold text-foreground">
+                  {orderCode}
+                </p>
+              </div>
+            </div>
+          ) : null}
+        </CardContent>
+
+        <CardFooter className="flex flex-col gap-3 border-t border-border bg-muted/25 px-4 py-6 sm:flex-row sm:justify-center sm:gap-4">
+          <Button asChild size="lg" className="w-full min-w-48 sm:w-auto">
+            <Link href="/products">
+              <ShoppingBag className="size-4 shrink-0" aria-hidden />
+              Tiếp tục mua sắm
+            </Link>
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            size="lg"
+            className="w-full min-w-48 border-border bg-background sm:w-auto"
           >
-            Tiep tuc mua hang
-          </Link>
-          <Link
-            href="/"
-            className="inline-flex items-center justify-center rounded-xl border border-green-700 px-5 py-3 text-sm font-semibold text-green-700 hover:bg-green-100"
-          >
-            Ve trang chu
-          </Link>
-        </div>
-      </div>
+            <Link href="/">
+              <Home className="size-4 shrink-0" aria-hidden />
+              Về trang chủ
+            </Link>
+          </Button>
+        </CardFooter>
+      </Card>
     </section>
   );
 }

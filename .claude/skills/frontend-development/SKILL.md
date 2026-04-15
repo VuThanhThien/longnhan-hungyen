@@ -10,6 +10,14 @@ argument-hint: '[component or feature]'
 
 Comprehensive guide for modern React development, emphasizing Suspense-based data fetching, lazy loading, proper file organization, and performance optimization.
 
+## Repository note — `apps/web` storefront
+
+When working in this monorepo’s Next.js storefront:
+
+- **UI primitives:** Prefer **Radix UI**, **shadcn/ui**-style pieces under `components/ui/`, and **Magic UI** ([magicui.design](https://magicui.design)) when it matches existing patterns (cards, dialogs, marketing blocks). Compose with Tailwind and `cn()` from `@/lib/utils`.
+- **Icons:** Use **`lucide-react`** for UI affordances — avoid emoji or ad-hoc “symbol” characters as icon replacements.
+- **Other apps** (e.g. admin) may use different stacks; match the app you are editing.
+
 ## When to Use This Skill
 
 - Creating new components or pages

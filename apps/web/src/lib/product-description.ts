@@ -27,3 +27,23 @@ export function getProductLandingDescription(product: Product) {
   if (summary && looksLikeHtml(summary)) return htmlToPlainText(summary);
   return summary ?? product.description ?? null;
 }
+
+/**
+ * Splits plain copy for card UI: bold lead (first sentence) + grey body.
+ */
+export function splitLandingDescriptionForCard(
+  text: string | null | undefined,
+): {
+  headline: string | null;
+  body: string | null;
+} {
+  if (!text?.trim()) return { headline: null, body: null };
+  const t = text.trim();
+  const end = t.search(/[.!?](\s|$)/);
+  if (end >= 0 && end < 220) {
+    const head = t.slice(0, end + 1).trim();
+    const rest = t.slice(end + 1).trim();
+    if (rest) return { headline: head, body: rest };
+  }
+  return { headline: null, body: t };
+}

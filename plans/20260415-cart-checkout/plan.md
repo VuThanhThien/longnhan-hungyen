@@ -1,7 +1,7 @@
 ---
 title: 'Cart, checkout, and add-to-cart (guest, client-side cart)'
 description: 'Wire Zustand cart to UI; /cart + /checkout; add-to-cart on PDP and product cards; align with order API.'
-status: pending
+status: in-progress
 priority: P1
 effort: medium
 branch: feature/cart-checkout
@@ -83,12 +83,12 @@ Apply during implementation: **semantic table vs card stack**, **icon buttons** 
 
 ## Definition of done
 
-- [ ] Add to cart from PDP and listing; picker when multiple variants.
-- [ ] `/cart` + `/checkout` with **30k** shipping in summary; coupon row is placeholder only.
-- [ ] PDP **without** inline full order form.
-- [ ] Successful order **clears** persisted cart.
-- [ ] `submitOrder` emits **success / failed / error** to Sentry (production-gated).
-- [ ] No nested interactive controls in product card (a11y).
+- [x] Add to cart from PDP and listing; picker when multiple variants.
+- [x] `/cart` + `/checkout` with **30k** shipping in summary; coupon row is placeholder only.
+- [x] PDP **without** inline full order form.
+- [x] Successful order **clears** persisted cart.
+- [x] `submitOrder` emits **success / failed / error** to Sentry (production-gated).
+- [x] No nested interactive controls in product card (a11y).
 
 ## References
 

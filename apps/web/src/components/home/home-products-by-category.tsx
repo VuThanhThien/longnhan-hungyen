@@ -1,4 +1,3 @@
-// Products grouped by category — falls back to single grid if no category data
 import type { Product } from '@longnhan/types';
 import ProductCard from '@/components/products/product-card';
 import SectionTitleLinkButton from '@/components/ui/section-title-link-button';
@@ -42,7 +41,7 @@ export function HomeProductsByCategory({
                 solid={false}
               />
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
               {products.slice(0, 8).map((p) => (
                 <ProductCard key={p.id} product={p} onQuickView={onQuickView} />
               ))}
@@ -63,7 +62,7 @@ export function HomeProductsByCategory({
                     solid={false}
                   />
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
                   {items.slice(0, 4).map((p) => (
                     <ProductCard
                       key={p.id}

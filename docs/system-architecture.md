@@ -239,8 +239,9 @@ Maps admin requests to backend NestJS API:
 | Marketing home      | `src/app/page.tsx`                                              | Landing sections composed from `components/home` / `components/landing`                              |
 | Products            | `src/app/products/page.tsx`, `src/app/products/[slug]/page.tsx` | Listing + PDP; listing participates in URL-driven search/filter via shared parsers                   |
 | Articles            | `src/app/articles/…`                                            | List + detail                                                                                        |
-| Order success       | `src/app/order-success/`                                        | Post-checkout                                                                                        |
-| Cart                | `src/app/cart/`                                                 | Guest cart UI backed by client store                                                                 |
+| Cart                | `src/app/cart/page.tsx`                                         | Shopping cart with line items, totals, CTAs (checkout / continue shopping)                           |
+| Checkout            | `src/app/checkout/page.tsx`                                     | Customer form + order summary; guards empty cart; submits via `submitOrder` Server Action            |
+| Order success       | `src/app/order-success/`                                        | Post-checkout confirmation; clears cart on mount                                                     |
 | Service unavailable | `src/app/service-unavailable/`                                  | User-facing 503-style page; `robots: noindex`; precached by `public/sw.js` for offline / origin-down |
 
 ### URL state (search / filters)
@@ -249,7 +250,22 @@ The storefront uses **nuqs** with shared definitions in **`src/lib/product-searc
 
 ### Client-only state (cart)
 
-**`src/services/cart/cart-store.ts`** exposes a **Zustand** store with **`persist`** middleware targeting **`localStorage`** (key `longnhan-cart-v1`). Lines hold `variantId`, `quantity`, and `unitPriceVnd`; totals are derived. There is **no separate server cart API** in this layer — cart is browser-local until checkout flows consume it.
+**`src/services/cart/cart-store.ts`** exposes a **Zustand** store with **`persist`** middleware targeting **`localStorage`** (key `longnhan-cart-v2`). Lines hold `variantId`, `quantity`, `unitPriceVnd`, and display snapshots (`productName`, `productSlug`, `variantLabel`, `imageUrl`); totals are derived. Cart is browser-local until checkout flows consume it.
+
+**New Routes (Phase 4 in-progress):**
+
+- `/cart/page.tsx` — displays cart with `CartPageContent` client wrapper; shows line items, subtotal, shipping 30k ₫, CTAs.
+- `/checkout/page.tsx` — checkout form (`CheckoutCustomerForm`) + order summary (`CheckoutOrderSummary`); guards against empty cart.
+- `/order-success/page.tsx` — embeds `OrderSuccessCartClearer` to clear cart on mount.
+
+**New Components:**
+
+- `QuantityStepper` (shared UI) — qty input with ± buttons; min 1, max optional.
+- `CartLineItem` — single cart line (thumbnail, name, qty, price, remove).
+- `ProductAddToCart` — PDP add-to-cart button; uses `VariantPickerSheet` for multi-variant products.
+- `VariantPickerSheet` — modal/sheet for variant selection + qty.
+
+### Client-only state (cart)
 
 ### Header & navigation
 

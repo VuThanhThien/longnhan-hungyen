@@ -1,5 +1,5 @@
-import OrderForm from '@/components/orders/order-form';
 import ProductImages from '@/components/products/product-images';
+import { ProductAddToCart } from '@/components/products/product-add-to-cart';
 import ProductPdpHero from '@/components/products/product-pdp-hero';
 import ProductPdpTabs from '@/components/products/product-pdp-tabs';
 import RelatedProducts from '@/components/products/related-products';
@@ -121,6 +121,8 @@ export default async function ProductDetailPage({
       : product.featuredImageUrl
         ? [product.featuredImageUrl]
         : [];
+  const cartImageUrl =
+    product.featuredImageUrl ?? imageList[0] ?? product.imageUrls?.[0] ?? null;
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8">
@@ -139,7 +141,12 @@ export default async function ProductDetailPage({
         <ProductImages images={imageList} productName={product.name} />
         <div className="space-y-6">
           <ProductPdpHero product={product} />
-          <OrderForm variants={product.variants} productName={product.name} />
+          <ProductAddToCart
+            variants={product.variants}
+            productName={product.name}
+            productSlug={product.slug}
+            imageUrl={cartImageUrl}
+          />
         </div>
       </div>
 

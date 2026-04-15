@@ -22,6 +22,8 @@ export const PAYMENT_METHODS = [
   { value: 'bank_transfer', label: 'Chuyển khoản ngân hàng' },
 ];
 
+export const SHIPPING_FLAT_VND = 30_000;
+
 // Vietnamese provinces for shipping form
 export const PROVINCES = [
   'An Giang',

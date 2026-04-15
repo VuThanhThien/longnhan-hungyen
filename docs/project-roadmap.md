@@ -13,15 +13,15 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 
 ## Phase Summary
 
-| Phase | Title | Status | Progress | Completion |
-|-------|-------|--------|----------|------------|
-| 1 | Monorepo Setup | Complete | 100% | 2026-03-29 |
-| 2 | Database & Entities | Complete | 100% | 2026-03-29 |
-| 3 | Backend API | Complete | 100% | 2026-03-29 |
-| 4 | Storefront (Web) | Complete | 100% | 2026-04-01 |
-| 5 | Admin Panel | In Progress | ~75% | ~2026-04-10 |
-| 6 | Frontend Animation | In Progress | ~50% | ~2026-04-15 |
-| 7 | Deployment | Pending | 0% | Post Phase 5+6 |
+| Phase | Title               | Status      | Progress | Completion     |
+| ----- | ------------------- | ----------- | -------- | -------------- |
+| 1     | Monorepo Setup      | Complete    | 100%     | 2026-03-29     |
+| 2     | Database & Entities | Complete    | 100%     | 2026-03-29     |
+| 3     | Backend API         | Complete    | 100%     | 2026-03-29     |
+| 4     | Storefront (Web)    | Complete    | 100%     | 2026-04-01     |
+| 5     | Admin Panel         | In Progress | ~75%     | ~2026-04-10    |
+| 6     | Frontend Animation  | In Progress | ~50%     | ~2026-04-15    |
+| 7     | Deployment          | Pending     | 0%       | Post Phase 5+6 |
 
 **Overall Completion:** ~81% (approx. 86/106 tasks; Phase 7 expanded 2026-04-13)
 
@@ -32,6 +32,7 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 **Duration:** 3 days | **Status:** DONE | **Progress:** 100% | **Completed:** 2026-03-29
 
 ### Objectives
+
 - [x] Initialize Turborepo + pnpm workspaces
 - [x] Configure TypeScript, ESLint, Prettier
 - [x] Setup Docker & Docker Compose (production + local dev)
@@ -40,6 +41,7 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 - [x] Setup Swagger/OpenAPI documentation
 
 ### Deliverables
+
 - [x] Monorepo structure: apps/ (api, web, admin), packages/ (types)
 - [x] docker-compose.yml (PostgreSQL, Redis, MailDev, pgAdmin)
 - [x] docker-compose.local.yml (+ NestJS API with hot reload)
@@ -54,6 +56,7 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 **Duration:** 5 days | **Status:** DONE | **Progress:** 100% | **Completed:** 2026-03-29
 
 ### Objectives
+
 - [x] Setup TypeORM with PostgreSQL
 - [x] Define all core entities: User, Session, Product, ProductVariant, Order, OrderItem, Article, Media
 - [x] Configure migrations system
@@ -61,6 +64,7 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 - [x] Implement entity relationships & constraints
 
 ### Deliverables
+
 - [x] 8 entities with complete relationships
 - [x] TypeORM migration system (auto-generated)
 - [x] Seed data for development (users, products, articles)
@@ -74,6 +78,7 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 **Duration:** 10 days | **Status:** DONE | **Progress:** 100% | **Completed:** 2026-03-29
 
 ### Objectives
+
 - [x] Implement 10 API modules: Auth, Users, Products, Orders, Articles, Media, Dashboard, Health, Home, Posts (scaffold)
 - [x] JWT auth with refresh token rotation
 - [x] Admin CRUD endpoints (products, articles, orders, media)
@@ -84,6 +89,7 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 - [x] Email queue (BullMQ + Redis background jobs)
 
 ### Deliverables
+
 - [x] 10 feature modules with controllers/services/DTOs
 - [x] JWT guards + roles-based access control
 - [x] Admin routes protected by JwtAuthGuard + RolesGuard
@@ -99,6 +105,7 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 **Duration:** 12 days | **Status:** DONE | **Progress:** 100% | **Completed:** 2026-04-01
 
 ### Objectives
+
 - [x] Next.js 16 App Router with React 19
 - [x] Landing page with Hero, Story, ProductQuality, NutritionSeason, Channels, Testimonials, FAQ sections
 - [x] Product listing page with ISR (revalidate 60s)
@@ -117,13 +124,30 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 - [x] Floating contact widget + back-to-top button
 
 ### Key Enhancements (4/1 Release)
+
 **New Components:** floating-contact-widget, landing-service-badges, landing-stats-bar, landing-urgency-strip, landing-articles-preview, landing-origin-badge, back-to-top-button, hero-carousel, category-nav-cards, home-products-by-category, product-quick-view-modal, product-pdp-trust-badges, product-pdp-share-buttons
+
+**Phase 4 Expansion (April 15): Cart & Checkout** — _In Progress_
+
+- [x] Zustand cart store v2 with display snapshots (`CartLine` type)
+- [x] Cart storage key bumped to `'longnhan-cart-v2'`
+- [x] Shipping flat rate constant: `SHIPPING_FLAT_VND = 30_000`
+- [x] Order actions with Sentry integration (PII-safe)
+- [ ] `/cart` page with line items, quantities, totals, CTAs
+- [ ] `/checkout` page with customer form + order summary
+- [ ] `QuantityStepper` shared component (reusable qty control)
+- [ ] `CartLineItem` component (single cart line)
+- [ ] `ProductAddToCart` component + `VariantPickerSheet` (multi-variant products)
+- [ ] `OrderSuccessCartClearer` side-effect component (clears cart on success)
+- [ ] Product card refactor (article layout, add-to-cart button, no nested interactives)
+- [ ] Accessibility audit (aria-live, keyboard navigation, tabular-nums)
 
 **Component Updates:** product-card (discount/stock/quick-view), product-pdp-hero (diacritics/tags), product-pdp-tabs (diacritics), product-images (zoom), layout (floating widget), landing-page-content (6 new data structures)
 
 **Bug Fixes:** Math.min/max empty array guards, modal body scroll lock
 
 ### Key Files
+
 - `apps/web/src/app/` — App Router routes (home, products, articles, order success, **`cart/`**)
 - `apps/web/src/components/` — UI by domain (layout, landing, home, products, …) including **`header-search-bar.tsx`**, **`header-cart-button.tsx`**, **`mobile-nav.tsx`**
 - `apps/web/src/lib/` — API clients, SEO, **`product-search-params.ts`** (nuqs), **`format-vnd.ts`**, **`format-phone-display.ts`**, form/validation helpers
@@ -138,6 +162,7 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 **Duration:** 10 days | **Status:** IN PROGRESS | **Progress:** ~75% | **Target:** 2026-04-10
 
 ### Objectives
+
 - [x] Next.js Admin dashboard with Auth guard
 - [x] Login page with form validation
 - [x] Dashboard home: stats cards, revenue chart, recent orders
@@ -158,6 +183,7 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 - [ ] End-to-end CRUD test pass (all workflows)
 
 ### Remaining Tasks
+
 - [ ] Implement date-range filter on orders list
 - [ ] Add search/filter UI for products (name, category, price range)
 - [ ] Add search/filter UI for articles (title, status, date range)
@@ -165,6 +191,7 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 - [ ] Run full E2E test suite (create product → verify PDP, create article → verify detail, etc.)
 
 ### Key Files
+
 - `apps/admin/src/app/(dashboard)/` — Dashboard pages
 - `apps/admin/src/components/` — Admin UI (products, articles, orders, media, charts)
 - `apps/admin/src/features/` — Feature hooks (media, orders)
@@ -177,6 +204,7 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 **Duration:** 5 days | **Status:** IN PROGRESS | **Progress:** ~50% | **Target:** 2026-04-15
 
 ### Objectives
+
 - [x] Install `motion` library (React 19 native)
 - [x] Implement ScrollReveal for landing sections
 - [x] Add basic section reveals & stagger effects
@@ -188,12 +216,14 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 - [ ] Respect prefers-reduced-motion for accessibility
 
 ### Completed
+
 - [x] `motion` package installed
 - [x] `ScrollReveal` component wrapping landing sections
 - [x] Basic scroll-triggered reveal animations
 - [x] Type-safe `motion` usage in 'use client' components
 
 ### Remaining Tasks
+
 - [ ] Polish hero section animations (title + subtitle + CTA stagger)
 - [ ] Implement FAQ accordion with motion
 - [ ] Animate channels section cards
@@ -203,6 +233,7 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 - [ ] Verify mobile animation performance
 
 ### Tech Constraints
+
 - All `motion.*` components in 'use client' files (SSR-safe)
 - `motion` v11+ (tree-shakable, React 19 native)
 - Tailwind CSS v4 compatibility (no class conflicts)
@@ -218,6 +249,7 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 **Implementation plan (2026-04-13):** [`.cursor/plans/web-cloudflare-sentry-ux.plan.md`](../.cursor/plans/web-cloudflare-sentry-ux.plan.md) — Cloudflare target for `apps/web`, optional CI `Dockerfile` + build-args for env-specific `NEXT_PUBLIC_*`, `@sentry/nextjs` (client + server + edge), App Router `loading` / `error` / `global-error`, refresh `not-found`, header cart button aligned with search submit.
 
 ### Objectives
+
 - [ ] Finalize production environment
 - [ ] Deploy API to Railway
 - [ ] Deploy **storefront (`apps/web`) to Cloudflare** (OpenNext / Workers or Cloudflare Pages per plan; not generic `next start` on CF)
@@ -233,15 +265,17 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 - [ ] Monitor for 7 days post-launch
 
 ### Production Targets
-| Service | Platform | Status |
-|---------|----------|--------|
-| **API** | Railway | Pending Phase 5 completion |
+
+| Service              | Platform                                 | Status                                                                       |
+| -------------------- | ---------------------------------------- | ---------------------------------------------------------------------------- |
+| **API**              | Railway                                  | Pending Phase 5 completion                                                   |
 | **Web (storefront)** | **Cloudflare** (Workers/Pages + adapter) | Planned; implementation per `.cursor/plans/web-cloudflare-sentry-ux.plan.md` |
-| **Admin** | Vercel | Pending Phase 5 completion |
-| **Database** | Railway PostgreSQL | Pending Phase 5 completion |
-| **Media CDN** | Cloudinary | Ready |
+| **Admin**            | Vercel                                   | Pending Phase 5 completion                                                   |
+| **Database**         | Railway PostgreSQL                       | Pending Phase 5 completion                                                   |
+| **Media CDN**        | Cloudinary                               | Ready                                                                        |
 
 ### Pre-Launch Checklist
+
 - [ ] All tests passing (units, integration, E2E)
 - [ ] Code review complete
 - [ ] Security audit passed
@@ -257,16 +291,16 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 
 ## Task Completion Breakdown
 
-| Phase | Total Tasks | Completed | Remaining | % Complete |
-|-------|-----------|-----------|-----------|-----------|
-| 1 | 10 | 10 | 0 | 100% |
-| 2 | 12 | 12 | 0 | 100% |
-| 3 | 20 | 20 | 0 | 100% |
-| 4 | 20 | 20 | 0 | 100% |
-| 5 | 18 | ~14 | ~4 | 75% |
-| 6 | 12 | ~6 | ~6 | 50% |
-| 7 | ~14 | 0 | ~14 | 0% |
-| **Total** | **~106** | **~86** | **~20** | **~81%** |
+| Phase     | Total Tasks | Completed | Remaining | % Complete |
+| --------- | ----------- | --------- | --------- | ---------- |
+| 1         | 10          | 10        | 0         | 100%       |
+| 2         | 12          | 12        | 0         | 100%       |
+| 3         | 20          | 20        | 0         | 100%       |
+| 4         | 20          | 20        | 0         | 100%       |
+| 5         | 18          | ~14       | ~4        | 75%        |
+| 6         | 12          | ~6        | ~6        | 50%        |
+| 7         | ~14         | 0         | ~14       | 0%         |
+| **Total** | **~106**    | **~86**   | **~20**   | **~81%**   |
 
 ---
 
@@ -296,33 +330,37 @@ Phase 7 (Deployment) — blocked until Phase 5 + 6 exit criteria met
 ## Success Metrics
 
 ### Code Quality
-| Metric | Target | Current |
-|--------|--------|---------|
-| TypeScript Errors | 0 | 0 ✓ |
-| ESLint Warnings | 0 | 0 ✓ |
-| Test Coverage | 70% | ~50% |
-| Build Time | <3 min | ~90s ✓ |
+
+| Metric            | Target | Current |
+| ----------------- | ------ | ------- |
+| TypeScript Errors | 0      | 0 ✓     |
+| ESLint Warnings   | 0      | 0 ✓     |
+| Test Coverage     | 70%    | ~50%    |
+| Build Time        | <3 min | ~90s ✓  |
 
 ### Storefront Performance
-| Metric | Target | Current |
-|--------|--------|---------|
-| Lighthouse Performance | ≥85 | TBD (audit pending) |
-| Lighthouse SEO | ≥95 | TBD |
-| FCP | <1.8s | ~1.2s |
-| LCP | <2.5s | ~2.0s |
+
+| Metric                 | Target | Current             |
+| ---------------------- | ------ | ------------------- |
+| Lighthouse Performance | ≥85    | TBD (audit pending) |
+| Lighthouse SEO         | ≥95    | TBD                 |
+| FCP                    | <1.8s  | ~1.2s               |
+| LCP                    | <2.5s  | ~2.0s               |
 
 ### Admin Performance
-| Metric | Target | Current |
-|--------|--------|---------|
-| Page Load | <2s | ~1.5s |
-| API Response | <500ms | ~200-300ms |
-| Query Cache Hit | >80% | ~75% |
+
+| Metric          | Target | Current    |
+| --------------- | ------ | ---------- |
+| Page Load       | <2s    | ~1.5s      |
+| API Response    | <500ms | ~200-300ms |
+| Query Cache Hit | >80%   | ~75%       |
 
 ---
 
 ## Known Issues & Technical Debt
 
 ### Phase 4 (Storefront) — COMPLETE
+
 - 13 new UX components deployed (landing, product, contact, utility)
 - Product card enhanced with discount badges, stock indicators, quick-view triggers
 - PDP hero fixed: diacritics in Vietnamese names, category tags, share buttons
@@ -332,17 +370,20 @@ Phase 7 (Deployment) — blocked until Phase 5 + 6 exit criteria met
 - Bug fixes: Math.min/max empty array guards, modal scroll lock issue
 
 ### Phase 5 (Admin)
+
 1. Date-range & search filters not yet implemented
 2. Storefront reflection verification pending
 3. End-to-end CRUD test suite not run
 
 ### Phase 6 (Frontend Animation)
+
 1. Hero animation polish pending
 2. FAQ accordion motion not implemented
 3. Channels/testimonials animation polish pending
 4. Full Lighthouse audit pending
 
 ### Cross-Cutting
+
 1. E2E test coverage minimal
 2. Admin-specific unit tests needed
 3. Performance profiling on production-like data
@@ -366,18 +407,21 @@ Targets are planning aids; **actual completion** is reflected in the phase check
 ## Future Enhancements (Post-Launch)
 
 ### Q2 2026
+
 - [ ] API rate limiting
 - [ ] Customer reviews & ratings
 - [ ] Advanced product search (Elasticsearch)
 - [ ] Real-time order notifications (WebSocket)
 
 ### Q3 2026
+
 - [ ] Payment integration (Stripe/PayPal)
 - [ ] Inventory management with low-stock alerts
 - [ ] Email marketing integration
 - [ ] Analytics dashboard (custom business metrics)
 
 ### Q4 2026
+
 - [ ] GraphQL API layer
 - [ ] Mobile app (React Native)
 - [ ] Multi-language support (i18n)
@@ -387,10 +431,10 @@ Targets are planning aids; **actual completion** is reflected in the phase check
 
 ## Document History
 
-| Date | Version | Changes |
-|------|---------|---------|
-| 2026-04-13 | 2.3.0 | Phase 7: web → Cloudflare, Sentry, web Dockerfile/env matrix, storefront error/loading/not-found + header parity; link to `.cursor/plans/web-cloudflare-sentry-ux.plan.md`; phase task totals ~106 |
-| 2026-04-13 | 2.2.0 | Storefront cart/search/url-state docs sync; dependency diagram aligned (Phase 4 complete) |
-| 2026-04-01 | 2.1.0 | Phase 4 complete: 13 new components + product UX enhancements |
-| 2026-04-01 | 2.0.0 | Updated with Phase 4-6 actual progress (82% complete) |
-| 2026-03-30 | 1.0.0 | Initial roadmap creation |
+| Date       | Version | Changes                                                                                                                                                                                            |
+| ---------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-04-13 | 2.3.0   | Phase 7: web → Cloudflare, Sentry, web Dockerfile/env matrix, storefront error/loading/not-found + header parity; link to `.cursor/plans/web-cloudflare-sentry-ux.plan.md`; phase task totals ~106 |
+| 2026-04-13 | 2.2.0   | Storefront cart/search/url-state docs sync; dependency diagram aligned (Phase 4 complete)                                                                                                          |
+| 2026-04-01 | 2.1.0   | Phase 4 complete: 13 new components + product UX enhancements                                                                                                                                      |
+| 2026-04-01 | 2.0.0   | Updated with Phase 4-6 actual progress (82% complete)                                                                                                                                              |
+| 2026-03-30 | 1.0.0   | Initial roadmap creation                                                                                                                                                                           |

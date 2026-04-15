@@ -2,18 +2,23 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
 
-export const CART_STORAGE_KEY = 'longnhan-cart-v1';
+export const CART_STORAGE_KEY = 'longnhan-cart-v2';
 
 export type CartLine = {
   variantId: string;
   quantity: number;
   unitPriceVnd: number;
+  productName: string;
+  productSlug: string;
+  variantLabel: string;
+  imageUrl: string | null;
 };
 
 type CartState = {
   lines: CartLine[];
   setLines: (lines: CartLine[]) => void;
   upsertLine: (line: CartLine) => void;
+  setQuantity: (variantId: string, quantity: number) => void;
   removeLine: (variantId: string) => void;
   clear: () => void;
 };
@@ -48,7 +53,22 @@ export const useCartStore = create<CartState>()(
             ...merged,
             quantity: merged.quantity + line.quantity,
             unitPriceVnd: line.unitPriceVnd,
+            productName: line.productName,
+            productSlug: line.productSlug,
+            variantLabel: line.variantLabel,
+            imageUrl: line.imageUrl,
           };
+          return { lines: next };
+        }),
+      setQuantity: (variantId, quantity) =>
+        set((s) => {
+          if (quantity <= 0) {
+            return { lines: s.lines.filter((l) => l.variantId !== variantId) };
+          }
+          const idx = s.lines.findIndex((l) => l.variantId === variantId);
+          if (idx === -1) return s;
+          const next = [...s.lines];
+          next[idx] = { ...next[idx], quantity };
           return { lines: next };
         }),
       removeLine: (variantId) =>

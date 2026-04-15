@@ -27,13 +27,15 @@ export default function VariantSelector({
 
   if (activeVariants.length === 0) {
     return (
-      <p className="text-sm text-gray-500">Sản phẩm hiện chưa có loại nào.</p>
+      <p className="text-sm text-muted-foreground">
+        Sản phẩm hiện chưa có loại nào.
+      </p>
     );
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-sm font-medium text-gray-700">Chọn loại:</p>
+    <div className="flex flex-col gap-3">
+      <p className="text-sm font-medium text-muted-foreground">Chọn loại:</p>
       <div className="flex flex-wrap gap-2">
         {activeVariants.map((variant) => {
           const isSelected = variant.id === selectedId;
@@ -45,20 +47,20 @@ export default function VariantSelector({
               type="button"
               disabled={outOfStock}
               onClick={() => !outOfStock && onSelect(variant.id)}
-              className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+              className={`rounded-xl border px-4 py-2.5 text-left text-sm font-medium transition-colors ${
                 isSelected
-                  ? 'border-green-600 bg-green-50 text-green-800'
+                  ? 'border-primary bg-muted/50 text-foreground shadow-sm ring-1 ring-primary/20'
                   : outOfStock
-                    ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-                    : 'border-gray-300 bg-white text-gray-700 hover:border-green-400'
+                    ? 'cursor-not-allowed border-border bg-muted/30 text-muted-foreground'
+                    : 'border-border bg-background text-foreground hover:border-primary/50 hover:bg-muted/40'
               }`}
             >
               <span>{variant.label ?? variant.name}</span>
-              <span className="ml-2 text-green-700 font-semibold">
+              <span className="ml-2 font-semibold text-primary">
                 {formatPrice(variant.price)}
               </span>
               {outOfStock && (
-                <span className="ml-1 text-xs text-red-400">(Hết hàng)</span>
+                <span className="ml-1 text-xs text-red-600">(Hết hàng)</span>
               )}
             </button>
           );

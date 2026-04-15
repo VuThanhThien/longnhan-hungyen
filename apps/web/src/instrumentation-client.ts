@@ -6,6 +6,34 @@ import * as Sentry from '@sentry/nextjs';
 
 const sentryEnabled = process.env.NODE_ENV === 'production';
 
+function scrubEvent(event: Sentry.ErrorEvent): Sentry.ErrorEvent | null {
+  if (event.request) {
+    const request = event.request as unknown as Record<string, unknown>;
+    delete request.cookies;
+    delete request.headers;
+  }
+  if (event.user) {
+    const user = event.user as unknown as Record<string, unknown>;
+    delete user.ip_address;
+  }
+  if (event.extra && typeof event.extra === 'object') {
+    for (const key of Object.keys(event.extra)) {
+      const k = key.toLowerCase();
+      if (
+        k.includes('phone') ||
+        k.includes('email') ||
+        k.includes('address') ||
+        k.includes('customer') ||
+        k.includes('name')
+      ) {
+        const extra = event.extra as unknown as Record<string, unknown>;
+        delete extra[key];
+      }
+    }
+  }
+  return event;
+}
+
 if (sentryEnabled) {
   Sentry.init({
     dsn: 'https://8c629f132d5440996d73a0916be9b459@o4511212450152448.ingest.us.sentry.io/4511212452184064',
@@ -14,7 +42,8 @@ if (sentryEnabled) {
 
     // Enable sending user PII (Personally Identifiable Information)
     // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
-    sendDefaultPii: true,
+    sendDefaultPii: false,
+    beforeSend: scrubEvent,
   });
 }
 

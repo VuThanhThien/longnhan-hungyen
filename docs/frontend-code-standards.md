@@ -1,6 +1,6 @@
 # Frontend Code Standards (Next.js & React)
 
-**Last Updated:** 2026-04-13
+**Last Updated:** 2026-04-15
 **Applies To:** apps/web, apps/admin
 
 ---
@@ -10,9 +10,95 @@
 - **Body font**: must use a normal-weight sans stack (e.g. `--font-geist-sans`). Do **not** set a display font as the first `font-family` on `body`, especially if the font files only include bold weights.
 - **Display font**: OK for headings/brand-only (e.g. `.landing-heading`), but keep it scoped so regular copy doesn’t inherit bold-only glyphs.
 
-## Icons & assets (`apps/web`)
+## Cart State & Storage (Zustand)
 
-- **UI icons:** Prefer **`lucide-react`** ([Lucide](https://lucide.dev/icons/)) for standard glyphs (navigation, cart, phone, etc.). Import named components (`import { ShoppingCart } from 'lucide-react'`) and size/color with `className` (`h-5 w-5`, `text-(--brand-*)`). Avoid ad-hoc inline `<svg>` when a Lucide icon exists.
+The storefront uses **Zustand** with `persist` middleware for guest cart state on `apps/web`. Storage is **client-only** (localStorage).
+
+**Storage Key:** `'longnhan-cart-v2'` (versioned to enable clean migrations; v1 data is ignored on key change).
+
+**CartLine Schema** (display-snapshot approach):
+
+```typescript
+type CartLine = {
+  variantId: string; // Unique identifier
+  quantity: number; // User-selected qty (server rechecks stock)
+  unitPriceVnd: number; // Snapshot price (server recomputes final total)
+  productName: string; // Snapshot display
+  productSlug: string; // For links to `/products/{slug}`
+  variantLabel: string; // E.g., "Size L / Red"
+  imageUrl: string | null;
+};
+```
+
+**Store API:**
+
+- `upsertLine(line)` — Additive merge: if variant exists, accumulate qty; else append.
+- `setQuantity(variantId, qty)` — Replace qty in-place; qty ≤ 0 removes line.
+- `removeLine(variantId)`, `clear()`, `getLines()`.
+- `useCartTotals()` — Returns `{ itemCount, totalVnd }` for UI (via Zustand selector).
+
+**Hydration:** Components using cart must be `'use client'` and handle initial `lines = []` before hydration (Zustand resolves from storage on mount).
+
+---
+
+## Observability & Error Tracking (Sentry)
+
+All observability in the storefront is **gated to production** and filters **PII** to meet privacy compliance.
+
+**Server Configuration** (`apps/web/sentry.server.config.ts`):
+
+- `sendDefaultPii: false` — Sentry never auto-captures user/request details.
+- `beforeSend: scrubEvent` — Custom filter removes:
+  - Request: `cookies`, `headers`
+  - User: `ip_address`
+  - Extra: keys matching `phone|email|address|customer|name` (case-insensitive)
+
+**Production-Only Gating** (in `order-actions.ts` and `error.tsx`):
+
+```typescript
+if (process.env.NODE_ENV === 'production') {
+  Sentry.captureMessage(...);
+}
+```
+
+**Order Success Tracking:**
+
+- Captured: message level `'info'`, tag `order_code: string` (non-PII).
+- Omitted: customer name, email, phone, address.
+
+**Order Failure Tracking:**
+
+- Captured: message `'order_submit_failed'`, tag `order_submit: 'error'`, optional HTTP status / error code.
+- Omitted: form data, customer details.
+
+**Redirect Safety:**
+Server Actions using `redirect()` (Next.js internal) throw `NEXT_REDIRECT` error. Always guard:
+
+```typescript
+import { isRedirectError } from 'next/dist/client/components/redirect-error';
+try {
+  // ... code ...
+} catch (err) {
+  if (isRedirectError(err)) throw err;  // Rethrow, don't capture
+  Sentry.captureException(err, {...});
+}
+```
+
+---
+
+## UI components, icons & assets (`apps/web`)
+
+### Component libraries
+
+- **Radix UI** primitives — accessible behavior (Dialog, Accordion, etc.); compose with Tailwind in `apps/web/src/components/ui/`.
+- **shadcn/ui** patterns — install or mirror from the [shadcn/ui registry](https://ui.shadcn.com/) (`pnpm dlx shadcn@latest add …`), keep shared pieces under `components/ui/`, use `cn()` from `@/lib/utils` for class merging.
+- **Magic UI** — optional for marketing/storefront polish (e.g. [Tweet Card](https://magicui.design/docs/components/tweet-card)); align spacing, borders, and typography with existing cards rather than mixing unrelated visual systems.
+
+Prefer these stacks over bespoke modal/sheet/card markup when a registry component fits. Other apps in the monorepo may use different UI libraries; follow the target app’s conventions.
+
+### Icons & static assets
+
+- **UI icons:** Prefer **`lucide-react`** ([Lucide](https://lucide.dev/icons/)) for standard glyphs (navigation, cart, phone, etc.). Import named components (`import { ShoppingCart } from 'lucide-react'`) and size/color with `className` (`h-5 w-5`, `text-(--brand-*)`). Do **not** use emoji or Unicode “symbol” characters as substitutes for icons in product UI; use Lucide (or the rare exceptions below).
 - **Radix icons:** `@radix-ui/react-icons` remains acceptable where already used (e.g. search bar); prefer **one** icon system per surface for consistency unless a Radix-only glyph is required.
 - **Brand / decorative / raster art:** Prefer files under **`apps/web/public/`** (PNG, WebP, SVG) and reference them with `next/image` or CSS `url('/path')` (e.g. decorative search bar corners). Do not hand-generate SVG paths for assets that should be shipped as static files.
 - **When to add new SVG in code:** Only if neither Lucide nor `public/` provides a suitable asset; keep it minimal and colocate with the component.
