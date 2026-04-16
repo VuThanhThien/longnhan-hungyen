@@ -1,3 +1,9 @@
+export interface ProductCategoryBrief {
+  id: string;
+  slug: string;
+  name: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -8,7 +14,9 @@ export interface Product {
   featuredImageUrl: string | null;
   basePrice: number;
   videoUrl: string | null;
+  /** Category slug for filters and URLs; equals `categoryBrief.slug` when the relation is loaded. */
   category: string;
+  categoryBrief?: ProductCategoryBrief;
   active: boolean;
   createdAt: string;
   updatedAt: string;
@@ -45,6 +53,7 @@ export interface CreateProductDto {
   images?: string[];
   featuredImageUrl?: string;
   basePrice?: number;
+  categoryId?: string;
   category?: string;
   videoUrl?: string;
   active?: boolean;

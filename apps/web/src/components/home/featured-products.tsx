@@ -26,7 +26,7 @@ export default function FeaturedProducts({ products }: FeaturedProductsProps) {
             solid={false}
           />
         </div>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {products.slice(0, 8).map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}

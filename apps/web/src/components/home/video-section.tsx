@@ -3,35 +3,23 @@
 // YouTube embed section — featured video + thumbnail carousel
 
 import Image from 'next/image';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+
+import { getYouTubeId } from '@/lib/youtube';
 
 interface VideoSectionProps {
   videoUrls?: (string | null | undefined)[] | null;
+  /** Section heading (default: production process). */
+  title?: string;
+  /** Anchor id for skip links */
+  sectionId?: string;
 }
 
-function getYouTubeId(url: string): string | null {
-  // Supported:
-  // - https://www.youtube.com/watch?v=VIDEO_ID
-  // - https://youtu.be/VIDEO_ID
-  // - https://www.youtube.com/embed/VIDEO_ID
-  // - https://www.youtube.com/shorts/VIDEO_ID
-  const patterns = [
-    /[?&]v=([^"&?/\s]{11})/i,
-    /youtu\.be\/([^"&?/\s]{11})/i,
-    /youtube\.com\/embed\/([^"&?/\s]{11})/i,
-    /youtube\.com\/shorts\/([^"&?/\s]{11})/i,
-    /youtube\.com\/v\/([^"&?/\s]{11})/i,
-  ];
-
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match?.[1]) return match[1];
-  }
-
-  return null;
-}
-
-export default function VideoSection({ videoUrls }: VideoSectionProps) {
+export default function VideoSection({
+  videoUrls,
+  title = 'Quy Trình Sản Xuất',
+  sectionId = 'video',
+}: VideoSectionProps) {
   const urls = useMemo(
     () => (videoUrls ?? []).filter(Boolean) as string[],
     [videoUrls],
@@ -47,15 +35,6 @@ export default function VideoSection({ videoUrls }: VideoSectionProps) {
   const safeActive = Math.min(active, Math.max(0, videoIds.length - 1));
   const activeId = videoIds[safeActive];
 
-  useEffect(() => {
-    if (!videoIds[safeActive]) return;
-    thumbRefs.current[safeActive]?.scrollIntoView({
-      behavior: 'smooth',
-      inline: 'center',
-      block: 'nearest',
-    });
-  }, [safeActive, videoIds]);
-
   const prev = () =>
     setActive((a) => (a - 1 + videoIds.length) % videoIds.length);
   const next = () => setActive((a) => (a + 1) % videoIds.length);
@@ -63,10 +42,10 @@ export default function VideoSection({ videoUrls }: VideoSectionProps) {
   if (urls.length === 0 || videoIds.length === 0 || !activeId) return null;
 
   return (
-    <section id="video" className="py-16 bg-gray-50">
+    <section id={sectionId} className="py-16 bg-gray-50">
       <div className="max-w-4xl mx-auto px-4">
         <h2 className="text-2xl md:text-3xl font-bold text-foreground text-center mb-8">
-          Quy Trình Sản Xuất
+          {title}
         </h2>
         <div className="relative aspect-video rounded-xl overflow-hidden shadow-lg">
           <iframe

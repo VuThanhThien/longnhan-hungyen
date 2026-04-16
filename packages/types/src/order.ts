@@ -1,9 +1,8 @@
+/** Mirrors `OrderStatus` in `apps/api/.../order.entity.ts` (Postgres enum values). */
 export enum OrderStatus {
   PENDING = 'pending',
   CONFIRMED = 'confirmed',
   SHIPPING = 'shipping',
-  PROCESSING = 'shipping',
-  SHIPPED = 'shipped',
   DELIVERED = 'delivered',
   CANCELLED = 'cancelled',
 }
@@ -13,10 +12,10 @@ export enum PaymentMethod {
   BANK_TRANSFER = 'bank_transfer',
 }
 
+/** Mirrors `PaymentStatus` in `apps/api/.../order.entity.ts`. */
 export enum PaymentStatus {
   PENDING = 'pending',
   PAID = 'paid',
-  CONFIRMED = 'paid',
   FAILED = 'failed',
 }
 

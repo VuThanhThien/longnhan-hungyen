@@ -1,6 +1,9 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import type { Category } from '@longnhan/types';
+import { adminClientGet } from '@/lib/admin-client';
 import { TiptapHtmlEditor } from '@/components/articles/tiptap-html-editor';
 import { MediaUrlPicker } from '@/components/media/media-url-picker';
 import {
@@ -27,6 +30,11 @@ export function ProductForm({
   formId,
   hideSubmitButton = false,
 }: ProductFormProps) {
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories', 'admin'],
+    queryFn: () => adminClientGet<Category[]>('/categories/admin'),
+  });
+
   const [featuredImageUrl, setFeaturedImageUrl] = useState(
     initialProduct?.featuredImageUrl || '',
   );
@@ -82,7 +90,7 @@ export function ProductForm({
     ) as unknown as Resolver<ProductFormValues>,
     defaultValues: {
       name: initialProduct?.name || '',
-      category: initialProduct?.category || 'long-nhan',
+      categoryId: initialProduct?.categoryBrief?.id ?? '',
       basePrice: initialProduct?.basePrice || 0,
       videoUrl: initialProduct?.videoUrl || '',
       active: initialProduct?.active ?? true,
@@ -118,7 +126,7 @@ export function ProductForm({
       onSubmit={handleSubmit(async (data: ProductFormValues) => {
         const formData = new FormData();
         formData.set('name', data.name);
-        formData.set('category', data.category);
+        formData.set('categoryId', data.categoryId);
         formData.set('basePrice', String(data.basePrice ?? 0));
         if (data.videoUrl) formData.set('videoUrl', data.videoUrl);
         if (data.active) formData.set('active', 'on');
@@ -154,15 +162,28 @@ export function ProductForm({
                 ) : null}
               </div>
               <div className="space-y-1">
-                <label className="text-sm text-gray-600">Danh mục</label>
-                <input
-                  {...register('category')}
-                  className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
-                  required
-                />
-                {errors.category?.message ? (
+                <label
+                  className="text-sm text-gray-600"
+                  htmlFor="product-categoryId"
+                >
+                  Danh mục
+                </label>
+                <select
+                  id="product-categoryId"
+                  {...register('categoryId')}
+                  className="h-10 w-full rounded-md border border-gray-200 bg-white px-3 text-sm"
+                >
+                  <option value="">— Chọn danh mục —</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                      {!c.active ? ' (đã tắt)' : ''}
+                    </option>
+                  ))}
+                </select>
+                {errors.categoryId?.message ? (
                   <p className="text-xs text-red-600">
-                    {errors.category.message}
+                    {errors.categoryId.message}
                   </p>
                 ) : null}
               </div>

@@ -1,9 +1,12 @@
+import { CategoryEntity } from '@/api/categories/entities/category.entity';
 import { Uuid } from '@/common/types/common.type';
 import {
   Column,
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   Relation,
@@ -47,6 +50,14 @@ export class ProductEntity {
 
   @Column({ length: 50, default: 'other' })
   category!: string;
+
+  @Column({ name: 'category_id', type: 'uuid', nullable: true })
+  @Index('IDX_product_category_id')
+  categoryId!: string | null;
+
+  @ManyToOne(() => CategoryEntity, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'category_id' })
+  categoryRef?: Relation<CategoryEntity>;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   videoUrl: string | null;

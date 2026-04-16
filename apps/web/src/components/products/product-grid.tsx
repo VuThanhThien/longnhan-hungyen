@@ -1,6 +1,7 @@
 // Product grid — responsive card layout for product list page
 
 import type { Product } from '@longnhan/types';
+import Image from 'next/image';
 import ProductCard from './product-card';
 
 interface ProductGridProps {
@@ -11,7 +12,13 @@ export default function ProductGrid({ products }: ProductGridProps) {
   if (products.length === 0) {
     return (
       <div className="text-center py-16 text-gray-500">
-        <p className="text-4xl mb-4">🌿</p>
+        <Image
+          src="/logo.png"
+          alt="Logo Long Nhãn Tống Trân"
+          width={64}
+          height={64}
+          className="mx-auto mb-4 opacity-80"
+        />
         <p className="text-lg">Không có sản phẩm nào.</p>
       </div>
     );

@@ -11,13 +11,27 @@ interface OrderStatusPanelProps {
   initialPaymentStatus: PaymentStatus;
 }
 
+const orderStatusLabels: Record<OrderStatus, string> = {
+  [OrderStatus.PENDING]: 'Chờ xác nhận',
+  [OrderStatus.CONFIRMED]: 'Đã xác nhận',
+  [OrderStatus.SHIPPING]: 'Đang giao',
+  [OrderStatus.DELIVERED]: 'Đã giao',
+  [OrderStatus.CANCELLED]: 'Đã hủy',
+};
+
 const orderStatuses: OrderStatus[] = [
   OrderStatus.PENDING,
   OrderStatus.CONFIRMED,
-  OrderStatus.PROCESSING,
+  OrderStatus.SHIPPING,
   OrderStatus.DELIVERED,
   OrderStatus.CANCELLED,
 ];
+
+const paymentStatusLabels: Record<PaymentStatus, string> = {
+  [PaymentStatus.PENDING]: 'Chờ thanh toán',
+  [PaymentStatus.PAID]: 'Đã thanh toán',
+  [PaymentStatus.FAILED]: 'Thất bại',
+};
 const paymentStatuses: PaymentStatus[] = [
   PaymentStatus.PENDING,
   PaymentStatus.PAID,
@@ -69,7 +83,7 @@ export function OrderStatusPanel({
         >
           {orderStatuses.map((status) => (
             <option key={status} value={status}>
-              {status}
+              {orderStatusLabels[status]}
             </option>
           ))}
         </select>
@@ -89,7 +103,7 @@ export function OrderStatusPanel({
         >
           {paymentStatuses.map((status) => (
             <option key={status} value={status}>
-              {status}
+              {paymentStatusLabels[status]}
             </option>
           ))}
         </select>

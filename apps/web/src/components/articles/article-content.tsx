@@ -24,7 +24,6 @@ export default function ArticleContent({ article }: ArticleContentProps) {
 
   return (
     <article className="max-w-3xl mx-auto">
-      {/* Cover image */}
       {coverImage && (
         <div className="relative aspect-video rounded-xl overflow-hidden mb-8">
           <Image

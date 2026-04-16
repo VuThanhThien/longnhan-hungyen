@@ -3,8 +3,10 @@ import type { Metadata } from 'next';
 import type { PublicOrderSummary } from '@/actions/order-tracking-actions';
 import { OrderSummaryPanel } from '@/components/orders/order-summary-panel';
 import { OrderTrackForm } from '@/components/orders/order-track-form';
+import Breadcrumb from '@/components/ui/breadcrumb';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { apiServer } from '@/lib/api-server';
+import { buildBreadcrumb } from '@/lib/breadcrumb';
 
 export const metadata: Metadata = {
   title: 'Tra cứu đơn hàng',
@@ -36,9 +38,17 @@ export default async function TrackOrderPage({
         ? params.code[0]?.slice(0, 64)
         : '';
 
+  const breadcrumbItems = [
+    { label: 'Trang chủ', url: '/' },
+    { label: 'Tra cứu đơn hàng' },
+  ];
+  const { schema: breadcrumbSchema } = buildBreadcrumb({
+    items: breadcrumbItems,
+    currentUrl: '/track-order',
+  });
+
   if (token) {
     let tokenData: PublicOrderSummary | null = null;
-    let tokenError = false;
 
     try {
       const res = await apiServer.get<PublicOrderSummary>(
@@ -48,12 +58,19 @@ export default async function TrackOrderPage({
         },
       );
       tokenData = res.data;
-    } catch {
-      tokenError = true;
-    }
+    } catch {}
 
     return (
       <section className="mx-auto max-w-lg px-4 py-10 md:py-16">
+        {breadcrumbSchema ? (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify(breadcrumbSchema),
+            }}
+          />
+        ) : null}
+        <Breadcrumb items={breadcrumbItems} />
         {tokenData ? (
           <div className="space-y-8">
             <Card className="border-border/80 bg-surface shadow-md ring-1 ring-border/40">
@@ -82,6 +99,13 @@ export default async function TrackOrderPage({
 
   return (
     <section className="mx-auto max-w-lg px-4 py-10 md:py-16">
+      {breadcrumbSchema ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        />
+      ) : null}
+      <Breadcrumb items={breadcrumbItems} />
       <OrderTrackForm initialCode={code} />
     </section>
   );

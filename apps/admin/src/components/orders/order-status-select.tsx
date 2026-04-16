@@ -15,8 +15,7 @@ import { useUpdateOrderStatus } from '@/features/orders/hooks/use-update-order-s
 const orderStatusLabels: Record<OrderStatus, string> = {
   [OrderStatus.PENDING]: 'Chờ xác nhận',
   [OrderStatus.CONFIRMED]: 'Đã xác nhận',
-  [OrderStatus.PROCESSING]: 'Đang xử lý',
-  [OrderStatus.SHIPPED]: 'Đang giao',
+  [OrderStatus.SHIPPING]: 'Đang giao',
   [OrderStatus.DELIVERED]: 'Đã giao',
   [OrderStatus.CANCELLED]: 'Đã hủy',
 };
@@ -24,7 +23,7 @@ const orderStatusLabels: Record<OrderStatus, string> = {
 const selectableStatuses: OrderStatus[] = [
   OrderStatus.PENDING,
   OrderStatus.CONFIRMED,
-  OrderStatus.PROCESSING,
+  OrderStatus.SHIPPING,
   OrderStatus.DELIVERED,
   OrderStatus.CANCELLED,
 ];

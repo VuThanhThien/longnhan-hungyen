@@ -1,6 +1,5 @@
 'use client';
 
-// Product card — full-width cover image, then title/description/footer sections
 import type { Product } from '@longnhan/types';
 import { Eye, ImageOff, ShoppingCart } from 'lucide-react';
 import Image from 'next/image';
@@ -9,6 +8,7 @@ import { toast } from 'sonner';
 
 import { VariantPickerSheet } from '@/components/products/variant-picker-sheet';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import {
   getProductLandingDescription,
@@ -81,8 +81,7 @@ export default function ProductCard({
   );
 
   return (
-    <Card className="group flex flex-col overflow-hidden transition-shadow hover:shadow-md">
-      {/* Full-width cover image */}
+    <Card className="group flex flex-col overflow-hidden transition-[transform,box-shadow] hover:shadow-md">
       <div className="relative aspect-square w-full overflow-hidden bg-gray-50">
         <Link
           href={`/products/${product.slug}`}
@@ -118,14 +117,13 @@ export default function ProductCard({
         ) : null}
       </div>
 
-      {/* Title + meta */}
       <div className="border-t border-gray-100 p-4 pb-3">
         <div className="flex items-start justify-between gap-2">
           <Link
             href={`/products/${product.slug}`}
-            className="min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2"
+            className="group/title min-w-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400 focus-visible:ring-offset-2"
           >
-            <h3 className="text-[15px] font-semibold leading-snug tracking-tight text-gray-900 line-clamp-2">
+            <h3 className="text-[15px] font-semibold leading-snug tracking-tight text-gray-900 transition-colors group-hover/title:text-gray-700 line-clamp-2">
               {product.name}
             </h3>
           </Link>
@@ -176,54 +174,59 @@ export default function ProductCard({
           </p>
 
           {!isOutOfStock && isSingleVariant ? (
-            <button
-              type="button"
-              className={`${primaryActionClassName} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2`}
-              onClick={() => {
-                const v = inStockActiveVariants[0];
-                if (!v) return;
-                upsertLine({
-                  variantId: v.id,
-                  quantity: 1,
-                  unitPriceVnd: v.price,
-                  productName: product.name,
-                  productSlug: product.slug,
-                  variantLabel: v.label ?? v.name ?? '',
-                  imageUrl: cartImageUrl,
-                });
-                toast.success(`Đã thêm ${product.name} vào giỏ hàng.`, {
-                  duration: 3000,
-                });
-              }}
-              aria-label={`Thêm ${product.name} vào giỏ hàng`}
-            >
-              <ShoppingCart className="h-4 w-4 shrink-0" aria-hidden />
-              Thêm vào giỏ
-            </button>
+            <div className="flex w-full items-stretch gap-2">
+              <Button
+                type="button"
+                disabled={isOutOfStock || !inStockActiveVariants[0]}
+                className={`${primaryActionClassName} flex-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2`}
+                onClick={() => {
+                  const v = inStockActiveVariants[0];
+                  if (!v) return;
+                  upsertLine({
+                    variantId: v.id,
+                    quantity: 1,
+                    unitPriceVnd: v.price,
+                    productName: product.name,
+                    productSlug: product.slug,
+                    variantLabel: v.label ?? v.name ?? '',
+                    imageUrl: cartImageUrl,
+                  });
+                  toast.success(`Đã thêm ${product.name} vào giỏ hàng.`, {
+                    duration: 3000,
+                  });
+                }}
+                aria-label={`Thêm ${product.name} vào giỏ hàng`}
+              >
+                <ShoppingCart className="h-4 w-4 shrink-0" aria-hidden />
+                Thêm vào giỏ
+              </Button>
+            </div>
           ) : null}
 
           {!isOutOfStock && !isSingleVariant ? (
-            <VariantPickerSheet
-              product={product}
-              imageUrl={cartImageUrl}
-              triggerClassName={`${primaryActionClassName} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2`}
-              onConfirm={(payload) => {
-                upsertLine(payload);
-                toast.success(`Đã thêm ${product.name} vào giỏ hàng.`, {
-                  duration: 3000,
-                });
-              }}
-            />
+            <div className="flex w-full items-stretch gap-2">
+              <VariantPickerSheet
+                product={product}
+                imageUrl={cartImageUrl}
+                triggerClassName={`${primaryActionClassName} w-auto flex-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2`}
+                onConfirm={(payload) => {
+                  upsertLine(payload);
+                  toast.success(`Đã thêm ${product.name} vào giỏ hàng.`, {
+                    duration: 3000,
+                  });
+                }}
+              />
+            </div>
           ) : null}
 
           {isOutOfStock ? (
-            <button
+            <Button
               type="button"
               disabled
               className="inline-flex h-11 w-full cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-100 px-4 text-sm font-semibold text-gray-500"
             >
               Hết hàng
-            </button>
+            </Button>
           ) : null}
         </div>
       </div>

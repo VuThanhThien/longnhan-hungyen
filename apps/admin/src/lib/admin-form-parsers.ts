@@ -17,7 +17,8 @@ export interface ProductPayload {
   images: string[];
   featuredImageUrl?: string;
   videoUrl?: string;
-  category: string;
+  /** Resolved server-side from `category` table */
+  categoryId: string;
   active: boolean;
   variants: ProductVariantInput[];
 }
@@ -62,7 +63,7 @@ export function parseProductPayload(formData: FormData): ProductPayload {
     descriptionHtml:
       String(formData.get('descriptionHtml') || '').trim() || undefined,
     basePrice: toInt(formData.get('basePrice'), 0),
-    category: String(formData.get('category') || '').trim(),
+    categoryId: String(formData.get('categoryId') || '').trim(),
     featuredImageUrl:
       String(formData.get('featuredImageUrl') || '').trim() || undefined,
     videoUrl: String(formData.get('videoUrl') || '').trim() || undefined,

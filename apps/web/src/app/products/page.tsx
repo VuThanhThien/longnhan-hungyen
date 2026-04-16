@@ -1,13 +1,25 @@
 import type { Metadata } from 'next';
-import type { Product } from '@longnhan/types';
+import type { Category, Product } from '@longnhan/types';
 import type { SearchParams } from 'nuqs/server';
 import ProductGrid from '@/components/products/product-grid';
 import CategoryFilter from '@/components/products/category-filter';
 import Breadcrumb from '@/components/ui/breadcrumb';
-import { fetchPaginated } from '@/lib/api-client';
+import { fetchApi, fetchPaginated } from '@/lib/api-client';
+import { buildBreadcrumb } from '@/lib/breadcrumb';
 import { loadProductSearchParams } from '@/lib/product-search-params';
 import { buildSeoMetadata } from '@/lib/seo';
 import { cacheLife, cacheTag } from 'next/cache';
+
+async function getProductListingCategories(): Promise<Category[]> {
+  'use cache';
+  cacheTag('product-list-categories');
+  cacheLife({ revalidate: 60 });
+  try {
+    return await fetchApi<Category[]>('/categories');
+  } catch {
+    return [];
+  }
+}
 
 async function getProductsListing(
   category: string | undefined,
@@ -49,19 +61,35 @@ export default async function ProductsPage({
   const category = categoryRaw ?? undefined;
   const q = qRaw ?? undefined;
 
-  const products = await getProductsListing(category, q);
+  const [categories, products] = await Promise.all([
+    getProductListingCategories(),
+    getProductsListing(category, q),
+  ]);
+
+  const breadcrumbItems = [
+    { label: 'Trang chủ', url: '/' },
+    { label: 'Sản phẩm' },
+  ];
+  const { schema: breadcrumbSchema } = buildBreadcrumb({
+    items: breadcrumbItems,
+    currentUrl: '/products',
+  });
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8">
-      <Breadcrumb
-        items={[{ label: 'Trang chủ', url: '/' }, { label: 'Sản phẩm' }]}
-      />
+      {breadcrumbSchema ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        />
+      ) : null}
+      <Breadcrumb items={breadcrumbItems} />
       <div className="mb-6">
         <h1 className="text-2xl md:text-3xl font-bold text-green-950">
           Danh mục sản phẩm
         </h1>
       </div>
-      <CategoryFilter current={category} />
+      <CategoryFilter categories={categories} current={category} />
       <ProductGrid products={products} />
     </section>
   );

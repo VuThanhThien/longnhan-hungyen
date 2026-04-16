@@ -1,6 +1,7 @@
 import { Uuid } from '@/common/types/common.type';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Expose, Type } from 'class-transformer';
+import { ProductCategoryBriefResDto } from './product-category-brief.res.dto';
 import { ProductVariantResDto } from './product-variant.res.dto';
 
 export class ProductResDto {
@@ -44,9 +45,15 @@ export class ProductResDto {
   @Expose()
   videoUrl: string | null;
 
+  /** Category slug (for filters and URLs; mirrors `categoryBrief.slug`). */
   @ApiProperty()
   @Expose()
   category!: string;
+
+  @ApiPropertyOptional({ type: () => ProductCategoryBriefResDto })
+  @Expose()
+  @Type(() => ProductCategoryBriefResDto)
+  categoryBrief?: ProductCategoryBriefResDto;
 
   @ApiProperty()
   @Expose()

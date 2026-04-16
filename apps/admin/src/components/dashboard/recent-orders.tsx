@@ -20,8 +20,7 @@ const orderStatusLabels: Record<
 > = {
   pending: { label: 'Chờ xác nhận', variant: 'warning' },
   confirmed: { label: 'Đã xác nhận', variant: 'info' },
-  processing: { label: 'Đang xử lý', variant: 'info' },
-  shipped: { label: 'Đang giao', variant: 'secondary' },
+  shipping: { label: 'Đang giao', variant: 'secondary' },
   delivered: { label: 'Đã giao', variant: 'success' },
   cancelled: { label: 'Đã hủy', variant: 'destructive' },
 };

@@ -2,7 +2,11 @@ import * as yup from 'yup';
 
 export const productFormSchema = yup.object({
   name: yup.string().trim().required('Vui lòng nhập tên sản phẩm'),
-  category: yup.string().trim().required('Vui lòng nhập danh mục'),
+  categoryId: yup
+    .string()
+    .trim()
+    .uuid('Vui lòng chọn danh mục')
+    .required('Vui lòng chọn danh mục'),
   basePrice: yup
     .number()
     .typeError('Giá gốc không hợp lệ')

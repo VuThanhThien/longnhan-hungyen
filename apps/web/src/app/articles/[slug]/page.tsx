@@ -4,11 +4,8 @@ import type { Article } from '@longnhan/types';
 import ArticleContent from '@/components/articles/article-content';
 import Breadcrumb from '@/components/ui/breadcrumb';
 import { fetchApi } from '@/lib/api-client';
-import { SITE_URL } from '@/lib/constants';
-import {
-  buildArticleSchema,
-  buildBreadcrumbSchema,
-} from '@/lib/structured-data';
+import { buildBreadcrumb } from '@/lib/breadcrumb';
+import { buildArticleSchema } from '@/lib/structured-data';
 import { cacheLife, cacheTag } from 'next/cache';
 
 interface ArticleDetailPageProps {
@@ -62,11 +59,15 @@ export default async function ArticleDetailPage({
   }
 
   const articleSchema = buildArticleSchema(article);
-  const breadcrumbSchema = buildBreadcrumbSchema([
-    { name: 'Trang chủ', url: SITE_URL },
-    { name: 'Bài viết', url: `${SITE_URL}/articles` },
-    { name: article.title, url: `${SITE_URL}/articles/${article.slug}` },
-  ]);
+  const breadcrumbItems = [
+    { label: 'Trang chủ', url: '/' },
+    { label: 'Bài viết', url: '/articles' },
+    { label: article.title },
+  ];
+  const { schema: breadcrumbSchema } = buildBreadcrumb({
+    items: breadcrumbItems,
+    currentUrl: `/articles/${article.slug}`,
+  });
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8">
@@ -74,18 +75,14 @@ export default async function ArticleDetailPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
       />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
-      />
+      {breadcrumbSchema ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        />
+      ) : null}
 
-      <Breadcrumb
-        items={[
-          { label: 'Trang chủ', url: '/' },
-          { label: 'Bài viết', url: '/articles' },
-          { label: article.title },
-        ]}
-      />
+      <Breadcrumb items={breadcrumbItems} />
       <ArticleContent article={article} />
     </section>
   );

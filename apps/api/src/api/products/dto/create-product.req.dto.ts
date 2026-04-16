@@ -4,6 +4,7 @@ import {
   NumberFieldOptional,
   StringField,
   StringFieldOptional,
+  UUIDFieldOptional,
 } from '@/decorators/field.decorators';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -60,8 +61,12 @@ export class CreateProductReqDto {
   @StringFieldOptional({ maxLength: 255 })
   videoUrl?: string;
 
-  @StringField({ maxLength: 50 })
-  category!: string;
+  @UUIDFieldOptional({ description: 'Preferred: FK to category' })
+  categoryId?: string;
+
+  /** Legacy: category key string (slug); used when categoryId is omitted */
+  @StringFieldOptional({ maxLength: 50 })
+  category?: string;
 
   @BooleanFieldOptional()
   active?: boolean;

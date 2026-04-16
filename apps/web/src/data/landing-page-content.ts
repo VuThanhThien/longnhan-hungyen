@@ -275,6 +275,33 @@ export const LANDING_CATEGORIES = [
   },
 ] as const;
 
+/** Curated YouTube URLs for the marketing “video album” block (v1 static). Empty hides the section. */
+export const LANDING_VIDEO_ALBUM_URLS: readonly string[] = [
+  'https://youtube.com/shorts/0XRJt9zdy5I?si=oSfaBYZDvy08SeE7',
+  'https://youtube.com/shorts/vZHSAh8nPz8?si=tqHFp-jpwFYFwL7q',
+  'https://youtube.com/shorts/nkfG25MG9vY?si=oo-R6_Y7SyFHyL7v',
+];
+
+/** Image grid + lightbox on the home page (v1 static paths under `public/`). */
+export const LANDING_IMAGE_ALBUM: { src: string; alt: string }[] = [
+  {
+    src: '/banner-web2.png',
+    alt: 'Tinh hoa Phố Hiến — đặc sản Hưng Yên',
+  },
+  {
+    src: '/bannerweb4.jpg',
+    alt: 'Bộ quà tặng cao cấp',
+  },
+  {
+    src: '/bannerweb5-2048x785.jpg',
+    alt: 'Mật hoa nhãn — Long Nhãn Tống Trân',
+  },
+  {
+    src: '/tinhhoaphohien.com_-2048x788.webp',
+    alt: 'Long Nhãn Tống Trân — banner giới thiệu',
+  },
+];
+
 export const LANDING_BANNER_SLIDES = [
   {
     id: 'tinh-hoa-pho-hien',

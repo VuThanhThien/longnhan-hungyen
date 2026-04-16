@@ -50,6 +50,14 @@ export default function ProductsPageClient() {
     );
   }, [page, params.category, params.q]);
 
+  const { data: categories = [] } = useQuery({
+    queryKey: ['categories', 'admin'],
+    queryFn: () =>
+      adminClientGet<Array<{ id: string; slug: string; name: string }>>(
+        '/categories/admin',
+      ),
+  });
+
   const {
     data: raw,
     isLoading,
@@ -111,16 +119,21 @@ export default function ProductsPageClient() {
               </div>
               <div className="space-y-1">
                 <label className="text-sm text-gray-600" htmlFor="category">
-                  Danh mục (khớp chính xác)
+                  Danh mục
                 </label>
-                <input
+                <select
                   id="category"
                   name="category"
-                  type="text"
                   defaultValue={params.category || ''}
-                  placeholder="VD: tươi"
-                  className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
-                />
+                  className="h-10 w-full rounded-md border border-gray-200 bg-white px-3 text-sm"
+                >
+                  <option value="">Tất cả</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.slug}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="flex items-end">
                 <button
@@ -168,7 +181,9 @@ export default function ProductsPageClient() {
                 {products.map((product) => (
                   <TableRow key={product.id}>
                     <TableCell>{product.name}</TableCell>
-                    <TableCell>{product.category}</TableCell>
+                    <TableCell>
+                      {product.categoryBrief?.name ?? product.category}
+                    </TableCell>
                     <TableCell>{formatCurrency(product.basePrice)}</TableCell>
                     <TableCell>
                       {product.active ? 'active' : 'inactive'}

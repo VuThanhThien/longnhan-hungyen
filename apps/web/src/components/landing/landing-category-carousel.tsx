@@ -2,18 +2,21 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import { LandingBannerCarousel } from '@/components/landing/landing-banner-carousel.client';
-import {
-  LANDING_BANNER_SLIDES,
-  LANDING_CATEGORIES,
-} from '@/data/landing-page-content';
+import { LANDING_BANNER_SLIDES } from '@/data/landing-page-content';
+import type { LandingCategoryNavItem } from '@/lib/landing-category-nav';
 import { cn } from '@/lib/utils';
+
+export type { LandingCategoryNavItem };
 
 export interface LandingCategoryCarouselProps {
   className?: string;
+  /** From API categories or static fallback (built on the server). */
+  navItems: LandingCategoryNavItem[];
 }
 
 export function LandingCategoryCarousel({
   className,
+  navItems,
 }: LandingCategoryCarouselProps) {
   return (
     <section
@@ -56,7 +59,7 @@ export function LandingCategoryCarousel({
             {/* Mobile: chip-style quick nav */}
             <div className="md:hidden">
               <ul className="flex gap-2 overflow-x-auto px-5 py-4 [-webkit-tap-highlight-color:transparent]">
-                {LANDING_CATEGORIES.map((c) => (
+                {navItems.map((c) => (
                   <li key={c.href} className="shrink-0">
                     <Link
                       href={c.href}
@@ -68,7 +71,7 @@ export function LandingCategoryCarousel({
                     >
                       <Image
                         src={c.iconSrc}
-                        alt=""
+                        alt={c.iconAlt ?? ''}
                         width={18}
                         height={18}
                         className="h-[18px] w-[18px] object-contain opacity-100 brightness-0 invert"
@@ -82,7 +85,7 @@ export function LandingCategoryCarousel({
 
             {/* Desktop: list */}
             <ul className="hidden md:block">
-              {LANDING_CATEGORIES.map((c) => (
+              {navItems.map((c) => (
                 <li
                   key={c.href}
                   className="border-b border-white/10 last:border-b-0"
@@ -97,7 +100,7 @@ export function LandingCategoryCarousel({
                   >
                     <Image
                       src={c.iconSrc}
-                      alt=""
+                      alt={c.iconAlt ?? ''}
                       width={20}
                       height={20}
                       className="h-5 w-5 object-contain opacity-100 brightness-0 invert"

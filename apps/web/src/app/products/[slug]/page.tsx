@@ -5,12 +5,10 @@ import ProductPdpTabs from '@/components/products/product-pdp-tabs';
 import RelatedProducts from '@/components/products/related-products';
 import Breadcrumb from '@/components/ui/breadcrumb';
 import { fetchApi, fetchPaginated } from '@/lib/api-client';
+import { buildBreadcrumb } from '@/lib/breadcrumb';
 import { SITE_URL } from '@/lib/constants';
 import { buildSeoMetadata } from '@/lib/seo';
-import {
-  buildBreadcrumbSchema,
-  buildProductSchema,
-} from '@/lib/structured-data';
+import { buildProductSchema } from '@/lib/structured-data';
 import type { Product } from '@longnhan/types';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
@@ -107,11 +105,10 @@ export default async function ProductDetailPage({
     { label: product.name },
   ];
 
-  const breadcrumbSchema = buildBreadcrumbSchema([
-    { name: 'Trang chủ', url: SITE_URL },
-    { name: 'Sản phẩm', url: `${SITE_URL}/products` },
-    { name: product.name, url: `${SITE_URL}/products/${product.slug}` },
-  ]);
+  const { schema: breadcrumbSchema } = buildBreadcrumb({
+    items: breadcrumbItems,
+    currentUrl: `/products/${product.slug}`,
+  });
 
   const productSchema = buildProductSchema(product);
   const images = product.images ?? [];
@@ -130,10 +127,12 @@ export default async function ProductDetailPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
       />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
-      />
+      {breadcrumbSchema ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        />
+      ) : null}
 
       <Breadcrumb items={breadcrumbItems} />
 

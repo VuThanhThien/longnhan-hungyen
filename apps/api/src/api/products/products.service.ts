@@ -1,13 +1,20 @@
+import { CategoriesService } from '@/api/categories/categories.service';
+import { CategoryEntity } from '@/api/categories/entities/category.entity';
 import { OffsetPaginatedDto } from '@/common/dto/offset-pagination/paginated.dto';
 import { Uuid } from '@/common/types/common.type';
 import { paginate } from '@/utils/offset-pagination';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
 import slugify from 'slugify';
 import { DataSource, Repository } from 'typeorm';
 import { CreateProductVariantReqDto } from './dto/create-product-variant.req.dto';
 import { CreateProductReqDto } from './dto/create-product.req.dto';
+import { ProductCategoryBriefResDto } from './dto/product-category-brief.res.dto';
 import { ProductQueryReqDto } from './dto/product-query.req.dto';
 import { ProductResDto } from './dto/product.res.dto';
 import { UpdateProductVariantReqDto } from './dto/update-product-variant.req.dto';
@@ -23,7 +30,46 @@ export class ProductsService {
     @InjectRepository(ProductVariantEntity)
     private readonly variantRepo: Repository<ProductVariantEntity>,
     private readonly dataSource: DataSource,
+    private readonly categoriesService: CategoriesService,
   ) {}
+
+  private toProductResDto(p: ProductEntity): ProductResDto {
+    const { categoryRef, ...rest } = p;
+    const category = categoryRef?.slug ?? p.category;
+    const categoryBrief = categoryRef
+      ? plainToInstance(
+          ProductCategoryBriefResDto,
+          {
+            id: categoryRef.id,
+            slug: categoryRef.slug,
+            name: categoryRef.name,
+          },
+          { excludeExtraneousValues: true },
+        )
+      : undefined;
+    return plainToInstance(
+      ProductResDto,
+      {
+        ...rest,
+        category,
+        categoryBrief,
+      },
+      { excludeExtraneousValues: true },
+    );
+  }
+
+  private async resolveCategoryForWrite(dto: {
+    categoryId?: string;
+    category?: string;
+  }): Promise<CategoryEntity> {
+    if (dto.categoryId) {
+      return this.categoriesService.findByIdOrThrow(dto.categoryId as Uuid);
+    }
+    if (dto.category !== undefined && dto.category !== '') {
+      return this.categoriesService.findBySlugKeyOrThrow(dto.category);
+    }
+    throw new BadRequestException('Either categoryId or category is required');
+  }
 
   /** Public: list active products with variants */
   async findMany(
@@ -31,7 +77,10 @@ export class ProductsService {
     options?: { includeInactive?: boolean },
   ): Promise<OffsetPaginatedDto<ProductResDto>> {
     const includeInactive = options?.includeInactive === true;
-    const qb = this.productRepo.createQueryBuilder('product');
+    const qb = this.productRepo
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.categoryRef', 'categoryRef');
+
     if (includeInactive) {
       qb.leftJoinAndSelect('product.variants', 'variant');
     } else {
@@ -46,8 +95,15 @@ export class ProductsService {
       qb.where('product.active = true');
     }
 
+    if (dto.categoryId) {
+      qb.andWhere('categoryRef.id = :categoryId', {
+        categoryId: dto.categoryId,
+      });
+    }
     if (dto.category) {
-      qb.andWhere('product.category = :category', { category: dto.category });
+      qb.andWhere('categoryRef.slug = :catSlug', {
+        catSlug: dto.category,
+      });
     }
     if (dto.q) {
       qb.andWhere('product.name ILIKE :q', { q: `%${dto.q}%` });
@@ -63,9 +119,7 @@ export class ProductsService {
       takeAll: false,
     });
     return new OffsetPaginatedDto(
-      plainToInstance(ProductResDto, products, {
-        excludeExtraneousValues: true,
-      }),
+      products.map((p) => this.toProductResDto(p)),
       meta,
     );
   }
@@ -74,6 +128,7 @@ export class ProductsService {
   async findBySlug(slug: string): Promise<ProductResDto> {
     const product = await this.productRepo
       .createQueryBuilder('product')
+      .leftJoinAndSelect('product.categoryRef', 'categoryRef')
       .leftJoinAndSelect('product.variants', 'variant', 'variant.active = true')
       .where('product.slug = :slug', { slug })
       .andWhere('product.active = true')
@@ -81,28 +136,38 @@ export class ProductsService {
       .getOne();
 
     if (!product) throw new NotFoundException('Product not found');
-    return plainToInstance(ProductResDto, product, {
-      excludeExtraneousValues: true,
-    });
+    return this.toProductResDto(product);
   }
 
   /** Admin: get single product by id */
   async findById(id: Uuid): Promise<ProductResDto> {
     const product = await this.productRepo
       .createQueryBuilder('product')
+      .leftJoinAndSelect('product.categoryRef', 'categoryRef')
       .leftJoinAndSelect('product.variants', 'variant')
       .where('product.id = :id', { id })
       .orderBy('variant.sortOrder', 'ASC')
       .getOne();
 
     if (!product) throw new NotFoundException('Product not found');
-    return plainToInstance(ProductResDto, product, {
-      excludeExtraneousValues: true,
-    });
+    return this.toProductResDto(product);
   }
 
   /** Admin: create product with variants */
   async create(dto: CreateProductReqDto): Promise<ProductResDto> {
+    if (
+      !dto.categoryId &&
+      (dto.category === undefined || dto.category === '')
+    ) {
+      throw new BadRequestException(
+        'Either categoryId or category is required',
+      );
+    }
+    const cat = await this.resolveCategoryForWrite({
+      categoryId: dto.categoryId,
+      category: dto.category,
+    });
+
     const slug = await this.generateUniqueSlug(dto.name);
     const product = this.productRepo.create({
       name: dto.name,
@@ -114,7 +179,8 @@ export class ProductsService {
       images: dto.images ?? [],
       featuredImageUrl: dto.featuredImageUrl ?? null,
       videoUrl: dto.videoUrl ?? null,
-      category: dto.category,
+      categoryId: cat.id,
+      category: cat.slug,
       active: dto.active ?? true,
     });
     const saved = await this.productRepo.save(product);
@@ -135,9 +201,11 @@ export class ProductsService {
       saved.variants = await this.variantRepo.save(variants);
     }
 
-    return plainToInstance(ProductResDto, saved, {
-      excludeExtraneousValues: true,
+    const full = await this.productRepo.findOne({
+      where: { id: saved.id },
+      relations: ['variants', 'categoryRef'],
     });
+    return this.toProductResDto(full!);
   }
 
   /** Admin: update product + replace variants atomically */
@@ -152,10 +220,6 @@ export class ProductsService {
       product.slug = await this.generateUniqueSlug(dto.name, id);
     }
 
-    // Backward-compatible mapping:
-    // - `description` is legacy plain text used by some consumers.
-    // - `summary` is the new short text (preferred for SEO/cards/hero).
-    // If admin/client still sends only `description`, we also update `summary` to match.
     const patchSummary =
       dto.summary !== undefined
         ? dto.summary
@@ -176,11 +240,18 @@ export class ProductsService {
         featuredImageUrl: dto.featuredImageUrl,
       }),
       ...(dto.videoUrl !== undefined && { videoUrl: dto.videoUrl }),
-      ...(dto.category !== undefined && { category: dto.category }),
       ...(dto.active !== undefined && { active: dto.active }),
     });
 
-    // Wrap product save + variant replace in a transaction to prevent partial updates
+    if (dto.categoryId !== undefined || dto.category !== undefined) {
+      const cat = await this.resolveCategoryForWrite({
+        categoryId: dto.categoryId,
+        category: dto.category,
+      });
+      product.categoryId = cat.id;
+      product.category = cat.slug;
+    }
+
     const saved = await this.dataSource.transaction(async (em) => {
       const savedProduct = await em.save(ProductEntity, product);
 
@@ -208,9 +279,11 @@ export class ProductsService {
       return savedProduct;
     });
 
-    return plainToInstance(ProductResDto, saved, {
-      excludeExtraneousValues: true,
+    const full = await this.productRepo.findOne({
+      where: { id: saved.id },
+      relations: ['variants', 'categoryRef'],
     });
+    return this.toProductResDto(full!);
   }
 
   /** Admin: soft delete (set active = false) */

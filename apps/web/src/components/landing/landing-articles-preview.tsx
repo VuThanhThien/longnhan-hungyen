@@ -31,14 +31,15 @@ export function LandingArticlesPreview({
           </h2>
           <SectionTitleLinkButton
             buttonClassName="text-sm font-medium text-(--brand-leaf) hover:text-(--brand-forest)"
-            actionLabel="Xem tất cả"
+            actionLabel="Xem tất cả bài viết"
             href="/articles"
             solid={false}
           />
         </div>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {articles.map((article) => {
             const cover = article.featuredImageUrl ?? article.coverImageUrl;
+            const excerpt = article.excerpt ?? article.summary;
             return (
               <Link
                 key={article.id}
@@ -67,6 +68,11 @@ export function LandingArticlesPreview({
                   <h3 className="line-clamp-2 text-sm font-semibold text-(--brand-forest) leading-snug">
                     {article.title}
                   </h3>
+                  {excerpt ? (
+                    <p className="mt-1.5 line-clamp-2 text-xs text-(--brand-forest-muted)">
+                      {excerpt}
+                    </p>
+                  ) : null}
                   <p className="mt-1.5 text-xs text-(--brand-leaf) font-medium">
                     Đọc thêm
                   </p>

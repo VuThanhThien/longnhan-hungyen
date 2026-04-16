@@ -2,6 +2,7 @@ import {
   BooleanFieldOptional,
   NumberFieldOptional,
   StringFieldOptional,
+  UUIDFieldOptional,
 } from '@/decorators/field.decorators';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -35,6 +36,9 @@ export class UpdateProductReqDto {
 
   @StringFieldOptional({ maxLength: 255 })
   videoUrl?: string;
+
+  @UUIDFieldOptional()
+  categoryId?: string;
 
   @StringFieldOptional({ maxLength: 50 })
   category?: string;

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ArticlesModule } from './articles/articles.module';
 import { AuthModule } from './auth/auth.module';
+import { CategoriesModule } from './categories/categories.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { HealthModule } from './health/health.module';
 import { HomeModule } from './home/home.module';
@@ -26,6 +27,7 @@ import { UserModule } from './user/user.module';
     HomeModule,
     PostModule,
     ProductsModule,
+    CategoriesModule,
     ReviewsModule,
     OrdersModule,
     ArticlesModule,

@@ -1,15 +1,22 @@
 import FeaturedProducts from '@/components/home/featured-products';
 import VideoSection from '@/components/home/video-section';
+import { LandingArticlesPreview } from '@/components/landing/landing-articles-preview';
 import { LandingCategoryCarousel } from '@/components/landing/landing-category-carousel';
 import { LandingFaq } from '@/components/landing/landing-faq';
 import { LandingHero } from '@/components/landing/landing-hero';
+import { LandingImageAlbum } from '@/components/landing/landing-image-album';
 import { LandingStory } from '@/components/landing/landing-story';
 import { LandingTestimonialsTrust } from '@/components/landing/landing-testimonials-trust';
 import ScrollReveal from '@/components/ui/scroll-reveal';
-import { LANDING_SEO } from '@/data/landing-page-content';
-import { fetchPaginated } from '@/lib/api-client';
+import {
+  LANDING_IMAGE_ALBUM,
+  LANDING_SEO,
+  LANDING_VIDEO_ALBUM_URLS,
+} from '@/data/landing-page-content';
+import { fetchApi, fetchPaginated } from '@/lib/api-client';
+import { buildLandingCategoryNav } from '@/lib/landing-category-nav';
 import { buildSeoMetadata } from '@/lib/seo';
-import type { Product } from '@longnhan/types';
+import type { Article, Category, Product } from '@longnhan/types';
 import type { Metadata } from 'next';
 import { cacheLife, cacheTag } from 'next/cache';
 
@@ -37,8 +44,39 @@ async function getHomeProducts(): Promise<Product[]> {
   }
 }
 
+async function getHomeCategories(): Promise<Category[]> {
+  'use cache';
+  cacheTag('home-categories');
+  cacheLife({ revalidate: 300 });
+  try {
+    return await fetchApi<Category[]>('/categories');
+  } catch {
+    return [];
+  }
+}
+
+async function getHomeArticles(): Promise<Article[]> {
+  'use cache';
+  cacheTag('home-articles');
+  cacheLife({ revalidate: 300 });
+  try {
+    const response = await fetchPaginated<Article>('/articles', {
+      limit: 4,
+      page: 1,
+    });
+    return response.data;
+  } catch {
+    return [];
+  }
+}
+
 export default async function Home() {
-  const products = await getHomeProducts();
+  const [categories, products, articles] = await Promise.all([
+    getHomeCategories(),
+    getHomeProducts(),
+    getHomeArticles(),
+  ]);
+  const categoryNavItems = buildLandingCategoryNav(categories);
   const productVideos = products
     .map((p) => p.videoUrl)
     .filter(Boolean) as string[];
@@ -49,16 +87,35 @@ export default async function Home() {
         <LandingHero />
       </ScrollReveal>
       <ScrollReveal delayMs={60}>
-        <LandingCategoryCarousel />
+        <LandingCategoryCarousel navItems={categoryNavItems} />
       </ScrollReveal>
       <ScrollReveal delayMs={80}>
         <FeaturedProducts products={products} />
+      </ScrollReveal>
+      <ScrollReveal delayMs={100}>
+        <LandingArticlesPreview articles={articles} />
       </ScrollReveal>
       <ScrollReveal delayMs={220}>
         <LandingStory />
       </ScrollReveal>
       <ScrollReveal delayMs={240}>
         <LandingFaq />
+      </ScrollReveal>
+      {LANDING_VIDEO_ALBUM_URLS.length > 0 ? (
+        <ScrollReveal delayMs={248}>
+          <VideoSection
+            videoUrls={[...LANDING_VIDEO_ALBUM_URLS]}
+            title="Video chia sẻ"
+            sectionId="video-album"
+          />
+        </ScrollReveal>
+      ) : null}
+      <ScrollReveal delayMs={252}>
+        <LandingImageAlbum
+          sectionTitle="Hình ảnh & không gian"
+          sectionSubtitle="Hình ảnh minh họa từ vườn nhãn và sản phẩm"
+          items={LANDING_IMAGE_ALBUM}
+        />
       </ScrollReveal>
       <ScrollReveal delayMs={260}>
         <VideoSection videoUrls={productVideos} />
