@@ -1,37 +1,54 @@
 import { OffsetPaginatedDto } from '@/common/dto/offset-pagination/paginated.dto';
+import { IOrderTrackingLinkJob } from '@/common/interfaces/job.interface';
 import { Uuid } from '@/common/types/common.type';
+import { AllConfigType } from '@/config/config.type';
+import { JobName, QueueName } from '@/constants/job.constant';
 import { paginate } from '@/utils/offset-pagination';
+import { InjectQueue } from '@nestjs/bullmq';
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Queue } from 'bullmq';
 import { plainToInstance } from 'class-transformer';
+import crypto from 'crypto';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { ProductVariantEntity } from '../products/entities/product-variant.entity';
 import { CreateOrderReqDto } from './dto/create-order.req.dto';
 import { OrderQueryReqDto } from './dto/order-query.req.dto';
 import { OrderResDto } from './dto/order.res.dto';
+import { PublicOrderSummaryResDto } from './dto/public-order-summary.res.dto';
 import { UpdateOrderStatusReqDto } from './dto/update-order-status.req.dto';
 import { OrderItemEntity } from './entities/order-item.entity';
+import { OrderTrackingTokenEntity } from './entities/order-tracking-token.entity';
 import { OrderEntity, PaymentMethod } from './entities/order.entity';
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
+    private readonly configService: ConfigService<AllConfigType>,
     @InjectRepository(OrderEntity)
     private readonly orderRepo: Repository<OrderEntity>,
     @InjectRepository(OrderItemEntity)
     private readonly orderItemRepo: Repository<OrderItemEntity>,
+    @InjectRepository(OrderTrackingTokenEntity)
+    private readonly orderTrackingTokenRepo: Repository<OrderTrackingTokenEntity>,
     @InjectRepository(ProductVariantEntity)
     private readonly variantRepo: Repository<ProductVariantEntity>,
+    @InjectQueue(QueueName.EMAIL)
+    private readonly emailQueue: Queue<IOrderTrackingLinkJob, any, string>,
     private readonly dataSource: DataSource,
   ) {}
 
   /** Public: create order with transaction (validates stock, decrements) */
   async create(dto: CreateOrderReqDto): Promise<OrderResDto> {
-    return this.dataSource.transaction(async (em) => {
+    const result = await this.dataSource.transaction(async (em) => {
       // Load variants with SELECT FOR UPDATE to prevent race conditions
       const variantIds = dto.items.map((i) => i.variantId);
       const variants = await em
@@ -116,6 +133,22 @@ export class OrdersService {
         excludeExtraneousValues: true,
       });
     });
+
+    const order = await this.orderRepo.findOne({
+      where: { code: result.code },
+    });
+    if (order?.email) {
+      try {
+        await this.enqueueOrderTrackingLinkEmail(order);
+      } catch (err) {
+        this.logger.error(
+          `Failed to enqueue tracking email for order ${order.code}`,
+          err instanceof Error ? err.stack : err,
+        );
+      }
+    }
+
+    return result;
   }
 
   /** Admin: list orders with filters */
@@ -201,7 +234,7 @@ export class OrdersService {
    * sequential count-based codes (two concurrent txns could read same count).
    * Falls back to retry on unique constraint violation handled by the DB.
    */
-  private async generateOrderCode(em: EntityManager): Promise<string> {
+  private async generateOrderCode(_em: EntityManager): Promise<string> {
     const now = new Date();
     const yy = String(now.getFullYear()).slice(-2);
     const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -216,4 +249,129 @@ export class OrdersService {
       .padEnd(4, '0');
     return `${prefix}${randomSuffix}`;
   }
+
+  /**
+   * Public: guest-safe summary by order code (rate-limit at controller).
+   */
+  async lookupByCode(code: string): Promise<PublicOrderSummaryResDto> {
+    const trimmed = code?.trim();
+    if (!trimmed || trimmed.length > 64) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const order = await this.orderRepo.findOne({
+      where: { code: trimmed },
+      relations: ['items'],
+    });
+    if (!order) throw new NotFoundException('Order not found');
+
+    return plainToInstance(
+      PublicOrderSummaryResDto,
+      mapOrderToPublicSummary(order),
+      {
+        excludeExtraneousValues: true,
+      },
+    );
+  }
+
+  private async enqueueOrderTrackingLinkEmail(
+    order: OrderEntity,
+  ): Promise<void> {
+    if (!order.email) return;
+
+    const token = crypto.randomBytes(32).toString('base64url');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const ttlHours = 48;
+    const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000);
+
+    await this.orderTrackingTokenRepo.save(
+      this.orderTrackingTokenRepo.create({
+        orderId: order.id,
+        tokenHash,
+        expiresAt,
+        usedAt: null,
+      }),
+    );
+
+    const webPublicUrl = this.configService.getOrThrow('app.webPublicUrl', {
+      infer: true,
+    });
+    const url = `${webPublicUrl.replace(/\/$/, '')}/track-order?t=${encodeURIComponent(token)}`;
+
+    await this.emailQueue.add(
+      JobName.ORDER_TRACKING_LINK,
+      {
+        email: order.email,
+        url,
+        orderCode: order.code,
+      },
+      { attempts: 3, backoff: { type: 'exponential', delay: 60000 } },
+    );
+  }
+
+  /** Public: exchange token for guest-safe summary (single-use, expires) */
+  async trackByToken(token: string): Promise<PublicOrderSummaryResDto> {
+    if (!token || token.length < 20 || token.length > 512) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const now = new Date();
+    const updateRes = await this.orderTrackingTokenRepo
+      .createQueryBuilder()
+      .update(OrderTrackingTokenEntity)
+      .set({ usedAt: now })
+      .where('"tokenHash" = :tokenHash', { tokenHash })
+      .andWhere('"usedAt" IS NULL')
+      .andWhere('"expiresAt" > NOW()')
+      .returning(['orderId'])
+      .execute();
+
+    const orderId = updateRes.raw?.[0]?.orderId as Uuid | undefined;
+    if (updateRes.affected !== 1 || !orderId) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const order = await this.orderRepo.findOne({
+      where: { id: orderId },
+      relations: ['items'],
+    });
+    if (!order) throw new NotFoundException('Order not found');
+
+    return plainToInstance(
+      PublicOrderSummaryResDto,
+      mapOrderToPublicSummary(order),
+      {
+        excludeExtraneousValues: true,
+      },
+    );
+  }
+}
+
+function mapOrderToPublicSummary(order: OrderEntity) {
+  const addressPreview = getAddressPreview(order.address);
+
+  return {
+    code: order.code,
+    orderStatus: order.orderStatus,
+    paymentStatus: order.paymentStatus,
+    paymentMethod: order.paymentMethod,
+    total: order.total,
+    createdAt: order.createdAt,
+    province: order.province ?? null,
+    addressPreview,
+    items: (order.items ?? []).map((i) => ({
+      name: String((i.variantSnapshot as any)?.label ?? 'Sản phẩm'),
+      qty: i.qty,
+      subtotal: i.subtotal,
+    })),
+  };
+}
+
+function getAddressPreview(address: string | null | undefined): string | null {
+  if (!address) return null;
+  const first = address.split(',')[0]?.trim();
+  if (!first) return null;
+  return first;
 }

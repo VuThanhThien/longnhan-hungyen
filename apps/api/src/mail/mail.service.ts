@@ -24,4 +24,17 @@ export class MailService {
       },
     });
   }
+
+  async sendOrderTrackingLink(email: string, url: string, orderCode: string) {
+    await this.mailerService.sendMail({
+      to: email,
+      subject: `Theo dõi đơn hàng ${orderCode}`,
+      template: 'order-tracking-link',
+      context: {
+        email,
+        url,
+        orderCode,
+      },
+    });
+  }
 }

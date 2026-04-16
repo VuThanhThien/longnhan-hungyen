@@ -16,6 +16,16 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { QuantityStepper } from '@/components/ui/quantity-stepper';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { PAYMENT_METHODS, PROVINCES } from '@/lib/constants';
 import {
@@ -120,36 +130,16 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
         ) : null}
       </div>
 
-      <div className="mb-5 flex items-center gap-3">
+      <div className="mb-5 flex flex-wrap items-center gap-3">
         <span className="text-sm font-medium text-gray-700">Số lượng:</span>
-        <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setQuantity(Math.max(1, quantity - 1))}
-            className="px-3 py-2 text-gray-600 hover:bg-gray-50 text-lg font-bold"
-          >
-            −
-          </button>
-          <span className="px-4 py-2 text-sm font-semibold min-w-10 text-center">
-            {quantity}
-          </span>
-          <button
-            type="button"
-            onClick={() =>
-              setQuantity(
-                Math.min(selectedVariantStock || quantity + 1, quantity + 1),
-              )
-            }
-            disabled={
-              selectedVariantStock > 0
-                ? quantity >= selectedVariantStock
-                : false
-            }
-            className="px-3 py-2 text-gray-600 hover:bg-gray-50 text-lg font-bold disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            +
-          </button>
-        </div>
+        <QuantityStepper
+          value={quantity}
+          onChange={setQuantity}
+          min={1}
+          max={selectedVariantStock > 0 ? selectedVariantStock : 1}
+          ariaLabel="Số lượng đặt hàng"
+          className="border-gray-300 bg-white"
+        />
         {selectedVariant ? (
           <span className="text-green-700 font-bold text-sm ml-2">
             {new Intl.NumberFormat('vi-VN', {
@@ -260,19 +250,23 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
                 <FormLabel>
                   Tỉnh/Thành phố <span className="text-red-500">*</span>
                 </FormLabel>
-                <FormControl>
-                  <select
-                    {...field}
-                    className="flex h-11 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                  >
-                    <option value="">Chọn tỉnh/thành</option>
+                <Select
+                  value={field.value || undefined}
+                  onValueChange={field.onChange}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Chọn tỉnh/thành" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
                     {PROVINCES.map((p) => (
-                      <option key={p} value={p}>
+                      <SelectItem key={p} value={p}>
                         {p}
-                      </option>
+                      </SelectItem>
                     ))}
-                  </select>
-                </FormControl>
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -287,22 +281,29 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
                   Phương thức thanh toán <span className="text-red-500">*</span>
                 </FormLabel>
                 <FormControl>
-                  <div className="flex flex-col gap-2">
+                  <RadioGroup
+                    className="flex flex-col gap-2"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                  >
                     {PAYMENT_METHODS.map((method) => (
-                      <label
+                      <div
                         key={method.value}
-                        className="flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm"
+                        className="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm"
                       >
-                        <input
-                          type="radio"
+                        <RadioGroupItem
                           value={method.value}
-                          checked={field.value === method.value}
-                          onChange={() => field.onChange(method.value)}
+                          id={`payment-${method.value}`}
                         />
-                        <span>{method.label}</span>
-                      </label>
+                        <Label
+                          htmlFor={`payment-${method.value}`}
+                          className="flex-1 cursor-pointer font-normal leading-snug"
+                        >
+                          {method.label}
+                        </Label>
+                      </div>
                     ))}
-                  </div>
+                  </RadioGroup>
                 </FormControl>
                 <FormMessage />
               </FormItem>

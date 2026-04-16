@@ -8,9 +8,9 @@ services:
       POSTGRES_DB: longnhan
       POSTGRES_USER: longnhan
       POSTGRES_PASSWORD: longnhan
-      TZ: "UTC"
+      TZ: 'UTC'
     ports:
-      - "${DB_PORT:-5435}:5432"
+      - '${DB_PORT:-5435}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -21,7 +21,7 @@ services:
     image: redis:7-alpine
     container_name: longnhan_redis
     ports:
-      - "${REDIS_PORT:-6380}:6379"
+      - '${REDIS_PORT:-6380}:6379'
     command: redis-server --save 20 1 --loglevel warning
     volumes:
       - redis_data:/data
@@ -35,8 +35,9 @@ services:
       dockerfile: maildev.Dockerfile
     container_name: longnhan_maildev
     ports:
-      - "${MAIL_CLIENT_PORT:-1080}:1080"
-      - "${MAIL_PORT:-1025}:1025"
+      - '${MAIL_CLIENT_PORT:-1080}:1080'
+      # Host port (API on machine uses MAIL_HOST=localhost MAIL_PORT=1026) → MailDev SMTP 1025 in container
+      - '${MAIL_SMTP_HOST_PORT:-1026}:1025'
     restart: unless-stopped
     networks:
       - longnhan-network
@@ -47,10 +48,10 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@longnhan.vn
       PGADMIN_DEFAULT_PASSWORD: admin
-      PGADMIN_CONFIG_WTF_CSRF_ENABLED: "False"
-      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: "False"
+      PGADMIN_CONFIG_WTF_CSRF_ENABLED: 'False'
+      PGADMIN_CONFIG_ENHANCED_COOKIE_PROTECTION: 'False'
     ports:
-      - "5050:80"
+      - '5050:80'
     volumes:
       - pgadmin_data:/root/.pgadmin
     depends_on:

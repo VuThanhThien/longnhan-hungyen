@@ -2,6 +2,7 @@ export type AppConfig = {
   nodeEnv: string;
   name: string;
   url: string;
+  webPublicUrl: string;
   port: number;
   debug: boolean;
   apiPrefix: string;

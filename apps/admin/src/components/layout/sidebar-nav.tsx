@@ -8,6 +8,7 @@ import {
   Package,
   FileText,
   Image,
+  Star,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -16,6 +17,7 @@ const navItems = [
   { href: '/orders', label: 'Đơn hàng', icon: ShoppingCart },
   { href: '/products', label: 'Sản phẩm', icon: Package },
   { href: '/articles', label: 'Bài viết', icon: FileText },
+  { href: '/reviews', label: 'Đánh giá', icon: Star },
   { href: '/media', label: 'Media', icon: Image },
 ];
 

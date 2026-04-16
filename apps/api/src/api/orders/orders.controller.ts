@@ -12,11 +12,14 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiParam, ApiTags } from '@nestjs/swagger';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { CreateOrderReqDto } from './dto/create-order.req.dto';
 import { OrderQueryReqDto } from './dto/order-query.req.dto';
 import { OrderResDto } from './dto/order.res.dto';
+import { PublicOrderSummaryResDto } from './dto/public-order-summary.res.dto';
 import { UpdateOrderStatusReqDto } from './dto/update-order-status.req.dto';
 import { OrdersService } from './orders.service';
 
@@ -34,6 +37,36 @@ export class OrdersController {
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() dto: CreateOrderReqDto): Promise<OrderResDto> {
     return this.ordersService.create(dto);
+  }
+
+  @ApiPublic({
+    type: PublicOrderSummaryResDto,
+    summary: 'Public order summary by code (guest)',
+    statusCode: 200,
+  })
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  @Get('summary')
+  @HttpCode(HttpStatus.OK)
+  async getPublicSummary(
+    @Query('code') code: string,
+  ): Promise<PublicOrderSummaryResDto> {
+    return this.ordersService.lookupByCode(code);
+  }
+
+  @ApiPublic({
+    type: PublicOrderSummaryResDto,
+    summary: 'Track order by magic token (single-use)',
+    statusCode: 200,
+  })
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  @Get('track-by-token')
+  @HttpCode(HttpStatus.OK)
+  async trackByToken(
+    @Query('t') token: string,
+  ): Promise<PublicOrderSummaryResDto> {
+    return this.ordersService.trackByToken(token);
   }
 
   @ApiAuth({

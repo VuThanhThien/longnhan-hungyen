@@ -1,5 +1,7 @@
 import { Minus, Plus } from 'lucide-react';
 
+import { cn } from '@/lib/utils';
+
 type QuantityStepperProps = {
   value: number;
   onChange: (next: number) => void;
@@ -22,12 +24,10 @@ export function QuantityStepper({
 
   return (
     <div
-      className={[
+      className={cn(
         'inline-flex h-11 items-center rounded-xl border border-(--brand-forest)/15 bg-(--brand-cream) shadow-sm',
         className,
-      ]
-        .filter(Boolean)
-        .join(' ')}
+      )}
       role="group"
       aria-label={ariaLabel}
       onKeyDown={(e) => {

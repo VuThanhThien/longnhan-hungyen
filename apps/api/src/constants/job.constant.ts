@@ -8,4 +8,5 @@ export enum QueuePrefix {
 
 export enum JobName {
   EMAIL_VERIFICATION = 'email-verification',
+  ORDER_TRACKING_LINK = 'order-tracking-link',
 }

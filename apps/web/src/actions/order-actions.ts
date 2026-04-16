@@ -54,7 +54,11 @@ export async function submitOrder(formData: FormData): Promise<void> {
   };
 
   try {
-    const { data } = await apiServer.post<{ code: string }>('/orders', body);
+    const { data } = await apiServer.post<{
+      code: string;
+      total: number;
+      paymentMethod: string;
+    }>('/orders', body);
 
     if (!data?.code) {
       throw new Error('Thiếu mã đơn hàng từ hệ thống');
