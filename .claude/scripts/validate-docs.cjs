@@ -227,12 +227,36 @@ function checkCodeRefExists(ref, srcDirs) {
   for (const srcDir of srcDirs) {
     if (!fs.existsSync(srcDir)) continue;
     for (const pattern of patterns) {
-      // Use spawnSync with args array to prevent command injection
-      const result = spawnSync('grep', ['-rl', pattern, srcDir], {
+      // Use spawnSync with args array to prevent command injection.
+      // Prefer ripgrep: it's fast and respects .gitignore, which prevents
+      // accidentally scanning dependency caches (e.g. .pnpm-store).
+      const result = spawnSync(
+        'rg',
+        [
+          '-l',
+          '--fixed-strings',
+          '--no-messages',
+          pattern,
+          srcDir,
+          '--glob',
+          '!**/node_modules/**',
+          '--glob',
+          '!**/.pnpm-store/**',
+          '--glob',
+          '!**/.next/**',
+          '--glob',
+          '!**/dist/**',
+          '--glob',
+          '!**/build/**',
+          '--glob',
+          '!**/coverage/**',
+        ],
+        {
         encoding: 'utf8',
         stdio: ['pipe', 'pipe', 'pipe'],
         timeout: 5000,
-      });
+        },
+      );
       if (result.status === 0 && result.stdout.trim()) {
         return true;
       }
@@ -409,7 +433,7 @@ function validate(docsDir, srcDirs, projectRoot) {
 function parseArgs(args) {
   const result = {
     docsDir: 'docs',
-    srcDirs: ['src', 'lib', 'app', 'scripts', '.claude'],
+    srcDirs: ['apps', 'packages'],
   };
 
   for (let i = 0; i < args.length; i++) {

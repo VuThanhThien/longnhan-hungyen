@@ -10,9 +10,9 @@ This document defines coding conventions, file structure, naming patterns, and p
 
 ### Scope
 
-| App | Standards doc |
-|-----|----------------|
-| `apps/api` | **This file** (`code-standards.md`) |
+| App                      | Standards doc                                                                                                             |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api`               | **This file** (`code-standards.md`)                                                                                       |
 | `apps/web`, `apps/admin` | **[Frontend Code Standards](./frontend-code-standards.md)** (App Router, TanStack Query, nuqs, Zustand cart on web, etc.) |
 
 Shared types live in **`packages/types`**. Monorepo scripts and ports: [root README](../README.md). Phase status: [Project Roadmap](./project-roadmap.md).
@@ -43,6 +43,7 @@ Bad:
 ```
 
 **Special Suffixes**
+
 - `.entity.ts` — TypeORM entities
 - `.dto.ts` — Data Transfer Objects
 - `.service.ts` — Business logic services
@@ -58,6 +59,7 @@ Bad:
 ### Directory Structure
 
 **Feature Module**
+
 ```
 src/api/products/
 ├── dto/                           # Data Transfer Objects
@@ -73,6 +75,7 @@ src/api/products/
 ```
 
 **Shared Utilities**
+
 ```
 src/utils/
 ├── password.util.ts               # Password hashing/comparison
@@ -82,6 +85,7 @@ src/utils/
 ```
 
 **Shared Types**
+
 ```
 src/common/
 ├── dto/
@@ -112,13 +116,13 @@ src/common/
 // Good
 const firstName = 'John';
 const isActive = true;
-const getUserById = (id: string) => { };
-const calculateTotalPrice = (items: Item[]) => { };
+const getUserById = (id: string) => {};
+const calculateTotalPrice = (items: Item[]) => {};
 
 // Bad
-const FirstName = 'John';       // Should be camelCase
-const is_active = true;         // Should be camelCase
-const get_user_by_id = () => { }; // Should be camelCase
+const FirstName = 'John'; // Should be camelCase
+const is_active = true; // Should be camelCase
+const get_user_by_id = () => {}; // Should be camelCase
 ```
 
 ### Classes & Interfaces
@@ -127,13 +131,16 @@ const get_user_by_id = () => { }; // Should be camelCase
 
 ```typescript
 // Good
-class UserService { }
-interface CreateUserDto { }
-enum UserRole { Admin, User }
+class UserService {}
+interface CreateUserDto {}
+enum UserRole {
+  Admin,
+  User,
+}
 
 // Bad
-class userService { }           // Should be PascalCase
-interface create_user_dto { }   // Should be PascalCase
+class userService {} // Should be PascalCase
+interface create_user_dto {} // Should be PascalCase
 ```
 
 ### Constants
@@ -168,8 +175,8 @@ const shouldValidate = true;
 const canDelete = false;
 
 // Bad
-const active = true;            // Missing prefix
-const permission = false;       // Missing prefix
+const active = true; // Missing prefix
+const permission = false; // Missing prefix
 ```
 
 ### Database Columns
@@ -202,34 +209,34 @@ Follow: `prefix? + action + highContext + lowContext?`
 
 ```typescript
 // Good function names
-getUser()                 // action: get, context: User
-getUserMessages()         // action: get, context: User + Messages
-handleClickOutside()      // action: handle, context: Click + Outside
-shouldDisplayMessage()    // prefix: should, action: Display, context: Message
-createUserWithEmail()     // action: create, context: User + Email
-removeItemFromCart()      // action: remove, context: Item + Cart
+getUser(); // action: get, context: User
+getUserMessages(); // action: get, context: User + Messages
+handleClickOutside(); // action: handle, context: Click + Outside
+shouldDisplayMessage(); // prefix: should, action: Display, context: Message
+createUserWithEmail(); // action: create, context: User + Email
+removeItemFromCart(); // action: remove, context: Item + Cart
 
 // Bad function names
-user()                    // Too generic
-msg()                     // Too abbreviated
-getUserAndLoadMessages()  // Too much in one function
+user(); // Too generic
+msg(); // Too abbreviated
+getUserAndLoadMessages(); // Too much in one function
 ```
 
 ### Actions (Verb Prefixes)
 
-| Verb | Meaning | Example |
-|------|---------|---------|
-| `get` | Retrieve data | `getUser()`, `getUserById()` |
-| `set` | Set/assign value | `setUsername()`, `setActive()` |
-| `create` | Create new resource | `createProduct()`, `createOrder()` |
-| `update` | Modify existing | `updateProduct()`, `updateUserEmail()` |
-| `delete` | Remove permanently | `deleteProduct()`, `deleteAccount()` |
-| `remove` | Remove from collection | `removeFromCart()`, `removeFilter()` |
-| `fetch` | Get from remote | `fetchProducts()`, `fetchUserData()` |
-| `handle` | Event handler | `handleClick()`, `handleSubmit()` |
-| `validate` | Check validity | `validateEmail()`, `validatePassword()` |
-| `format` | Transform format | `formatDate()`, `formatPrice()` |
-| `parse` | Parse input | `parseJson()`, `parseDate()` |
+| Verb       | Meaning                | Example                                 |
+| ---------- | ---------------------- | --------------------------------------- |
+| `get`      | Retrieve data          | `getUser()`, `getUserById()`            |
+| `set`      | Set/assign value       | `setUsername()`, `setActive()`          |
+| `create`   | Create new resource    | `createProduct()`, `createOrder()`      |
+| `update`   | Modify existing        | `updateProduct()`, `updateUserEmail()`  |
+| `delete`   | Remove permanently     | `deleteProduct()`, `deleteAccount()`    |
+| `remove`   | Remove from collection | `removeFromCart()`, `removeFilter()`    |
+| `fetch`    | Get from remote        | `fetchProducts()`, `fetchUserData()`    |
+| `handle`   | Event handler          | `handleClick()`, `handleSubmit()`       |
+| `validate` | Check validity         | `validateEmail()`, `validatePassword()` |
+| `format`   | Transform format       | `formatDate()`, `formatPrice()`         |
+| `parse`    | Parse input            | `parseJson()`, `parseDate()`            |
 
 ---
 
@@ -250,11 +257,13 @@ const calculateTotal = (items: Item[]): number => {
 };
 
 // Bad
-function getUser(id) {              // No return type
+function getUser(id) {
+  // No return type
   return userRepository.findOne(id);
 }
 
-const calculateTotal = (items) => { // No return type
+const calculateTotal = (items) => {
+  // No return type
   return items.reduce((sum, item) => sum + item.price, 0);
 };
 ```
@@ -266,13 +275,15 @@ const calculateTotal = (items) => { // No return type
 ```typescript
 // Good
 let user: User | undefined;
-if (user != null) {  // Checks both null and undefined
+if (user != null) {
+  // Checks both null and undefined
   console.log(user);
 }
 
 // Bad
-let user: User | null;  // Use undefined
-if (user !== null) {    // Incomplete check
+let user: User | null; // Use undefined
+if (user !== null) {
+  // Incomplete check
   console.log(user);
 }
 ```
@@ -293,12 +304,14 @@ type UserOrGuest = User | Guest;
 type ApiResponse<T> = { data: T; status: number };
 
 // Bad
-type User = {              // Use interface
+type User = {
+  // Use interface
   id: string;
   email: string;
 };
 
-interface ApiResponse {    // Use type for generic
+interface ApiResponse {
+  // Use type for generic
   data: unknown;
   status: number;
 }
@@ -307,6 +320,7 @@ interface ApiResponse {    // Use type for generic
 ### Strict Mode
 
 Enable in `tsconfig.json`:
+
 ```json
 {
   "compilerOptions": {
@@ -339,7 +353,7 @@ import { ProductEntity } from './entities/product.entity';
   imports: [TypeOrmModule.forFeature([ProductEntity])],
   controllers: [ProductsController],
   providers: [ProductsService],
-  exports: [ProductsService],  // If used by other modules
+  exports: [ProductsService], // If used by other modules
 })
 export class ProductsModule {}
 ```
@@ -433,7 +447,13 @@ export class CreateProductDto {
 
 ```typescript
 // product.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 @Entity('products')
 export class ProductEntity {
@@ -464,6 +484,7 @@ export class ProductEntity {
 ### Format & Linting
 
 **Prettier Config** (`.prettierrc`)
+
 ```json
 {
   "singleQuote": true,
@@ -504,6 +525,7 @@ git commit -m "refactor(auth): simplify token generation"
 ```
 
 **Types**
+
 - `feat` — New feature
 - `fix` — Bug fix
 - `docs` — Documentation
@@ -538,6 +560,7 @@ git checkout -b chore.update-dependencies
 ## Import Organization
 
 **Order:**
+
 1. Node.js built-ins
 2. Third-party packages
 3. NestJS decorators/modules
@@ -571,10 +594,7 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 
 export class ProductNotFoundException extends HttpException {
   constructor(productId: string) {
-    super(
-      `Product with ID ${productId} not found`,
-      HttpStatus.NOT_FOUND,
-    );
+    super(`Product with ID ${productId} not found`, HttpStatus.NOT_FOUND);
   }
 }
 
@@ -739,15 +759,13 @@ export class ProductsService {
 ## Next.js & React Standards Overview
 
 For detailed Next.js/React standards (components, data fetching, Server Actions, React Query, authentication, styling), see:
-- **[Frontend Code Standards](./frontend-code-standards.md)** — Next.js 16, React 19, Server Components, Client Components, API patterns, **nuqs** (query state + [SEO / canonical URLs](https://nuqs.dev/docs/seo)), **Zustand** (guest cart + client state in `apps/web`), icons (**lucide-react**, `public/` assets; see *Icons & assets*)
+
+- **[Frontend Code Standards](./frontend-code-standards.md)** — Next.js 16, React 19, Server Components, Client Components, API patterns, **nuqs** (query state + [SEO / canonical URLs](https://nuqs.dev/docs/seo)), **Zustand** (guest cart + client state in `apps/web`), icons (**lucide-react**, `public/` assets; see _Icons & assets_)
 
 ---
 
 ## Related Documentation
 
 - [Naming Cheatsheet](./code-standards.md#naming-conventions) — Detailed naming patterns
-- [TypeScript Style Guide](../apps/api/docs/conventions/styleguide.md)
-- [Commit Conventions](../apps/api/docs/conventions/commit-conventions.md)
-- [Branch Conventions](../apps/api/docs/conventions/branch-conventions.md)
-- [Linting & Formatting](../apps/api/docs/conventions/linting-and-formatting.md)
-
+- [Root README](../README.md) — Monorepo setup, local services, core commands
+- [Project Roadmap](./project-roadmap.md) — Canonical phase status

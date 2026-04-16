@@ -4,7 +4,7 @@ import Link from 'next/link';
 
 export default function HeroSection() {
   return (
-    <section className="relative bg-gradient-to-br from-green-800 to-green-600 text-white overflow-hidden">
+    <section className="relative bg-linear-to-br from-green-800 to-green-600 text-white overflow-hidden">
       <div className="max-w-6xl mx-auto px-4 py-20 md:py-32 flex flex-col items-center text-center gap-6">
         <span className="text-5xl md:text-7xl" aria-hidden="true">
           🌿
@@ -21,7 +21,7 @@ export default function HeroSection() {
         <div className="flex flex-col sm:flex-row gap-4 mt-2">
           <Link
             href="/products"
-            className="bg-yellow-400 text-green-900 font-bold px-8 py-3 rounded-full hover:bg-yellow-300 transition-colors text-base"
+            className="bg-yellow-400 text-foreground font-bold px-8 py-3 rounded-full hover:bg-yellow-300 transition-colors text-base"
           >
             Xem sản phẩm
           </Link>

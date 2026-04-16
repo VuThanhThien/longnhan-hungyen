@@ -34,7 +34,7 @@ export default function Error({
         </button>
         <Link
           href="/"
-          className="inline-flex items-center rounded-xl border border-green-700 px-5 py-3 text-sm font-semibold text-green-700 hover:bg-green-50"
+          className="inline-flex items-center rounded-xl border border-border px-5 py-3 text-sm font-semibold text-muted-foreground hover:bg-muted/40 hover:text-foreground"
         >
           Về trang chủ
         </Link>

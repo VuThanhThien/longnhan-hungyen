@@ -38,13 +38,13 @@ export default function ProductPdpHero({ product }: ProductPdpHeroProps) {
       {product.category && (
         <Link
           href={`/products?category=${encodeURIComponent(product.category)}`}
-          className="inline-block rounded-full bg-green-50 px-3 py-0.5 text-xs font-medium text-green-700 border border-green-200 hover:bg-green-100 transition"
+          className="inline-block rounded-full bg-muted px-3 py-0.5 text-xs font-medium text-muted-foreground border border-border hover:bg-muted/70 transition"
         >
           {product.category}
         </Link>
       )}
 
-      <p className="text-2xl font-bold text-green-700">{priceLabel}</p>
+      <p className="text-2xl font-bold text-foreground">{priceLabel}</p>
 
       {tags && tags.length > 0 && (
         <div className="flex flex-wrap gap-2">

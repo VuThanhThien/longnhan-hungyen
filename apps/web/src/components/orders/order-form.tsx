@@ -112,7 +112,7 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
 
   return (
     <section className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-      <h2 className="text-xl font-bold text-green-900 mb-6">Đặt hàng ngay</h2>
+      <h2 className="text-xl font-bold text-foreground mb-6">Đặt hàng ngay</h2>
 
       <div className="mb-5">
         <VariantSelector
@@ -141,7 +141,7 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
           className="border-gray-300 bg-white"
         />
         {selectedVariant ? (
-          <span className="text-green-700 font-bold text-sm ml-2">
+          <span className="text-muted-foreground font-bold text-sm ml-2">
             {new Intl.NumberFormat('vi-VN', {
               style: 'currency',
               currency: 'VND',

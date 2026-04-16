@@ -255,7 +255,7 @@ Use **[Zustand](https://docs.pmnd.rs/zustand/getting-started/introduction)** for
 **Shopping cart (guest, no server cart API)**
 
 - Implementation: `src/services/cart/cart-store.ts` — `useCartStore`, `useCartTotals`, `getCartTotals`.
-- **Persist** via `persist` middleware to **`localStorage`**; key **`longnhan-cart-v1`** (`CART_STORAGE_KEY`). If the JSON shape changes, bump the key or add a **`version` + `migrate`** in `persist` options.
+- **Persist** via `persist` middleware to **`localStorage`**; key **`longnhan-cart-v2`** (`CART_STORAGE_KEY`). If the JSON shape changes, bump the key or add a **`version` + `migrate`** in `persist` options.
 - Store **lines** only: `variantId`, `quantity`, `unitPriceVnd`. Derive **item count** and **total ₫** from lines (do not duplicate totals in state).
 - **Providers:** none required — use hooks in **`'use client'`** components. **`NuqsAdapter`** and the cart store are independent; order in `AppProviders` does not require nesting one inside the other.
 - **SSR / hydration:** server render uses the store’s initial empty state; **`persist` rehydrates** after load. Do not rely on cart contents during server components.

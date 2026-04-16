@@ -103,7 +103,7 @@ export function ProductQuickViewModal({
 
         <div className="p-5">
           <h3 className="text-lg font-bold text-gray-900">{product.name}</h3>
-          <p className="mt-1 text-xl font-bold text-green-700">
+          <p className="mt-1 text-xl font-bold text-foreground">
             {getPriceRange(product)}
           </p>
           {summary && (

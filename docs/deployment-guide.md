@@ -14,6 +14,7 @@ This guide covers setting up, deploying, and maintaining the Long Nhan Hung Yen 
 ## Prerequisites
 
 ### Required Software
+
 - Docker & Docker Compose
 - Node.js >= 20.10.0
 - pnpm >= 9.5.0
@@ -21,6 +22,7 @@ This guide covers setting up, deploying, and maintaining the Long Nhan Hung Yen 
 - Redis (can use Docker)
 
 ### Required Credentials
+
 - Cloudinary account (production media uploads)
 - SMTP server credentials or MailDev (local/staging)
 - PostgreSQL database credentials
@@ -85,6 +87,7 @@ docker compose -f docker-compose.local.yml up --build -d
 ```
 
 **Services:**
+
 - PostgreSQL: localhost:5435
 - Redis: localhost:6380
 - MailDev SMTP: localhost:1025
@@ -260,6 +263,7 @@ CLOUDINARY_API_SECRET=<your-api-secret>
 ```
 
 **Secure Storage:**
+
 - Use environment management: AWS Secrets Manager, HashiCorp Vault, or similar
 - Never commit `.env.production` to git
 - Rotate secrets regularly
@@ -363,36 +367,37 @@ spec:
         app: api
     spec:
       containers:
-      - name: api
-        image: your-registry.com/longnhan/api:latest
-        ports:
-        - containerPort: 3000
-        env:
-        - name: NODE_ENV
-          value: "production"
-        - name: DATABASE_HOST
-          valueFrom:
-            configMapKeyRef:
-              name: app-config
-              key: db-host
-        envFrom:
-        - secretRef:
-            name: app-secrets
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 3000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 3000
-          initialDelaySeconds: 5
-          periodSeconds: 5
+        - name: api
+          image: your-registry.com/longnhan/api:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: 'production'
+            - name: DATABASE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: db-host
+          envFrom:
+            - secretRef:
+                name: app-secrets
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
 ```
 
 Deploy:
+
 ```bash
 kubectl apply -f k8s/deployment.yaml
 kubectl apply -f k8s/service.yaml
@@ -598,12 +603,14 @@ docker run -e "NODE_OPTIONS=--max-old-space-size=2048" api:latest
 ## Rollback Procedure
 
 #### Docker Swarm
+
 ```bash
 docker service update --image your-registry.com/longnhan/api:previous longnhan_api
 curl http://localhost:3000/health
 ```
 
 #### Kubernetes
+
 ```bash
 kubectl rollout undo deployment/api
 kubectl rollout status deployment/api
@@ -613,8 +620,7 @@ kubectl rollout status deployment/api
 
 ## References
 
-- [Development Guide](../apps/api/docs/development.md)
+- [API App README](../apps/api/README.md)
 - [Docker Documentation](https://docs.docker.com/)
 - [NestJS Deployment](https://docs.nestjs.com/deployment)
 - [PostgreSQL Backup](https://www.postgresql.org/docs/13/backup.html)
-

@@ -37,7 +37,7 @@ export default function QrPaymentInfo({
   }, [accountNumberRaw]);
 
   return (
-    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm flex gap-5">
+    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm flex flex-col lg:flex-row gap-5">
       <div className="flex flex-col gap-2">
         <h4 className="font-semibold text-blue-900 mb-3">
           Thông tin chuyển khoản

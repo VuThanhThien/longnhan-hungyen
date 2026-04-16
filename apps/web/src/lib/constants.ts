@@ -14,7 +14,7 @@ export const SOCIAL_LINKS = {
   facebook: 'https://www.facebook.com/exameen.dev/',
   zalo: 'https://zalo.me/0362804035',
   shopee: 'https://shopee.vn/sieuthithaomoc',
-  tiktok: 'https://www.tiktok.com/@vtthien8999',
+  tiktok: 'https://www.tiktok.com/@longnhantongtran',
 };
 
 export const PAYMENT_METHODS = [

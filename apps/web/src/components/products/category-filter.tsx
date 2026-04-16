@@ -41,7 +41,7 @@ export default function CategoryFilter({ current }: CategoryFilterProps) {
             className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
               isActive
                 ? 'bg-green-700 text-white border-green-700'
-                : 'bg-white text-gray-700 border-gray-300 hover:border-green-500 hover:text-green-700'
+                : 'bg-white text-gray-700 border-gray-300 hover:border-ring/40 hover:text-foreground'
             }`}
           >
             {cat.label}

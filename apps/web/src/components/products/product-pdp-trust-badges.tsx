@@ -71,7 +71,7 @@ export default function ProductPdpTrustBadges() {
       {badges.map((badge) => (
         <span
           key={badge.label}
-          className="flex items-center gap-1.5 text-xs text-green-700"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground"
         >
           {badge.icon}
           {badge.label}

@@ -125,7 +125,7 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 
 ### Key Enhancements (4/1 Release)
 
-**New Components:** floating-contact-widget, landing-service-badges, landing-stats-bar, landing-urgency-strip, landing-articles-preview, landing-origin-badge, back-to-top-button, hero-carousel, category-nav-cards, home-products-by-category, product-quick-view-modal, product-pdp-trust-badges, product-pdp-share-buttons
+**New Components:** floating-contact-widget, landing-service-badges, landing-stats-bar, landing-urgency-strip, landing-articles-preview, landing-origin-badge, back-to-top-button, hero-carousel, category-nav-cards, featured-products, video-section, product-quick-view-modal, product-pdp-trust-badges, product-pdp-share-buttons
 
 **Phase 4 Expansion (April 15): Cart & Checkout** — _In Progress_
 
@@ -246,7 +246,7 @@ Long Nhan Hung Yen development roadmap tracks phases from core infrastructure th
 
 **Estimated Duration:** 3–4 days | **Status:** PENDING | **Progress:** 0% | **Blocked By:** Phase 5 + Phase 6 completion (storefront hardening below may start in parallel once plan is approved)
 
-**Implementation plan (2026-04-13):** [`.cursor/plans/web-cloudflare-sentry-ux.plan.md`](../.cursor/plans/web-cloudflare-sentry-ux.plan.md) — Cloudflare target for `apps/web`, optional CI `Dockerfile` + build-args for env-specific `NEXT_PUBLIC_*`, `@sentry/nextjs` (client + server + edge), App Router `loading` / `error` / `global-error`, refresh `not-found`, header cart button aligned with search submit.
+**Implementation plan (2026-04-13):** Cloudflare target for `apps/web`, optional CI `Dockerfile` + build-args for env-specific `NEXT_PUBLIC_*`, `@sentry/nextjs` (client + server + edge), App Router `loading` / `error` / `global-error`, refresh `not-found`, header cart button aligned with search submit.
 
 ### Objectives
 
@@ -387,7 +387,7 @@ Phase 7 (Deployment) — blocked until Phase 5 + 6 exit criteria met
 1. E2E test coverage minimal
 2. Admin-specific unit tests needed
 3. Performance profiling on production-like data
-4. **Storefront production hardening (Phase 7 plan):** Cloudflare deploy pipeline for `apps/web`, Sentry, loading/error surfaces, `not-found` polish, header cart/search control parity — tracked in [`.cursor/plans/web-cloudflare-sentry-ux.plan.md`](../.cursor/plans/web-cloudflare-sentry-ux.plan.md)
+4. **Storefront production hardening (Phase 7 plan):** Cloudflare deploy pipeline for `apps/web`, Sentry, loading/error surfaces, `not-found` polish, header cart/search control parity
 
 ---
 

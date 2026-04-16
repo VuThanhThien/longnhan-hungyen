@@ -383,7 +383,7 @@ Reusable NestJS modules:
 
 **Catalog & content:** `components/products/*`, `components/home/*`, `components/landing/*`, `components/articles/*`, `components/orders/*` (order form / QR UI).
 
-**Client state:** `services/cart/cart-store.ts` — Zustand + `persist` (`longnhan-cart-v1`). **URL state:** `lib/product-search-params.ts` — nuqs parsers shared with server loaders.
+**Client state:** `services/cart/cart-store.ts` — Zustand + `persist` (`longnhan-cart-v2`). **URL state:** `lib/product-search-params.ts` — nuqs parsers shared with server loaders.
 
 **API/data:** `lib/api-client.ts`, `lib/api-server.ts`, `lib/http/create-longnhan-api.ts`, TanStack Query usage; default public API base `http://localhost:3001/api/v1` via env (see `NEXT_PUBLIC_API_URL`).
 
@@ -882,8 +882,8 @@ Major landing/product additions from **4.1.0** (2026-04-01); **4.2.0** (2026-04-
 - `category-nav-cards.tsx` — Category navigation grid (NEW)
 - `landing-category-carousel.tsx` — Home: category menu + banner carousel (NEW)
 - `landing-banner-carousel.client.tsx` — Home: banner carousel (client) (NEW)
-- `home-products-by-category.tsx` — Category-filtered sections (NEW)
-- `home-products-section.tsx` — Featured products grid (NEW)
+- `featured-products.tsx` — Featured products grid (Home)
+- `video-section.tsx` — Embedded product videos (Home)
 - `floating-contact-widget.tsx` — Persistent contact UI (NEW)
 - `back-to-top-button.tsx` — Scroll-to-top button (NEW)
 - `header.tsx` — Navigation header (extended in 4.2.0 with search + cart)
@@ -915,5 +915,4 @@ Major landing/product additions from **4.1.0** (2026-04-01); **4.2.0** (2026-04-
 - [Deployment Guide](./deployment-guide.md)
 - [Project Roadmap](./project-roadmap.md)
 - [Project Changelog](./project-changelog.md)
-- [API Documentation](../apps/api/docs/api.md)
-- [Development Guide](../apps/api/docs/development.md)
+- [API App README](../apps/api/README.md)

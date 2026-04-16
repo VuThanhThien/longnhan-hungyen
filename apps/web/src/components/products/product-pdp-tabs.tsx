@@ -69,7 +69,7 @@ export default function ProductPdpTabs({ product }: ProductPdpTabsProps) {
             className={`px-4 py-3 text-sm font-semibold transition-colors ${
               activeTab === tab.id
                 ? 'text-green-800 border-b-2 border-green-700'
-                : 'text-gray-500 hover:text-green-700'
+                : 'text-gray-500 hover:text-foreground'
             }`}
           >
             {tab.label}

@@ -65,7 +65,7 @@ export default function VideoSection({ videoUrls }: VideoSectionProps) {
   return (
     <section id="video" className="py-16 bg-gray-50">
       <div className="max-w-4xl mx-auto px-4">
-        <h2 className="text-2xl md:text-3xl font-bold text-green-900 text-center mb-8">
+        <h2 className="text-2xl md:text-3xl font-bold text-foreground text-center mb-8">
           Quy Trình Sản Xuất
         </h2>
         <div className="relative aspect-video rounded-xl overflow-hidden shadow-lg">
@@ -84,7 +84,7 @@ export default function VideoSection({ videoUrls }: VideoSectionProps) {
         {videoIds.length > 1 && (
           <div className="mt-6">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-sm text-green-900/80">
+              <p className="text-sm text-muted-foreground">
                 Video {safeActive + 1}/{videoIds.length}
               </p>
               <div className="flex items-center gap-2">
@@ -92,7 +92,7 @@ export default function VideoSection({ videoUrls }: VideoSectionProps) {
                   type="button"
                   onClick={prev}
                   aria-label="Video trước"
-                  className="rounded-full border border-green-900/15 bg-white px-3 py-2 text-sm text-green-900 shadow-sm transition hover:bg-green-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-700/40"
+                  className="rounded-full border border-border/60 bg-white px-3 py-2 text-sm text-foreground shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
                 >
                   Trước
                 </button>
@@ -100,7 +100,7 @@ export default function VideoSection({ videoUrls }: VideoSectionProps) {
                   type="button"
                   onClick={next}
                   aria-label="Video tiếp"
-                  className="rounded-full border border-green-900/15 bg-white px-3 py-2 text-sm text-green-900 shadow-sm transition hover:bg-green-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-700/40"
+                  className="rounded-full border border-border/60 bg-white px-3 py-2 text-sm text-foreground shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
                 >
                   Tiếp
                 </button>
@@ -125,9 +125,9 @@ export default function VideoSection({ videoUrls }: VideoSectionProps) {
                       'w-40 sm:w-44',
                       'snap-start',
                       isActive
-                        ? 'border-green-700 ring-2 ring-green-700/20'
-                        : 'border-green-900/10 hover:border-green-900/25',
-                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-700/40',
+                        ? 'border-ring ring-2 ring-ring/15'
+                        : 'border-border/50 hover:border-border/80',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30',
                     ].join(' ')}
                   >
                     <Image

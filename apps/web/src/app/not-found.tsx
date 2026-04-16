@@ -35,7 +35,7 @@ export default function NotFound() {
         </Link>
         <Link
           href="/products"
-          className="inline-flex items-center rounded-xl border border-green-700 px-5 py-3 text-sm font-semibold text-green-700 hover:bg-green-100"
+          className="inline-flex items-center rounded-xl border border-border px-5 py-3 text-sm font-semibold text-muted-foreground hover:bg-muted/40 hover:text-foreground"
         >
           Xem sản phẩm
         </Link>

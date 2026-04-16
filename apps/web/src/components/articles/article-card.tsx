@@ -45,7 +45,7 @@ export default function ArticleCard({ article }: ArticleCardProps) {
         <time className="text-xs text-gray-400 mb-1 block">
           {formatDate(publishedDate)}
         </time>
-        <h3 className="font-semibold text-gray-900 text-sm leading-snug mb-2 line-clamp-2 group-hover:text-green-700 transition-colors">
+        <h3 className="font-semibold text-gray-900 text-sm leading-snug mb-2 line-clamp-2 group-hover:text-foreground transition-colors">
           {article.title}
         </h3>
         {excerpt && (

@@ -19,6 +19,7 @@ coverage/
 *.tsbuildinfo
 .claude/
 .cursor/
+plan/
 
 # Environment & secrets
 .env
