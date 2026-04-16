@@ -2,8 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import type { Article } from '@longnhan/types';
-import { MediaUrlPicker } from '@/components/media/media-url-picker';
 import { TiptapHtmlEditor } from '@/components/articles/tiptap-html-editor';
+import { MediaUrlPicker } from '@/components/media/media-url-picker';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { useForm, type Resolver } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -103,7 +109,7 @@ function ArticleFormInner({
 
   return (
     <form
-      className="space-y-6"
+      className="space-y-4"
       onSubmit={handleSubmit(async (data: ArticleFormValues) => {
         const formData = new FormData();
         formData.set('title', data.title);
@@ -117,79 +123,104 @@ function ArticleFormInner({
         await onSubmit(formData);
       })}
     >
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="space-y-1">
-          <label className="text-sm text-gray-600">Tiêu đề</label>
-          <input
-            {...register('title')}
-            required
-            className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
-          />
-          {errors.title?.message ? (
-            <p className="text-xs text-red-600">{errors.title.message}</p>
-          ) : null}
-        </div>
-        <div className="flex items-end">
-          <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-            <input type="checkbox" {...register('published')} />
-            Xuất bản ngay
-          </label>
-        </div>
-      </div>
+      <Accordion
+        type="single"
+        collapsible
+        defaultValue="basic"
+        className="w-full rounded-lg border border-gray-200 px-4"
+      >
+        <AccordionItem value="basic">
+          <AccordionTrigger>Thông tin chính</AccordionTrigger>
+          <AccordionContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-sm text-gray-600">Tiêu đề</label>
+                <input
+                  {...register('title')}
+                  required
+                  className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+                />
+                {errors.title?.message ? (
+                  <p className="text-xs text-red-600">{errors.title.message}</p>
+                ) : null}
+              </div>
+              <div className="flex items-end">
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                  <input type="checkbox" {...register('published')} />
+                  Xuất bản ngay
+                </label>
+              </div>
+            </div>
 
-      <div className="space-y-1">
-        <label className="text-sm text-gray-600">Mô tả ngắn</label>
-        <textarea
-          rows={3}
-          {...register('excerpt')}
-          className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm"
-        />
-      </div>
+            <div className="space-y-1">
+              <label className="text-sm text-gray-600">Mô tả ngắn</label>
+              <textarea
+                rows={3}
+                {...register('excerpt')}
+                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm"
+              />
+            </div>
+          </AccordionContent>
+        </AccordionItem>
 
-      <div className="space-y-1">
-        <label className="text-sm text-gray-600">Nội dung (Tiptap)</label>
-        <TiptapHtmlEditor value={contentHtml} onChange={setContentHtml} />
-        {errors.contentHtml?.message ? (
-          <p className="text-xs text-red-600">{errors.contentHtml.message}</p>
-        ) : null}
-      </div>
+        <AccordionItem value="content">
+          <AccordionTrigger>Nội dung</AccordionTrigger>
+          <AccordionContent className="space-y-1">
+            <label className="sr-only">Nội dung bài viết</label>
+            <TiptapHtmlEditor value={contentHtml} onChange={setContentHtml} />
+            {errors.contentHtml?.message ? (
+              <p className="text-xs text-red-600">
+                {errors.contentHtml.message}
+              </p>
+            ) : null}
+          </AccordionContent>
+        </AccordionItem>
 
-      <div className="space-y-2">
-        <label className="text-sm text-gray-600">Ảnh đại diện bài viết</label>
-        <MediaUrlPicker
-          value={featuredImageUrl}
-          onChange={setFeaturedImageUrl}
-          folder="articles"
-        />
-      </div>
+        <AccordionItem value="media">
+          <AccordionTrigger>Ảnh đại diện</AccordionTrigger>
+          <AccordionContent className="space-y-2">
+            <label className="sr-only">Ảnh đại diện bài viết</label>
+            <MediaUrlPicker
+              value={featuredImageUrl}
+              onChange={setFeaturedImageUrl}
+              folder="articles"
+            />
+          </AccordionContent>
+        </AccordionItem>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="space-y-1">
-          <label className="text-sm text-gray-600">Meta title</label>
-          <input
-            {...register('metaTitle')}
-            className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
-          />
-        </div>
-        <div className="space-y-1">
-          <label className="text-sm text-gray-600">
-            Tags (phân tách bằng dấu phẩy)
-          </label>
-          <input
-            {...register('tags')}
-            className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
-          />
-        </div>
-      </div>
+        <AccordionItem value="seo">
+          <AccordionTrigger>SEO & thẻ</AccordionTrigger>
+          <AccordionContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-sm text-gray-600">Meta title</label>
+                <input
+                  {...register('metaTitle')}
+                  className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm text-gray-600">
+                  Tags (phân tách bằng dấu phẩy)
+                </label>
+                <input
+                  {...register('tags')}
+                  className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+                />
+              </div>
+            </div>
 
-      <div className="space-y-1">
-        <label className="text-sm text-gray-600">Meta description</label>
-        <textarea
-          rows={3}
-          {...register('metaDescription')}
-          className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm"
-        />
-      </div>
+            <div className="space-y-1">
+              <label className="text-sm text-gray-600">Meta description</label>
+              <textarea
+                rows={3}
+                {...register('metaDescription')}
+                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm"
+              />
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       <input type="hidden" {...register('contentHtml')} />
       <input type="hidden" {...register('featuredImageUrl')} />

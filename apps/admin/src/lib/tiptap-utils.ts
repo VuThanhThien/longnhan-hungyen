@@ -13,6 +13,8 @@ import {
   type NodeWithPos,
 } from '@tiptap/react';
 
+import { mediaApi } from '@/features/media/api/media-api';
+
 export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export const MAC_SYMBOLS: Record<string, string> = {
@@ -376,17 +378,20 @@ export const handleImageUpload = async (
     );
   }
 
-  // For demo/testing: Simulate upload progress. In production, replace the following code
-  // with your own upload implementation.
-  for (let progress = 0; progress <= 100; progress += 10) {
-    if (abortSignal?.aborted) {
-      throw new Error('Upload cancelled');
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    onProgress?.({ progress });
+  if (abortSignal?.aborted) {
+    throw new Error('Upload cancelled');
   }
 
-  return '/images/tiptap-ui-placeholder-image.jpg';
+  const uploaded = await mediaApi.upload(file, 'articles', {
+    onProgress,
+    abortSignal,
+  });
+
+  if (!uploaded?.url) {
+    throw new Error('Upload failed: missing URL');
+  }
+
+  return uploaded.url;
 };
 
 type ProtocolOptions = {

@@ -60,7 +60,7 @@ export default function ProductPdpHero({ product }: ProductPdpHeroProps) {
       )}
 
       <div
-        className="prose prose-green max-w-none prose-p:leading-relaxed"
+        className="article-body tiptap ProseMirror simple-editor max-w-none"
         dangerouslySetInnerHTML={{ __html: summary ?? '' }}
       />
     </div>

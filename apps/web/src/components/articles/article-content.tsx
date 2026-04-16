@@ -1,5 +1,5 @@
 // Article full content renderer — dangerouslySetInnerHTML for Tiptap HTML output
-// Applies Tailwind prose-like styles via scoped CSS class
+// Tiptap HTML styles: global `article-tiptap-content.css` (imported in app/globals.css)
 
 import Image from 'next/image';
 import type { Article } from '@longnhan/types';
@@ -55,9 +55,9 @@ export default function ArticleContent({ article }: ArticleContentProps) {
         </p>
       )}
 
-      {/* HTML content from Tiptap editor */}
+      {/* HTML content from Tiptap — classes match admin editor for shared CSS */}
       <div
-        className="article-body prose-green text-gray-800 leading-relaxed"
+        className="article-body tiptap ProseMirror simple-editor"
         dangerouslySetInnerHTML={{ __html: htmlContent }}
       />
     </article>

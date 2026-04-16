@@ -24,6 +24,8 @@ import {
   useMergeRefs,
   FloatingPortal,
   type Placement,
+  type UseFloatingReturn,
+  type ReferenceType,
   FloatingDelayGroup,
 } from '@floating-ui/react';
 import '@/components/tiptap-ui-primitive/tooltip/tooltip.scss';
@@ -55,6 +57,17 @@ interface TooltipContentProps extends Omit<
   children?: React.ReactNode;
   portal?: boolean;
   portalProps?: Omit<React.ComponentProps<typeof FloatingPortal>, 'children'>;
+}
+
+interface TooltipContextValue extends UseFloatingReturn<ReferenceType> {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  getReferenceProps: (
+    userProps?: React.HTMLProps<HTMLElement>,
+  ) => Record<string, unknown>;
+  getFloatingProps: (
+    userProps?: React.HTMLProps<HTMLDivElement>,
+  ) => Record<string, unknown>;
 }
 
 function useTooltip({
@@ -116,8 +129,6 @@ function useTooltip({
     [open, setOpen, interactions, data],
   );
 }
-
-type TooltipContextValue = ReturnType<typeof useTooltip>;
 
 const TooltipContext = createContext<TooltipContextValue | null>(null);
 

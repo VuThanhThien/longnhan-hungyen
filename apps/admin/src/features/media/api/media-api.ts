@@ -43,15 +43,41 @@ export const mediaApi = {
     await httpClient.delete(`/media/folders/${encodeURIComponent(name)}`);
   },
 
-  async upload(file: File, folder = 'general') {
+  async upload(
+    file: File,
+    folder = 'general',
+    options?: {
+      onProgress?: (event: { progress: number }) => void;
+      abortSignal?: AbortSignal;
+    },
+  ) {
     const payload = new FormData();
     payload.set('file', file);
 
-    const response = await httpClient.post<{ data: MediaItem }>(
+    const response = await httpClient.post<{ data: MediaItem } | MediaItem>(
       `/media/upload?folder=${folder}`,
       payload,
+      {
+        signal: options?.abortSignal,
+        onUploadProgress: (event) => {
+          const total = event.total ?? 0;
+          const loaded = event.loaded ?? 0;
+
+          if (!total) return;
+          const progress = Math.round((loaded / total) * 100);
+          options?.onProgress?.({ progress });
+        },
+      },
     );
-    return response.data.data;
+    const data = response.data as unknown;
+    if (
+      data &&
+      typeof data === 'object' &&
+      'data' in (data as Record<string, unknown>)
+    ) {
+      return (data as { data: MediaItem }).data;
+    }
+    return data as MediaItem;
   },
 
   async remove(id: string) {

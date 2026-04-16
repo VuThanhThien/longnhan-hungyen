@@ -33,7 +33,7 @@ export async function generateMetadata({
   const article = await getArticle(slug);
 
   if (!article) {
-    return { title: 'Khong tim thay bai viet' };
+    return { title: 'Không tìm thấy bài viết' };
   }
 
   const title = article.metaTitle ?? article.title;
@@ -64,7 +64,7 @@ export default async function ArticleDetailPage({
   const articleSchema = buildArticleSchema(article);
   const breadcrumbSchema = buildBreadcrumbSchema([
     { name: 'Trang chủ', url: SITE_URL },
-    { name: 'Tin tuc', url: `${SITE_URL}/articles` },
+    { name: 'Bài viết', url: `${SITE_URL}/articles` },
     { name: article.title, url: `${SITE_URL}/articles/${article.slug}` },
   ]);
 
@@ -82,7 +82,7 @@ export default async function ArticleDetailPage({
       <Breadcrumb
         items={[
           { label: 'Trang chủ', url: '/' },
-          { label: 'Tin tuc', url: '/articles' },
+          { label: 'Bài viết', url: '/articles' },
           { label: article.title },
         ]}
       />

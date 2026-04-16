@@ -1,17 +1,17 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import type { Article } from '@longnhan/types';
+import { ArticleForm } from '@/components/articles/article-form';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArticleForm } from '@/components/articles/article-form';
-import { parseArticlePayload } from '@/lib/admin-form-parsers';
 import { adminClientGet, adminClientPut } from '@/lib/admin-client';
+import { parseArticlePayload } from '@/lib/admin-form-parsers';
+import type { Article } from '@longnhan/types';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useParams } from 'next/navigation';
+import { toast } from 'sonner';
 
 export default function ArticleEditPage() {
-  const router = useRouter();
+  const queryClient = useQueryClient();
   const params = useParams<{ id: string }>();
   const id = params?.id;
 
@@ -33,8 +33,7 @@ export default function ArticleEditPage() {
     },
     onSuccess: () => {
       toast.success('Đã cập nhật bài viết');
-      router.push('/articles');
-      router.refresh();
+      queryClient.invalidateQueries({ queryKey: ['articles', 'admin', id] });
     },
     onError: () => {
       toast.error('Cập nhật bài viết thất bại');

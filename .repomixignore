@@ -17,6 +17,8 @@ node_modules/
 .turbo/
 coverage/
 *.tsbuildinfo
+.claude/
+.cursor/
 
 # Environment & secrets
 .env

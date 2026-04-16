@@ -65,7 +65,7 @@ export default function ProductPdpTabs({ product }: ProductPdpTabsProps) {
         {activeTab === 'description'
           ? product.descriptionHtml && (
               <div
-                className="prose prose-green max-w-none prose-p:leading-relaxed"
+                className="article-body tiptap ProseMirror simple-editor max-w-none"
                 dangerouslySetInnerHTML={{ __html: product.descriptionHtml }}
               />
             )

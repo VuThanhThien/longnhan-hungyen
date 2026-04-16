@@ -21,7 +21,6 @@ export function TiptapHtmlEditor({
       documentHtml={value}
       onDocumentHtmlChange={onChange}
       placeholder={placeholder}
-      showThemeToggle={false}
       layout="embedded"
       className={cn('tiptap-article-editor-root', className)}
     />
