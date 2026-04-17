@@ -10,7 +10,7 @@ export const PWA_CONFIG = {
   name: SITE_NAME,
 
   /** Short label (home screen icon caption, manifest `short_name`) */
-  shortName: 'Long Nhãn Tống Trân',
+  shortName: 'lnhy',
 
   /**
    * Install / store listing description (manifest `description`, default meta description).
@@ -65,6 +65,6 @@ export const PWA_MANIFEST_SCREENSHOTS = [
     sizes: `${PWA_CONFIG.heroImage.width}x${PWA_CONFIG.heroImage.height}`,
     type: 'image/png',
     form_factor: 'wide' as const,
-    label: `${PWA_CONFIG.shortName} — trang chủ`,
+    label: `${SITE_NAME} — trang chủ`,
   },
 ] as const;

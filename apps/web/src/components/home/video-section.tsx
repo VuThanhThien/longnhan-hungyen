@@ -3,8 +3,10 @@
 // YouTube embed section — featured video + thumbnail carousel
 
 import Image from 'next/image';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { getYouTubeId } from '@/lib/youtube';
 
 interface VideoSectionProps {
@@ -25,7 +27,6 @@ export default function VideoSection({
     [videoUrls],
   );
   const [active, setActive] = useState(0);
-  const thumbRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const videoIds = useMemo(() => {
     const ids = urls.map((u) => getYouTubeId(u)).filter(Boolean) as string[];
@@ -67,22 +68,26 @@ export default function VideoSection({
                 Video {safeActive + 1}/{videoIds.length}
               </p>
               <div className="flex items-center gap-2">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={prev}
                   aria-label="Video trước"
-                  className="rounded-full border border-border/60 bg-white px-3 py-2 text-sm text-foreground shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+                  className="rounded-full border-border/60 bg-white shadow-sm hover:bg-muted/40"
                 >
                   Trước
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={next}
                   aria-label="Video tiếp"
-                  className="rounded-full border border-border/60 bg-white px-3 py-2 text-sm text-foreground shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+                  className="rounded-full border-border/60 bg-white shadow-sm hover:bg-muted/40"
                 >
                   Tiếp
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -90,24 +95,21 @@ export default function VideoSection({
               {videoIds.map((id, idx) => {
                 const isActive = idx === safeActive;
                 return (
-                  <button
+                  <Button
                     key={id}
                     type="button"
+                    variant="ghost"
                     onClick={() => setActive(idx)}
                     aria-label={`Chọn video ${idx + 1}`}
                     aria-current={isActive ? 'true' : undefined}
-                    ref={(el) => {
-                      thumbRefs.current[idx] = el;
-                    }}
-                    className={[
-                      'relative shrink-0 overflow-hidden rounded-lg border shadow-sm transition',
+                    className={cn(
+                      'relative h-auto min-h-0 shrink-0 overflow-hidden rounded-lg border p-0 shadow-sm transition',
                       'w-40 sm:w-44',
                       'snap-start',
                       isActive
                         ? 'border-ring ring-2 ring-ring/15'
                         : 'border-border/50 hover:border-border/80',
-                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30',
-                    ].join(' ')}
+                    )}
                   >
                     <Image
                       src={`https://img.youtube.com/vi/${id}/hqdefault.jpg`}
@@ -122,7 +124,7 @@ export default function VideoSection({
                         {isActive ? 'Đang xem' : 'Xem'}
                       </div>
                     </div>
-                  </button>
+                  </Button>
                 );
               })}
             </div>
