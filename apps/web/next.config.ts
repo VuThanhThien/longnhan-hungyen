@@ -1,7 +1,12 @@
+import path from 'node:path';
 import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
 
+const repoRoot = path.join(__dirname, '../..');
+
 const nextConfig: NextConfig = {
+  output: 'standalone',
+  outputFileTracingRoot: repoRoot,
   cacheComponents: true,
   poweredByHeader: false,
   async headers() {

@@ -1,0 +1,118 @@
+# Production: API + web + admin + Postgres + Redis + cloudflared (-p longnhan-prod).
+# Env: apps/{api,web,admin}/.env.production — see deploy/README.md
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: longnhan_prod_db
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-longnhan}
+      POSTGRES_USER: ${DATABASE_USERNAME:-longnhan}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD in apps/api/.env.production}
+      TZ: UTC
+    ports:
+      - '127.0.0.1:${DATABASE_PORT:-5436}:5432'
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - longnhan-prod
+
+  redis:
+    image: redis:7-alpine
+    container_name: longnhan_prod_redis
+    command: redis-server --save 20 1 --loglevel warning
+    ports:
+      - '127.0.0.1:${REDIS_PORT:-6381}:6379'
+    volumes:
+      - redis_prod_data:/data
+    restart: unless-stopped
+    networks:
+      - longnhan-prod
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    image: longnhan-api:prod
+    container_name: longnhan_prod_api
+    env_file:
+      - apps/api/.env.production
+    environment:
+      NODE_ENV: production
+      APP_PORT: 3001
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - '127.0.0.1:${APP_PORT:-13101}:3001'
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    networks:
+      - longnhan-prod
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    image: longnhan-web:prod
+    container_name: longnhan_prod_web
+    env_file:
+      - apps/web/.env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - '127.0.0.1:${PORT:-13100}:3000'
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - longnhan-prod
+
+  admin:
+    build:
+      context: .
+      dockerfile: docker/admin.Dockerfile
+    image: longnhan-admin:prod
+    container_name: longnhan_prod_admin
+    env_file:
+      - apps/admin/.env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+    ports:
+      - '127.0.0.1:${PORT:-13102}:3002'
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - longnhan-prod
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: longnhan_prod_cloudflared
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+      - --token
+      - ${CLOUDFLARED_TUNNEL_TOKEN}
+    depends_on:
+      - api
+      - web
+      - admin
+    restart: unless-stopped
+    networks:
+      - longnhan-prod
+
+volumes:
+  postgres_prod_data:
+  redis_prod_data:
+
+networks:
+  longnhan-prod:
+    driver: bridge

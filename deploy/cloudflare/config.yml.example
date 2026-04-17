@@ -1,0 +1,18 @@
+# Credentials + local ingress mode only (omit if you use CLOUDFLARED_TUNNEL_TOKEN — see deploy/README.md).
+# One tunnel can serve all hostnames below via multiple ingress rules.
+#
+# Copy to config.yml; place credentials JSON next to it; set tunnel id in both places.
+
+tunnel: TUNNEL_ID_REPLACE_ME
+credentials-file: /etc/cloudflared/TUNNEL_ID_REPLACE_ME.json
+
+ingress:
+  - hostname: api.longnhanhungyen.shop
+    service: http://api:3001
+  - hostname: www.longnhanhungyen.shop
+    service: http://web:3000
+  - hostname: longnhanhungyen.shop
+    service: http://web:3000
+  - hostname: admin.longnhanhungyen.shop
+    service: http://admin:3002
+  - service: http_status:404

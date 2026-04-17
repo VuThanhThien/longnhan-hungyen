@@ -2,7 +2,8 @@
         build build-api build-web build-admin \
         lint format type-check \
         up down logs reset up-local \
-        migration-up migration-down migration-show migration-generate \
+        deploy deploy-down prod-preflight \
+        migration-up migration-up-prod migration-down migration-show migration-generate \
         seed test test-cov test-e2e
 
 # Default target
@@ -14,7 +15,7 @@ help:
 	@echo "    make install          Install all dependencies"
 	@echo ""
 	@echo "  Development"
-	@echo "    make dev              Start all apps in watch mode"
+	@echo "    make dev              Infra (db, redis, maildev, pgadmin) + all apps in watch mode"
 	@echo "    make dev-api          Start API only (http://localhost:3001)"
 	@echo "    make dev-web          Start storefront only (http://localhost:3000)"
 	@echo "    make dev-admin        Start admin only (http://localhost:3002)"
@@ -35,8 +36,14 @@ help:
 	@echo "    make reset            Reset volumes & restart services"
 	@echo "    make up-local         Start full local stack with API hot-reload"
 	@echo ""
+	@echo "  Production (Docker + Cloudflare Tunnel)"
+	@echo "    make deploy           Build & run api, web, admin, db, redis, cloudflared (ports 13100–13102)"
+	@echo "    make deploy-down      Stop production stack"
+	@echo "                          See deploy/README.md (token or config.yml + credentials JSON)"
+	@echo ""
 	@echo "  Database"
-	@echo "    make migration-up     Run pending migrations"
+	@echo "    make migration-up     Run pending migrations (local .env)"
+	@echo "    make migration-up-prod Run pending migrations using apps/api/.env.production"
 	@echo "    make migration-down   Revert last migration"
 	@echo "    make migration-show   Show migration status"
 	@echo "    make seed             Run database seeders"
@@ -54,7 +61,7 @@ install:
 
 # ── Development ───────────────────────────────────────────────────────────────
 
-dev:
+dev: up
 	pnpm dev
 
 dev-api:
@@ -108,10 +115,44 @@ reset:
 up-local:
 	docker compose -f docker-compose.local.yml up --build -d
 
+# ── Production deploy ─────────────────────────────────────────────────────────
+
+prod-preflight:
+	@test -f apps/api/.env.production || (echo "Missing apps/api/.env.production (see apps/api/.env.example)."; exit 1)
+	@grep -qE '^DATABASE_PASSWORD=.+' apps/api/.env.production 2>/dev/null || (echo "apps/api/.env.production: set DATABASE_PASSWORD= to a non-empty value (required for the Postgres service and compose interpolation)."; exit 1)
+	@test -f apps/web/.env.production || (echo "Missing apps/web/.env.production (see apps/web/.env.example)."; exit 1)
+	@test -f apps/admin/.env.production || (echo "Missing apps/admin/.env.production (see apps/admin/.env.example)."; exit 1)
+	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
+	  : ; \
+	elif [ -f deploy/cloudflare/config.yml ] && ls deploy/cloudflare/*.json >/dev/null 2>&1; then \
+	  : ; \
+	else \
+	  echo "Cloudflare: set CLOUDFLARED_TUNNEL_TOKEN in apps/api/.env.production, OR add deploy/cloudflare/config.yml plus a credentials *.json (see deploy/cloudflare/config.yml.example)."; exit 1; \
+	fi
+
+deploy: prod-preflight
+	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
+	  docker compose -f docker-compose.prod.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build; \
+	else \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build; \
+	fi
+
+deploy-down:
+	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
+	  docker compose -f docker-compose.prod.yml --env-file apps/api/.env.production -p longnhan-prod down; \
+	else \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod down; \
+	fi
+
 # ── Database ──────────────────────────────────────────────────────────────────
 
 migration-up:
 	pnpm --filter @longnhan/api migration:up
+
+# Uses production DB credentials/host from apps/api/.env.production (e.g. DATABASE_HOST=127.0.0.1, DATABASE_PORT=5436 when stack exposes Postgres on the host).
+migration-up-prod:
+	@test -f apps/api/.env.production || (echo "Missing apps/api/.env.production (see apps/api/.env.example)."; exit 1)
+	cd apps/api && pnpm exec env-cmd -f .env.production pnpm exec typeorm-ts-node-commonjs -d src/database/data-source.ts migration:run
 
 migration-down:
 	pnpm --filter @longnhan/api migration:down

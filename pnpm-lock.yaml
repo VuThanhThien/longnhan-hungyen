@@ -319,6 +319,9 @@ importers:
       class-validator:
         specifier: ^0.14.1
         version: 0.14.4
+      cloudinary:
+        specifier: ^2.5.1
+        version: 2.9.0
       compression:
         specifier: ^1.7.5
         version: 1.8.1
@@ -431,9 +434,6 @@ importers:
       '@types/uuid':
         specifier: ^10.0.0
         version: 10.0.0
-      cloudinary:
-        specifier: ^2.5.1
-        version: 2.9.0
       env-cmd:
         specifier: ^10.1.0
         version: 10.1.0

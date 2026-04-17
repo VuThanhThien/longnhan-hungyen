@@ -450,9 +450,9 @@ apps/
         _variables.scss
       proxy.ts
       scss.d.ts
+    .env.example
     .gitignore
     AGENTS.md
-    CLAUDE.md
     eslint.config.mjs
     next.config.ts
     package.json
@@ -994,7 +994,6 @@ apps/
     .env.example
     .gitignore
     AGENTS.md
-    CLAUDE.md
     eslint.config.mjs
     next.config.ts
     package.json
@@ -1004,6 +1003,15 @@ apps/
     sentry.server.config.ts
     tailwind.config.ts
     tsconfig.json
+deploy/
+  cloudflare/
+    .gitignore
+    config.yml.example
+  README.md
+docker/
+  admin.Dockerfile
+  api.Dockerfile
+  web.Dockerfile
 docs/
   brainstorm-2026-04-15-home-category-menu-banner-carousel.md
   code-standards.md
@@ -1027,7 +1035,6 @@ packages/
     package.json
     tsconfig.json
 .editorconfig
-.env.example
 .gitignore
 .npmrc
 .prettierignore
@@ -1036,6 +1043,8 @@ packages/
 CLAUDE.md
 commitlint.config.mjs
 docker-compose.local.yml
+docker-compose.prod.cloudflared-config.yml
+docker-compose.prod.yml
 docker-compose.yml
 lint-staged.config.mjs
 Makefile
@@ -1051,6 +1060,424 @@ This section contains the contents of the repository's files.
 
 <file path="apps/admin/.git/gk/config">
 
+</file>
+
+<file path="apps/admin/.env.example">
+## ============================================
+## Admin app environment
+## Copy to .env for local dev, or .env.production for Docker deploy
+## ============================================
+
+## API (server actions / server-side fetch)
+API_URL=http://localhost:3001/api/v1
+
+## Production Docker / make deploy — copy to apps/admin/.env.production
+# NODE_ENV=production
+# API_URL=https://api.example.com/api/v1
+</file>
+
+<file path="deploy/cloudflare/.gitignore">
+# Tunnel credentials and local config (never commit)
+*.json
+config.yml
+</file>
+
+<file path="deploy/cloudflare/config.yml.example">
+# Credentials + local ingress mode only (omit if you use CLOUDFLARED_TUNNEL_TOKEN — see deploy/README.md).
+# One tunnel can serve all hostnames below via multiple ingress rules.
+#
+# Copy to config.yml; place credentials JSON next to it; set tunnel id in both places.
+
+tunnel: TUNNEL_ID_REPLACE_ME
+credentials-file: /etc/cloudflared/TUNNEL_ID_REPLACE_ME.json
+
+ingress:
+  - hostname: api.longnhanhungyen.shop
+    service: http://api:3001
+  - hostname: www.longnhanhungyen.shop
+    service: http://web:3000
+  - hostname: longnhanhungyen.shop
+    service: http://web:3000
+  - hostname: admin.longnhanhungyen.shop
+    service: http://admin:3002
+  - service: http_status:404
+</file>
+
+<file path="deploy/README.md">
+# Production deploy (Docker + Cloudflare)
+
+Stack: **Postgres**, **Redis**, **API** (Nest), **web** (Next), **admin** (Next), **cloudflared**.
+
+Compose project: `longnhan-prod`. App containers publish on **loopback** `127.0.0.1` so they do not bind on the LAN; public access is via **Cloudflare Tunnel**.
+
+## 1. Environment files (per app)
+
+Create from each app’s `.env.example`:
+
+| File                         | Purpose                                                                                                                                              |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/.env.production`   | API secrets; **`DATABASE_PASSWORD` must be set (non-empty)** — used for Postgres + compose; `PROD_*` host ports; optional `CLOUDFLARED_TUNNEL_TOKEN` |
+| `apps/web/.env.production`   | `NEXT_PUBLIC_*` (baked in at **image build**)                                                                                                        |
+| `apps/admin/.env.production` | `API_URL` (public API base with `/api/v1`)                                                                                                           |
+
+Compose **overrides** API DB/Redis hosts to Docker service names (`db`, `redis`). Keep `DATABASE_*` aligned with the `db` service.
+
+**Compose variable substitution** (`${PROD_*_HOST_PORT}`, `${DATABASE_*}` for `db`, `${CLOUDFLARED_TUNNEL_TOKEN}` for `cloudflared`) uses only what `docker compose` loads from **`--env-file apps/api/.env.production`**. Put `PROD_*` and DB password variables there; values that exist only in `apps/web` or `apps/admin` `.env.production` do **not** affect those substitutions.
+
+## 2. Cloudflare Tunnel (choose one)
+
+### A — Token (recommended)
+
+1. Cloudflare **Zero Trust** → **Networks** → **Tunnels** → create or open a tunnel.
+2. Copy the **token** into `apps/api/.env.production`:
+
+   `CLOUDFLARED_TUNNEL_TOKEN=...`
+
+3. In the tunnel → **Public hostnames**, add routes to the **Docker service names** (same Compose network as `cloudflared`):
+
+   | Hostname              | Service URL         |
+   | --------------------- | ------------------- |
+   | `api.<your-domain>`   | `http://api:3001`   |
+   | `www.<your-domain>`   | `http://web:3000`   |
+   | `<apex>`              | `http://web:3000`   |
+   | `admin.<your-domain>` | `http://admin:3002` |
+
+No `deploy/cloudflare/config.yml` or JSON credentials file required.
+
+### B — Credentials + local `config.yml`
+
+1. Copy `deploy/cloudflare/config.yml.example` → `deploy/cloudflare/config.yml` and set `tunnel` + `credentials-file`.
+2. Place the tunnel credentials JSON under `deploy/cloudflare/` (gitignored).
+3. Do **not** set `CLOUDFLARED_TUNNEL_TOKEN` (or remove it) so `make deploy` selects this mode automatically.
+
+Ingress hostnames in `config.yml` should match your DNS.
+
+## 3. Deploy commands
+
+From the **repository root**:
+
+```bash
+make deploy        # build & start (runs prod-preflight)
+make deploy-down   # stop stack
+```
+
+**Default host ports** (alongside local dev on 3000–3002): web `13100`, api `13101`, admin `13102`, Postgres `5436`, Redis `6381` — override with `PROD_*` in `apps/api/.env.production` if needed.
+
+## 4. Database migrations
+
+Run migrations against the **production** DB (e.g. from host with `DATABASE_HOST=127.0.0.1`, `DATABASE_PORT` = your `DATABASE_PORT`, same user/password as in `apps/api/.env.production`), then:
+
+```bash
+make migration-up
+```
+
+(Uses the API package’s migration script; ensure env matches prod.)
+
+## 5. Local development
+
+```bash
+make dev    # docker: db, redis, maildev, pgadmin + pnpm dev
+```
+
+Uses default `docker-compose.yml` (not `docker-compose.prod.yml`).
+
+## 6. Files in this folder
+
+| Path                            | Role                                          |
+| ------------------------------- | --------------------------------------------- |
+| `README.md`                     | This guide                                    |
+| `cloudflare/config.yml.example` | Template for **credentials** tunnel mode only |
+| `cloudflare/.gitignore`         | Ignores `config.yml` and `*.json` credentials |
+
+Optional override compose file (repo root): `docker-compose.prod.cloudflared-config.yml` — used automatically when the token is unset but `config.yml` + `*.json` exist.
+
+## Troubleshooting
+
+- **`required variable DATABASE_PASSWORD is missing`** — Add a non-empty line to `apps/api/.env.production`, e.g. `DATABASE_PASSWORD=your_secure_password`. It must match what the API uses to connect to Postgres (`DATABASE_USERNAME` / `DATABASE_NAME` should align with the `db` service too).
+
+- **`exec: "docker-credential-desktop": executable file not found in $PATH`** — Docker is trying to use Docker Desktop’s credential helper, but it is not on your `PATH` (common in some IDE terminals). Fixes (pick one):
+  1. **macOS:** Add Docker’s CLI bin **before** running build:  
+     `export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"`  
+     (optionally add that line to `~/.zshrc` and restart the terminal).
+  2. Ensure **Docker Desktop is running** and, in its settings, that the CLI tools / symlinks are installed.
+  3. **Advanced:** In `~/.docker/config.json`, remove or change `"credsStore": "desktop"` if you only pull public images (you may need to sign in again for private registries later).
+
+## Caveats
+
+- **Next.js images** include `apps/{web,admin}/.env.production` in the final image (for build/runtime). Keep those files limited to non-secret `NEXT_PUBLIC_*` and public URLs; do not put private keys there.
+- **Tunnel token** is passed via Compose substitution; it can appear in `docker inspect` metadata. For stricter handling, use credentials + `config.yml` mode or inject the token from a secret store at deploy time.
+- Prefer **`make deploy`** over raw `docker compose` so the correct compose files and Cloudflare mode are used.
+- Consider **pinning** `cloudflare/cloudflared` to a specific image digest in production for reproducible pulls.
+</file>
+
+<file path="docker/admin.Dockerfile">
+# Production image for @longnhan/admin (Next.js standalone)
+# Requires apps/admin/.env.production (e.g. API_URL for server actions).
+# Build: docker build -f docker/admin.Dockerfile -t longnhan-admin:prod .
+
+FROM node:20-alpine AS base
+RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
+WORKDIR /workspace
+
+FROM base AS builder
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json ./
+COPY tsconfig.base.json ./
+COPY packages/types ./packages/types
+COPY apps/admin ./apps/admin
+RUN test -f apps/admin/.env.production || (echo "Missing apps/admin/.env.production" && exit 1)
+
+RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @longnhan/types build
+RUN pnpm --filter @longnhan/admin build
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
+
+COPY --from=builder /workspace/apps/admin/.next/standalone ./
+COPY --from=builder /workspace/apps/admin/.next/static ./apps/admin/.next/static
+COPY --from=builder /workspace/apps/admin/public ./apps/admin/public
+COPY --from=builder /workspace/apps/admin/.env.production ./apps/admin/.env.production
+
+USER nextjs
+
+EXPOSE 3002
+ENV PORT=3002
+ENV HOSTNAME=0.0.0.0
+
+CMD ["node", "apps/admin/server.js"]
+</file>
+
+<file path="docker/api.Dockerfile">
+# Monorepo-aware production image for @longnhan/api
+# Build: docker build -f docker/api.Dockerfile -t longnhan-api:prod .
+# Runtime configuration: pass apps/api/.env.production via docker-compose env_file (see docker-compose.prod.yml).
+
+FROM node:20-alpine AS base
+RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
+WORKDIR /workspace
+
+FROM base AS builder
+# pnpm refuses to remove node_modules without a TTY unless CI=true (Docker builds have no TTY)
+ENV CI=true
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY tsconfig.base.json ./
+COPY packages/types/package.json ./packages/types/
+COPY apps/api/package.json ./apps/api/
+
+RUN pnpm fetch
+
+COPY packages/types ./packages/types
+COPY apps/api ./apps/api
+
+RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @longnhan/types build
+RUN pnpm --filter @longnhan/api build
+# Portable app + production node_modules (pnpm virtual store under /workspace is not copy-friendly)
+RUN pnpm --filter @longnhan/api deploy --prod --legacy /out/api
+
+FROM node:20-alpine AS production
+WORKDIR /app
+
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nestjs
+
+COPY --chown=nestjs:nodejs --from=builder /out/api /app
+# WORKDIR creates /app as root; COPY --chown does not change ownership of the destination dir, so nestjs
+# cannot mkdir nestjs-i18n typesOutputPath (see apps/api/src/utils/modules-set.ts → /app/src/generated).
+RUN chown nestjs:nodejs /app
+
+USER nestjs
+
+ENV NODE_ENV=production
+CMD ["node", "dist/main.js"]
+</file>
+
+<file path="docker/web.Dockerfile">
+# Production image for @longnhan/web (Next.js standalone)
+# Build: docker build -f docker/web.Dockerfile -t longnhan-web:prod .
+# Requires apps/web/.env.production (NEXT_PUBLIC_* and any server keys for build).
+
+FROM node:20-alpine AS base
+RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
+WORKDIR /workspace
+
+FROM base AS builder
+ENV NEXT_TELEMETRY_DISABLED=1
+# next build loads apps/web/.env.production when NODE_ENV=production
+ENV NODE_ENV=production
+
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json ./
+COPY tsconfig.base.json ./
+COPY packages/types ./packages/types
+COPY apps/web ./apps/web
+RUN test -f apps/web/.env.production || (echo "Missing apps/web/.env.production" && exit 1)
+
+RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @longnhan/types build
+RUN pnpm --filter @longnhan/web build
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
+
+COPY --from=builder /workspace/apps/web/.next/standalone ./
+COPY --from=builder /workspace/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder /workspace/apps/web/public ./apps/web/public
+COPY --from=builder /workspace/apps/web/.env.production ./apps/web/.env.production
+
+USER nextjs
+
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+CMD ["node", "apps/web/server.js"]
+</file>
+
+<file path="docker-compose.prod.cloudflared-config.yml">
+# Optional override: tunnel credentials + local ingress (no CLOUDFLARED_TUNNEL_TOKEN).
+# Used automatically by `make deploy` when apps/api/.env.production has no token
+# but deploy/cloudflare/config.yml and a credentials *.json exist.
+#
+# Manual: docker compose -f docker-compose.prod.yml -f docker-compose.prod.cloudflared-config.yml ...
+
+services:
+  cloudflared:
+    command: tunnel --config /etc/cloudflared/config.yml --no-autoupdate run
+    volumes:
+      - ./deploy/cloudflare:/etc/cloudflared:ro
+</file>
+
+<file path="docker-compose.prod.yml">
+# Production: API + web + admin + Postgres + Redis + cloudflared (-p longnhan-prod).
+# Env: apps/{api,web,admin}/.env.production — see deploy/README.md
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: longnhan_prod_db
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-longnhan}
+      POSTGRES_USER: ${DATABASE_USERNAME:-longnhan}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD in apps/api/.env.production}
+      TZ: UTC
+    ports:
+      - '127.0.0.1:${DATABASE_PORT:-5436}:5432'
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - longnhan-prod
+
+  redis:
+    image: redis:7-alpine
+    container_name: longnhan_prod_redis
+    command: redis-server --save 20 1 --loglevel warning
+    ports:
+      - '127.0.0.1:${REDIS_PORT:-6381}:6379'
+    volumes:
+      - redis_prod_data:/data
+    restart: unless-stopped
+    networks:
+      - longnhan-prod
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    image: longnhan-api:prod
+    container_name: longnhan_prod_api
+    env_file:
+      - apps/api/.env.production
+    environment:
+      NODE_ENV: production
+      APP_PORT: 3001
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - '127.0.0.1:${APP_PORT:-13101}:3001'
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    networks:
+      - longnhan-prod
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    image: longnhan-web:prod
+    container_name: longnhan_prod_web
+    env_file:
+      - apps/web/.env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - '127.0.0.1:${PORT:-13100}:3000'
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - longnhan-prod
+
+  admin:
+    build:
+      context: .
+      dockerfile: docker/admin.Dockerfile
+    image: longnhan-admin:prod
+    container_name: longnhan_prod_admin
+    env_file:
+      - apps/admin/.env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+    ports:
+      - '127.0.0.1:${PORT:-13102}:3002'
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - longnhan-prod
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: longnhan_prod_cloudflared
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+      - --token
+      - ${CLOUDFLARED_TUNNEL_TOKEN}
+    depends_on:
+      - api
+      - web
+      - admin
+    restart: unless-stopped
+    networks:
+      - longnhan-prod
+
+volumes:
+  postgres_prod_data:
+  redis_prod_data:
+
+networks:
+  longnhan-prod:
+    driver: bridge
 </file>
 
 <file path="apps/admin/public/file.svg">
@@ -5419,6 +5846,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -5426,10 +5854,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-</file>
-
-<file path="apps/admin/CLAUDE.md">
-@AGENTS.md
 </file>
 
 <file path="apps/admin/README.md">
@@ -14713,6 +15137,7 @@ RUN pnpm build
 
 # Removes unnecessary packages adn re-install only production dependencies
 ENV NODE_ENV production
+ENV CI=true
 RUN pnpm prune --prod
 RUN pnpm install --prod
 
@@ -16443,117 +16868,6 @@ export function LandingBannerCarousel({
 
 .landing-banner-carousel .swiper-slide {
   height: 100%;
-}
-</file>
-
-<file path="apps/web/src/components/landing/landing-image-album.tsx">
-'use client';
-
-import Image from 'next/image';
-import { useState } from 'react';
-
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
-
-export interface LandingImageAlbumItem {
-  src: string;
-  alt: string;
-}
-
-interface LandingImageAlbumProps {
-  sectionTitle: string;
-  sectionSubtitle?: string;
-  items: LandingImageAlbumItem[];
-  className?: string;
-}
-
-export function LandingImageAlbum({
-  sectionTitle,
-  sectionSubtitle,
-  items,
-  className,
-}: LandingImageAlbumProps) {
-  const [active, setActive] = useState(0);
-
-  if (items.length === 0) return null;
-
-  const activeItem = items[active] ?? items[0];
-
-  return (
-    <Dialog>
-      <section
-        className={cn(
-          'border-t border-(--brand-gold)/15 bg-(--brand-cream) px-4 py-14 md:py-16',
-          className,
-        )}
-        aria-labelledby="landing-image-album-title"
-      >
-        <div className="mx-auto max-w-6xl">
-          <div className="mb-8 text-center md:mb-10">
-            <h2
-              id="landing-image-album-title"
-              className="landing-heading text-balance text-2xl font-semibold text-(--brand-forest) not-italic md:text-3xl"
-            >
-              {sectionTitle}
-            </h2>
-            {sectionSubtitle ? (
-              <p className="mt-2 text-sm text-(--brand-forest-muted) md:text-base">
-                {sectionSubtitle}
-              </p>
-            ) : null}
-          </div>
-
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4">
-            {items.map((item, idx) => (
-              <li key={`${item.src}-${idx}`} className="min-w-0">
-                <DialogTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={() => setActive(idx)}
-                    className={cn(
-                      'group relative aspect-square w-full overflow-hidden rounded-xl border border-(--brand-forest)/10 bg-white shadow-sm',
-                      'transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--brand-gold)/50',
-                    )}
-                  >
-                    <Image
-                      src={item.src}
-                      alt={item.alt}
-                      fill
-                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                      className="object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                    <span className="sr-only">Phóng to: {item.alt}</span>
-                  </button>
-                </DialogTrigger>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <DialogContent
-          className="max-w-[min(100vw-2rem,56rem)] border-(--brand-forest)/10 bg-(--brand-cream) p-2 sm:p-4"
-          showClose
-        >
-          <DialogTitle className="sr-only">{activeItem.alt}</DialogTitle>
-          <div className="relative h-[min(85vh,720px)] w-full overflow-hidden rounded-lg bg-black/5">
-            <Image
-              src={activeItem.src}
-              alt={activeItem.alt}
-              fill
-              sizes="100vw"
-              className="object-contain"
-              priority
-            />
-          </div>
-        </DialogContent>
-      </section>
-    </Dialog>
-  );
 }
 </file>
 
@@ -19126,79 +19440,6 @@ export function buildLandingCategoryNav(
 }
 </file>
 
-<file path="apps/web/src/lib/pwa-config.ts">
-import { LANDING_BRAND, LANDING_SEO } from '@/data/landing-page-content';
-import { SITE_NAME, SITE_URL } from '@/lib/constants';
-
-/**
- * Single source of truth for PWA + install UI metadata (manifest, layout, OG/Twitter).
- * Update copy and asset paths here only.
- */
-export const PWA_CONFIG = {
-  /** Full app name (install dialog, manifest `name`) */
-  name: SITE_NAME,
-
-  /** Short label (home screen icon caption, manifest `short_name`) */
-  shortName: 'lnhy',
-
-  /**
-   * Install / store listing description (manifest `description`, default meta description).
-   * Kept aligned with landing SEO.
-   */
-  description: LANDING_SEO.description,
-
-  /** Page `<title>` default (longer SEO title) */
-  documentTitle: LANDING_SEO.title,
-
-  /** `<html lang>` + manifest `lang` */
-  lang: 'vi',
-
-  siteUrl: SITE_URL,
-
-  themeColor: '#201d18',
-  backgroundColor: '#fdfdf9',
-
-  /** App icon (PNG; same file may be listed at 192 + 512 for installability) */
-  icons: {
-    /** Primary / maskable — path under `public/` */
-    src: '/icons/pwa-icon.png',
-    /** Declared sizes in manifest (adjust if you add real 192×192 asset) */
-    sizes: {
-      small: '192x192',
-      large: '512x512',
-    },
-  },
-
-  /** Brand mark (header, optional narrow screenshot) */
-  logo: {
-    path: LANDING_BRAND.logoSrc,
-    alt: LANDING_BRAND.logoAlt,
-  },
-
-  /** Hero / marketing image for Open Graph, Twitter, manifest screenshots */
-  heroImage: {
-    path: '/banner-web2.png',
-    width: 1200,
-    height: 630,
-    alt: LANDING_SEO.ogImageAlt,
-  },
-} as const;
-
-/**
- * Rich install UI (Chrome): optional screenshots in the Web App Manifest.
- * @see https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Manifest/Reference/screenshots
- */
-export const PWA_MANIFEST_SCREENSHOTS = [
-  {
-    src: PWA_CONFIG.heroImage.path,
-    sizes: `${PWA_CONFIG.heroImage.width}x${PWA_CONFIG.heroImage.height}`,
-    type: 'image/png',
-    form_factor: 'wide' as const,
-    label: `${SITE_NAME} — trang chủ`,
-  },
-] as const;
-</file>
-
 <file path="apps/web/src/lib/seo.ts">
 import { SITE_URL } from '@/lib/constants';
 import type { Metadata } from 'next';
@@ -19432,10 +19673,6 @@ export const config = {
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
-</file>
-
-<file path="apps/web/CLAUDE.md">
-@AGENTS.md
 </file>
 
 <file path="apps/web/eslint.config.mjs">
@@ -19907,7 +20144,8 @@ export default {
         build build-api build-web build-admin \
         lint format type-check \
         up down logs reset up-local \
-        migration-up migration-down migration-show migration-generate \
+        deploy deploy-down prod-preflight \
+        migration-up migration-up-prod migration-down migration-show migration-generate \
         seed test test-cov test-e2e
 
 # Default target
@@ -19919,7 +20157,7 @@ help:
 	@echo "    make install          Install all dependencies"
 	@echo ""
 	@echo "  Development"
-	@echo "    make dev              Start all apps in watch mode"
+	@echo "    make dev              Infra (db, redis, maildev, pgadmin) + all apps in watch mode"
 	@echo "    make dev-api          Start API only (http://localhost:3001)"
 	@echo "    make dev-web          Start storefront only (http://localhost:3000)"
 	@echo "    make dev-admin        Start admin only (http://localhost:3002)"
@@ -19940,8 +20178,14 @@ help:
 	@echo "    make reset            Reset volumes & restart services"
 	@echo "    make up-local         Start full local stack with API hot-reload"
 	@echo ""
+	@echo "  Production (Docker + Cloudflare Tunnel)"
+	@echo "    make deploy           Build & run api, web, admin, db, redis, cloudflared (ports 13100–13102)"
+	@echo "    make deploy-down      Stop production stack"
+	@echo "                          See deploy/README.md (token or config.yml + credentials JSON)"
+	@echo ""
 	@echo "  Database"
-	@echo "    make migration-up     Run pending migrations"
+	@echo "    make migration-up     Run pending migrations (local .env)"
+	@echo "    make migration-up-prod Run pending migrations using apps/api/.env.production"
 	@echo "    make migration-down   Revert last migration"
 	@echo "    make migration-show   Show migration status"
 	@echo "    make seed             Run database seeders"
@@ -19959,7 +20203,7 @@ install:
 
 # ── Development ───────────────────────────────────────────────────────────────
 
-dev:
+dev: up
 	pnpm dev
 
 dev-api:
@@ -20013,10 +20257,44 @@ reset:
 up-local:
 	docker compose -f docker-compose.local.yml up --build -d
 
+# ── Production deploy ─────────────────────────────────────────────────────────
+
+prod-preflight:
+	@test -f apps/api/.env.production || (echo "Missing apps/api/.env.production (see apps/api/.env.example)."; exit 1)
+	@grep -qE '^DATABASE_PASSWORD=.+' apps/api/.env.production 2>/dev/null || (echo "apps/api/.env.production: set DATABASE_PASSWORD= to a non-empty value (required for the Postgres service and compose interpolation)."; exit 1)
+	@test -f apps/web/.env.production || (echo "Missing apps/web/.env.production (see apps/web/.env.example)."; exit 1)
+	@test -f apps/admin/.env.production || (echo "Missing apps/admin/.env.production (see apps/admin/.env.example)."; exit 1)
+	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
+	  : ; \
+	elif [ -f deploy/cloudflare/config.yml ] && ls deploy/cloudflare/*.json >/dev/null 2>&1; then \
+	  : ; \
+	else \
+	  echo "Cloudflare: set CLOUDFLARED_TUNNEL_TOKEN in apps/api/.env.production, OR add deploy/cloudflare/config.yml plus a credentials *.json (see deploy/cloudflare/config.yml.example)."; exit 1; \
+	fi
+
+deploy: prod-preflight
+	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
+	  docker compose -f docker-compose.prod.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build; \
+	else \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build; \
+	fi
+
+deploy-down:
+	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
+	  docker compose -f docker-compose.prod.yml --env-file apps/api/.env.production -p longnhan-prod down; \
+	else \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod down; \
+	fi
+
 # ── Database ──────────────────────────────────────────────────────────────────
 
 migration-up:
 	pnpm --filter @longnhan/api migration:up
+
+# Uses production DB credentials/host from apps/api/.env.production (e.g. DATABASE_HOST=127.0.0.1, DATABASE_PORT=5436 when stack exposes Postgres on the host).
+migration-up-prod:
+	@test -f apps/api/.env.production || (echo "Missing apps/api/.env.production (see apps/api/.env.example)."; exit 1)
+	cd apps/api && pnpm exec env-cmd -f .env.production pnpm exec typeorm-ts-node-commonjs -d src/database/data-source.ts migration:run
 
 migration-down:
 	pnpm --filter @longnhan/api migration:down
@@ -35128,10 +35406,14 @@ export default eslintConfig;
 </file>
 
 <file path="apps/admin/next.config.ts">
+import path from 'node:path';
 import type { NextConfig } from 'next';
 
+const repoRoot = path.join(__dirname, '../..');
+
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: 'standalone',
+  outputFileTracingRoot: repoRoot,
 };
 
 export default nextConfig;
@@ -38842,6 +39124,117 @@ export function LandingCategoryCarousel({
 }
 </file>
 
+<file path="apps/web/src/components/landing/landing-image-album.tsx">
+'use client';
+
+import Image from 'next/image';
+import { useState } from 'react';
+
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
+
+export interface LandingImageAlbumItem {
+  src: string;
+  alt: string;
+}
+
+interface LandingImageAlbumProps {
+  sectionTitle: string;
+  sectionSubtitle?: string;
+  items: LandingImageAlbumItem[];
+  className?: string;
+}
+
+export function LandingImageAlbum({
+  sectionTitle,
+  sectionSubtitle,
+  items,
+  className,
+}: LandingImageAlbumProps) {
+  const [active, setActive] = useState(0);
+
+  if (items.length === 0) return null;
+
+  const activeItem = items[active] ?? items[0];
+
+  return (
+    <Dialog>
+      <section
+        className={cn(
+          'border-t border-(--brand-gold)/15 bg-(--brand-cream) px-4 py-14 md:py-16',
+          className,
+        )}
+        aria-labelledby="landing-image-album-title"
+      >
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-8 text-center md:mb-10">
+            <h2
+              id="landing-image-album-title"
+              className="landing-heading text-balance text-2xl font-semibold text-(--brand-forest) not-italic md:text-3xl"
+            >
+              {sectionTitle}
+            </h2>
+            {sectionSubtitle ? (
+              <p className="mt-2 text-sm text-(--brand-forest-muted) md:text-base">
+                {sectionSubtitle}
+              </p>
+            ) : null}
+          </div>
+
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4">
+            {items.map((item, idx) => (
+              <li key={`${item.src}-${idx}`} className="min-w-0">
+                <DialogTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => setActive(idx)}
+                    className={cn(
+                      'group relative aspect-square w-full overflow-hidden rounded-xl border border-(--brand-forest)/10 bg-white shadow-sm',
+                      'transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--brand-gold)/50',
+                    )}
+                  >
+                    <Image
+                      src={item.src}
+                      alt={item.alt}
+                      fill
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                    <span className="sr-only">Phóng to: {item.alt}</span>
+                  </button>
+                </DialogTrigger>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <DialogContent
+          className="max-w-[min(100vw-2rem,56rem)] border-(--brand-forest)/10 bg-(--brand-cream) p-2 sm:p-4"
+          showClose
+        >
+          <DialogTitle className="sr-only">{activeItem.alt}</DialogTitle>
+          <div className="relative h-[min(85vh,720px)] w-full overflow-hidden rounded-lg bg-black/5">
+            <Image
+              src={activeItem.src}
+              alt={activeItem.alt}
+              fill
+              sizes="100vw"
+              className="object-contain"
+              priority
+            />
+          </div>
+        </DialogContent>
+      </section>
+    </Dialog>
+  );
+}
+</file>
+
 <file path="apps/web/src/components/landing/landing-origin-badge.tsx">
 // Geographic origin badge — "Hưng Yên · Phố Hiến" pill shown in hero/story section
 export function LandingOriginBadge() {
@@ -39876,95 +40269,6 @@ export function OrderSuccessRouteSkeleton() {
 }
 </file>
 
-<file path="apps/web/src/components/ui/scroll-reveal.tsx">
-'use client';
-
-import type { CSSProperties, ReactNode } from 'react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-
-interface ScrollRevealProps {
-  children: ReactNode;
-  delayMs?: number;
-  className?: string;
-}
-
-function prefersReducedMotion(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
-
-function isRoughlyInViewport(el: HTMLElement): boolean {
-  const rect = el.getBoundingClientRect();
-  const vh = window.innerHeight || document.documentElement.clientHeight;
-  return rect.top < vh * 0.92 && rect.bottom > vh * 0.08;
-}
-
-/**
- * Fade/slide-in when the block enters the viewport. SSR and the first HTML
- * response stay fully visible so text remains available to crawlers; below-the-fold
- * blocks switch to the hidden state before paint (layout effect) to avoid a flash.
- */
-export default function ScrollReveal({
-  children,
-  delayMs = 0,
-  className = '',
-}: ScrollRevealProps) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [revealed, setRevealed] = useState(true);
-
-  useLayoutEffect(() => {
-    const element = containerRef.current;
-    if (!element || prefersReducedMotion()) {
-      return;
-    }
-    if (isRoughlyInViewport(element)) {
-      return;
-    }
-    queueMicrotask(() => {
-      setRevealed(false);
-    });
-  }, []);
-
-  useEffect(() => {
-    const element = containerRef.current;
-    if (!element) {
-      return;
-    }
-
-    if (prefersReducedMotion() || isRoughlyInViewport(element)) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          setRevealed(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.15, rootMargin: '0px 0px -40px 0px' },
-    );
-
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-
-  const style: CSSProperties = { transitionDelay: `${delayMs}ms` };
-
-  return (
-    <div
-      ref={containerRef}
-      style={style}
-      className={`transform-gpu transition-all duration-700 ease-out will-change-transform ${
-        revealed ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'
-      } ${className}`}
-    >
-      {children}
-    </div>
-  );
-}
-</file>
-
 <file path="apps/web/src/components/ui/section-title-link-button.tsx">
 'use client';
 
@@ -40295,6 +40599,79 @@ export const serializeProductSearchUrl = createSerializer(
 );
 </file>
 
+<file path="apps/web/src/lib/pwa-config.ts">
+import { LANDING_BRAND, LANDING_SEO } from '@/data/landing-page-content';
+import { SITE_NAME, SITE_URL } from '@/lib/constants';
+
+/**
+ * Single source of truth for PWA + install UI metadata (manifest, layout, OG/Twitter).
+ * Update copy and asset paths here only.
+ */
+export const PWA_CONFIG = {
+  /** Full app name (install dialog, manifest `name`) */
+  name: SITE_NAME,
+
+  /** Short label (home screen icon caption, manifest `short_name`) */
+  shortName: 'lnhy',
+
+  /**
+   * Install / store listing description (manifest `description`, default meta description).
+   * Kept aligned with landing SEO.
+   */
+  description: LANDING_SEO.description,
+
+  /** Page `<title>` default (longer SEO title) */
+  documentTitle: LANDING_SEO.title,
+
+  /** `<html lang>` + manifest `lang` */
+  lang: 'vi',
+
+  siteUrl: SITE_URL,
+
+  themeColor: '#201d18',
+  backgroundColor: '#fdfdf9',
+
+  /** App icon (PNG; same file may be listed at 192 + 512 for installability) */
+  icons: {
+    /** Primary / maskable — path under `public/` */
+    src: '/icons/pwa-icon.png',
+    /** Declared sizes in manifest (adjust if you add real 192×192 asset) */
+    sizes: {
+      small: '192x192',
+      large: '512x512',
+    },
+  },
+
+  /** Brand mark (header, optional narrow screenshot) */
+  logo: {
+    path: LANDING_BRAND.logoSrc,
+    alt: LANDING_BRAND.logoAlt,
+  },
+
+  /** Hero / marketing image for Open Graph, Twitter, manifest screenshots */
+  heroImage: {
+    path: '/banner-web2.png',
+    width: 1200,
+    height: 630,
+    alt: LANDING_SEO.ogImageAlt,
+  },
+} as const;
+
+/**
+ * Rich install UI (Chrome): optional screenshots in the Web App Manifest.
+ * @see https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Manifest/Reference/screenshots
+ */
+export const PWA_MANIFEST_SCREENSHOTS = [
+  {
+    src: PWA_CONFIG.heroImage.path,
+    sizes: `${PWA_CONFIG.heroImage.width}x${PWA_CONFIG.heroImage.height}`,
+    type: 'image/png',
+    form_factor: 'wide' as const,
+    label: `${SITE_NAME} — trang chủ`,
+  },
+] as const;
+</file>
+
 <file path="apps/web/src/lib/query-keys.ts">
 export const queryKeys = {
   products: {
@@ -40359,6 +40736,11 @@ NEXT_PUBLIC_CLOUDINARY_CLOUD=your-cloud-name
 # CLOUDINARY_API_KEY=your-cloudinary-api-key
 # CLOUDINARY_API_SECRET=your-cloudinary-api-secret
 NEXT_PUBLIC_ENABLE_SW=false
+
+## Production Docker / make deploy — copy to apps/web/.env.production (Next loads at image build)
+# NEXT_PUBLIC_API_URL=https://api.example.com/api/v1
+# NEXT_PUBLIC_SITE_URL=https://www.example.com
+# NEXT_PUBLIC_CLOUDINARY_CLOUD=
 </file>
 
 <file path="apps/web/.gitignore">
@@ -40498,6 +40880,7 @@ build/
 .env
 .env.local
 .env.*.local
+.env.production
 
 # Logs
 *.log
@@ -44138,6 +44521,25 @@ AUTH_FORGOT_SECRET=secret_for_forgot
 AUTH_FORGOT_TOKEN_EXPIRES_IN=7d
 AUTH_CONFIRM_EMAIL_SECRET=secret_for_confirm_email
 AUTH_CONFIRM_EMAIL_TOKEN_EXPIRES_IN=1d
+
+#== Docker production (copy to apps/api/.env.production)
+# docker-compose.prod.yml overrides DATABASE_HOST=db and REDIS_HOST=redis inside the stack.
+# PROD_* are host port bindings (run prod beside local dev on 3000–3002 / 5435 / 6380).
+NODE_ENV=production
+APP_URL=https://api.example.com
+WEB_PUBLIC_URL=https://www.example.com
+APP_CORS_ORIGIN=https://www.example.com,https://example.com,https://admin.example.com
+DATABASE_NAME=longnhan
+DATABASE_USERNAME=longnhan
+DATABASE_PASSWORD=
+DATABASE_PORT=5436
+REDIS_PORT=6381
+APP_PORT=13101
+
+#== Cloudflare Tunnel (production)
+# Prefer token: Zero Trust → Networks → Tunnels → your tunnel → copy token for `cloudflared`.
+# Routes (api / www / admin) are configured in the tunnel’s Public hostnames (not local config).
+CLOUDFLARED_TUNNEL_TOKEN=
 </file>
 
 <file path="apps/api/package.json">
@@ -44198,6 +44600,7 @@ AUTH_CONFIRM_EMAIL_TOKEN_EXPIRES_IN=1d
     "cache-manager-ioredis-yet": "^2.1.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "cloudinary": "^2.5.1",
     "compression": "^1.7.5",
     "handlebars": "^4.7.8",
     "helmet": "^8.0.0",
@@ -44217,6 +44620,9 @@ AUTH_CONFIRM_EMAIL_TOKEN_EXPIRES_IN=1d
     "typeorm-extension": "^3.6.3",
     "uuid": "^11.0.3"
   },
+  "files": [
+    "dist"
+  ],
   "devDependencies": {
     "@commitlint/cli": "^19.5.0",
     "@commitlint/config-conventional": "^19.5.0",
@@ -44237,7 +44643,6 @@ AUTH_CONFIRM_EMAIL_TOKEN_EXPIRES_IN=1d
     "@types/streamifier": "^0.1.2",
     "@types/supertest": "^6.0.2",
     "@types/uuid": "^10.0.0",
-    "cloudinary": "^2.5.1",
     "env-cmd": "^10.1.0",
     "eslint": "^9.14.0",
     "eslint-config-prettier": "^9.1.0",
@@ -45393,6 +45798,95 @@ export default function VariantSelector({
           );
         })}
       </div>
+    </div>
+  );
+}
+</file>
+
+<file path="apps/web/src/components/ui/scroll-reveal.tsx">
+'use client';
+
+import type { CSSProperties, ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+
+interface ScrollRevealProps {
+  children: ReactNode;
+  delayMs?: number;
+  className?: string;
+}
+
+function prefersReducedMotion(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function isRoughlyInViewport(el: HTMLElement): boolean {
+  const rect = el.getBoundingClientRect();
+  const vh = window.innerHeight || document.documentElement.clientHeight;
+  return rect.top < vh * 0.92 && rect.bottom > vh * 0.08;
+}
+
+/**
+ * Fade/slide-in when the block enters the viewport. SSR and the first HTML
+ * response stay fully visible so text remains available to crawlers; below-the-fold
+ * blocks switch to the hidden state before paint (layout effect) to avoid a flash.
+ */
+export default function ScrollReveal({
+  children,
+  delayMs = 0,
+  className = '',
+}: ScrollRevealProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [revealed, setRevealed] = useState(true);
+
+  useLayoutEffect(() => {
+    const element = containerRef.current;
+    if (!element || prefersReducedMotion()) {
+      return;
+    }
+    if (isRoughlyInViewport(element)) {
+      return;
+    }
+    queueMicrotask(() => {
+      setRevealed(false);
+    });
+  }, []);
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) {
+      return;
+    }
+
+    if (prefersReducedMotion() || isRoughlyInViewport(element)) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setRevealed(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.15, rootMargin: '0px 0px -40px 0px' },
+    );
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const style: CSSProperties = { transitionDelay: `${delayMs}ms` };
+
+  return (
+    <div
+      ref={containerRef}
+      style={style}
+      className={`transform-gpu transition-all duration-700 ease-out will-change-transform ${
+        revealed ? 'translate-y-0 opacity-100' : 'translate-y-6 opacity-0'
+      } ${className}`}
+    >
+      {children}
     </div>
   );
 }
@@ -49675,31 +50169,6 @@ export interface CreateProductVariantDto {
 export interface UpdateProductVariantDto extends Partial<CreateProductVariantDto> {}
 </file>
 
-<file path=".env.example">
-# ============================================
-# Root monorepo env example
-# Copy to .env and fill in values
-# ============================================
-
-# Apps run on these ports locally
-API_PORT=3001
-WEB_PORT=3000
-ADMIN_PORT=3002
-
-# Docker local infra (do not change for local dev)
-DB_HOST=localhost
-DB_PORT=5435
-DB_NAME=longnhan
-DB_USERNAME=longnhan
-DB_PASSWORD=longnhan
-
-REDIS_HOST=localhost
-REDIS_PORT=6380
-
-MAIL_SMTP_HOST_PORT=1026
-MAIL_CLIENT_PORT=1080
-</file>
-
 <file path="docker-compose.yml">
 version: '3.8'
 
@@ -52997,145 +53466,6 @@ body {
 }
 </file>
 
-<file path="apps/web/src/components/home/video-section.tsx">
-'use client';
-
-// YouTube embed section — featured video + thumbnail carousel
-
-import Image from 'next/image';
-import { useMemo, useState } from 'react';
-
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { getYouTubeId } from '@/lib/youtube';
-
-interface VideoSectionProps {
-  videoUrls?: (string | null | undefined)[] | null;
-  /** Section heading (default: production process). */
-  title?: string;
-  /** Anchor id for skip links */
-  sectionId?: string;
-}
-
-export default function VideoSection({
-  videoUrls,
-  title = 'Quy Trình Sản Xuất',
-  sectionId = 'video',
-}: VideoSectionProps) {
-  const urls = useMemo(
-    () => (videoUrls ?? []).filter(Boolean) as string[],
-    [videoUrls],
-  );
-  const [active, setActive] = useState(0);
-
-  const videoIds = useMemo(() => {
-    const ids = urls.map((u) => getYouTubeId(u)).filter(Boolean) as string[];
-    return Array.from(new Set(ids));
-  }, [urls]);
-
-  const safeActive = Math.min(active, Math.max(0, videoIds.length - 1));
-  const activeId = videoIds[safeActive];
-
-  const prev = () =>
-    setActive((a) => (a - 1 + videoIds.length) % videoIds.length);
-  const next = () => setActive((a) => (a + 1) % videoIds.length);
-
-  if (urls.length === 0 || videoIds.length === 0 || !activeId) return null;
-
-  return (
-    <section id={sectionId} className="py-16 bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4">
-        <h2 className="text-2xl md:text-3xl font-bold text-foreground text-center mb-8">
-          {title}
-        </h2>
-        <div className="relative aspect-video rounded-xl overflow-hidden shadow-lg">
-          <iframe
-            key={activeId}
-            src={`https://www.youtube.com/embed/${activeId}?rel=0&modestbranding=1`}
-            title="Video giới thiệu Long Nhãn Hưng Yên"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            referrerPolicy="strict-origin-when-cross-origin"
-            allowFullScreen
-            loading="lazy"
-            className="absolute inset-0 w-full h-full border-0"
-          />
-        </div>
-
-        {videoIds.length > 1 && (
-          <div className="mt-6">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-sm text-muted-foreground">
-                Video {safeActive + 1}/{videoIds.length}
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={prev}
-                  aria-label="Video trước"
-                  className="rounded-full border-border/60 bg-white shadow-sm hover:bg-muted/40"
-                >
-                  Trước
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={next}
-                  aria-label="Video tiếp"
-                  className="rounded-full border-border/60 bg-white shadow-sm hover:bg-muted/40"
-                >
-                  Tiếp
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {videoIds.map((id, idx) => {
-                const isActive = idx === safeActive;
-                return (
-                  <Button
-                    key={id}
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setActive(idx)}
-                    aria-label={`Chọn video ${idx + 1}`}
-                    aria-current={isActive ? 'true' : undefined}
-                    className={cn(
-                      'relative h-auto min-h-0 shrink-0 overflow-hidden rounded-lg border p-0 shadow-sm transition',
-                      'w-40 sm:w-44',
-                      'snap-start',
-                      isActive
-                        ? 'border-ring ring-2 ring-ring/15'
-                        : 'border-border/50 hover:border-border/80',
-                    )}
-                  >
-                    <Image
-                      src={`https://img.youtube.com/vi/${id}/hqdefault.jpg`}
-                      alt={`Video thumbnail ${idx + 1}`}
-                      width={480}
-                      height={360}
-                      sizes="(max-width: 640px) 160px, 176px"
-                      className="aspect-video w-full object-cover"
-                    />
-                    <div className="absolute inset-0 grid place-items-center">
-                      <div className="rounded-full bg-black/55 px-3 py-1 text-xs font-semibold text-white">
-                        {isActive ? 'Đang xem' : 'Xem'}
-                      </div>
-                    </div>
-                  </Button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-</file>
-
 <file path="apps/web/src/components/products/product-pdp-tabs.tsx">
 'use client';
 
@@ -55195,6 +55525,145 @@ export default function FeaturedProducts({ products }: FeaturedProductsProps) {
 }
 </file>
 
+<file path="apps/web/src/components/home/video-section.tsx">
+'use client';
+
+// YouTube embed section — featured video + thumbnail carousel
+
+import Image from 'next/image';
+import { useMemo, useState } from 'react';
+
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { getYouTubeId } from '@/lib/youtube';
+
+interface VideoSectionProps {
+  videoUrls?: (string | null | undefined)[] | null;
+  /** Section heading (default: production process). */
+  title?: string;
+  /** Anchor id for skip links */
+  sectionId?: string;
+}
+
+export default function VideoSection({
+  videoUrls,
+  title = 'Quy Trình Sản Xuất',
+  sectionId = 'video',
+}: VideoSectionProps) {
+  const urls = useMemo(
+    () => (videoUrls ?? []).filter(Boolean) as string[],
+    [videoUrls],
+  );
+  const [active, setActive] = useState(0);
+
+  const videoIds = useMemo(() => {
+    const ids = urls.map((u) => getYouTubeId(u)).filter(Boolean) as string[];
+    return Array.from(new Set(ids));
+  }, [urls]);
+
+  const safeActive = Math.min(active, Math.max(0, videoIds.length - 1));
+  const activeId = videoIds[safeActive];
+
+  const prev = () =>
+    setActive((a) => (a - 1 + videoIds.length) % videoIds.length);
+  const next = () => setActive((a) => (a + 1) % videoIds.length);
+
+  if (urls.length === 0 || videoIds.length === 0 || !activeId) return null;
+
+  return (
+    <section id={sectionId} className="py-16 bg-gray-50">
+      <div className="max-w-4xl mx-auto px-4">
+        <h2 className="text-2xl md:text-3xl font-bold text-foreground text-center mb-8">
+          {title}
+        </h2>
+        <div className="relative aspect-video rounded-xl overflow-hidden shadow-lg">
+          <iframe
+            key={activeId}
+            src={`https://www.youtube.com/embed/${activeId}?rel=0&modestbranding=1`}
+            title="Video giới thiệu Long Nhãn Hưng Yên"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            referrerPolicy="strict-origin-when-cross-origin"
+            allowFullScreen
+            loading="lazy"
+            className="absolute inset-0 w-full h-full border-0"
+          />
+        </div>
+
+        {videoIds.length > 1 && (
+          <div className="mt-6">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">
+                Video {safeActive + 1}/{videoIds.length}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={prev}
+                  aria-label="Video trước"
+                  className="rounded-full border-border/60 bg-white shadow-sm hover:bg-muted/40"
+                >
+                  Trước
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={next}
+                  aria-label="Video tiếp"
+                  className="rounded-full border-border/60 bg-white shadow-sm hover:bg-muted/40"
+                >
+                  Tiếp
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {videoIds.map((id, idx) => {
+                const isActive = idx === safeActive;
+                return (
+                  <Button
+                    key={id}
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setActive(idx)}
+                    aria-label={`Chọn video ${idx + 1}`}
+                    aria-current={isActive ? 'true' : undefined}
+                    className={cn(
+                      'relative h-auto min-h-0 shrink-0 overflow-hidden rounded-lg border p-0 shadow-sm transition',
+                      'w-40 sm:w-44',
+                      'snap-start',
+                      isActive
+                        ? 'border-ring ring-2 ring-ring/15'
+                        : 'border-border/50 hover:border-border/80',
+                    )}
+                  >
+                    <Image
+                      src={`https://img.youtube.com/vi/${id}/hqdefault.jpg`}
+                      alt={`Video thumbnail ${idx + 1}`}
+                      width={480}
+                      height={360}
+                      sizes="(max-width: 640px) 160px, 176px"
+                      className="aspect-video w-full object-cover"
+                    />
+                    <div className="absolute inset-0 grid place-items-center">
+                      <div className="rounded-full bg-black/55 px-3 py-1 text-xs font-semibold text-white">
+                        {isActive ? 'Đang xem' : 'Xem'}
+                      </div>
+                    </div>
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+</file>
+
 <file path="apps/web/src/components/orders/order-form.tsx">
 'use client';
 
@@ -55790,10 +56259,15 @@ export default function ProductCard({
 </file>
 
 <file path="apps/web/next.config.ts">
+import path from 'node:path';
 import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
 
+const repoRoot = path.join(__dirname, '../..');
+
 const nextConfig: NextConfig = {
+  output: 'standalone',
+  outputFileTracingRoot: repoRoot,
   cacheComponents: true,
   poweredByHeader: false,
   async headers() {

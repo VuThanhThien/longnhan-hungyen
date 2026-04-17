@@ -44,6 +44,7 @@ RUN pnpm build
 
 # Removes unnecessary packages adn re-install only production dependencies
 ENV NODE_ENV production
+ENV CI=true
 RUN pnpm prune --prod
 RUN pnpm install --prod
 

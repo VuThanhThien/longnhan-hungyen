@@ -1,0 +1,11 @@
+# Optional override: tunnel credentials + local ingress (no CLOUDFLARED_TUNNEL_TOKEN).
+# Used automatically by `make deploy` when apps/api/.env.production has no token
+# but deploy/cloudflare/config.yml and a credentials *.json exist.
+#
+# Manual: docker compose -f docker-compose.prod.yml -f docker-compose.prod.cloudflared-config.yml ...
+
+services:
+  cloudflared:
+    command: tunnel --config /etc/cloudflared/config.yml --no-autoupdate run
+    volumes:
+      - ./deploy/cloudflare:/etc/cloudflared:ro
