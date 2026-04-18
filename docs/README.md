@@ -1,6 +1,6 @@
 # Long Nhan Hung Yen - Documentation Index
 
-**Last Updated:** 2026-04-16
+**Last Updated:** 2026-04-18
 
 pnpm + Turborepo monorepo: **NestJS API** (`apps/api`), **Next.js storefront** (`apps/web`), **Next.js admin** (`apps/admin`), shared **@longnhan/types**.
 
@@ -20,6 +20,7 @@ pnpm + Turborepo monorepo: **NestJS API** (`apps/api`), **Next.js storefront** (
 | [Frontend Code Standards](./frontend-code-standards.md) | Next.js / `apps/web`, `apps/admin` |
 | [Codebase Summary](./codebase-summary.md)               | Trees, modules, commands           |
 | [Deployment Guide](./deployment-guide.md)               | Environments & ops                 |
+| [DESIGN.md](../DESIGN.md) (repo root)                   | Admin / shared visual spec         |
 
 ---
 
@@ -179,7 +180,7 @@ Follow [root README](../README.md) (Docker infra, `pnpm --filter @longnhan/api m
 → API: [Code Standards](./code-standards.md) · Web/Admin: [Frontend Code Standards](./frontend-code-standards.md)
 
 **Architecture & Design?**
-→ See [System Architecture](./system-architecture.md)
+→ See [System Architecture](./system-architecture.md) · Visual spec: [DESIGN.md](../DESIGN.md)
 
 **Finding Files & Commands?**
 → See [Codebase Summary](./codebase-summary.md)
@@ -201,7 +202,7 @@ These docs are living documents and updated regularly:
 - **Quarterly:** Architecture reviews
 - **Annually:** Comprehensive audit
 
-Last review: 2026-04-13
+Last review: 2026-04-18
 
 ---
 
@@ -209,6 +210,7 @@ Last review: 2026-04-13
 
 | Version | Date       | Changes                                                 |
 | ------- | ---------- | ------------------------------------------------------- |
+| 1.2.0   | 2026-04-18 | Index refresh: DESIGN.md link, last-review date         |
 | 1.1.0   | 2026-04-13 | Monorepo index, ports, changelog link, scoped standards |
 | 1.0.0   | 2026-03-30 | Initial documentation creation                          |
 

@@ -21,7 +21,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="vi" className={`${geist.variable} h-full`}>
-      <body className="h-full antialiased bg-gray-50">
+      <body className="h-full antialiased bg-background text-foreground">
         <QueryProvider>
           {children}
           <Toaster richColors closeButton position="top-right" />

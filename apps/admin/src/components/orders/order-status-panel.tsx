@@ -69,7 +69,7 @@ export function OrderStatusPanel({
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       <div className="space-y-1">
-        <label htmlFor="orderStatus" className="text-sm text-gray-600">
+        <label htmlFor="orderStatus" className="text-sm text-muted-foreground">
           Trạng thái đơn
         </label>
         <select
@@ -79,7 +79,7 @@ export function OrderStatusPanel({
             updateStatus({ orderStatus: event.target.value as OrderStatus })
           }
           disabled={updateStatusMutation.isPending}
-          className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+          className="h-10 w-full rounded-md border border-border px-3 text-sm"
         >
           {orderStatuses.map((status) => (
             <option key={status} value={status}>
@@ -89,7 +89,10 @@ export function OrderStatusPanel({
         </select>
       </div>
       <div className="space-y-1">
-        <label htmlFor="paymentStatus" className="text-sm text-gray-600">
+        <label
+          htmlFor="paymentStatus"
+          className="text-sm text-muted-foreground"
+        >
           Trạng thái thanh toán
         </label>
         <select
@@ -99,7 +102,7 @@ export function OrderStatusPanel({
             updateStatus({ paymentStatus: event.target.value as PaymentStatus })
           }
           disabled={updateStatusMutation.isPending}
-          className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+          className="h-10 w-full rounded-md border border-border px-3 text-sm"
         >
           {paymentStatuses.map((status) => (
             <option key={status} value={status}>

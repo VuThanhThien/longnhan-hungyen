@@ -34,16 +34,17 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm">
-        {/* Logo */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-green-600">
-            <Leaf className="h-6 w-6 text-white" />
+        <div className="mb-8 flex items-center justify-center gap-2">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-foreground text-background">
+            <Leaf className="h-6 w-6" />
           </div>
           <div>
-            <p className="text-lg font-bold text-gray-900">Long Nhãn</p>
-            <p className="text-xs text-gray-500">Hưng Yên</p>
+            <p className="text-lg font-bold tracking-tight text-foreground">
+              Long Nhãn
+            </p>
+            <p className="text-xs text-muted-foreground">Hưng Yên</p>
           </div>
         </div>
 
@@ -55,7 +56,7 @@ export default function LoginPage() {
           <CardContent>
             <form action={handleSubmit} className="space-y-4">
               {error && (
-                <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-600">
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                   {error}
                 </div>
               )}

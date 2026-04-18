@@ -5,24 +5,50 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        palette: {
-          offwhite: '#FDFDF9',
-          'pale-yellow': '#FBEF9C',
-          'vivid-yellow': '#FEE32B',
-          olive: '#877928',
-          'near-black': '#201D18',
-        },
         background: 'var(--color-background)',
         foreground: 'var(--color-foreground)',
-        surface: 'var(--color-surface)',
-        muted: 'var(--color-muted)',
-        'muted-foreground': 'var(--color-muted-foreground)',
+        card: {
+          DEFAULT: 'var(--color-card)',
+          foreground: 'var(--color-card-foreground)',
+        },
+        popover: {
+          DEFAULT: 'var(--color-popover)',
+          foreground: 'var(--color-popover-foreground)',
+        },
+        primary: {
+          DEFAULT: 'var(--color-primary)',
+          foreground: 'var(--color-primary-foreground)',
+        },
+        secondary: {
+          DEFAULT: 'var(--color-secondary)',
+          foreground: 'var(--color-secondary-foreground)',
+        },
+        muted: {
+          DEFAULT: 'var(--color-muted)',
+          foreground: 'var(--color-muted-foreground)',
+        },
+        accent: {
+          DEFAULT: 'var(--color-accent)',
+          foreground: 'var(--color-accent-foreground)',
+        },
+        destructive: {
+          DEFAULT: 'var(--color-destructive)',
+          foreground: 'var(--color-destructive-foreground)',
+        },
+        success: {
+          DEFAULT: 'var(--color-success)',
+          foreground: 'var(--color-success-foreground)',
+        },
         border: 'var(--color-border)',
+        input: 'var(--color-input)',
         ring: 'var(--color-ring)',
-        primary: 'var(--color-primary)',
-        'primary-foreground': 'var(--color-primary-foreground)',
-        accent: 'var(--color-accent)',
-        'accent-foreground': 'var(--color-accent-foreground)',
+        sidebar: {
+          DEFAULT: 'var(--color-sidebar)',
+          foreground: 'var(--color-sidebar-foreground)',
+          accent: 'var(--color-sidebar-accent)',
+          'accent-foreground': 'var(--color-sidebar-accent-foreground)',
+          border: 'var(--color-sidebar-border)',
+        },
       },
     },
   },

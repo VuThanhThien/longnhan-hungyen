@@ -34,13 +34,16 @@ export function RecentOrders({ orders }: RecentOrdersProps) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base">Đơn hàng gần đây</CardTitle>
-        <Link href="/orders" className="text-sm text-green-600 hover:underline">
+        <Link
+          href="/orders"
+          className="text-sm text-accent transition-colors hover:underline"
+        >
           Xem tất cả
         </Link>
       </CardHeader>
       <CardContent>
         {orders.length === 0 ? (
-          <p className="text-sm text-gray-500 text-center py-8">
+          <p className="py-8 text-center text-sm text-muted-foreground">
             Chưa có đơn hàng nào
           </p>
         ) : (
@@ -54,19 +57,19 @@ export function RecentOrders({ orders }: RecentOrdersProps) {
                 <Link
                   key={order.id}
                   href={`/orders/${order.id}`}
-                  className="flex items-center justify-between rounded-md p-3 hover:bg-gray-50 transition-colors"
+                  className="flex items-center justify-between rounded-lg p-3 transition-colors hover:bg-muted/50"
                 >
                   <div className="space-y-0.5">
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-sm font-medium text-foreground">
                       {order.code}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-muted-foreground">
                       {order.customerName} · {formatDate(order.createdAt)}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <Badge variant={status.variant}>{status.label}</Badge>
-                    <span className="text-sm font-semibold text-gray-900">
+                    <span className="text-sm font-semibold text-foreground">
                       {formatCurrency(order.total)}
                     </span>
                   </div>

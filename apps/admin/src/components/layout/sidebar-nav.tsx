@@ -36,10 +36,10 @@ export function SidebarNav() {
             key={href}
             href={href}
             className={cn(
-              'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150',
               isActive
-                ? 'bg-green-50 text-green-700'
-                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900',
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
+                : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground',
             )}
           >
             <Icon className="h-4 w-4 shrink-0" />

@@ -2,16 +2,17 @@
 
 ## Project: Long Nhan Hung Yen E-commerce Platform (API + Web + Admin)
 
-**Status:** In development — see [Project Roadmap](./project-roadmap.md) for phase completion and current focus.
+**Status:** **Production (initial go-live 2026-04-18)** — ongoing work: admin polish, animation/Lighthouse, post-launch checklist. See [Project Roadmap](./project-roadmap.md).
 **Version:** 0.1.0-alpha
 **Team:** ViBe Coding Team
-**Last Updated:** 2026-04-13
+**Last Updated:** 2026-04-18
 
 ---
 
 ## Executive Summary
 
 Long Nhan Hung Yen is a full-stack e-commerce platform for longan specialty products with three integrated applications:
+
 - **API (NestJS):** REST backend with JWT auth, product/order/media management, admin dashboard
 - **Web (Next.js):** Public-facing storefront with product catalog, articles, order submission
 - **Admin (Next.js):** Admin dashboard for products, articles, orders, media, and analytics
@@ -29,10 +30,11 @@ Provide a scalable, secure, and maintainable backend API for an e-commerce platf
 ## Core Features
 
 ### Released/Implemented (Backend - Phase 3)
-- **API Modules** — Auth, Users, Products, Orders, Articles, Media, Dashboard, Health
+
+- **API Modules** — Auth, Users, Products, **Categories**, **Reviews**, Orders, Articles, Media, Dashboard, Health, Home (root), **Posts**
 - **Authentication** — JWT-based with email sign-in/up, Argon2 password hashing
 - **Authorization** — Role-Based Access Control (RBAC) for admin/user roles
-- **Products** — CRUD, slug-based routing, variants, pessimistic stock locking
+- **Products** — CRUD, slug-based routing, variants, pessimistic stock locking; **categories** taxonomy; **product reviews** (public create/list, admin moderation)
 - **Orders** — Creation with variant snapshots, status tracking, code format LN-YYMMDD-XXXX
 - **Articles** — Blog/CMS with DRAFT/PUBLISHED status, Tiptap content
 - **Media** — Cloudinary upload/delete, folder management, dual removal safety
@@ -45,7 +47,8 @@ Provide a scalable, secure, and maintainable backend API for an e-commerce platf
 - **CI/CD** — GitHub Actions workflows
 
 ### Released/Implemented (Web — Phase 4 per roadmap)
-- **Storefront routes** — Landing, product listing/detail, articles, order success, cart page (`apps/web/src/app/cart/`)
+
+- **Storefront routes** — Landing, product listing/detail, articles, **cart** (`apps/web/src/app/cart/`), **checkout** (`apps/web/src/app/checkout/`), order success, track-order, service-unavailable
 - **Landing sections** — Hero, story, product quality, nutrition/season, channels, testimonials, FAQ (and related home/landing components)
 - **Catalog UX** — Header search (`header-search-bar.tsx`) wired to URL state; cart affordance in header (`header-cart-button.tsx`); product listing refinements
 - **URL state** — `nuqs` parsers/loaders in `lib/product-search-params.ts` (shared server/client usage)
@@ -59,33 +62,36 @@ Provide a scalable, secure, and maintainable backend API for an e-commerce platf
 - **Follow-ups** — Polishing, performance audits, and animation work tracked in Phases 5–7 of the roadmap
 
 ### Released/Implemented (Admin — Phase 5 per roadmap)
-- **Pages** — Login, Dashboard, Products CRUD, Articles CRUD, Orders list/detail, Media manager
+
+- **Pages** — Login, Dashboard, Products CRUD, **Categories CRUD**, Articles CRUD, Orders list/detail, **Reviews list / status updates**, Media manager
 - **State** — React Query (stale 30s), AuthProvider context
 - **Forms** — react-hook-form + yup, TiptapHtmlEditor for rich text
-- **API Proxies** — /api routes to backend (auth, media, orders status)
+- **API Proxies** — `/app/api/*` routes to backend (auth, media, orders status, **categories**, **reviews**)
 - **HTTP** — Dual mode (adminFetch server-side, httpClient client-side Axios)
-- **UI** — Radix UI components, Recharts for dashboards
+- **UI** — Radix + Tailwind (**shadcn/ui-style** primitives), shared visual spec in root **`DESIGN.md`**, Recharts for dashboards
 - **Roadmap gaps** — Date-range filters, search filters, storefront verification, E2E tests (see [Project Roadmap](./project-roadmap.md))
 
 ### In progress / planned
+
 Tracked in [Project Roadmap](./project-roadmap.md): admin completion (Phase 5), storefront animation/polish (Phase 6), deployment (Phase 7), plus post-launch items (rate limiting, payments, reviews, notifications).
 
 ---
 
 ## Stakeholders
 
-| Role | Responsibility |
-|------|-----------------|
-| **Product Owner** | Feature prioritization, business requirements |
-| **Backend Team** | API development, database design, integration |
-| **DevOps** | Docker setup, deployment pipelines, infrastructure |
-| **QA** | Test planning, bug identification, acceptance criteria |
+| Role              | Responsibility                                         |
+| ----------------- | ------------------------------------------------------ |
+| **Product Owner** | Feature prioritization, business requirements          |
+| **Backend Team**  | API development, database design, integration          |
+| **DevOps**        | Docker setup, deployment pipelines, infrastructure     |
+| **QA**            | Test planning, bug identification, acceptance criteria |
 
 ---
 
 ## Architecture Overview
 
 ### Tech Stack
+
 - **Runtime:** Node.js >= 20.10.0
 - **Framework:** NestJS 10 + Express
 - **Language:** TypeScript 5.6
@@ -102,6 +108,7 @@ Tracked in [Project Roadmap](./project-roadmap.md): admin completion (Phase 5), 
 - **Monorepo Tool:** Turborepo
 
 ### Monorepo Structure
+
 ```
 longnhantongtran/
 ├── apps/
@@ -121,6 +128,7 @@ longnhantongtran/
 ## Core Modules
 
 ### API Modules (src/api/)
+
 - **UserModule** — User auth profiles, profile management
 - **AuthModule** — JWT token generation, refresh, password reset
 - **HealthModule** — Application health checks
@@ -131,6 +139,7 @@ longnhantongtran/
 - **DashboardModule** — Admin statistics (daily/weekly/monthly/all-time)
 
 ### Infrastructure Modules
+
 - **DatabaseModule** — TypeORM config, entity mappings, migrations
 - **ConfigModule** — Environment variable management
 - **MailModule** — Email sending with templates
@@ -142,49 +151,52 @@ longnhantongtran/
 ## Key Requirements
 
 ### Functional Requirements
-| ID | Requirement | Status | Priority |
-|----|-------------|--------|----------|
-| FR-001 | User authentication (sign-in/up) | Done | High |
-| FR-002 | JWT token + refresh token | Done | High |
-| FR-003 | Product CRUD operations | Done | High |
-| FR-004 | Order creation + tracking | Done | High |
-| FR-005 | Admin dashboard with stats | Done | High |
-| FR-006 | Media upload to Cloudinary | Done | High |
-| FR-007 | Article/blog management | Done | Medium |
-| FR-008 | Email notifications | Done | Medium |
-| FR-009 | Pagination (offset + cursor) | Done | Medium |
-| FR-010 | Role-based access control | Done | High |
+
+| ID     | Requirement                      | Status | Priority |
+| ------ | -------------------------------- | ------ | -------- |
+| FR-001 | User authentication (sign-in/up) | Done   | High     |
+| FR-002 | JWT token + refresh token        | Done   | High     |
+| FR-003 | Product CRUD operations          | Done   | High     |
+| FR-004 | Order creation + tracking        | Done   | High     |
+| FR-005 | Admin dashboard with stats       | Done   | High     |
+| FR-006 | Media upload to Cloudinary       | Done   | High     |
+| FR-007 | Article/blog management          | Done   | Medium   |
+| FR-008 | Email notifications              | Done   | Medium   |
+| FR-009 | Pagination (offset + cursor)     | Done   | Medium   |
+| FR-010 | Role-based access control        | Done   | High     |
 
 ### Non-Functional Requirements
-| ID | Requirement | Status | Priority |
-|----|-------------|--------|----------|
-| NFR-001 | API response time < 200ms | In Progress | High |
-| NFR-002 | 99% uptime SLA | Planned | High |
-| NFR-003 | Code coverage >= 70% | In Progress | Medium |
-| NFR-004 | Secure password hashing (Argon2) | Done | High |
-| NFR-005 | CORS configurable per env | Done | High |
-| NFR-006 | Database SSL support | Done | Medium |
-| NFR-007 | Docker containerization | Done | High |
-| NFR-008 | Multi-environment configs | Done | High |
+
+| ID      | Requirement                      | Status      | Priority |
+| ------- | -------------------------------- | ----------- | -------- |
+| NFR-001 | API response time < 200ms        | In Progress | High     |
+| NFR-002 | 99% uptime SLA                   | Planned     | High     |
+| NFR-003 | Code coverage >= 70%             | In Progress | Medium   |
+| NFR-004 | Secure password hashing (Argon2) | Done        | High     |
+| NFR-005 | CORS configurable per env        | Done        | High     |
+| NFR-006 | Database SSL support             | Done        | Medium   |
+| NFR-007 | Docker containerization          | Done        | High     |
+| NFR-008 | Multi-environment configs        | Done        | High     |
 
 ---
 
 ## Success Metrics
 
-| Metric | Target | Current |
-|--------|--------|---------|
-| Test Coverage | >= 70% | ~40% |
-| API Response Time | < 200ms | ~100ms |
-| Error Rate | < 0.1% | Tracking |
-| Code Quality (ESLint) | 0 warnings | Clean |
-| Build Time | < 2min | ~1.5min |
-| Deployment Time | < 5min | ~3min |
+| Metric                | Target     | Current  |
+| --------------------- | ---------- | -------- |
+| Test Coverage         | >= 70%     | ~40%     |
+| API Response Time     | < 200ms    | ~100ms   |
+| Error Rate            | < 0.1%     | Tracking |
+| Code Quality (ESLint) | 0 warnings | Clean    |
+| Build Time            | < 2min     | ~1.5min  |
+| Deployment Time       | < 5min     | ~3min    |
 
 ---
 
 ## Constraints & Assumptions
 
 ### Constraints
+
 - PostgreSQL only (no MySQL support currently)
 - Cloudinary required for media uploads (no local file storage)
 - Monorepo structure with pnpm (not npm/yarn)
@@ -192,6 +204,7 @@ longnhantongtran/
 - JWT tokens stateless (no session store)
 
 ### Assumptions
+
 - Users have valid email for sign-up/reset flows
 - Admin role assigned manually at database level
 - Cloudinary credentials provided in production env
@@ -202,25 +215,27 @@ longnhantongtran/
 
 ## Risk Assessment
 
-| Risk | Impact | Likelihood | Mitigation |
-|------|--------|------------|-----------|
-| Database migration failure | High | Low | Automated rollback, testing in staging |
-| Cloudinary API outage | Medium | Low | Local fallback, error handling |
-| JWT token leak | High | Very Low | Rotation, secure storage, HTTPS only |
-| Uncontrolled query growth | High | Medium | Query optimization, pagination, indexing |
-| Cache invalidation issues | Medium | Medium | TTL strategy, versioning, cache warming |
+| Risk                       | Impact | Likelihood | Mitigation                               |
+| -------------------------- | ------ | ---------- | ---------------------------------------- |
+| Database migration failure | High   | Low        | Automated rollback, testing in staging   |
+| Cloudinary API outage      | Medium | Low        | Local fallback, error handling           |
+| JWT token leak             | High   | Very Low   | Rotation, secure storage, HTTPS only     |
+| Uncontrolled query growth  | High   | Medium     | Query optimization, pagination, indexing |
+| Cache invalidation issues  | Medium | Medium     | TTL strategy, versioning, cache warming  |
 
 ---
 
 ## Dependencies
 
 ### External Services
+
 - **Cloudinary** — Media storage and CDN
 - **SMTP Server** — Email delivery (MailDev for local)
 - **PostgreSQL Database** — Data persistence
 - **Redis** — Caching and queue backend
 
 ### Internal Packages
+
 - `@longnhan/types` — Shared TypeScript interfaces and types
 
 ---
@@ -236,24 +251,29 @@ Phase titles, dates, and “done vs in progress” are maintained in **[Project 
 All configs in `.env.example`:
 
 **Core App**
+
 - `NODE_ENV` — local/development/staging/production
 - `APP_PORT` — API listen port (see `apps/api/.env.example`; local monorepo dev URLs are summarized in [root README](../README.md) — API **3001**, web **3000**, admin **3002**)
 - `APP_DEBUG` — Enable stack traces in responses
 - `APP_CORS_ORIGIN` — Allowed origins (comma-separated)
 
 **Database**
+
 - `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`, etc.
 
 **Authentication**
+
 - `AUTH_JWT_SECRET` — JWT signing key
 - `AUTH_JWT_TOKEN_EXPIRES_IN` — Token lifetime (e.g., 1d)
 - `AUTH_REFRESH_SECRET` — Refresh token key
 
 **Email**
+
 - `MAIL_HOST`, `MAIL_PORT` — SMTP settings
 - `MAIL_CLIENT_PORT` — MailDev web UI port (1080)
 
 **Cloudinary** (production only)
+
 - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
 
 ---
@@ -276,4 +296,3 @@ All configs in `.env.example`:
 - **Repository:** Private (ViBe Coding Team)
 - **Documentation:** ./docs/ directory
 - **Issues:** GitHub Issues (if applicable)
-

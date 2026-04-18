@@ -19,13 +19,16 @@ export function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-2 rounded-md p-1 hover:bg-gray-100 transition-colors outline-none">
+        <button
+          type="button"
+          className="flex items-center gap-2 rounded-lg p-1 outline-none transition-colors hover:bg-muted"
+        >
           <Avatar className="h-8 w-8">
-            <AvatarFallback className="bg-green-100 text-green-700">
+            <AvatarFallback className="bg-muted text-accent">
               <User className="h-4 w-4" />
             </AvatarFallback>
           </Avatar>
-          <span className="text-sm font-medium text-gray-700 hidden sm:block">
+          <span className="hidden text-sm font-medium text-foreground sm:block">
             Admin
           </span>
         </button>
@@ -39,7 +42,7 @@ export function UserMenu() {
             event.preventDefault();
             logoutFormRef.current?.requestSubmit();
           }}
-          className="flex items-center gap-2 text-red-600"
+          className="flex items-center gap-2 text-destructive focus:text-destructive"
         >
           <LogOut className="h-4 w-4" />
           Đăng xuất

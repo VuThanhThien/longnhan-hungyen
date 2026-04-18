@@ -117,13 +117,13 @@ export function ProductVariantsCrudForm({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-muted-foreground">
           Thêm / sửa / xoá biến thể (tách riêng khỏi cập nhật sản phẩm).
         </div>
         <button
           type="button"
           disabled={isBusy}
-          className="inline-flex h-9 items-center rounded-md border border-gray-200 px-3 text-sm hover:bg-gray-50 disabled:opacity-60"
+          className="inline-flex h-9 items-center rounded-md border border-border px-3 text-sm hover:bg-background disabled:opacity-60"
           onClick={() => {
             setCreateDraft({
               label: '',
@@ -152,9 +152,11 @@ export function ProductVariantsCrudForm({
 
           <div className="grid grid-cols-1 gap-3">
             <div className="space-y-1">
-              <label className="text-sm text-gray-600">Tên biến thể</label>
+              <label className="text-sm text-muted-foreground">
+                Tên biến thể
+              </label>
               <input
-                className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+                className="h-10 w-full rounded-md border border-border px-3 text-sm"
                 value={createDraft.label}
                 onChange={(e) =>
                   setCreateDraft((p) => ({ ...p, label: e.target.value }))
@@ -165,11 +167,11 @@ export function ProductVariantsCrudForm({
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <div className="space-y-1">
-                <label className="text-sm text-gray-600">Giá</label>
+                <label className="text-sm text-muted-foreground">Giá</label>
                 <input
                   type="number"
                   min={0}
-                  className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
                   value={createDraft.price}
                   onChange={(e) =>
                     setCreateDraft((p) => ({
@@ -180,11 +182,11 @@ export function ProductVariantsCrudForm({
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-sm text-gray-600">Tồn kho</label>
+                <label className="text-sm text-muted-foreground">Tồn kho</label>
                 <input
                   type="number"
                   min={0}
-                  className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
                   value={createDraft.stock}
                   onChange={(e) =>
                     setCreateDraft((p) => ({
@@ -198,11 +200,13 @@ export function ProductVariantsCrudForm({
 
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <div className="space-y-1">
-                <label className="text-sm text-gray-600">Khối lượng (g)</label>
+                <label className="text-sm text-muted-foreground">
+                  Khối lượng (g)
+                </label>
                 <input
                   type="number"
                   min={0}
-                  className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
                   value={createDraft.weightG ?? ''}
                   onChange={(e) =>
                     setCreateDraft((p) => ({
@@ -214,11 +218,13 @@ export function ProductVariantsCrudForm({
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-sm text-gray-600">Sort order</label>
+                <label className="text-sm text-muted-foreground">
+                  Sort order
+                </label>
                 <input
                   type="number"
                   min={0}
-                  className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
                   value={createDraft.sortOrder}
                   onChange={(e) =>
                     setCreateDraft((p) => ({
@@ -231,21 +237,23 @@ export function ProductVariantsCrudForm({
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm text-gray-600">SKU (tuỳ chọn)</label>
+              <label className="text-sm text-muted-foreground">
+                SKU (tuỳ chọn)
+              </label>
               <input
-                className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+                className="h-10 w-full rounded-md border border-border px-3 text-sm"
                 value={createDraft.skuCode}
                 onChange={(e) =>
                   setCreateDraft((p) => ({ ...p, skuCode: e.target.value }))
                 }
                 placeholder="VD: LN-500G-001"
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 Để trống nếu chưa có SKU (có thể cập nhật sau).
               </p>
             </div>
 
-            <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+            <label className="inline-flex items-center gap-2 text-sm text-foreground/90">
               <input
                 type="checkbox"
                 checked={createDraft.active}
@@ -260,7 +268,7 @@ export function ProductVariantsCrudForm({
           <DialogFooter className="mt-2">
             <button
               type="button"
-              className="inline-flex h-10 items-center rounded-md border border-gray-200 px-4 text-sm hover:bg-gray-50 disabled:opacity-60"
+              className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm hover:bg-background disabled:opacity-60"
               onClick={() => setIsCreateOpen(false)}
               disabled={createMutation.isPending}
             >
@@ -272,7 +280,7 @@ export function ProductVariantsCrudForm({
                 createMutation.isPending ||
                 createDraft.label.trim().length === 0
               }
-              className="inline-flex h-10 items-center rounded-md bg-green-600 px-4 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+              className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors duration-150 hover:text-destructive disabled:opacity-60"
               onClick={async () => {
                 const trimmedSku = createDraft.skuCode.trim();
                 await createMutation.mutateAsync({
@@ -293,7 +301,7 @@ export function ProductVariantsCrudForm({
         </DialogContent>
       </Dialog>
 
-      <div className="grid grid-cols-1 gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-10">
+      <div className="grid grid-cols-1 gap-3 rounded-md border border-border p-3 md:grid-cols-10">
         <div className="md:col-span-2">Tên</div>
         <div className="md:col-span-1">Giá</div>
         <div className="md:col-span-1">Tồn</div>
@@ -311,17 +319,17 @@ export function ProductVariantsCrudForm({
         return (
           <div
             key={v.id}
-            className="grid grid-cols-1 items-center gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-10"
+            className="grid grid-cols-1 items-center gap-3 rounded-md border border-border p-3 md:grid-cols-10"
           >
             <input
-              className="h-9 rounded-md border border-gray-200 px-2 text-sm md:col-span-2"
+              className="h-9 rounded-md border border-border px-2 text-sm md:col-span-2"
               value={d.label}
               onChange={(e) => setDraft(v.id, { ...d, label: e.target.value })}
             />
             <input
               type="number"
               min={0}
-              className="h-9 rounded-md border border-gray-200 px-2 text-sm md:col-span-1"
+              className="h-9 rounded-md border border-border px-2 text-sm md:col-span-1"
               value={d.price}
               onChange={(e) =>
                 setDraft(v.id, { ...d, price: Number(e.target.value || 0) })
@@ -330,7 +338,7 @@ export function ProductVariantsCrudForm({
             <input
               type="number"
               min={0}
-              className="h-9 rounded-md border border-gray-200 px-2 text-sm md:col-span-1"
+              className="h-9 rounded-md border border-border px-2 text-sm md:col-span-1"
               value={d.stock}
               onChange={(e) =>
                 setDraft(v.id, { ...d, stock: Number(e.target.value || 0) })
@@ -339,7 +347,7 @@ export function ProductVariantsCrudForm({
             <input
               type="number"
               min={0}
-              className="h-9 rounded-md border border-gray-200 px-2 text-sm md:col-span-1"
+              className="h-9 rounded-md border border-border px-2 text-sm md:col-span-1"
               value={d.weightG ?? ''}
               onChange={(e) =>
                 setDraft(v.id, {
@@ -350,7 +358,7 @@ export function ProductVariantsCrudForm({
               }
             />
             <input
-              className="h-9 rounded-md border border-gray-200 px-2 text-sm md:col-span-2"
+              className="h-9 rounded-md border border-border px-2 text-sm md:col-span-2"
               value={d.skuCode}
               onChange={(e) =>
                 setDraft(v.id, { ...d, skuCode: e.target.value })
@@ -359,7 +367,7 @@ export function ProductVariantsCrudForm({
             <input
               type="number"
               min={0}
-              className="h-9 rounded-md border border-gray-200 px-2 text-sm md:col-span-1"
+              className="h-9 rounded-md border border-border px-2 text-sm md:col-span-1"
               value={d.sortOrder}
               onChange={(e) =>
                 setDraft(v.id, { ...d, sortOrder: Number(e.target.value || 0) })
@@ -373,14 +381,14 @@ export function ProductVariantsCrudForm({
                   setDraft(v.id, { ...d, active: e.target.checked })
                 }
               />
-              <span className="text-gray-700">Bật</span>
+              <span className="text-foreground/90">Bật</span>
             </label>
 
             <div className="flex items-center gap-2 md:col-span-1">
               <button
                 type="button"
                 disabled={isBusy || !dirty}
-                className="inline-flex h-9 items-center rounded-md bg-green-600 px-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors duration-150 hover:text-destructive disabled:opacity-60"
                 onClick={async () => {
                   await updateMutation.mutateAsync({
                     variantId: v.id,
@@ -406,7 +414,7 @@ export function ProductVariantsCrudForm({
               <button
                 type="button"
                 disabled={isBusy}
-                className="inline-flex h-9 items-center rounded-md border border-red-200 px-3 text-sm text-red-700 hover:bg-red-50 disabled:opacity-60"
+                className="inline-flex h-9 items-center rounded-md border border-destructive/30 px-3 text-sm text-destructive hover:bg-destructive/10 disabled:opacity-60"
                 onClick={() => deleteMutation.mutateAsync(v.id)}
               >
                 Xoá

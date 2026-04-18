@@ -161,27 +161,27 @@ export const SlashCommandList = forwardRef<SlashListHandle, SlashListProps>(
 
     if (items.length === 0) {
       return (
-        <div className="w-64 rounded-md border border-gray-200 bg-white px-3 py-2 text-xs text-gray-500 shadow-lg">
+        <div className="w-64 rounded-md border border-border bg-popover px-3 py-2 text-xs text-muted-foreground shadow-lg">
           Không có lệnh phù hợp
         </div>
       );
     }
 
     return (
-      <div className="w-64 overflow-hidden rounded-md border border-gray-200 bg-white py-1 text-sm shadow-lg">
+      <div className="w-64 overflow-hidden rounded-md border border-border bg-popover py-1 text-sm shadow-lg">
         {items.map((item, index) => (
           <button
             key={item.title}
             type="button"
             className={cn(
-              'flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-gray-900 transition-colors',
-              index === selected ? 'bg-gray-100' : 'hover:bg-gray-50',
+              'flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-foreground transition-colors',
+              index === selected ? 'bg-muted' : 'hover:bg-background',
             )}
             onClick={() => command(item)}
           >
             <span className="font-medium">{item.title}</span>
             {item.description ? (
-              <span className="text-xs font-normal text-gray-500">
+              <span className="text-xs font-normal text-muted-foreground">
                 {item.description}
               </span>
             ) : null}

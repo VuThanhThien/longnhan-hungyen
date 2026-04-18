@@ -38,16 +38,19 @@ export function RevenueChart({ data }: RevenueChartProps) {
             data={data}
             margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="rgba(38, 37, 30, 0.08)"
+            />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 12, fill: '#6b7280' }}
+              tick={{ fontSize: 12, fill: 'rgba(38, 37, 30, 0.45)' }}
               axisLine={false}
               tickLine={false}
             />
             <YAxis
               tickFormatter={formatVND}
-              tick={{ fontSize: 12, fill: '#6b7280' }}
+              tick={{ fontSize: 12, fill: 'rgba(38, 37, 30, 0.45)' }}
               axisLine={false}
               tickLine={false}
               width={48}
@@ -62,15 +65,12 @@ export function RevenueChart({ data }: RevenueChartProps) {
               labelStyle={{ fontSize: 12 }}
               contentStyle={{
                 fontSize: 12,
-                borderRadius: '6px',
-                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                border: '1px solid rgba(38, 37, 30, 0.1)',
+                background: '#f7f7f4',
               }}
             />
-            <Bar
-              dataKey="revenue"
-              fill="var(--primary)"
-              radius={[4, 4, 0, 0]}
-            />
+            <Bar dataKey="revenue" fill="var(--accent)" radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

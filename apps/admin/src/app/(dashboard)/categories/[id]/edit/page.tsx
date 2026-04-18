@@ -54,13 +54,17 @@ export default function CategoryEditPage() {
       <Header title={category ? `Sửa: ${category.name}` : 'Sửa danh mục'} />
       <main className="flex-1 overflow-y-auto p-6">
         {isLoading ? (
-          <div className="text-sm text-gray-500">Đang tải…</div>
+          <div className="text-sm text-muted-foreground">Đang tải…</div>
         ) : null}
         {isError ? (
-          <div className="text-sm text-red-600">Không tải được danh sách</div>
+          <div className="text-sm text-destructive">
+            Không tải được danh sách
+          </div>
         ) : null}
         {!isLoading && id && !category ? (
-          <div className="text-sm text-red-600">Không tìm thấy danh mục</div>
+          <div className="text-sm text-destructive">
+            Không tìm thấy danh mục
+          </div>
         ) : null}
         {category ? (
           <Card>

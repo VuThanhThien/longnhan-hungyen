@@ -58,14 +58,17 @@ export default function ReviewsPageClient() {
             <CardTitle className="text-base">Bộ lọc</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap items-center gap-3">
-            <label className="text-sm text-gray-600" htmlFor="review-status">
+            <label
+              className="text-sm text-muted-foreground"
+              htmlFor="review-status"
+            >
               Trạng thái
             </label>
             <select
               id="review-status"
               value={status}
               onChange={(e) => setStatus(e.target.value as ReviewStatus)}
-              className="h-10 rounded-md border border-gray-200 px-3 text-sm"
+              className="h-10 rounded-md border border-border px-3 text-sm"
             >
               <option value="pending">pending</option>
               <option value="published">published</option>
@@ -83,10 +86,12 @@ export default function ReviewsPageClient() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="py-8 text-sm text-gray-500">Đang tải…</div>
+              <div className="py-8 text-sm text-muted-foreground">
+                Đang tải…
+              </div>
             ) : null}
             {isError ? (
-              <div className="py-8 text-sm text-red-600">
+              <div className="py-8 text-sm text-destructive">
                 Tải dữ liệu thất bại
               </div>
             ) : null}
@@ -107,7 +112,9 @@ export default function ReviewsPageClient() {
                       {r.rating}/5
                     </TableCell>
                     <TableCell className="max-w-[480px] truncate">
-                      {r.comment || <span className="text-gray-400">—</span>}
+                      {r.comment || (
+                        <span className="text-muted-foreground/70">—</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary">{r.status}</Badge>
@@ -140,7 +147,7 @@ export default function ReviewsPageClient() {
                   <TableRow>
                     <TableCell
                       colSpan={5}
-                      className="py-8 text-center text-gray-500"
+                      className="py-8 text-center text-muted-foreground"
                     >
                       Không có đánh giá
                     </TableCell>

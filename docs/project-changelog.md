@@ -1,8 +1,35 @@
 # Project Changelog
 
-**Last Updated:** 2026-04-16
+**Last Updated:** 2026-04-18
 
 All notable changes to the Long Nhan Hung Yen e-commerce project are documented here. **Phase status** is canonical in [Project Roadmap](./project-roadmap.md).
+
+---
+
+## [5.0.0] - 2026-04-18 - Production go-live (Phase 7)
+
+### Summary
+
+**Initial production deployment completed.** API, storefront, admin, and database are **live** on the planned platforms (see [Project Roadmap](./project-roadmap.md) — Phase 7 production targets and objectives). Post-launch: finish the 7-day monitoring objective and work through the pre-launch checklist where items are still open.
+
+### Changed (process / product)
+
+- Phase 7 marked **complete** (go-live milestone **100%**); roadmap task rollup **~92%** (~97/106 — monitoring + checklist still counted as open work)
+- Production target table: services marked **Live**; Media CDN noted as in use
+
+---
+
+## [4.3.0] - 2026-04-18 - Documentation & roadmap sync
+
+### Summary
+
+Refreshed `docs/` to match the repository: API **Categories** and **Reviews** modules, admin **categories** and **reviews** dashboard routes, storefront **checkout** / **track-order** / **service-unavailable** routes, and current component counts. No application behavior change in this entry.
+
+### Changed (documentation only)
+
+- [Codebase summary](./codebase-summary.md) — ApiModule inventory (12 feature modules), admin route tree, storefront routes and `components/**/*.tsx` count (~76)
+- [Project overview & PDR](./project-overview-pdr.md) — Backend and admin capability lists aligned with code
+- [Project roadmap](./project-roadmap.md) — Phase 4 expansion (cart/checkout deliverables), Phase 5 progress (categories + reviews), dates and task breakdown
 
 ---
 

@@ -1,6 +1,6 @@
 # Frontend Code Standards (Next.js & React)
 
-**Last Updated:** 2026-04-15
+**Last Updated:** 2026-04-18
 **Applies To:** apps/web, apps/admin
 
 ---
@@ -94,7 +94,7 @@ try {
 - **shadcn/ui** patterns — install or mirror from the [shadcn/ui registry](https://ui.shadcn.com/) (`pnpm dlx shadcn@latest add …`), keep shared pieces under `components/ui/`, use `cn()` from `@/lib/utils` for class merging.
 - **Magic UI** — optional for marketing/storefront polish (e.g. [Tweet Card](https://magicui.design/docs/components/tweet-card)); align spacing, borders, and typography with existing cards rather than mixing unrelated visual systems.
 
-Prefer these stacks over bespoke modal/sheet/card markup when a registry component fits. Other apps in the monorepo may use different UI libraries; follow the target app’s conventions.
+Prefer these stacks over bespoke modal/sheet/card markup when a registry component fits. The **admin** app is documented separately below; still follow the target app’s conventions.
 
 ### Icons & static assets
 
@@ -102,6 +102,18 @@ Prefer these stacks over bespoke modal/sheet/card markup when a registry compone
 - **Radix icons:** `@radix-ui/react-icons` remains acceptable where already used (e.g. search bar); prefer **one** icon system per surface for consistency unless a Radix-only glyph is required.
 - **Brand / decorative / raster art:** Prefer files under **`apps/web/public/`** (PNG, WebP, SVG) and reference them with `next/image` or CSS `url('/path')` (e.g. decorative search bar corners). Do not hand-generate SVG paths for assets that should be shipped as static files.
 - **When to add new SVG in code:** Only if neither Lucide nor `public/` provides a suitable asset; keep it minimal and colocate with the component.
+
+---
+
+## Admin UI (`apps/admin`) — design source & components
+
+**Design source:** Treat repository root **[DESIGN.md](../DESIGN.md)** as the canonical visual specification for the admin panel (palette, typography hierarchy, spacing, buttons, cards, borders, focus/hover, motion). Optional DTCG tokens and themes under **`docs/design-system/`** complement this; if they diverge from **DESIGN.md**, align the UI with **DESIGN.md** first, then reconcile tokens in a dedicated change.
+
+**Components:** Prefer **shadcn/ui** — Radix primitives + Tailwind, kept under **`apps/admin/src/components/ui/`**. Add or refresh components from the [shadcn/ui registry](https://ui.shadcn.com/) using the CLI from `apps/admin` (for example `pnpm dlx shadcn@latest add table`), then customize classes and CSS variables so the result matches **DESIGN.md**. Use `cn()` from `@/lib/utils` for class merging. Avoid parallel one-off control markup when a registry primitive exists (Button, Input, Dialog, Select, Table, Tabs, etc.).
+
+**Icons:** Prefer **`lucide-react`** for new admin glyphs unless an existing screen already standardizes on another set; size and weight to match shadcn defaults unless **DESIGN.md** specifies otherwise.
+
+Agent-facing summary: **`apps/admin/AGENTS.md`**.
 
 ## Component Organization
 

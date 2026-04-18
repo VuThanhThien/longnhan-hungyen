@@ -1,6 +1,6 @@
 # Code Standards & Development Guidelines
 
-**Last Updated:** 2026-04-13
+**Last Updated:** 2026-04-18
 
 ---
 
@@ -10,10 +10,10 @@ This document defines coding conventions, file structure, naming patterns, and p
 
 ### Scope
 
-| App                      | Standards doc                                                                                                             |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| `apps/api`               | **This file** (`code-standards.md`)                                                                                       |
-| `apps/web`, `apps/admin` | **[Frontend Code Standards](./frontend-code-standards.md)** (App Router, TanStack Query, nuqs, Zustand cart on web, etc.) |
+| App                      | Standards doc                                                                                                                                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api`               | **This file** (`code-standards.md`)                                                                                                                                                                                                             |
+| `apps/web`, `apps/admin` | **[Frontend Code Standards](./frontend-code-standards.md)** (App Router, TanStack Query, nuqs, Zustand cart on web, etc.). **Admin** UI: follow root **[DESIGN.md](../DESIGN.md)** and prefer **shadcn/ui** in `apps/admin/src/components/ui/`. |
 
 Shared types live in **`packages/types`**. Monorepo scripts and ports: [root README](../README.md). Phase status: [Project Roadmap](./project-roadmap.md).
 

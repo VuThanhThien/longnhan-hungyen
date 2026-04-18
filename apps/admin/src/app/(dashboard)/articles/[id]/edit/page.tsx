@@ -50,10 +50,12 @@ export default function ArticleEditPage() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="py-8 text-sm text-gray-500">Đang tải…</div>
+              <div className="py-8 text-sm text-muted-foreground">
+                Đang tải…
+              </div>
             ) : null}
             {isError ? (
-              <div className="py-8 text-sm text-red-600">
+              <div className="py-8 text-sm text-destructive">
                 Không tìm thấy bài viết
               </div>
             ) : null}

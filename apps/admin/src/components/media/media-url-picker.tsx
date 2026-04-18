@@ -56,12 +56,12 @@ export function MediaUrlPicker({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder="https://..."
-          className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+          className="h-10 w-full rounded-md border border-border px-3 text-sm"
         />
         <button
           type="button"
           onClick={toggleLibrary}
-          className="h-10 rounded-md border border-gray-200 px-3 text-sm hover:bg-gray-50"
+          className="h-10 rounded-md border border-border px-3 text-sm hover:bg-background"
           disabled={isLoading}
         >
           {isLoading ? 'Đang tải...' : 'Chọn'}
@@ -82,14 +82,14 @@ export function MediaUrlPicker({
         />
         <label
           htmlFor="media-file-upload"
-          className="inline-flex h-9 cursor-pointer items-center rounded-md border border-gray-200 px-3 text-sm hover:bg-gray-50"
+          className="inline-flex h-9 cursor-pointer items-center rounded-md border border-border px-3 text-sm hover:bg-background"
         >
           {uploadMutation.isPending ? 'Đang upload...' : 'Upload ảnh'}
         </label>
       </div>
 
       {preview ? (
-        <div className="rounded-md border border-gray-200 p-2">
+        <div className="rounded-md border border-border p-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={preview}
@@ -100,7 +100,7 @@ export function MediaUrlPicker({
       ) : null}
 
       {open ? (
-        <div className="grid grid-cols-2 gap-2 rounded-md border border-gray-200 p-2 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 rounded-md border border-border p-2 md:grid-cols-4">
           {library.map((item) => (
             <button
               type="button"
@@ -109,7 +109,7 @@ export function MediaUrlPicker({
                 onChange(item.url);
                 setOpen(false);
               }}
-              className="overflow-hidden rounded-md border border-gray-100 hover:border-green-300"
+              className="overflow-hidden rounded-md border border-border hover:border-accent/50"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img

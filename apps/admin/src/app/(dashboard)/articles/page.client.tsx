@@ -97,7 +97,7 @@ export default function ArticlesPageClient() {
               action="/articles"
             >
               <div className="space-y-1 md:col-span-2">
-                <label className="text-sm text-gray-600" htmlFor="q">
+                <label className="text-sm text-muted-foreground" htmlFor="q">
                   Tìm theo tiêu đề
                 </label>
                 <input
@@ -106,11 +106,11 @@ export default function ArticlesPageClient() {
                   type="search"
                   defaultValue={params.q || ''}
                   placeholder="Nhập từ khóa…"
-                  className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-sm text-gray-600" htmlFor="tag">
+                <label className="text-sm text-muted-foreground" htmlFor="tag">
                   Tag
                 </label>
                 <input
@@ -119,13 +119,13 @@ export default function ArticlesPageClient() {
                   type="text"
                   defaultValue={params.tag || ''}
                   placeholder="Một tag"
-                  className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
                 />
               </div>
               <div className="flex items-end">
                 <button
                   type="submit"
-                  className="inline-flex h-10 items-center rounded-md bg-green-600 px-4 text-sm font-medium text-white hover:bg-green-700"
+                  className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors duration-150 hover:text-destructive"
                 >
                   Lọc
                 </button>
@@ -139,17 +139,19 @@ export default function ArticlesPageClient() {
             <CardTitle className="text-base">Danh sách bài viết</CardTitle>
             <Link
               href="/articles/new"
-              className="inline-flex h-9 items-center rounded-md bg-green-600 px-3 text-sm font-medium text-white hover:bg-green-700"
+              className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors duration-150 hover:text-destructive"
             >
               + Thêm bài viết
             </Link>
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="py-8 text-sm text-gray-500">Đang tải…</div>
+              <div className="py-8 text-sm text-muted-foreground">
+                Đang tải…
+              </div>
             ) : null}
             {isError ? (
-              <div className="py-8 text-sm text-red-600">
+              <div className="py-8 text-sm text-destructive">
                 Tải dữ liệu thất bại
               </div>
             ) : null}
@@ -171,13 +173,13 @@ export default function ArticlesPageClient() {
                     <TableCell className="space-x-3">
                       <Link
                         href={`/articles/${article.id}/edit`}
-                        className="text-sm text-green-700 hover:underline"
+                        className="text-sm text-success hover:underline"
                       >
                         Sửa
                       </Link>
                       <button
                         type="button"
-                        className="text-sm text-red-600 hover:underline disabled:opacity-60"
+                        className="text-sm text-destructive hover:underline disabled:opacity-60"
                         disabled={
                           deleteMutation.isPending &&
                           deletingId === String(article.id)
@@ -198,7 +200,7 @@ export default function ArticlesPageClient() {
                   <TableRow>
                     <TableCell
                       colSpan={4}
-                      className="py-8 text-center text-gray-500"
+                      className="py-8 text-center text-muted-foreground"
                     >
                       Chưa có bài viết phù hợp
                     </TableCell>

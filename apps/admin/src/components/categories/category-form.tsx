@@ -48,36 +48,36 @@ export function CategoryForm({
       onSubmit={handleSubmit(onSubmit)}
     >
       <div className="space-y-1">
-        <label className="text-sm text-gray-600" htmlFor="cat-name">
+        <label className="text-sm text-muted-foreground" htmlFor="cat-name">
           Tên hiển thị
         </label>
         <input
           id="cat-name"
           {...register('name')}
-          className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+          className="h-10 w-full rounded-md border border-border px-3 text-sm"
         />
         {errors.name?.message ? (
-          <p className="text-xs text-red-600">{errors.name.message}</p>
+          <p className="text-xs text-destructive">{errors.name.message}</p>
         ) : null}
       </div>
 
       <div className="space-y-1">
-        <label className="text-sm text-gray-600" htmlFor="cat-slug">
+        <label className="text-sm text-muted-foreground" htmlFor="cat-slug">
           Slug (URL)
         </label>
         <input
           id="cat-slug"
           {...register('slug')}
-          className="h-10 w-full rounded-md border border-gray-200 px-3 font-mono text-sm"
+          className="h-10 w-full rounded-md border border-border px-3 font-mono text-sm"
           placeholder="vi-du-danh-muc"
         />
         {errors.slug?.message ? (
-          <p className="text-xs text-red-600">{errors.slug.message}</p>
+          <p className="text-xs text-destructive">{errors.slug.message}</p>
         ) : null}
       </div>
 
       <div className="space-y-1">
-        <label className="text-sm text-gray-600" htmlFor="cat-sort">
+        <label className="text-sm text-muted-foreground" htmlFor="cat-sort">
           Thứ tự
         </label>
         <input
@@ -85,16 +85,16 @@ export function CategoryForm({
           type="number"
           min={0}
           {...register('sortOrder', { valueAsNumber: true })}
-          className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+          className="h-10 w-full rounded-md border border-border px-3 text-sm"
         />
         {errors.sortOrder?.message ? (
-          <p className="text-xs text-red-600">
+          <p className="text-xs text-destructive">
             {String(errors.sortOrder.message)}
           </p>
         ) : null}
       </div>
 
-      <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+      <label className="inline-flex items-center gap-2 text-sm text-foreground/90">
         <input type="checkbox" {...register('active')} />
         Đang hoạt động
       </label>
@@ -103,7 +103,7 @@ export function CategoryForm({
         <button
           type="submit"
           disabled={isSubmitting}
-          className="inline-flex h-10 items-center rounded-md bg-green-600 px-4 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+          className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors duration-150 hover:text-destructive disabled:opacity-60"
         >
           {isSubmitting ? 'Đang lưu…' : submitLabel}
         </button>

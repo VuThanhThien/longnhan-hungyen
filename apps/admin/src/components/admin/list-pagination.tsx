@@ -37,30 +37,30 @@ export function ListPagination({
   }
 
   return (
-    <div className="flex flex-col gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm text-gray-600">
+    <div className="flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm text-muted-foreground">
         Trang {currentPage} / {Math.max(totalPages, 1)} — {totalRecords} mục
       </p>
       <div className="flex gap-3">
         {currentPage > 1 ? (
           <Link
             href={href(currentPage - 1)}
-            className="text-sm font-medium text-green-700 hover:underline"
+            className="text-sm font-medium text-accent hover:underline"
           >
             Trước
           </Link>
         ) : (
-          <span className="text-sm text-gray-400">Trước</span>
+          <span className="text-sm text-muted-foreground/70">Trước</span>
         )}
         {totalPages > 0 && currentPage < totalPages ? (
           <Link
             href={href(currentPage + 1)}
-            className="text-sm font-medium text-green-700 hover:underline"
+            className="text-sm font-medium text-accent hover:underline"
           >
             Sau
           </Link>
         ) : (
-          <span className="text-sm text-gray-400">Sau</span>
+          <span className="text-sm text-muted-foreground/70">Sau</span>
         )}
       </div>
     </div>

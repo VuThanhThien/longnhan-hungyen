@@ -54,17 +54,19 @@ export default function CategoriesPageClient() {
             <CardTitle className="text-base">Danh sách danh mục</CardTitle>
             <Link
               href="/categories/new"
-              className="inline-flex h-9 items-center rounded-md bg-green-600 px-3 text-sm font-medium text-white hover:bg-green-700"
+              className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors duration-150 hover:text-destructive"
             >
               + Thêm danh mục
             </Link>
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="py-8 text-sm text-gray-500">Đang tải…</div>
+              <div className="py-8 text-sm text-muted-foreground">
+                Đang tải…
+              </div>
             ) : null}
             {isError ? (
-              <div className="py-8 text-sm text-red-600">
+              <div className="py-8 text-sm text-destructive">
                 Tải dữ liệu thất bại
               </div>
             ) : null}
@@ -88,21 +90,21 @@ export default function CategoriesPageClient() {
                     <TableCell>{cat.sortOrder}</TableCell>
                     <TableCell>
                       {cat.active ? (
-                        <span className="text-green-700">Hoạt động</span>
+                        <span className="text-success">Hoạt động</span>
                       ) : (
-                        <span className="text-gray-500">Tắt</span>
+                        <span className="text-muted-foreground">Tắt</span>
                       )}
                     </TableCell>
                     <TableCell className="space-x-3">
                       <Link
                         href={`/categories/${cat.id}/edit`}
-                        className="text-sm text-green-700 hover:underline"
+                        className="text-sm text-success hover:underline"
                       >
                         Sửa
                       </Link>
                       <button
                         type="button"
-                        className="text-sm text-red-600 hover:underline disabled:opacity-60"
+                        className="text-sm text-destructive hover:underline disabled:opacity-60"
                         disabled={
                           deleteMutation.isPending && deletingId === cat.id
                         }
@@ -128,7 +130,7 @@ export default function CategoriesPageClient() {
                   <TableRow>
                     <TableCell
                       colSpan={5}
-                      className="py-8 text-center text-gray-500"
+                      className="py-8 text-center text-muted-foreground"
                     >
                       Chưa có danh mục
                     </TableCell>

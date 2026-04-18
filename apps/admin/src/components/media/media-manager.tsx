@@ -95,7 +95,7 @@ export function MediaManager() {
           type="button"
           onClick={createFolder}
           disabled={createFolderMutation.isPending}
-          className="bg-green-600 hover:bg-green-700"
+          className="bg-primary text-primary-foreground shadow-sm transition-colors duration-150 hover:text-destructive"
         >
           <FolderPlus className="mr-2 h-4 w-4" />
           {createFolderMutation.isPending ? 'Đang tạo...' : 'Tạo thư mục'}
@@ -104,9 +104,11 @@ export function MediaManager() {
 
       {!selectedFolder ? (
         <div className="space-y-3">
-          <p className="text-sm text-gray-600">Chọn thư mục để xem ảnh</p>
+          <p className="text-sm text-muted-foreground">
+            Chọn thư mục để xem ảnh
+          </p>
           {isFoldersLoading ? (
-            <p className="text-sm text-gray-500">Đang tải thư mục...</p>
+            <p className="text-sm text-muted-foreground">Đang tải thư mục...</p>
           ) : null}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {folders.map((folder) => (
@@ -114,19 +116,19 @@ export function MediaManager() {
                 key={folder.name}
                 type="button"
                 onClick={() => setSelectedFolder(folder.name)}
-                className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 text-left hover:border-green-300 hover:bg-green-50"
+                className="flex items-center justify-between rounded-lg border border-border bg-popover p-4 text-left hover:border-accent/50 hover:bg-success/10"
               >
                 <div className="flex items-center gap-3">
-                  <Folder className="h-5 w-5 text-green-700" />
+                  <Folder className="h-5 w-5 text-success" />
                   <div>
-                    <p className="font-medium text-gray-900">{folder.name}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="font-medium text-foreground">{folder.name}</p>
+                    <p className="text-xs text-muted-foreground">
                       {folder.itemCount} files
                     </p>
                   </div>
                 </div>
                 <Trash2
-                  className="h-4 w-4 text-red-500"
+                  className="h-4 w-4 text-destructive"
                   onClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
@@ -147,7 +149,7 @@ export function MediaManager() {
             >
               Quay lại thư mục
             </Button>
-            <span className="inline-flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 text-sm">
+            <span className="inline-flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm">
               <Folder className="h-4 w-4" />
               {selectedFolder}
             </span>
@@ -164,21 +166,21 @@ export function MediaManager() {
             />
             <label
               htmlFor="media-gallery-upload"
-              className="inline-flex h-10 cursor-pointer items-center rounded-md bg-green-600 px-4 text-sm font-medium text-white hover:bg-green-700"
+              className="inline-flex h-10 cursor-pointer items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors duration-150 hover:text-destructive"
             >
               {uploadMutation.isPending ? 'Đang upload...' : 'Upload ảnh mới'}
             </label>
           </div>
 
           {isLoading ? (
-            <p className="text-sm text-gray-500">Đang tải ảnh...</p>
+            <p className="text-sm text-muted-foreground">Đang tải ảnh...</p>
           ) : null}
 
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {items.map((item) => (
               <div
                 key={item.id}
-                className="overflow-hidden rounded-md border border-gray-200"
+                className="overflow-hidden rounded-md border border-border"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -193,7 +195,7 @@ export function MediaManager() {
                       navigator.clipboard.writeText(item.url).catch(() => {});
                       toast({ title: 'Đã copy URL' });
                     }}
-                    className="w-full rounded-md border border-gray-200 px-2 py-1 text-xs hover:bg-gray-50"
+                    className="w-full rounded-md border border-border px-2 py-1 text-xs hover:bg-background"
                   >
                     Copy URL
                   </button>
@@ -201,7 +203,7 @@ export function MediaManager() {
                     type="button"
                     onClick={() => void remove(item.id)}
                     disabled={deleteMutation.isPending}
-                    className="w-full rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                    className="w-full rounded-md border border-destructive/30 px-2 py-1 text-xs text-destructive hover:bg-destructive/10"
                   >
                     Xóa
                   </button>
@@ -209,7 +211,7 @@ export function MediaManager() {
               </div>
             ))}
             {!isLoading && items.length === 0 ? (
-              <div className="col-span-full rounded-md border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500">
+              <div className="col-span-full rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
                 <ImageIcon className="mx-auto mb-2 h-5 w-5" />
                 Thư mục này chưa có ảnh
               </div>
@@ -219,7 +221,7 @@ export function MediaManager() {
       )}
 
       {!isFoldersLoading && folders.length === 0 ? (
-        <div className="rounded-md border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500">
+        <div className="rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
           Chưa có thư mục nào. Hãy tạo thư mục đầu tiên để upload ảnh.
         </div>
       ) : null}

@@ -127,25 +127,27 @@ function ArticleFormInner({
         type="single"
         collapsible
         defaultValue="basic"
-        className="w-full rounded-lg border border-gray-200 px-4"
+        className="w-full rounded-lg border border-border px-4"
       >
         <AccordionItem value="basic">
           <AccordionTrigger>Thông tin chính</AccordionTrigger>
           <AccordionContent className="space-y-4">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-1">
-                <label className="text-sm text-gray-600">Tiêu đề</label>
+                <label className="text-sm text-muted-foreground">Tiêu đề</label>
                 <input
                   {...register('title')}
                   required
-                  className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
                 />
                 {errors.title?.message ? (
-                  <p className="text-xs text-red-600">{errors.title.message}</p>
+                  <p className="text-xs text-destructive">
+                    {errors.title.message}
+                  </p>
                 ) : null}
               </div>
               <div className="flex items-end">
-                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <label className="inline-flex items-center gap-2 text-sm text-foreground/90">
                   <input type="checkbox" {...register('published')} />
                   Xuất bản ngay
                 </label>
@@ -153,11 +155,13 @@ function ArticleFormInner({
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm text-gray-600">Mô tả ngắn</label>
+              <label className="text-sm text-muted-foreground">
+                Mô tả ngắn
+              </label>
               <textarea
                 rows={3}
                 {...register('excerpt')}
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm"
+                className="w-full rounded-md border border-border px-3 py-2 text-sm"
               />
             </div>
           </AccordionContent>
@@ -169,7 +173,7 @@ function ArticleFormInner({
             <label className="sr-only">Nội dung bài viết</label>
             <TiptapHtmlEditor value={contentHtml} onChange={setContentHtml} />
             {errors.contentHtml?.message ? (
-              <p className="text-xs text-red-600">
+              <p className="text-xs text-destructive">
                 {errors.contentHtml.message}
               </p>
             ) : null}
@@ -193,29 +197,33 @@ function ArticleFormInner({
           <AccordionContent className="space-y-4">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-1">
-                <label className="text-sm text-gray-600">Meta title</label>
+                <label className="text-sm text-muted-foreground">
+                  Meta title
+                </label>
                 <input
                   {...register('metaTitle')}
-                  className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-sm text-gray-600">
+                <label className="text-sm text-muted-foreground">
                   Tags (phân tách bằng dấu phẩy)
                 </label>
                 <input
                   {...register('tags')}
-                  className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
                 />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm text-gray-600">Meta description</label>
+              <label className="text-sm text-muted-foreground">
+                Meta description
+              </label>
               <textarea
                 rows={3}
                 {...register('metaDescription')}
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm"
+                className="w-full rounded-md border border-border px-3 py-2 text-sm"
               />
             </div>
           </AccordionContent>
@@ -228,7 +236,7 @@ function ArticleFormInner({
       <button
         type="submit"
         disabled={isSubmitting}
-        className="inline-flex h-10 items-center rounded-md bg-green-600 px-4 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+        className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors duration-150 hover:text-destructive disabled:opacity-60"
       >
         {isSubmitting ? 'Đang lưu…' : submitLabel}
       </button>

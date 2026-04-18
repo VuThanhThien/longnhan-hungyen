@@ -144,26 +144,30 @@ export function ProductForm({
         type="single"
         collapsible
         defaultValue="basic"
-        className="w-full rounded-lg border border-gray-200 px-4"
+        className="w-full rounded-lg border border-border px-4"
       >
         <AccordionItem value="basic">
           <AccordionTrigger>Thông tin cơ bản</AccordionTrigger>
           <AccordionContent className="space-y-4">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-1">
-                <label className="text-sm text-gray-600">Tên sản phẩm</label>
+                <label className="text-sm text-muted-foreground">
+                  Tên sản phẩm
+                </label>
                 <input
                   {...register('name')}
-                  className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
                   required
                 />
                 {errors.name?.message ? (
-                  <p className="text-xs text-red-600">{errors.name.message}</p>
+                  <p className="text-xs text-destructive">
+                    {errors.name.message}
+                  </p>
                 ) : null}
               </div>
               <div className="space-y-1">
                 <label
-                  className="text-sm text-gray-600"
+                  className="text-sm text-muted-foreground"
                   htmlFor="product-categoryId"
                 >
                   Danh mục
@@ -171,7 +175,7 @@ export function ProductForm({
                 <select
                   id="product-categoryId"
                   {...register('categoryId')}
-                  className="h-10 w-full rounded-md border border-gray-200 bg-white px-3 text-sm"
+                  className="h-10 w-full rounded-md border border-border bg-popover px-3 text-sm"
                 >
                   <option value="">— Chọn danh mục —</option>
                   {categories.map((c) => (
@@ -182,7 +186,7 @@ export function ProductForm({
                   ))}
                 </select>
                 {errors.categoryId?.message ? (
-                  <p className="text-xs text-red-600">
+                  <p className="text-xs text-destructive">
                     {errors.categoryId.message}
                   </p>
                 ) : null}
@@ -191,29 +195,31 @@ export function ProductForm({
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="space-y-1">
-                <label className="text-sm text-gray-600">Giá gốc</label>
+                <label className="text-sm text-muted-foreground">Giá gốc</label>
                 <input
                   type="number"
                   min={0}
                   {...register('basePrice', { valueAsNumber: true })}
-                  className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
                   required
                 />
                 {errors.basePrice?.message ? (
-                  <p className="text-xs text-red-600">
+                  <p className="text-xs text-destructive">
                     {errors.basePrice.message}
                   </p>
                 ) : null}
               </div>
               <div className="space-y-1">
-                <label className="text-sm text-gray-600">Video URL</label>
+                <label className="text-sm text-muted-foreground">
+                  Video URL
+                </label>
                 <input
                   {...register('videoUrl')}
-                  className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
                 />
               </div>
               <div className="flex items-end">
-                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <label className="inline-flex items-center gap-2 text-sm text-foreground/90">
                   <input type="checkbox" {...register('active')} />
                   Kích hoạt sản phẩm
                 </label>
@@ -230,7 +236,7 @@ export function ProductForm({
               value={summaryHtml}
               onChange={setSummaryHtml}
               placeholder="Viết tóm tắt ngắn…"
-              className="rounded-md border border-gray-200"
+              className="rounded-md border border-border"
             />
           </AccordionContent>
         </AccordionItem>
@@ -243,7 +249,7 @@ export function ProductForm({
               value={descriptionHtml}
               onChange={setDescriptionHtml}
               placeholder="Viết mô tả chi tiết… Gõ / để chèn khối."
-              className="rounded-md border border-gray-200"
+              className="rounded-md border border-border"
             />
           </AccordionContent>
         </AccordionItem>
@@ -252,7 +258,9 @@ export function ProductForm({
           <AccordionTrigger>Ảnh & thư viện</AccordionTrigger>
           <AccordionContent className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm text-gray-600">Ảnh đại diện</label>
+              <label className="text-sm text-muted-foreground">
+                Ảnh đại diện
+              </label>
               <MediaUrlPicker
                 value={featuredImageUrl}
                 onChange={setFeaturedImageUrl}
@@ -261,13 +269,13 @@ export function ProductForm({
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm text-gray-600">
+              <label className="text-sm text-muted-foreground">
                 Danh sách ảnh (mỗi dòng 1 URL)
               </label>
               <textarea
                 rows={4}
                 {...register('images')}
-                className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm"
+                className="w-full rounded-md border border-border px-3 py-2 text-sm"
               />
             </div>
           </AccordionContent>
@@ -280,7 +288,7 @@ export function ProductForm({
               <div className="flex items-center justify-end">
                 <button
                   type="button"
-                  className="rounded-md border border-gray-200 px-3 py-1 text-sm hover:bg-gray-50"
+                  className="rounded-md border border-border px-3 py-1 text-sm hover:bg-background"
                   onClick={() =>
                     setVariants((prev) => [
                       ...(prev ?? []),
@@ -297,7 +305,7 @@ export function ProductForm({
                   + Thêm biến thể
                 </button>
               </div>
-              <div className="grid grid-cols-1 gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-6">
+              <div className="grid grid-cols-1 gap-3 rounded-md border border-border p-3 md:grid-cols-6">
                 <div className="col-span-2">Tên biến thể</div>
                 <div className="col-span-1">Giá</div>
                 <div className="col-span-1">Tồn kho</div>
@@ -308,7 +316,7 @@ export function ProductForm({
               {variants.map((variant, index) => (
                 <div
                   key={index}
-                  className="grid grid-cols-1 gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-6"
+                  className="grid grid-cols-1 gap-3 rounded-md border border-border p-3 md:grid-cols-6"
                 >
                   <input
                     placeholder="Tên biến thể"
@@ -316,7 +324,7 @@ export function ProductForm({
                     onChange={(event) =>
                       updateVariant(index, 'label', event.target.value)
                     }
-                    className="h-9 rounded-md border border-gray-200 px-2 text-sm md:col-span-2"
+                    className="h-9 rounded-md border border-border px-2 text-sm md:col-span-2"
                   />
                   <input
                     type="number"
@@ -330,7 +338,7 @@ export function ProductForm({
                         Number(event.target.value || 0),
                       )
                     }
-                    className="h-9 rounded-md border border-gray-200 px-2 text-sm"
+                    className="h-9 rounded-md border border-border px-2 text-sm"
                   />
                   <input
                     type="number"
@@ -344,7 +352,7 @@ export function ProductForm({
                         Number(event.target.value || 0),
                       )
                     }
-                    className="h-9 rounded-md border border-gray-200 px-2 text-sm"
+                    className="h-9 rounded-md border border-border px-2 text-sm"
                   />
                   <input
                     type="number"
@@ -358,7 +366,7 @@ export function ProductForm({
                         Number(event.target.value || 0),
                       )
                     }
-                    className="h-9 rounded-md border border-gray-200 px-2 text-sm"
+                    className="h-9 rounded-md border border-border px-2 text-sm"
                   />
                   <input
                     placeholder="SKU"
@@ -366,7 +374,7 @@ export function ProductForm({
                     onChange={(event) =>
                       updateVariant(index, 'skuCode', event.target.value)
                     }
-                    className="h-9 rounded-md border border-gray-200 px-2 text-sm"
+                    className="h-9 rounded-md border border-border px-2 text-sm"
                   />
                 </div>
               ))}
@@ -386,7 +394,7 @@ export function ProductForm({
         <button
           type="submit"
           disabled={isSubmitting}
-          className="inline-flex h-10 items-center rounded-md bg-green-600 px-4 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+          className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors duration-150 hover:text-destructive disabled:opacity-60"
         >
           {isSubmitting ? 'Đang lưu…' : submitLabel}
         </button>

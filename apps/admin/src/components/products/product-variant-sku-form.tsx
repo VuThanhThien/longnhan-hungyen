@@ -21,7 +21,7 @@ export function ProductVariantSkuForm({
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-1 gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-6">
+      <div className="grid grid-cols-1 gap-3 rounded-md border border-border p-3 md:grid-cols-6">
         <div className="md:col-span-2">Biến thể</div>
         <div className="md:col-span-2">SKU</div>
         <div className="md:col-span-2">Thao tác</div>
@@ -35,11 +35,11 @@ export function ProductVariantSkuForm({
         return (
           <div
             key={variant.id}
-            className="grid grid-cols-1 items-center gap-3 rounded-md border border-gray-200 p-3 md:grid-cols-6"
+            className="grid grid-cols-1 items-center gap-3 rounded-md border border-border p-3 md:grid-cols-6"
           >
             <div className="text-sm md:col-span-2">
-              <div className="font-medium text-gray-900">{variant.label}</div>
-              <div className="text-xs text-gray-500">{variant.id}</div>
+              <div className="font-medium text-foreground">{variant.label}</div>
+              <div className="text-xs text-muted-foreground">{variant.id}</div>
             </div>
 
             <input
@@ -51,14 +51,14 @@ export function ProductVariantSkuForm({
                   [variant.id]: event.target.value,
                 }))
               }
-              className="h-9 rounded-md border border-gray-200 px-2 text-sm md:col-span-2"
+              className="h-9 rounded-md border border-border px-2 text-sm md:col-span-2"
             />
 
             <div className="flex items-center gap-2 md:col-span-2">
               <button
                 type="button"
                 disabled={mutation.isPending || !isDirty}
-                className="inline-flex h-9 items-center rounded-md bg-green-600 px-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors duration-150 hover:text-destructive disabled:opacity-60"
                 onClick={async () => {
                   await mutation.mutateAsync({
                     variantId: variant.id,

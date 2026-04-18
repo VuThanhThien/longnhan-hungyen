@@ -103,14 +103,17 @@ export default function OrdersPageClient() {
               action="/orders"
             >
               <div className="space-y-1">
-                <label className="text-sm text-gray-600" htmlFor="orderStatus">
+                <label
+                  className="text-sm text-muted-foreground"
+                  htmlFor="orderStatus"
+                >
                   Trạng thái đơn
                 </label>
                 <select
                   id="orderStatus"
                   name="orderStatus"
                   defaultValue={params.orderStatus || ''}
-                  className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
                 >
                   <option value="">Tất cả</option>
                   {orderStatuses.map((status) => (
@@ -122,7 +125,7 @@ export default function OrdersPageClient() {
               </div>
               <div className="space-y-1">
                 <label
-                  className="text-sm text-gray-600"
+                  className="text-sm text-muted-foreground"
                   htmlFor="paymentStatus"
                 >
                   Thanh toán
@@ -131,7 +134,7 @@ export default function OrdersPageClient() {
                   id="paymentStatus"
                   name="paymentStatus"
                   defaultValue={params.paymentStatus || ''}
-                  className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
                 >
                   <option value="">Tất cả</option>
                   {paymentStatuses.map((status) => (
@@ -142,7 +145,10 @@ export default function OrdersPageClient() {
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="text-sm text-gray-600" htmlFor="dateFrom">
+                <label
+                  className="text-sm text-muted-foreground"
+                  htmlFor="dateFrom"
+                >
                   Từ ngày
                 </label>
                 <input
@@ -150,11 +156,14 @@ export default function OrdersPageClient() {
                   name="dateFrom"
                   type="date"
                   defaultValue={params.dateFrom || ''}
-                  className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-sm text-gray-600" htmlFor="dateTo">
+                <label
+                  className="text-sm text-muted-foreground"
+                  htmlFor="dateTo"
+                >
                   Đến ngày
                 </label>
                 <input
@@ -162,13 +171,13 @@ export default function OrdersPageClient() {
                   name="dateTo"
                   type="date"
                   defaultValue={params.dateTo || ''}
-                  className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm"
+                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
                 />
               </div>
               <div className="flex items-end lg:col-span-2">
                 <button
                   type="submit"
-                  className="inline-flex h-10 items-center rounded-md bg-green-600 px-4 text-sm font-medium text-white hover:bg-green-700"
+                  className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors duration-150 hover:text-destructive"
                 >
                   Lọc
                 </button>
@@ -183,10 +192,12 @@ export default function OrdersPageClient() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="py-8 text-sm text-gray-500">Đang tải…</div>
+              <div className="py-8 text-sm text-muted-foreground">
+                Đang tải…
+              </div>
             ) : null}
             {isError ? (
-              <div className="py-8 text-sm text-red-600">
+              <div className="py-8 text-sm text-destructive">
                 Tải dữ liệu thất bại
               </div>
             ) : null}
@@ -218,7 +229,7 @@ export default function OrdersPageClient() {
                     <TableCell>
                       <Link
                         href={`/orders/${order.id}`}
-                        className="text-sm text-green-700 hover:underline"
+                        className="text-sm text-success hover:underline"
                       >
                         Xem chi tiết
                       </Link>
@@ -229,7 +240,7 @@ export default function OrdersPageClient() {
                   <TableRow>
                     <TableCell
                       colSpan={7}
-                      className="py-8 text-center text-gray-500"
+                      className="py-8 text-center text-muted-foreground"
                     >
                       Không có đơn hàng phù hợp
                     </TableCell>

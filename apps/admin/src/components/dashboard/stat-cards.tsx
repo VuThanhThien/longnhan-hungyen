@@ -19,30 +19,29 @@ export function StatCards({ stats }: StatCardsProps) {
       title: 'Đơn hàng hôm nay',
       value: stats.ordersToday,
       icon: ShoppingCart,
-      color: 'text-blue-600',
-      bg: 'bg-blue-50',
+      color: 'text-[#9fbbe0]',
+      bg: 'bg-[#9fbbe0]/25',
     },
     {
       title: 'Đơn hàng tuần này',
       value: stats.ordersThisWeek,
       icon: Package,
-      color: 'text-purple-600',
-      bg: 'bg-purple-50',
+      color: 'text-[#c0a8dd]',
+      bg: 'bg-[#c0a8dd]/25',
     },
     {
       title: 'Đơn hàng tháng này',
       value: stats.ordersThisMonth,
       icon: TrendingUp,
-      color: 'text-orange-600',
-      bg: 'bg-orange-50',
+      color: 'text-[#dfa88f]',
+      bg: 'bg-[#dfa88f]/30',
     },
     {
       title: 'Doanh thu tháng này',
       value: formatCurrency(stats.revenueThisMonth),
       icon: DollarSign,
-      color: 'text-green-600',
-      bg: 'bg-green-50',
-      isRevenue: true,
+      color: 'text-success',
+      bg: 'bg-success/15',
     },
   ];
 
@@ -51,15 +50,17 @@ export function StatCards({ stats }: StatCardsProps) {
       {cards.map((card) => (
         <Card key={card.title}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
               {card.title}
             </CardTitle>
-            <div className={`rounded-md p-2 ${card.bg}`}>
+            <div className={`rounded-lg p-2 ${card.bg}`}>
               <card.icon className={`h-4 w-4 ${card.color}`} />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-900">{card.value}</div>
+            <div className="text-2xl font-bold tracking-tight text-foreground">
+              {card.value}
+            </div>
           </CardContent>
         </Card>
       ))}

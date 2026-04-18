@@ -34,10 +34,10 @@ export default function ProductEditPage() {
       <Header title={product ? `Sửa: ${product.name}` : 'Sửa sản phẩm'} />
       <main className="flex min-h-0 flex-1 flex-col">
         {isLoading ? (
-          <div className="p-6 text-sm text-gray-500">Đang tải…</div>
+          <div className="p-6 text-sm text-muted-foreground">Đang tải…</div>
         ) : null}
         {isError ? (
-          <div className="p-6 text-sm text-red-600">
+          <div className="p-6 text-sm text-destructive">
             Không tìm thấy sản phẩm
           </div>
         ) : null}
@@ -48,7 +48,7 @@ export default function ProductEditPage() {
             onValueChange={setTab}
             className="flex min-h-0 flex-1 flex-col"
           >
-            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-white px-6 py-3">
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border bg-popover px-6 py-3">
               <TabsList className="max-w-full flex-wrap justify-start gap-1 h-auto min-h-10 py-1">
                 <TabsTrigger value="info">Thông tin</TabsTrigger>
                 <TabsTrigger value="sku">SKU biến thể</TabsTrigger>
@@ -64,7 +64,7 @@ export default function ProductEditPage() {
                     {mutation.isPending ? 'Đang lưu…' : 'Lưu thay đổi'}
                   </Button>
                 ) : (
-                  <p className="max-w-xs text-right text-xs text-gray-500 sm:max-w-none">
+                  <p className="max-w-xs text-right text-xs text-muted-foreground sm:max-w-none">
                     Lưu từng dòng trong nội dung bên dưới.
                   </p>
                 )}

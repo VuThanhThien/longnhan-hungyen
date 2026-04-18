@@ -1,8 +1,8 @@
 # Codebase Summary
 
-**Generated:** 2026-04-15  
+**Generated:** 2026-04-18  
 **Project:** Long Nhan Hung Yen — e-commerce monorepo (API + storefront + admin)  
-**Phase status:** [Project Roadmap](./project-roadmap.md) (canonical). Storefront Phase 4 is complete; ongoing work is Phases 5–7.
+**Phase status:** [Project Roadmap](./project-roadmap.md) (canonical). Storefront Phase 4 and **deployment Phase 7 (go-live 2026-04-18)** are complete; ongoing work is Phases **5–6** polish and post-launch operations.
 
 ---
 
@@ -29,7 +29,7 @@ longnhantongtran/
 ├── apps/
 │   ├── api/                          # Main NestJS application
 │   │   ├── src/
-│   │   │   ├── api/                 # Feature modules (8 modules)
+│   │   │   ├── api/                 # Feature modules (12 modules in ApiModule)
 │   │   │   ├── background/          # Background jobs (email queue, etc.)
 │   │   │   ├── common/              # Shared DTOs, interfaces, types
 │   │   │   ├── config/              # Application configuration
@@ -63,8 +63,10 @@ longnhantongtran/
 │   │   │   │   ├── (dashboard)/     # Protected dashboard routes
 │   │   │   │   │   ├── page.tsx     # Dashboard home
 │   │   │   │   │   ├── products/    # CRUD: products list/create/edit
+│   │   │   │   │   ├── categories/  # CRUD: categories list/create/edit
 │   │   │   │   │   ├── articles/    # CRUD: articles list/create/edit
 │   │   │   │   │   ├── orders/      # Orders list & detail page
+│   │   │   │   │   ├── reviews/     # Admin review list & status updates
 │   │   │   │   │   └── media/       # Media upload & management
 │   │   │   │   ├── api/             # API routes (proxies to backend)
 │   │   │   │   ├── layout.tsx       # Root layout
@@ -77,7 +79,7 @@ longnhantongtran/
 │   │   │   │   ├── orders/          # Order table, status panel, detail
 │   │   │   │   ├── media/           # Media manager, upload, picker
 │   │   │   │   ├── providers/       # React Query, Auth providers
-│   │   │   │   └── ui/              # Radix UI primitives
+│   │   │   │   └── ui/              # shadcn/ui-style primitives (Radix + Tailwind)
 │   │   │   ├── features/            # Feature-specific logic
 │   │   │   │   ├── media/           # Media hooks, API calls
 │   │   │   │   └── orders/          # Order hooks, mutations
@@ -101,8 +103,8 @@ longnhantongtran/
 │   └── web/                          # Next.js storefront (@longnhan/web)
 │       ├── public/                   # Static assets (images, decorative art)
 │       ├── src/
-│       │   ├── app/                  # App Router (/, /products, /articles, /cart, …)
-│       │   ├── components/           # UI (~47 .tsx under components/; excludes app/)
+│       │   ├── app/                  # App Router (/, /products, /articles, /cart, /checkout, …)
+│       │   ├── components/           # UI (~76 .tsx under components/; excludes app/)
 │       │   ├── data/                 # Marketing copy (e.g. landing-page-content.ts)
 │       │   ├── hooks/                # Shared hooks
 │       │   ├── lib/                  # API clients, SEO, nuqs product search, format helpers
@@ -139,6 +141,7 @@ longnhantongtran/
 ├── .env.example                      # Environment template
 ├── .gitignore                        # Git ignore patterns
 ├── CLAUDE.md                         # AI development instructions
+├── DESIGN.md                         # Visual design spec (admin + shared reference)
 ├── README.md                         # Project root README
 └── pnpm-lock.yaml                    # Dependency lock file
 ```
@@ -149,7 +152,7 @@ longnhantongtran/
 
 ### 1. Feature Modules (src/api/)
 
-**8 Core Modules:**
+**Registered in `ApiModule` (12 domain modules + `ThrottlerModule`):** User, Health, Auth, Home, Post, Products, Categories, Reviews, Orders, Articles, Media, Dashboard.
 
 #### UserModule
 
@@ -256,6 +259,36 @@ longnhantongtran/
 - **Endpoints:**
   - `GET /dashboard/stats?period=today|week|month|all` — Statistics (admin)
 
+#### HomeModule
+
+- **Purpose:** Minimal public root controller (API welcome)
+- **Endpoints:** `GET /` — Plain-text welcome (see `home.controller.ts`)
+
+#### PostModule
+
+- **Purpose:** Posts resource (admin-auth CRUD + pagination; see `post.controller.ts` / `post.service.ts`)
+
+#### CategoriesModule
+
+- **Purpose:** Product categories (public list + admin CRUD, soft delete)
+- **Key Files:** `categories.service.ts`, `categories.controller.ts`, DTOs under `dto/`
+- **Endpoints:**
+  - `GET /categories` — Active categories (public)
+  - `GET /categories/admin` — All categories (admin)
+  - `POST /categories` — Create (admin)
+  - `PUT /categories/:id` — Update (admin)
+  - `DELETE /categories/:id` — Deactivate (admin)
+
+#### ReviewsModule
+
+- **Purpose:** Product reviews (verified purchase create path, public listing, admin moderation)
+- **Key Files:** `reviews.service.ts`, `reviews.controller.ts`, `entities/product-review.entity.ts`
+- **Endpoints:**
+  - `POST /products/:productId/reviews` — Create review (public; business rules in service)
+  - `GET /products/:productId/reviews` — Published reviews + aggregate (public)
+  - `GET /reviews/admin` — List for moderation (admin)
+  - `PATCH /reviews/admin/:id` — Update review status (admin)
+
 ### 2. Background Jobs (src/background/)
 
 **Email Queue Processing**
@@ -326,15 +359,19 @@ Reusable NestJS modules:
 
 ### 6. Admin App (apps/admin/src/)
 
-**Purpose:** Next.js 16 admin dashboard with full CRUD for products, articles, orders, and media.
+**Purpose:** Next.js 16 admin dashboard with CRUD for products, **categories**, articles, orders, **product reviews (moderation)**, and media.
+
+**Design & UI:** Follow root **[DESIGN.md](../DESIGN.md)** for visual language. Build surfaces with **shadcn/ui** patterns under `components/ui/` (Radix + Tailwind); see [Frontend code standards](./frontend-code-standards.md) and **`apps/admin/AGENTS.md`**.
 
 **Key Pages:**
 
 - `/login` — Admin authentication
 - `/(dashboard)/` — Dashboard home with stats cards, revenue charts, recent orders
 - `/(dashboard)/products` — Products list/create/edit with TiptapHtmlEditor for descriptions
+- `/(dashboard)/categories` — Categories list/create/edit (ordered catalog taxonomy)
 - `/(dashboard)/articles` — Articles list/create/edit with rich text editor
 - `/(dashboard)/orders` — Orders list with status filter; detail page with status panel
+- `/(dashboard)/reviews` — Reviews list (client table) and status updates via admin API
 - `/(dashboard)/media` — Media manager with Cloudinary upload, folder navigation, URL picker
 
 **Architecture:**
@@ -348,7 +385,7 @@ Reusable NestJS modules:
 
 **Key libraries (admin):**
 
-- `@radix-ui/*` — UI primitives (dialog, dropdown, tabs, etc.)
+- **shadcn/ui-style `components/ui/`** — Radix primitives (`@radix-ui/*`) composed with Tailwind; extend via shadcn registry CLI from `apps/admin`
 - `recharts` — Revenue & stats charts
 - `react-hook-form` + `yup` — Form validation
 - `axios` — HTTP client
@@ -373,15 +410,17 @@ Reusable NestJS modules:
 - `POST /api/media/upload` — Cloudinary upload
 - `DELETE /api/media/:id` — Delete media
 - `PATCH /api/orders/:id/status` — Update order status
-- Plus standard CRUD proxies for products/articles/orders
+- `GET /api/reviews/admin`, `PATCH /api/reviews/admin/[id]` — Review moderation proxies
+- `GET/POST /api/categories`, `GET /api/categories/admin`, `GET/PATCH/DELETE /api/categories/[id]` — Category proxies
+- Plus standard CRUD proxies for products, articles, orders
 
 ### 6b. Storefront App (`apps/web/src/`)
 
-**Routes (`app/`):** marketing home, product listing + `[slug]` PDP, articles, order success, **cart**.
+**Routes (`app/`):** marketing home, product listing + `[slug]` PDP, articles, **cart**, **checkout**, order success, **track-order**, **service-unavailable**.
 
 **Layout & navigation (`components/layout/`):** `header.tsx`, `header-search-bar.tsx`, `header-cart-button.tsx`, `mobile-nav.tsx`, `footer.tsx`, `floating-contact-widget.tsx`.
 
-**Catalog & content:** `components/products/*`, `components/home/*`, `components/landing/*`, `components/articles/*`, `components/orders/*` (order form / QR UI).
+**Catalog & content:** `components/products/*`, `components/home/*`, `components/landing/*`, `components/articles/*`, `components/orders/*`, `components/cart/*`, `components/checkout/*` (cart/checkout flows, order form / QR UI).
 
 **Client state:** `services/cart/cart-store.ts` — Zustand + `persist` (`longnhan-cart-v2`). **URL state:** `lib/product-search-params.ts` — nuqs parsers shared with server loaders.
 
@@ -902,8 +941,8 @@ Major landing/product additions from **4.1.0** (2026-04-01); **4.2.0** (2026-04-
 
 ### Module counts (approximate)
 
-- **`apps/web/src/components/**/\*.tsx`:** on the order of **~47\*\* files (layout, landing, products, etc.); prefer counting in-repo over hard-coding in docs.
-- **App routes:** see `apps/web/src/app/` (includes **`cart/`**).
+- **`apps/web/src/components/**/\*.tsx`:\*\* **~76** files (layout, landing, products, cart, checkout, etc.); re-count after large UI changes.
+- **App routes:** see `apps/web/src/app/` (includes **`cart/`**, **`checkout/`**, **`track-order/`**, **`service-unavailable/`**).
 
 ---
 
