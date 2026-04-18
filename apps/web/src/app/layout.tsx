@@ -7,10 +7,11 @@ import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
 import FloatingContactWidget from '@/components/layout/floating-contact-widget';
 import BackToTopButton from '@/components/ui/back-to-top-button';
-import { buildOrganizationSchema } from '@/lib/structured-data';
 import { LANDING_SEO } from '@/data/landing-page-content';
 import { SITE_URL } from '@/lib/constants';
 import { PWA_CONFIG } from '@/lib/pwa-config';
+import { buildSeoMetadata } from '@/lib/seo';
+import { buildOrganizationSchema } from '@/lib/structured-data';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -39,15 +40,28 @@ export const viewport: Viewport = {
   colorScheme: 'light',
 };
 
+const landingMetadata = buildSeoMetadata({
+  title: LANDING_SEO.title,
+  description: LANDING_SEO.description,
+  canonicalPath: '/',
+  ogImage: {
+    url: PWA_CONFIG.heroImage.path,
+    width: PWA_CONFIG.heroImage.width,
+    height: PWA_CONFIG.heroImage.height,
+    alt: PWA_CONFIG.heroImage.alt,
+  },
+});
+
 export const metadata: Metadata = {
+  ...landingMetadata,
+  metadataBase: new URL(SITE_URL),
   title: {
     default: PWA_CONFIG.documentTitle,
     template: '%s | Long Nhãn Tống Trân',
   },
-  description: PWA_CONFIG.description,
   keywords: [...LANDING_SEO.keywords],
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || SITE_URL),
   applicationName: PWA_CONFIG.name,
+  category: 'food',
   icons: {
     icon: [{ url: PWA_CONFIG.icons.src, type: 'image/png' }],
     apple: [{ url: PWA_CONFIG.icons.src, type: 'image/png' }],
@@ -56,28 +70,6 @@ export const metadata: Metadata = {
     capable: true,
     title: PWA_CONFIG.name,
     statusBarStyle: 'black-translucent',
-  },
-  openGraph: {
-    type: 'website',
-    locale: 'vi_VN',
-    siteName: PWA_CONFIG.name,
-    title: PWA_CONFIG.documentTitle,
-    description: PWA_CONFIG.description,
-    url: PWA_CONFIG.siteUrl,
-    images: [
-      {
-        url: PWA_CONFIG.heroImage.path,
-        width: PWA_CONFIG.heroImage.width,
-        height: PWA_CONFIG.heroImage.height,
-        alt: PWA_CONFIG.heroImage.alt,
-      },
-    ],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: PWA_CONFIG.documentTitle,
-    description: PWA_CONFIG.description,
-    images: [PWA_CONFIG.heroImage.path],
   },
   robots: {
     index: true,

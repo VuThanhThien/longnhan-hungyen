@@ -3,26 +3,28 @@ import type { Article } from '@longnhan/types';
 import ArticleCard from '@/components/articles/article-card';
 import Breadcrumb from '@/components/ui/breadcrumb';
 import { fetchPaginated } from '@/lib/api-client';
+import { articlesListCacheTags } from '@/lib/content-cache-tags';
+import { buildSeoMetadata } from '@/lib/seo';
 import { cacheLife, cacheTag } from 'next/cache';
 
 async function getArticles(): Promise<Article[]> {
   'use cache';
   cacheLife({ revalidate: 3600 });
-  cacheTag('articles');
+  cacheTag(...articlesListCacheTags());
   try {
     const response = await fetchPaginated<Article>('/articles', { limit: 24 });
     return response.data;
-  } catch (error) {
-    console.error('Error fetching articles:', error);
+  } catch {
     return [];
   }
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  return {
+  return buildSeoMetadata({
     title: 'Bài viết về Long nhãn Hưng Yên',
     description: 'Kiến thức, kinh nghiệm và câu chuyện về Long nhãn Hưng Yên.',
-  };
+    canonicalPath: '/articles',
+  });
 }
 
 export default async function ArticlesPage() {

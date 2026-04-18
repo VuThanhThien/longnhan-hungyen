@@ -10,32 +10,18 @@ import { LandingTestimonialsTrust } from '@/components/landing/landing-testimoni
 import ScrollReveal from '@/components/ui/scroll-reveal';
 import {
   LANDING_IMAGE_ALBUM,
-  LANDING_SEO,
   LANDING_VIDEO_ALBUM_URLS,
 } from '@/data/landing-page-content';
 import { fetchApi, fetchPaginated } from '@/lib/api-client';
+import { homeContentTags } from '@/lib/content-cache-tags';
 import { buildLandingCategoryNav } from '@/lib/landing-category-nav';
-import { buildSeoMetadata } from '@/lib/seo';
 import type { Article, Category, Product } from '@longnhan/types';
-import type { Metadata } from 'next';
 import { cacheLife, cacheTag } from 'next/cache';
 import { connection } from 'next/server';
 
-export const metadata: Metadata = buildSeoMetadata({
-  title: LANDING_SEO.title,
-  description: LANDING_SEO.description,
-  canonicalPath: '/',
-  ogImage: {
-    url: '/banner-web2.png',
-    width: 1200,
-    height: 630,
-    alt: LANDING_SEO.ogImageAlt,
-  },
-});
-
 async function getHomeProducts(): Promise<Product[]> {
   'use cache';
-  cacheTag('home-featured-products');
+  cacheTag(homeContentTags.featuredProducts);
   cacheLife({ revalidate: 300 });
   try {
     const response = await fetchPaginated<Product>('/products', { limit: 8 });
@@ -47,7 +33,7 @@ async function getHomeProducts(): Promise<Product[]> {
 
 async function getHomeCategories(): Promise<Category[]> {
   'use cache';
-  cacheTag('home-categories');
+  cacheTag(homeContentTags.categories);
   cacheLife({ revalidate: 300 });
   try {
     return await fetchApi<Category[]>('/categories');
@@ -58,7 +44,7 @@ async function getHomeCategories(): Promise<Category[]> {
 
 async function getHomeArticles(): Promise<Article[]> {
   'use cache';
-  cacheTag('home-articles');
+  cacheTag(homeContentTags.articles);
   cacheLife({ revalidate: 300 });
   try {
     const response = await fetchPaginated<Article>('/articles', {

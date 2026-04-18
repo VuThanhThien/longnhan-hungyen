@@ -6,7 +6,10 @@ import RelatedProducts from '@/components/products/related-products';
 import Breadcrumb from '@/components/ui/breadcrumb';
 import { fetchApi, fetchPaginated } from '@/lib/api-client';
 import { buildBreadcrumb } from '@/lib/breadcrumb';
-import { SITE_URL } from '@/lib/constants';
+import {
+  productDetailCacheTags,
+  relatedProductsCacheTags,
+} from '@/lib/content-cache-tags';
 import { buildSeoMetadata } from '@/lib/seo';
 import { buildProductSchema } from '@/lib/structured-data';
 import type { Product } from '@longnhan/types';
@@ -21,7 +24,7 @@ interface ProductDetailPageProps {
 async function getProduct(slug: string): Promise<Product | null> {
   'use cache';
   cacheLife({ revalidate: 60 });
-  cacheTag('products', `product-${slug}`);
+  cacheTag(...productDetailCacheTags(slug));
   try {
     return await fetchApi<Product>(`/products/${slug}`);
   } catch {
@@ -35,7 +38,7 @@ async function getRelatedProducts(
 ): Promise<Product[]> {
   'use cache';
   cacheLife({ revalidate: 60 });
-  cacheTag('related-products', `cat:${category ?? ''}`, `ex:${excludeSlug}`);
+  cacheTag(...relatedProductsCacheTags(category, excludeSlug));
   try {
     const relatedResponse = await fetchPaginated<Product>('/products', {
       category,
@@ -58,11 +61,10 @@ export async function generateMetadata({
   if (!product) {
     return buildSeoMetadata({
       title: 'Không tìm thấy sản phẩm',
-      canonicalPath: `${SITE_URL}/products/${slug}`,
+      canonicalPath: `/products/${slug}`,
     });
   }
 
-  const summary = product.summary ?? product.description ?? null;
   const firstImage =
     product.featuredImageUrl ??
     (product.images ?? [])[0] ??
@@ -71,8 +73,11 @@ export async function generateMetadata({
 
   return buildSeoMetadata({
     title: product.name,
-    description: summary ?? `Chi tiet san pham ${product.name}.`,
+    description: `Chi tiết sản phẩm ${product.name} của shop Long Nhãn Tống Trân.`,
     canonicalPath: `/products/${product.slug}`,
+    openGraphType: 'website',
+    category: 'food',
+    generator: 'Next.js',
     ...(firstImage
       ? {
           ogImage: {

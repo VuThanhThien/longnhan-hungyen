@@ -6,13 +6,17 @@ import CategoryFilter from '@/components/products/category-filter';
 import Breadcrumb from '@/components/ui/breadcrumb';
 import { fetchApi, fetchPaginated } from '@/lib/api-client';
 import { buildBreadcrumb } from '@/lib/breadcrumb';
+import {
+  productListingCategoriesTag,
+  productsListCacheTags,
+} from '@/lib/content-cache-tags';
 import { loadProductSearchParams } from '@/lib/product-search-params';
 import { buildSeoMetadata } from '@/lib/seo';
 import { cacheLife, cacheTag } from 'next/cache';
 
 async function getProductListingCategories(): Promise<Category[]> {
   'use cache';
-  cacheTag('product-list-categories');
+  cacheTag(productListingCategoriesTag);
   cacheLife({ revalidate: 60 });
   try {
     return await fetchApi<Category[]>('/categories');
@@ -27,7 +31,7 @@ async function getProductsListing(
 ): Promise<Product[]> {
   'use cache';
   cacheLife({ revalidate: 60 });
-  cacheTag('products-list', `cat:${category ?? ''}`, `q:${q ?? ''}`);
+  cacheTag(...productsListCacheTags(category, q));
   try {
     const response = await fetchPaginated<Product>('/products', {
       category,

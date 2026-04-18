@@ -715,6 +715,9 @@ apps/
         vi/
           common.json
           user.json
+      integrations/
+        storefront-revalidate/
+          storefront-cache-tags.ts
       libs/
         aws/
           aws.module.ts
@@ -840,6 +843,7 @@ apps/
           service-unavailable-screen.tsx
         track-order/
           page.tsx
+        apple-touch-icon.png
         error.tsx
         favicon.ico
         global-error.tsx
@@ -966,6 +970,7 @@ apps/
         breadcrumb.ts
         cloudinary-loader.ts
         constants.ts
+        content-cache-tags.ts
         format-phone-display.ts
         format-vnd.ts
         landing-category-nav.ts
@@ -1063,60 +1068,83 @@ This section contains the contents of the repository's files.
 
 </file>
 
-<file path=".dockerignore">
-# VCS
-.git
-.gitignore
-.gitattributes
+<file path="apps/api/src/integrations/storefront-revalidate/storefront-cache-tags.ts">
+/**
+ * Must stay in sync with `apps/web/src/lib/content-cache-tags.ts` (scope strings).
+ */
+export const storefrontWebCacheTags = {
+  products: 'products',
+  relatedProducts: 'related-products',
+  productListingCategories: 'product-list-categories',
+  homeCategories: 'home-categories',
+  articles: 'articles',
+} as const;
+</file>
 
-# Node dependencies — installed fresh inside the image
-node_modules
-**/node_modules
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
+<file path="apps/web/src/lib/content-cache-tags.ts">
+/**
+ * Shared string identifiers for Next.js `cacheTag` / `revalidateTag` and TanStack Query keys.
+ * Import `contentScope` / `contentSegment` from here in `query-keys.ts` so roots and segments stay identical.
+ */
 
-# Build artifacts — rebuilt inside the image
-**/.next
-**/dist
-**/build
-**/.turbo
-**/out
-**/storybook-static
+export const contentScope = {
+  products: 'products',
+  articles: 'articles',
+  relatedProducts: 'related-products',
+} as const;
 
-# Test / coverage
-**/.jest-cache
-**/coverage
-**/__snapshots__
-**/.nyc_output
+export const contentSegment = {
+  list: 'list',
+  detail: 'detail',
+} as const;
 
-# Local env files — only .env.production is intentionally COPYed by each Dockerfile
-.env
-.env.local
-**/.env.local
-**/.env.*.local
-**/.env.development
-**/.env.test
+/** Category options fetch on `/products` (filter chips). */
+export const productListingCategoriesTag = 'product-list-categories' as const;
 
-# Docker infra — not needed inside images
-Dockerfile
-docker/
-docker-compose*.yml
-.dockerignore
-deploy/
+export const homeContentTags = {
+  featuredProducts: 'home-featured-products',
+  categories: 'home-categories',
+  articles: 'home-articles',
+} as const;
 
-# Editor / OS
-.DS_Store
-*.swp
-*.swo
-.idea/
-.vscode/
-*.log
+export function productsListCacheTags(
+  category: string | undefined,
+  q: string | undefined,
+): readonly [string, string, string, string] {
+  return [
+    contentScope.products,
+    contentSegment.list,
+    `cat:${category ?? ''}`,
+    `q:${q ?? ''}`,
+  ];
+}
 
-# CI
-.github/
-.husky/
+export function productDetailCacheTags(
+  slug: string,
+): readonly [string, string, string] {
+  return [contentScope.products, contentSegment.detail, slug];
+}
+
+export function relatedProductsCacheTags(
+  category: string | undefined,
+  excludeSlug: string,
+): readonly [string, string, string] {
+  return [
+    contentScope.relatedProducts,
+    `cat:${category ?? ''}`,
+    `ex:${excludeSlug}`,
+  ];
+}
+
+export function articlesListCacheTags(): readonly [string, string] {
+  return [contentScope.articles, contentSegment.list];
+}
+
+export function articleDetailCacheTags(
+  slug: string,
+): readonly [string, string, string] {
+  return [contentScope.articles, contentSegment.detail, slug];
+}
 </file>
 
 <file path="apps/admin/public/file.svg">
@@ -15046,214 +15074,6 @@ process.env.AUTH_CONFIRM_EMAIL_TOKEN_EXPIRES_IN = '1d';
 </svg>
 </file>
 
-<file path="apps/web/public/sw.js">
-/**
- * Offline shell: network-first HTML, stale-while-revalidate for static/public.
- * Service-down: redirect to /service-unavailable (precached) on 502/503/504 or network error.
- * Bump VERSION when changing caching rules so old caches are purged.
- */
-const VERSION = 'longnhan-web-sw-v3';
-const PAGES_CACHE = `${VERSION}-pages`;
-const STATIC_CACHE = `${VERSION}-static`;
-const RUNTIME_CACHE = `${VERSION}-runtime`;
-const SERVICE_UNAVAILABLE_PATH = '/service-unavailable';
-
-const ALLOWED_CACHES = new Set([PAGES_CACHE, STATIC_CACHE, RUNTIME_CACHE]);
-const LOG_PREFIX = '[LongNhan SW:worker]';
-
-self.addEventListener('install', (event) => {
-  console.log(`${LOG_PREFIX} install — version`, VERSION);
-  self.skipWaiting();
-  event.waitUntil(
-    caches.open(PAGES_CACHE).then((cache) =>
-      Promise.all([
-        cache.add(new Request('/', { cache: 'reload' })).catch((e) => {
-          console.warn(
-            `${LOG_PREFIX} precache / failed (ok on first visit)`,
-            e,
-          );
-        }),
-        cache
-          .add(
-            new Request(SERVICE_UNAVAILABLE_PATH, {
-              cache: 'reload',
-            }),
-          )
-          .catch((e) => {
-            console.warn(
-              `${LOG_PREFIX} precache ${SERVICE_UNAVAILABLE_PATH} failed`,
-              e,
-            );
-          }),
-      ]),
-    ),
-  );
-});
-
-self.addEventListener('activate', (event) => {
-  console.log(`${LOG_PREFIX} activate — claiming clients, pruning old caches`);
-  event.waitUntil(
-    (async () => {
-      const keys = await caches.keys();
-      const removed = keys.filter((k) => !ALLOWED_CACHES.has(k));
-      await Promise.all(removed.map((k) => caches.delete(k)));
-      if (removed.length) {
-        console.log(`${LOG_PREFIX} deleted stale caches:`, removed);
-      }
-      await self.clients.claim();
-      console.log(`${LOG_PREFIX} activate — ready (${VERSION})`);
-    })(),
-  );
-});
-
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  if (request.method !== 'GET') return;
-
-  const url = new URL(request.url);
-  if (url.origin !== self.location.origin) return;
-
-  if (
-    url.pathname.startsWith('/api') ||
-    url.pathname.startsWith('/monitoring') ||
-    url.pathname.startsWith('/_next/data')
-  ) {
-    return;
-  }
-
-  if (request.mode === 'navigate') {
-    event.respondWith(networkFirstPage(event, request));
-    return;
-  }
-
-  if (url.pathname.startsWith('/_next/static/')) {
-    event.respondWith(staleWhileRevalidate(event, request, STATIC_CACHE));
-    return;
-  }
-
-  if (
-    /\.(css|png|jpg|jpeg|gif|webp|avif|svg|ico|woff2?|ttf|eot)$/i.test(
-      url.pathname,
-    )
-  ) {
-    event.respondWith(staleWhileRevalidate(event, request, RUNTIME_CACHE));
-    return;
-  }
-});
-
-function isUpstreamFailureStatus(status) {
-  return status === 502 || status === 503 || status === 504;
-}
-
-async function matchCachedPath(cache, path) {
-  const absolute = new URL(path, self.location.origin).href;
-  return (
-    (await cache.match(absolute)) ||
-    (await cache.match(new Request(path))) ||
-    (await cache.match(path))
-  );
-}
-
-/**
- * Prefer network; cache successful HTML. Upstream 502/503/504 → redirect to SU page.
- * Network error → same URL cache, else redirect to cached SU page.
- */
-async function networkFirstPage(event, request) {
-  const url = new URL(request.url);
-  const isSuRoute = url.pathname === SERVICE_UNAVAILABLE_PATH;
-  const cache = await caches.open(PAGES_CACHE);
-
-  try {
-    const networkResponse = await fetch(request, { redirect: 'follow' });
-
-    if (networkResponse.ok) {
-      await cache.put(request, networkResponse.clone());
-      return networkResponse;
-    }
-
-    if (isUpstreamFailureStatus(networkResponse.status)) {
-      if (isSuRoute) {
-        const cachedSu = await matchCachedPath(cache, SERVICE_UNAVAILABLE_PATH);
-        if (cachedSu) return cachedSu;
-        return minimalServiceUnavailableResponse();
-      }
-      console.log(
-        `${LOG_PREFIX} upstream ${networkResponse.status} — redirecting to ${SERVICE_UNAVAILABLE_PATH}`,
-      );
-      return Response.redirect(
-        new URL(SERVICE_UNAVAILABLE_PATH, self.location.origin).href,
-        302,
-      );
-    }
-
-    return networkResponse;
-  } catch (err) {
-    console.warn(`${LOG_PREFIX} network error for navigation`, err);
-
-    const cachedNav = await cache.match(request);
-    if (cachedNav) return cachedNav;
-
-    if (isSuRoute) {
-      const cachedSu = await matchCachedPath(cache, SERVICE_UNAVAILABLE_PATH);
-      if (cachedSu) return cachedSu;
-      return minimalServiceUnavailableResponse();
-    }
-
-    const cachedSu = await matchCachedPath(cache, SERVICE_UNAVAILABLE_PATH);
-    if (cachedSu) {
-      return Response.redirect(
-        new URL(SERVICE_UNAVAILABLE_PATH, self.location.origin).href,
-        302,
-      );
-    }
-
-    const root = new URL('/', self.location.origin).href;
-    if (request.url === root || request.url.startsWith(`${root}?`)) {
-      const cachedRoot = await matchCachedPath(cache, '/');
-      if (cachedRoot) return cachedRoot;
-    }
-
-    return minimalServiceUnavailableResponse();
-  }
-}
-
-/** Last-resort HTML when no precache and no network (UTF-8 Vietnamese). */
-function minimalServiceUnavailableResponse() {
-  const html = `<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Tạm ngưng phục vụ</title></head><body style="font-family:system-ui,-apple-system,sans-serif;max-width:28rem;margin:4rem auto;padding:0 1rem;text-align:center;color:#201d18"><p style="font-size:3rem;font-weight:800;margin:0">503</p><h1 style="font-size:1.25rem;font-weight:700">Hệ thống tạm không phản hồi</h1><p style="color:#555;line-height:1.5">Chưa có bản lưu đầy đủ. Kiểm tra kết nối mạng hoặc thử lại sau.</p><p style="margin-top:1.5rem"><a href="/" style="color:#166534;font-weight:600">Về trang chủ</a></p></body></html>`;
-  return new Response(html, {
-    status: 503,
-    headers: { 'Content-Type': 'text/html; charset=utf-8' },
-  });
-}
-
-async function staleWhileRevalidate(event, request, cacheName) {
-  const cache = await caches.open(cacheName);
-  const cached = await cache.match(request);
-
-  const networkPromise = fetch(request)
-    .then((response) => {
-      if (response.ok) {
-        cache.put(request, response.clone());
-      }
-      return response;
-    })
-    .catch(() => undefined);
-
-  if (cached) {
-    event.waitUntil(networkPromise);
-    return cached;
-  }
-
-  try {
-    const response = await networkPromise;
-    if (response) return response;
-  } catch {
-    /* fall through */
-  }
-  return new Response('', { status: 504, statusText: 'Gateway Timeout' });
-}
-</file>
-
 <file path="apps/web/src/actions/order-tracking-actions.ts">
 'use server';
 
@@ -18975,8 +18795,9 @@ export function buildLandingCategoryNav(
 </file>
 
 <file path="apps/web/src/lib/seo.ts">
-import { SITE_URL } from '@/lib/constants';
+import { SITE_NAME, SITE_URL } from '@/lib/constants';
 import type { Metadata } from 'next';
+import { PWA_CONFIG } from './pwa-config';
 
 type OgImage = {
   url: string;
@@ -18985,6 +18806,19 @@ type OgImage = {
   alt?: string;
 };
 
+type SeoBuilderCore = {
+  title: string;
+  description?: string;
+  canonicalPath: string;
+  ogImage?: OgImage;
+  ogImages?: OgImage[];
+  /** Use `article` for blog posts so crawlers get the right OG type. */
+  openGraphType?: 'website' | 'article';
+};
+
+/** Core SEO fields plus any optional Next.js `Metadata` fields (merged shallowly; OG/Twitter/canonical are composed on top). */
+export type BuildSeoMetadataInput = SeoBuilderCore & Partial<Metadata>;
+
 const DEFAULT_OG_IMAGE: Required<Pick<OgImage, 'url'>> & Partial<OgImage> = {
   url: '/banner-web2.png',
   width: 1200,
@@ -18992,47 +18826,130 @@ const DEFAULT_OG_IMAGE: Required<Pick<OgImage, 'url'>> & Partial<OgImage> = {
   alt: 'Long Nhãn Tống Trân',
 };
 
-function toAbsoluteUrl(pathOrUrl: string): string {
-  if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://'))
-    return pathOrUrl;
-  if (!pathOrUrl.startsWith('/')) return `${SITE_URL}/${pathOrUrl}`;
-  return `${SITE_URL}${pathOrUrl}`;
+/** Resolves image and page URLs for OG/Twitter; Facebook requires absolute https URLs. */
+export function toAbsoluteUrl(pathOrUrl: string): string {
+  const s = pathOrUrl.trim();
+  if (s.startsWith('https://')) return s;
+  if (s.startsWith('http://')) return s;
+  if (s.startsWith('//')) return `https:${s}`;
+  if (s.startsWith('/')) return `${SITE_URL}${s}`;
+  return `${SITE_URL}/${s}`;
 }
 
-export function buildSeoMetadata(input: {
-  title: string;
-  description?: string;
-  canonicalPath: string;
-  ogImage?: OgImage;
-  ogImages?: OgImage[];
-}): Metadata {
-  const canonicalPath = input.canonicalPath.startsWith('/')
-    ? input.canonicalPath
-    : `/${input.canonicalPath}`;
-  const canonicalUrl = toAbsoluteUrl(canonicalPath);
+function normalizeCanonicalPath(path: string): string {
+  const p = path.trim();
+  if (!p || p === '/') return '/';
+  return p.startsWith('/') ? p : `/${p}`;
+}
 
-  const images = (
-    input.ogImages ?? (input.ogImage ? [input.ogImage] : [DEFAULT_OG_IMAGE])
-  )
+export function buildSeoMetadata(input: BuildSeoMetadataInput): Metadata {
+  const {
+    title,
+    description,
+    canonicalPath,
+    ogImage,
+    ogImages,
+    openGraphType,
+    alternates: inputAlternates,
+    openGraph: inputOpenGraph,
+    twitter: inputTwitter,
+    ...metadataRest
+  } = input;
+
+  const pathname = normalizeCanonicalPath(canonicalPath);
+  const pageUrl = `${SITE_URL}${pathname === '/' ? '/' : pathname}`;
+
+  const images = (ogImages ?? (ogImage ? [ogImage] : [DEFAULT_OG_IMAGE]))
     .filter(Boolean)
     .map((img) => ({
       ...img,
       url: toAbsoluteUrl(img.url),
     }));
 
+  const imageUrls = images.map((i) => i.url);
+
+  const userOg = inputOpenGraph as
+    | (NonNullable<typeof inputOpenGraph> & { type?: 'website' | 'article' })
+    | undefined;
+  const ogType = openGraphType ?? userOg?.type ?? 'website';
+
+  const userTw = inputTwitter as
+    | (NonNullable<typeof inputTwitter> & {
+        card?: 'summary' | 'summary_large_image' | 'app' | 'player';
+      })
+    | undefined;
+
   return {
-    title: input.title,
-    description: input.description,
+    ...metadataRest,
+    title,
+    description,
     alternates: {
-      canonical: canonicalPath,
+      ...inputAlternates,
+      canonical: pageUrl,
     },
+    authors: [{ name: SITE_NAME, url: SITE_URL }],
+    generator: 'Next.js',
+    applicationName: SITE_NAME,
+    category: 'food',
+    metadataBase: new URL(SITE_URL),
     openGraph: {
-      type: 'website',
-      url: canonicalUrl,
-      title: input.title,
-      description: input.description,
+      ...inputOpenGraph,
+      type: ogType,
+      locale: userOg?.locale ?? 'vi_VN',
+      siteName: userOg?.siteName ?? SITE_NAME,
+      url: userOg?.url ?? pageUrl,
+      title,
+      description,
       images,
     },
+    twitter: {
+      ...inputTwitter,
+      card: userTw?.card ?? 'summary_large_image',
+      title,
+      description,
+      images: imageUrls,
+    },
+    icons: {
+      icon: [{ url: '/favicon.ico', sizes: 'any' }],
+      apple: [
+        { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      ],
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+      },
+    },
+    classification: 'food',
+    other: {
+      google: 'notranslate',
+      'mobile-web-app-capable': 'yes',
+      'apple-mobile-web-app-capable': 'yes',
+      'apple-mobile-web-app-status-bar-style': 'black-translucent',
+      'apple-mobile-web-app-title': SITE_NAME,
+      'application-name': SITE_NAME,
+      'msapplication-TileColor': PWA_CONFIG.themeColor,
+      'msapplication-config': '/browserconfig.xml',
+      'theme-color': PWA_CONFIG.themeColor,
+      'color-scheme': 'dark light',
+      referrer: 'origin-when-cross-origin',
+      viewport: 'width=device-width, initial-scale=1, maximum-scale=5',
+    },
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: 'black-translucent',
+      title: SITE_NAME,
+      startupImage: [
+        {
+          url: '/apple-touch-startup-image-768x1004.png',
+          media: '(device-width: 768px) and (device-height: 1024px)',
+        },
+      ],
+    },
+    referrer: 'origin-when-cross-origin',
   };
 }
 </file>
@@ -19476,168 +19393,6 @@ Optional override compose file (repo root): `docker-compose.prod.cloudflared-con
 - Consider **pinning** `cloudflare/cloudflared` to a specific image digest in production for reproducible pulls.
 </file>
 
-<file path="docker/admin.Dockerfile">
-# Production image for @longnhan/admin (Next.js standalone)
-# Requires apps/admin/.env.production (e.g. API_URL for server actions).
-# Build: docker build -f docker/admin.Dockerfile -t longnhan-admin:prod .
-
-FROM node:20-alpine AS base
-RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
-WORKDIR /workspace
-
-# ── deps stage: only lockfile + package.json files ────────────────────────────
-# This layer is cached until pnpm-lock.yaml or any package.json changes.
-FROM base AS deps
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json ./
-COPY tsconfig.base.json ./
-COPY packages/types/package.json ./packages/types/
-COPY apps/admin/package.json ./apps/admin/
-RUN pnpm install --frozen-lockfile
-
-# ── builder stage: add source + build ─────────────────────────────────────────
-# Only this stage re-runs when code or .env.production changes.
-FROM deps AS builder
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_ENV=production
-
-COPY packages/types ./packages/types
-COPY apps/admin ./apps/admin
-RUN test -f apps/admin/.env.production || (echo "Missing apps/admin/.env.production" && exit 1)
-
-RUN pnpm --filter @longnhan/types build
-RUN pnpm --filter @longnhan/admin build
-
-# ── runner stage: minimal production image ─────────────────────────────────────
-FROM node:20-alpine AS runner
-WORKDIR /app
-
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-
-RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
-
-COPY --from=builder /workspace/apps/admin/.next/standalone ./
-COPY --from=builder /workspace/apps/admin/.next/static ./apps/admin/.next/static
-COPY --from=builder /workspace/apps/admin/public ./apps/admin/public
-COPY --from=builder /workspace/apps/admin/.env.production ./apps/admin/.env.production
-
-# Standalone COPY leaves root ownership; nextjs must write .next/cache (disk LRU).
-RUN chown -R nextjs:nodejs /app
-
-USER nextjs
-
-EXPOSE 3002
-ENV PORT=3002
-ENV HOSTNAME=0.0.0.0
-
-CMD ["node", "apps/admin/server.js"]
-</file>
-
-<file path="docker/api.Dockerfile">
-# Monorepo-aware production image for @longnhan/api
-# Build: docker build -f docker/api.Dockerfile -t longnhan-api:prod .
-# Runtime configuration: pass apps/api/.env.production via docker-compose env_file (see docker-compose.prod.yml).
-
-FROM node:20-alpine AS base
-RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
-WORKDIR /workspace
-
-FROM base AS builder
-# pnpm refuses to remove node_modules without a TTY unless CI=true (Docker builds have no TTY)
-ENV CI=true
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
-COPY tsconfig.base.json ./
-COPY packages/types/package.json ./packages/types/
-COPY apps/api/package.json ./apps/api/
-
-RUN pnpm fetch
-
-COPY packages/types ./packages/types
-COPY apps/api ./apps/api
-
-RUN pnpm install --frozen-lockfile
-RUN pnpm --filter @longnhan/types build
-RUN pnpm --filter @longnhan/api build
-# Portable app + production node_modules (pnpm virtual store under /workspace is not copy-friendly)
-RUN pnpm --filter @longnhan/api deploy --prod --legacy /out/api
-
-FROM node:20-alpine AS production
-WORKDIR /app
-
-RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nestjs
-
-COPY --chown=nestjs:nodejs --from=builder /out/api /app
-# pnpm deploy only ships package "files" (dist). nestjs-i18n still resolves typesOutputPath to
-# /app/src/generated/i18n.generated.ts at runtime (see apps/api/src/utils/modules-set.ts).
-COPY --chown=nestjs:nodejs --from=builder /workspace/apps/api/src/generated/i18n.generated.ts /app/src/generated/i18n.generated.ts
-# WORKDIR creates /app as root; COPY --chown does not change ownership of the destination dir, so nestjs
-# cannot mkdir under /app without owning it (e.g. if i18n types need regenerating).
-RUN chown nestjs:nodejs /app
-
-USER nestjs
-
-ENV NODE_ENV=production
-CMD ["node", "dist/main.js"]
-</file>
-
-<file path="docker/web.Dockerfile">
-# Production image for @longnhan/web (Next.js standalone)
-# Build: docker build -f docker/web.Dockerfile -t longnhan-web:prod .
-# Requires apps/web/.env.production (NEXT_PUBLIC_* and any server keys for build).
-
-FROM node:20-alpine AS base
-RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
-WORKDIR /workspace
-
-# ── deps stage: only lockfile + package.json files ────────────────────────────
-# This layer is cached until pnpm-lock.yaml or any package.json changes.
-FROM base AS deps
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json ./
-COPY tsconfig.base.json ./
-COPY packages/types/package.json ./packages/types/
-COPY apps/web/package.json ./apps/web/
-RUN pnpm install --frozen-lockfile
-
-# ── builder stage: add source + build ─────────────────────────────────────────
-# Only this stage re-runs when code or .env.production changes.
-FROM deps AS builder
-ENV NEXT_TELEMETRY_DISABLED=1
-# next build loads apps/web/.env.production when NODE_ENV=production
-ENV NODE_ENV=production
-
-COPY packages/types ./packages/types
-COPY apps/web ./apps/web
-RUN test -f apps/web/.env.production || (echo "Missing apps/web/.env.production" && exit 1)
-
-RUN pnpm --filter @longnhan/types build
-RUN pnpm --filter @longnhan/web build
-
-# ── runner stage: minimal production image ─────────────────────────────────────
-FROM node:20-alpine AS runner
-WORKDIR /app
-
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-
-RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
-
-COPY --from=builder /workspace/apps/web/.next/standalone ./
-COPY --from=builder /workspace/apps/web/.next/static ./apps/web/.next/static
-COPY --from=builder /workspace/apps/web/public ./apps/web/public
-COPY --from=builder /workspace/apps/web/.env.production ./apps/web/.env.production
-
-# Standalone COPY leaves root ownership; nextjs must write .next/cache (disk LRU).
-RUN chown -R nextjs:nodejs /app
-
-USER nextjs
-
-EXPOSE 3000
-ENV PORT=3000
-ENV HOSTNAME=0.0.0.0
-
-CMD ["node", "apps/web/server.js"]
-</file>
-
 <file path="docs/brainstorm-2026-04-15-home-category-menu-banner-carousel.md">
 ---
 title: Brainstorm — Home category menu + banner carousel block
@@ -19821,6 +19576,62 @@ export interface Category {
 }
 </file>
 
+<file path=".dockerignore">
+# VCS
+.git
+.gitignore
+.gitattributes
+
+# Node dependencies — installed fresh inside the image
+node_modules
+**/node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build artifacts — rebuilt inside the image
+**/.next
+**/dist
+**/build
+**/.turbo
+**/out
+**/storybook-static
+
+# Test / coverage
+**/.jest-cache
+**/coverage
+**/__snapshots__
+**/.nyc_output
+
+# Local env files — only .env.production is intentionally COPYed by each Dockerfile
+.env
+.env.local
+**/.env.local
+**/.env.*.local
+**/.env.development
+**/.env.test
+
+# Docker infra — not needed inside images
+Dockerfile
+docker/
+docker-compose*.yml
+.dockerignore
+deploy/
+
+# Editor / OS
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+*.log
+
+# CI
+.github/
+.husky/
+</file>
+
 <file path=".editorconfig">
 root = true
 
@@ -19972,132 +19783,6 @@ services:
     command: tunnel --config /etc/cloudflared/config.yml --no-autoupdate run
     volumes:
       - ./deploy/cloudflare:/etc/cloudflared:ro
-</file>
-
-<file path="docker-compose.prod.yml">
-# Production: API + web + admin + Postgres + Redis + cloudflared (-p longnhan-prod).
-# Env: apps/{api,web,admin}/.env.production — see deploy/README.md
-
-services:
-  db:
-    image: postgres:16-alpine
-    container_name: longnhan_prod_db
-    environment:
-      POSTGRES_DB: ${DATABASE_NAME:-longnhan}
-      POSTGRES_USER: ${DATABASE_USERNAME:-longnhan}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD in apps/api/.env.production}
-      TZ: UTC
-    ports:
-      - '127.0.0.1:${DATABASE_PORT:-5436}:5432'
-    volumes:
-      - postgres_prod_data:/var/lib/postgresql/data
-    restart: unless-stopped
-    networks:
-      - longnhan-prod
-
-  redis:
-    image: redis:7-alpine
-    container_name: longnhan_prod_redis
-    command: redis-server --save 20 1 --loglevel warning
-    ports:
-      - '127.0.0.1:${REDIS_PORT:-6381}:6379'
-    volumes:
-      - redis_prod_data:/data
-    restart: unless-stopped
-    networks:
-      - longnhan-prod
-
-  api:
-    build:
-      context: .
-      dockerfile: docker/api.Dockerfile
-    image: longnhan-api:prod
-    container_name: longnhan_prod_api
-    env_file:
-      - apps/api/.env.production
-    environment:
-      NODE_ENV: production
-      APP_PORT: 3001
-      DATABASE_HOST: db
-      DATABASE_PORT: 5432
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-    ports:
-      - '127.0.0.1:${APP_PORT:-13101}:3001'
-    depends_on:
-      - db
-      - redis
-    restart: unless-stopped
-    networks:
-      - longnhan-prod
-
-  web:
-    build:
-      context: .
-      dockerfile: docker/web.Dockerfile
-    image: longnhan-web:prod
-    container_name: longnhan_prod_web
-    env_file:
-      - apps/web/.env.production
-    environment:
-      NODE_ENV: production
-      PORT: 3000
-      # Server-side fetches (RSC, route handlers) use API_URL first (see apps/web/src/lib/api-client.ts).
-      # Without this, the web container calls NEXT_PUBLIC_API_URL over the public internet; the API
-      # container never sees those requests and SSR can fail silently if tunnel/DNS is unavailable.
-      API_URL: http://api:3001/api/v1
-    ports:
-      - '127.0.0.1:${PORT:-13100}:3000'
-    depends_on:
-      - api
-    restart: unless-stopped
-    networks:
-      - longnhan-prod
-
-  admin:
-    build:
-      context: .
-      dockerfile: docker/admin.Dockerfile
-    image: longnhan-admin:prod
-    container_name: longnhan_prod_admin
-    env_file:
-      - apps/admin/.env.production
-    environment:
-      NODE_ENV: production
-      PORT: 3002
-      API_URL: http://api:3001/api/v1
-    ports:
-      - '127.0.0.1:${PORT:-13102}:3002'
-    depends_on:
-      - api
-    restart: unless-stopped
-    networks:
-      - longnhan-prod
-
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: longnhan_prod_cloudflared
-    command:
-      - tunnel
-      - --no-autoupdate
-      - run
-      - --token
-      - ${CLOUDFLARED_TUNNEL_TOKEN}
-    depends_on:
-      - api
-      - web
-      - admin
-    restart: unless-stopped
-    networks:
-      - longnhan-prod
-
-volumes:
-  postgres_prod_data:
-  redis_prod_data:
-
-networks:
-  longnhan-prod:
-    driver: bridge
 </file>
 
 <file path="lint-staged.config.mjs">
@@ -38476,6 +38161,214 @@ USER node
 CMD [ "node", "dist/main.js" ]
 </file>
 
+<file path="apps/web/public/sw.js">
+/**
+ * Offline shell: network-first HTML, stale-while-revalidate for static/public.
+ * Service-down: redirect to /service-unavailable (precached) on 502/503/504 or network error.
+ * Bump VERSION when changing caching rules so old caches are purged.
+ */
+const VERSION = 'longnhan-web-sw-v3';
+const PAGES_CACHE = `${VERSION}-pages`;
+const STATIC_CACHE = `${VERSION}-static`;
+const RUNTIME_CACHE = `${VERSION}-runtime`;
+const SERVICE_UNAVAILABLE_PATH = '/service-unavailable';
+
+const ALLOWED_CACHES = new Set([PAGES_CACHE, STATIC_CACHE, RUNTIME_CACHE]);
+const LOG_PREFIX = '[LongNhan SW:worker]';
+
+self.addEventListener('install', (event) => {
+  console.log(`${LOG_PREFIX} install — version`, VERSION);
+  self.skipWaiting();
+  event.waitUntil(
+    caches.open(PAGES_CACHE).then((cache) =>
+      Promise.all([
+        cache.add(new Request('/', { cache: 'reload' })).catch((e) => {
+          console.warn(
+            `${LOG_PREFIX} precache / failed (ok on first visit)`,
+            e,
+          );
+        }),
+        cache
+          .add(
+            new Request(SERVICE_UNAVAILABLE_PATH, {
+              cache: 'reload',
+            }),
+          )
+          .catch((e) => {
+            console.warn(
+              `${LOG_PREFIX} precache ${SERVICE_UNAVAILABLE_PATH} failed`,
+              e,
+            );
+          }),
+      ]),
+    ),
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  console.log(`${LOG_PREFIX} activate — claiming clients, pruning old caches`);
+  event.waitUntil(
+    (async () => {
+      const keys = await caches.keys();
+      const removed = keys.filter((k) => !ALLOWED_CACHES.has(k));
+      await Promise.all(removed.map((k) => caches.delete(k)));
+      if (removed.length) {
+        console.log(`${LOG_PREFIX} deleted stale caches:`, removed);
+      }
+      await self.clients.claim();
+      console.log(`${LOG_PREFIX} activate — ready (${VERSION})`);
+    })(),
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  if (
+    url.pathname.startsWith('/api') ||
+    url.pathname.startsWith('/monitoring') ||
+    url.pathname.startsWith('/_next/data')
+  ) {
+    return;
+  }
+
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirstPage(event, request));
+    return;
+  }
+
+  if (url.pathname.startsWith('/_next/static/')) {
+    event.respondWith(staleWhileRevalidate(event, request, STATIC_CACHE));
+    return;
+  }
+
+  if (
+    /\.(css|png|jpg|jpeg|gif|webp|avif|svg|ico|woff2?|ttf|eot)$/i.test(
+      url.pathname,
+    )
+  ) {
+    event.respondWith(staleWhileRevalidate(event, request, RUNTIME_CACHE));
+    return;
+  }
+});
+
+function isUpstreamFailureStatus(status) {
+  return status === 502 || status === 503 || status === 504;
+}
+
+async function matchCachedPath(cache, path) {
+  const absolute = new URL(path, self.location.origin).href;
+  return (
+    (await cache.match(absolute)) ||
+    (await cache.match(new Request(path))) ||
+    (await cache.match(path))
+  );
+}
+
+/**
+ * Prefer network; cache successful HTML. Upstream 502/503/504 → redirect to SU page.
+ * Network error → same URL cache, else redirect to cached SU page.
+ */
+async function networkFirstPage(event, request) {
+  const url = new URL(request.url);
+  const isSuRoute = url.pathname === SERVICE_UNAVAILABLE_PATH;
+  const cache = await caches.open(PAGES_CACHE);
+
+  try {
+    const networkResponse = await fetch(request, { redirect: 'follow' });
+
+    if (networkResponse.ok) {
+      await cache.put(request, networkResponse.clone());
+      return networkResponse;
+    }
+
+    if (isUpstreamFailureStatus(networkResponse.status)) {
+      if (isSuRoute) {
+        const cachedSu = await matchCachedPath(cache, SERVICE_UNAVAILABLE_PATH);
+        if (cachedSu) return cachedSu;
+        return minimalServiceUnavailableResponse();
+      }
+      console.log(
+        `${LOG_PREFIX} upstream ${networkResponse.status} — redirecting to ${SERVICE_UNAVAILABLE_PATH}`,
+      );
+      return Response.redirect(
+        new URL(SERVICE_UNAVAILABLE_PATH, self.location.origin).href,
+        302,
+      );
+    }
+
+    return networkResponse;
+  } catch (err) {
+    console.warn(`${LOG_PREFIX} network error for navigation`, err);
+
+    const cachedNav = await cache.match(request);
+    if (cachedNav) return cachedNav;
+
+    if (isSuRoute) {
+      const cachedSu = await matchCachedPath(cache, SERVICE_UNAVAILABLE_PATH);
+      if (cachedSu) return cachedSu;
+      return minimalServiceUnavailableResponse();
+    }
+
+    const cachedSu = await matchCachedPath(cache, SERVICE_UNAVAILABLE_PATH);
+    if (cachedSu) {
+      return Response.redirect(
+        new URL(SERVICE_UNAVAILABLE_PATH, self.location.origin).href,
+        302,
+      );
+    }
+
+    const root = new URL('/', self.location.origin).href;
+    if (request.url === root || request.url.startsWith(`${root}?`)) {
+      const cachedRoot = await matchCachedPath(cache, '/');
+      if (cachedRoot) return cachedRoot;
+    }
+
+    return minimalServiceUnavailableResponse();
+  }
+}
+
+/** Last-resort HTML when no precache and no network (UTF-8 Vietnamese). */
+function minimalServiceUnavailableResponse() {
+  const html = `<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Tạm ngưng phục vụ</title></head><body style="font-family:system-ui,-apple-system,sans-serif;max-width:28rem;margin:4rem auto;padding:0 1rem;text-align:center;color:#201d18"><p style="font-size:3rem;font-weight:800;margin:0">503</p><h1 style="font-size:1.25rem;font-weight:700">Hệ thống tạm không phản hồi</h1><p style="color:#555;line-height:1.5">Chưa có bản lưu đầy đủ. Kiểm tra kết nối mạng hoặc thử lại sau.</p><p style="margin-top:1.5rem"><a href="/" style="color:#166534;font-weight:600">Về trang chủ</a></p></body></html>`;
+  return new Response(html, {
+    status: 503,
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  });
+}
+
+async function staleWhileRevalidate(event, request, cacheName) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request);
+
+  const networkPromise = fetch(request)
+    .then((response) => {
+      if (response.ok) {
+        cache.put(request, response.clone());
+      }
+      return response;
+    })
+    .catch(() => undefined);
+
+  if (cached) {
+    event.waitUntil(networkPromise);
+    return cached;
+  }
+
+  try {
+    const response = await networkPromise;
+    if (response) return response;
+  } catch {
+    /* fall through */
+  }
+  return new Response('', { status: 504, statusText: 'Gateway Timeout' });
+}
+</file>
+
 <file path="apps/web/src/app/track-order/page.tsx">
 import type { Metadata } from 'next';
 
@@ -40567,24 +40460,39 @@ export const PWA_MANIFEST_SCREENSHOTS = [
 </file>
 
 <file path="apps/web/src/lib/query-keys.ts">
+import { contentScope, contentSegment } from '@/lib/content-cache-tags';
+
 export const queryKeys = {
   products: {
-    all: ['products'] as const,
+    all: [contentScope.products] as const,
     list: (params?: {
       category?: string;
       q?: string;
       page?: number;
       limit?: number;
-    }) => [...queryKeys.products.all, 'list', params ?? {}] as const,
+    }) =>
+      [
+        ...queryKeys.products.all,
+        contentSegment.list,
+        `cat:${params?.category ?? ''}`,
+        `q:${params?.q ?? ''}`,
+        params?.page,
+        params?.limit,
+      ] as const,
     detail: (slug: string) =>
-      [...queryKeys.products.all, 'detail', slug] as const,
+      [...queryKeys.products.all, contentSegment.detail, slug] as const,
   },
   articles: {
-    all: ['articles'] as const,
+    all: [contentScope.articles] as const,
     list: (params?: { page?: number; limit?: number }) =>
-      [...queryKeys.articles.all, 'list', params ?? {}] as const,
+      [
+        ...queryKeys.articles.all,
+        contentSegment.list,
+        params?.page,
+        params?.limit,
+      ] as const,
     detail: (slug: string) =>
-      [...queryKeys.articles.all, 'detail', slug] as const,
+      [...queryKeys.articles.all, contentSegment.detail, slug] as const,
   },
 } as const;
 </file>
@@ -40656,6 +40564,168 @@ next-env.d.ts
 
 # Sentry Config File
 .env.sentry-build-plugin
+</file>
+
+<file path="docker/admin.Dockerfile">
+# Production image for @longnhan/admin (Next.js standalone)
+# Requires apps/admin/.env.production (e.g. API_URL for server actions).
+# Build: docker build -f docker/admin.Dockerfile -t longnhan-admin:prod .
+
+FROM node:20-alpine AS base
+RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
+WORKDIR /workspace
+
+# ── deps stage: only lockfile + package.json files ────────────────────────────
+# This layer is cached until pnpm-lock.yaml or any package.json changes.
+FROM base AS deps
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json ./
+COPY tsconfig.base.json ./
+COPY packages/types/package.json ./packages/types/
+COPY apps/admin/package.json ./apps/admin/
+RUN pnpm install --frozen-lockfile
+
+# ── builder stage: add source + build ─────────────────────────────────────────
+# Only this stage re-runs when code or .env.production changes.
+FROM deps AS builder
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+
+COPY packages/types ./packages/types
+COPY apps/admin ./apps/admin
+RUN test -f apps/admin/.env.production || (echo "Missing apps/admin/.env.production" && exit 1)
+
+RUN pnpm --filter @longnhan/types build
+RUN pnpm --filter @longnhan/admin build
+
+# ── runner stage: minimal production image ─────────────────────────────────────
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
+
+COPY --from=builder /workspace/apps/admin/.next/standalone ./
+COPY --from=builder /workspace/apps/admin/.next/static ./apps/admin/.next/static
+COPY --from=builder /workspace/apps/admin/public ./apps/admin/public
+COPY --from=builder /workspace/apps/admin/.env.production ./apps/admin/.env.production
+
+# Standalone COPY leaves root ownership; nextjs must write .next/cache (disk LRU).
+RUN chown -R nextjs:nodejs /app
+
+USER nextjs
+
+EXPOSE 3002
+ENV PORT=3002
+ENV HOSTNAME=0.0.0.0
+
+CMD ["node", "apps/admin/server.js"]
+</file>
+
+<file path="docker/api.Dockerfile">
+# Monorepo-aware production image for @longnhan/api
+# Build: docker build -f docker/api.Dockerfile -t longnhan-api:prod .
+# Runtime configuration: pass apps/api/.env.production via docker-compose env_file (see docker-compose.prod.yml).
+
+FROM node:20-alpine AS base
+RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
+WORKDIR /workspace
+
+FROM base AS builder
+# pnpm refuses to remove node_modules without a TTY unless CI=true (Docker builds have no TTY)
+ENV CI=true
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY tsconfig.base.json ./
+COPY packages/types/package.json ./packages/types/
+COPY apps/api/package.json ./apps/api/
+
+RUN pnpm fetch
+
+COPY packages/types ./packages/types
+COPY apps/api ./apps/api
+
+RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @longnhan/types build
+RUN pnpm --filter @longnhan/api build
+# Portable app + production node_modules (pnpm virtual store under /workspace is not copy-friendly)
+RUN pnpm --filter @longnhan/api deploy --prod --legacy /out/api
+
+FROM node:20-alpine AS production
+WORKDIR /app
+
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nestjs
+
+COPY --chown=nestjs:nodejs --from=builder /out/api /app
+# pnpm deploy only ships package "files" (dist). nestjs-i18n still resolves typesOutputPath to
+# /app/src/generated/i18n.generated.ts at runtime (see apps/api/src/utils/modules-set.ts).
+COPY --chown=nestjs:nodejs --from=builder /workspace/apps/api/src/generated/i18n.generated.ts /app/src/generated/i18n.generated.ts
+# WORKDIR creates /app as root; COPY --chown does not change ownership of the destination dir, so nestjs
+# cannot mkdir under /app without owning it (e.g. if i18n types need regenerating).
+RUN chown nestjs:nodejs /app
+
+USER nestjs
+
+ENV NODE_ENV=production
+CMD ["node", "dist/main.js"]
+</file>
+
+<file path="docker/web.Dockerfile">
+# Production image for @longnhan/web (Next.js standalone)
+# Build: docker build -f docker/web.Dockerfile -t longnhan-web:prod .
+# Requires apps/web/.env.production (NEXT_PUBLIC_* and any server keys for build).
+
+FROM node:20-alpine AS base
+RUN corepack enable && corepack prepare pnpm@10.32.1 --activate
+WORKDIR /workspace
+
+# ── deps stage: only lockfile + package.json files ────────────────────────────
+# This layer is cached until pnpm-lock.yaml or any package.json changes.
+FROM base AS deps
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json ./
+COPY tsconfig.base.json ./
+COPY packages/types/package.json ./packages/types/
+COPY apps/web/package.json ./apps/web/
+RUN pnpm install --frozen-lockfile
+
+# ── builder stage: add source + build ─────────────────────────────────────────
+# Only this stage re-runs when code or .env.production changes.
+FROM deps AS builder
+ENV NEXT_TELEMETRY_DISABLED=1
+# next build loads apps/web/.env.production when NODE_ENV=production
+ENV NODE_ENV=production
+
+COPY packages/types ./packages/types
+COPY apps/web ./apps/web
+RUN test -f apps/web/.env.production || (echo "Missing apps/web/.env.production" && exit 1)
+
+RUN pnpm --filter @longnhan/types build
+RUN pnpm --filter @longnhan/web build
+
+# ── runner stage: minimal production image ─────────────────────────────────────
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
+
+COPY --from=builder /workspace/apps/web/.next/standalone ./
+COPY --from=builder /workspace/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder /workspace/apps/web/public ./apps/web/public
+COPY --from=builder /workspace/apps/web/.env.production ./apps/web/.env.production
+
+# Standalone COPY leaves root ownership; nextjs must write .next/cache (disk LRU).
+RUN chown -R nextjs:nodejs /app
+
+USER nextjs
+
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+CMD ["node", "apps/web/server.js"]
 </file>
 
 <file path="packages/types/src/article.ts">
@@ -40738,195 +40808,130 @@ approve-builds[]=sharp
 store-dir=/Users/vuthanhthien/Library/pnpm/store/v10
 </file>
 
-<file path="Makefile">
-.PHONY: help install dev dev-api dev-web dev-admin \
-        build build-api build-web build-admin \
-        lint format type-check \
-        up down logs reset up-local \
-        deploy deploy-clean deploy-down prod-preflight \
-        migration-up migration-up-prod migration-down migration-show migration-generate \
-        seed test test-cov test-e2e
+<file path="docker-compose.prod.yml">
+# Production: API + web + admin + Postgres + Redis + cloudflared (-p longnhan-prod).
+# Env: apps/{api,web,admin}/.env.production — see deploy/README.md
 
-# Default target
-help:
-	@echo ""
-	@echo "Long Nhan Hung Yen — available commands:"
-	@echo ""
-	@echo "  Setup"
-	@echo "    make install          Install all dependencies"
-	@echo ""
-	@echo "  Development"
-	@echo "    make dev              Infra (db, redis, maildev, pgadmin) + all apps in watch mode"
-	@echo "    make dev-api          Start API only (http://localhost:3001)"
-	@echo "    make dev-web          Start storefront only (http://localhost:3000)"
-	@echo "    make dev-admin        Start admin only (http://localhost:3002)"
-	@echo ""
-	@echo "  Build"
-	@echo "    make build            Build all apps"
-	@echo "    make build-api        Build API only"
-	@echo ""
-	@echo "  Code Quality"
-	@echo "    make lint             Lint all apps"
-	@echo "    make format           Format all apps"
-	@echo "    make type-check       Type-check all apps"
-	@echo ""
-	@echo "  Docker (infra)"
-	@echo "    make up               Start infra services (db, redis, maildev, pgadmin)"
-	@echo "    make down             Stop all services"
-	@echo "    make logs             Tail service logs"
-	@echo "    make reset            Reset volumes & restart services"
-	@echo "    make up-local         Start full local stack with API hot-reload"
-	@echo ""
-	@echo "  Production (Docker + Cloudflare Tunnel)"
-	@echo "    make deploy           Build & run api, web, admin, db, redis, cloudflared (ports 13100–13102)"
-	@echo "    make deploy-clean     Same as deploy but with --no-cache (full rebuild, ignores all Docker cache)"
-	@echo "    make deploy-down      Stop production stack"
-	@echo "                          See deploy/README.md (token or config.yml + credentials JSON)"
-	@echo ""
-	@echo "  Database"
-	@echo "    make migration-up     Run pending migrations (local .env)"
-	@echo "    make migration-up-prod Run pending migrations using apps/api/.env.production"
-	@echo "    make migration-down   Revert last migration"
-	@echo "    make migration-show   Show migration status"
-	@echo "    make seed             Run database seeders"
-	@echo ""
-	@echo "  Testing"
-	@echo "    make test             Run unit tests"
-	@echo "    make test-cov         Run tests with coverage"
-	@echo "    make test-e2e         Run e2e tests"
-	@echo ""
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: longnhan_prod_db
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-longnhan}
+      POSTGRES_USER: ${DATABASE_USERNAME:-longnhan}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD in apps/api/.env.production}
+      TZ: UTC
+    ports:
+      - '127.0.0.1:${DATABASE_PORT:-5436}:5432'
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - longnhan-prod
 
-# ── Setup ─────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: longnhan_prod_redis
+    command: redis-server --save 20 1 --loglevel warning
+    ports:
+      - '127.0.0.1:${REDIS_PORT:-6381}:6379'
+    volumes:
+      - redis_prod_data:/data
+    restart: unless-stopped
+    networks:
+      - longnhan-prod
 
-install:
-	pnpm install
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    image: longnhan-api:prod
+    container_name: longnhan_prod_api
+    env_file:
+      - apps/api/.env.production
+    environment:
+      NODE_ENV: production
+      APP_PORT: 3001
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - '127.0.0.1:${APP_PORT:-13101}:3001'
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    networks:
+      - longnhan-prod
 
-# ── Development ───────────────────────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    image: longnhan-web:prod
+    container_name: longnhan_prod_web
+    env_file:
+      - apps/web/.env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # Server-side fetches (RSC, route handlers) use API_URL first (see apps/web/src/lib/api-client.ts).
+      # Without this, the web container calls NEXT_PUBLIC_API_URL over the public internet; the API
+      # container never sees those requests and SSR can fail silently if tunnel/DNS is unavailable.
+      API_URL: http://api:3001/api/v1
+    ports:
+      - '127.0.0.1:${PORT:-13100}:3000'
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - longnhan-prod
 
-dev: up
-	pnpm dev
+  admin:
+    build:
+      context: .
+      dockerfile: docker/admin.Dockerfile
+    image: longnhan-admin:prod
+    container_name: longnhan_prod_admin
+    env_file:
+      - apps/admin/.env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      API_URL: http://api:3001/api/v1
+    ports:
+      - '127.0.0.1:${PORT:-13102}:3002'
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - longnhan-prod
 
-dev-api:
-	pnpm dev:api
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: longnhan_prod_cloudflared
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+      - --token
+      - ${CLOUDFLARED_TUNNEL_TOKEN}
+    depends_on:
+      - api
+      - web
+      - admin
+    restart: unless-stopped
+    networks:
+      - longnhan-prod
 
-dev-web:
-	pnpm dev:web
+volumes:
+  postgres_prod_data:
+  redis_prod_data:
 
-dev-admin:
-	pnpm dev:admin
-
-# ── Build ─────────────────────────────────────────────────────────────────────
-
-build:
-	pnpm build
-
-build-api:
-	pnpm build:api
-
-build-web:
-	pnpm build:web
-
-build-admin:
-	pnpm build:admin
-
-# ── Code Quality ──────────────────────────────────────────────────────────────
-
-lint:
-	pnpm lint
-
-format:
-	pnpm format
-
-type-check:
-	pnpm type-check
-
-# ── Docker ────────────────────────────────────────────────────────────────────
-
-up:
-	docker compose up -d db redis maildev pgadmin
-
-down:
-	docker compose down
-
-logs:
-	docker compose logs -f
-
-reset:
-	docker compose down -v && docker compose up -d db redis maildev pgadmin
-
-up-local:
-	docker compose -f docker-compose.local.yml up --build -d
-
-# ── Production deploy ─────────────────────────────────────────────────────────
-
-prod-preflight:
-	@test -f apps/api/.env.production || (echo "Missing apps/api/.env.production (see apps/api/.env.example)."; exit 1)
-	@grep -qE '^DATABASE_PASSWORD=.+' apps/api/.env.production 2>/dev/null || (echo "apps/api/.env.production: set DATABASE_PASSWORD= to a non-empty value (required for the Postgres service and compose interpolation)."; exit 1)
-	@test -f apps/web/.env.production || (echo "Missing apps/web/.env.production (see apps/web/.env.example)."; exit 1)
-	@test -f apps/admin/.env.production || (echo "Missing apps/admin/.env.production (see apps/admin/.env.example)."; exit 1)
-	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
-	  : ; \
-	elif [ -f deploy/cloudflare/config.yml ] && ls deploy/cloudflare/*.json >/dev/null 2>&1; then \
-	  : ; \
-	else \
-	  echo "Cloudflare: set CLOUDFLARED_TUNNEL_TOKEN in apps/api/.env.production, OR add deploy/cloudflare/config.yml plus a credentials *.json (see deploy/cloudflare/config.yml.example)."; exit 1; \
-	fi
-
-deploy: prod-preflight
-	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
-	  docker compose -f docker-compose.prod.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build --force-recreate; \
-	else \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build --force-recreate; \
-	fi
-
-deploy-clean: prod-preflight
-	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
-	  docker compose -f docker-compose.prod.yml --env-file apps/api/.env.production -p longnhan-prod build --no-cache && \
-	  docker compose -f docker-compose.prod.yml --env-file apps/api/.env.production -p longnhan-prod up -d --force-recreate; \
-	else \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod build --no-cache && \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --force-recreate; \
-	fi
-
-deploy-down:
-	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
-	  docker compose -f docker-compose.prod.yml --env-file apps/api/.env.production -p longnhan-prod down; \
-	else \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod down; \
-	fi
-
-# ── Database ──────────────────────────────────────────────────────────────────
-
-migration-up:
-	pnpm --filter @longnhan/api migration:up
-
-# Uses production DB credentials/host from apps/api/.env.production (e.g. DATABASE_HOST=127.0.0.1, DATABASE_PORT=5436 when stack exposes Postgres on the host).
-migration-up-prod:
-	@test -f apps/api/.env.production || (echo "Missing apps/api/.env.production (see apps/api/.env.example)."; exit 1)
-	cd apps/api && pnpm exec env-cmd -f .env.production pnpm exec typeorm-ts-node-commonjs -d src/database/data-source.ts migration:run
-
-migration-down:
-	pnpm --filter @longnhan/api migration:down
-
-migration-show:
-	pnpm --filter @longnhan/api migration:show
-
-migration-generate:
-	pnpm --filter @longnhan/api migration:generate
-
-seed:
-	pnpm --filter @longnhan/api seed:run
-
-# ── Testing ───────────────────────────────────────────────────────────────────
-
-test:
-	pnpm --filter @longnhan/api test
-
-test-cov:
-	pnpm --filter @longnhan/api test:cov
-
-test-e2e:
-	pnpm --filter @longnhan/api test:e2e
+networks:
+  longnhan-prod:
+    driver: bridge
 </file>
 
 <file path="turbo.json">
@@ -47174,6 +47179,197 @@ networks:
     driver: bridge
 </file>
 
+<file path="Makefile">
+.PHONY: help install dev dev-api dev-web dev-admin \
+        build build-api build-web build-admin \
+        lint format type-check \
+        up down logs reset up-local \
+        deploy deploy-clean deploy-down prod-preflight \
+        migration-up migration-up-prod migration-down migration-show migration-generate \
+        seed test test-cov test-e2e
+
+# Default target
+help:
+	@echo ""
+	@echo "Long Nhan Hung Yen — available commands:"
+	@echo ""
+	@echo "  Setup"
+	@echo "    make install          Install all dependencies"
+	@echo ""
+	@echo "  Development"
+	@echo "    make dev              Infra (db, redis, maildev, pgadmin) + all apps in watch mode"
+	@echo "    make dev-api          Start API only (http://localhost:3001)"
+	@echo "    make dev-web          Start storefront only (http://localhost:3000)"
+	@echo "    make dev-admin        Start admin only (http://localhost:3002)"
+	@echo ""
+	@echo "  Build"
+	@echo "    make build            Build all apps"
+	@echo "    make build-api        Build API only"
+	@echo ""
+	@echo "  Code Quality"
+	@echo "    make lint             Lint all apps"
+	@echo "    make format           Format all apps"
+	@echo "    make type-check       Type-check all apps"
+	@echo ""
+	@echo "  Docker (infra)"
+	@echo "    make up               Start infra services (db, redis, maildev, pgadmin)"
+	@echo "    make down             Stop all services"
+	@echo "    make logs             Tail service logs"
+	@echo "    make reset            Reset volumes & restart services"
+	@echo "    make up-local         Start full local stack with API hot-reload"
+	@echo ""
+	@echo "  Production (Docker + Cloudflare Tunnel)"
+	@echo "    make deploy           Build & run api, web, admin, db, redis, cloudflared (ports 13100–13102)"
+	@echo "    make deploy-clean     Same as deploy but with --no-cache (full rebuild, ignores all Docker cache)"
+	@echo "    make deploy-down      Stop production stack"
+	@echo "                          See deploy/README.md (token or config.yml + credentials JSON)"
+	@echo ""
+	@echo "  Database"
+	@echo "    make migration-up     Run pending migrations (local .env)"
+	@echo "    make migration-up-prod Run pending migrations using apps/api/.env.production"
+	@echo "    make migration-down   Revert last migration"
+	@echo "    make migration-show   Show migration status"
+	@echo "    make seed             Run database seeders"
+	@echo ""
+	@echo "  Testing"
+	@echo "    make test             Run unit tests"
+	@echo "    make test-cov         Run tests with coverage"
+	@echo "    make test-e2e         Run e2e tests"
+	@echo ""
+
+# ── Setup ─────────────────────────────────────────────────────────────────────
+
+install:
+	pnpm install
+
+# ── Development ───────────────────────────────────────────────────────────────
+
+dev: up
+	pnpm dev
+
+dev-api:
+	pnpm dev:api
+
+dev-web:
+	pnpm dev:web
+
+dev-admin:
+	pnpm dev:admin
+
+# ── Build ─────────────────────────────────────────────────────────────────────
+
+build:
+	pnpm build
+
+build-api:
+	pnpm build:api
+
+build-web:
+	pnpm build:web
+
+build-admin:
+	pnpm build:admin
+
+# ── Code Quality ──────────────────────────────────────────────────────────────
+
+lint:
+	pnpm lint
+
+format:
+	pnpm format
+
+type-check:
+	pnpm type-check
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+
+up:
+	docker compose up -d db redis maildev pgadmin
+
+down:
+	docker compose down
+
+logs:
+	docker compose logs -f
+
+reset:
+	docker compose down -v && docker compose up -d db redis maildev pgadmin
+
+up-local:
+	docker compose -f docker-compose.local.yml up --build -d
+
+# ── Production deploy ─────────────────────────────────────────────────────────
+
+prod-preflight:
+	@test -f apps/api/.env.production || (echo "Missing apps/api/.env.production (see apps/api/.env.example)."; exit 1)
+	@grep -qE '^DATABASE_PASSWORD=.+' apps/api/.env.production 2>/dev/null || (echo "apps/api/.env.production: set DATABASE_PASSWORD= to a non-empty value (required for the Postgres service and compose interpolation)."; exit 1)
+	@test -f apps/web/.env.production || (echo "Missing apps/web/.env.production (see apps/web/.env.example)."; exit 1)
+	@test -f apps/admin/.env.production || (echo "Missing apps/admin/.env.production (see apps/admin/.env.example)."; exit 1)
+	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
+	  : ; \
+	elif [ -f deploy/cloudflare/config.yml ] && ls deploy/cloudflare/*.json >/dev/null 2>&1; then \
+	  : ; \
+	else \
+	  echo "Cloudflare: set CLOUDFLARED_TUNNEL_TOKEN in apps/api/.env.production, OR add deploy/cloudflare/config.yml plus a credentials *.json (see deploy/cloudflare/config.yml.example)."; exit 1; \
+	fi
+
+deploy: prod-preflight
+	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
+	  docker compose -f docker-compose.prod.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build --force-recreate; \
+	else \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build --force-recreate; \
+	fi
+
+deploy-clean: prod-preflight
+	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
+	  docker compose -f docker-compose.prod.yml --env-file apps/api/.env.production -p longnhan-prod build --no-cache && \
+	  docker compose -f docker-compose.prod.yml --env-file apps/api/.env.production -p longnhan-prod up -d --force-recreate; \
+	else \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod build --no-cache && \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --force-recreate; \
+	fi
+
+deploy-down:
+	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
+	  docker compose -f docker-compose.prod.yml --env-file apps/api/.env.production -p longnhan-prod down; \
+	else \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod down; \
+	fi
+
+# ── Database ──────────────────────────────────────────────────────────────────
+
+migration-up:
+	pnpm --filter @longnhan/api migration:up
+
+# Uses production DB credentials/host from apps/api/.env.production (e.g. DATABASE_HOST=127.0.0.1, DATABASE_PORT=5436 when stack exposes Postgres on the host).
+migration-up-prod:
+	@test -f apps/api/.env.production || (echo "Missing apps/api/.env.production (see apps/api/.env.example)."; exit 1)
+	cd apps/api && pnpm exec env-cmd -f .env.production pnpm exec typeorm-ts-node-commonjs -d src/database/data-source.ts migration:run
+
+migration-down:
+	pnpm --filter @longnhan/api migration:down
+
+migration-show:
+	pnpm --filter @longnhan/api migration:show
+
+migration-generate:
+	pnpm --filter @longnhan/api migration:generate
+
+seed:
+	pnpm --filter @longnhan/api seed:run
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+
+test:
+	pnpm --filter @longnhan/api test
+
+test-cov:
+	pnpm --filter @longnhan/api test:cov
+
+test-e2e:
+	pnpm --filter @longnhan/api test:e2e
+</file>
+
 <file path="README.md">
 # Long Nhan Hung Yen
 
@@ -48308,87 +48504,6 @@ export class ProductsController {
 }
 </file>
 
-<file path="apps/api/.env.example">
-##== Environment
-NODE_ENV=development
-MODULES_SET=monolith
-
-##== Application
-APP_NAME="NestJS API"
-APP_URL=http://localhost:3001
-WEB_PUBLIC_URL=http://localhost:3000
-APP_PORT=3001
-APP_DEBUG=false
-API_PREFIX=api
-APP_FALLBACK_LANGUAGE=en
-APP_LOG_LEVEL=debug
-APP_LOG_SERVICE=console
-APP_CORS_ORIGIN=http://localhost:3000,http://example.com
-
-##== Database
-DATABASE_TYPE=postgres
-DATABASE_HOST=localhost
-DATABASE_PORT=5435
-DATABASE_USERNAME=postgres
-DATABASE_PASSWORD=postgres
-DATABASE_NAME=nestjs_api
-DATABASE_LOGGING=true
-DATABASE_SYNCHRONIZE=false
-DATABASE_MAX_CONNECTIONS=100
-DATABASE_SSL_ENABLED=false
-DATABASE_REJECT_UNAUTHORIZED=false
-DATABASE_CA=
-DATABASE_KEY=
-DATABASE_CERT=
-
-##== Redis
-REDIS_HOST=localhost
-REDIS_PORT=6380
-REDIS_PASSWORD=redispass
-REDIS_TLS_ENABLED=false
-
-##== Mailer
-MAIL_HOST=localhost
-MAIL_PORT=1026
-MAIL_USER=
-MAIL_PASSWORD=
-MAIL_IGNORE_TLS=true
-MAIL_SECURE=false
-MAIL_REQUIRE_TLS=false
-MAIL_DEFAULT_EMAIL=noreply@example.com
-MAIL_DEFAULT_NAME=No Reply
-MAIL_CLIENT_PORT=1080
-
-##== Authentication
-AUTH_JWT_SECRET=secret
-AUTH_JWT_TOKEN_EXPIRES_IN=1d
-AUTH_REFRESH_SECRET=secret_for_refresh
-AUTH_REFRESH_TOKEN_EXPIRES_IN=365d
-AUTH_FORGOT_SECRET=secret_for_forgot
-AUTH_FORGOT_TOKEN_EXPIRES_IN=7d
-AUTH_CONFIRM_EMAIL_SECRET=secret_for_confirm_email
-AUTH_CONFIRM_EMAIL_TOKEN_EXPIRES_IN=1d
-
-#== Docker production (copy to apps/api/.env.production)
-# docker-compose.prod.yml overrides DATABASE_HOST=db and REDIS_HOST=redis inside the stack.
-# PROD_* are host port bindings (run prod beside local dev on 3000–3002 / 5435 / 6380).
-NODE_ENV=production
-APP_URL=https://api.example.com
-WEB_PUBLIC_URL=https://www.example.com
-APP_CORS_ORIGIN=https://www.example.com,https://example.com,https://admin.example.com
-DATABASE_NAME=longnhan
-DATABASE_USERNAME=longnhan
-DATABASE_PASSWORD=
-DATABASE_PORT=5436
-REDIS_PORT=6381
-APP_PORT=13101
-
-#== Cloudflare Tunnel (production)
-# Prefer token: Zero Trust → Networks → Tunnels → your tunnel → copy token for `cloudflared`.
-# Routes (api / www / admin) are configured in the tunnel’s Public hostnames (not local config).
-CLOUDFLARED_TUNNEL_TOKEN=
-</file>
-
 <file path="apps/api/package.json">
 {
   "name": "@longnhan/api",
@@ -48510,61 +48625,6 @@ CLOUDFLARED_TUNNEL_TOKEN=
     "typescript-eslint": "^8.12.2"
   },
   "packageManager": "pnpm@10.32.1"
-}
-</file>
-
-<file path="apps/web/src/app/articles/page.tsx">
-import type { Metadata } from 'next';
-import type { Article } from '@longnhan/types';
-import ArticleCard from '@/components/articles/article-card';
-import Breadcrumb from '@/components/ui/breadcrumb';
-import { fetchPaginated } from '@/lib/api-client';
-import { cacheLife, cacheTag } from 'next/cache';
-
-async function getArticles(): Promise<Article[]> {
-  'use cache';
-  cacheLife({ revalidate: 3600 });
-  cacheTag('articles');
-  try {
-    const response = await fetchPaginated<Article>('/articles', { limit: 24 });
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching articles:', error);
-    return [];
-  }
-}
-
-export async function generateMetadata(): Promise<Metadata> {
-  return {
-    title: 'Bài viết về Long nhãn Hưng Yên',
-    description: 'Kiến thức, kinh nghiệm và câu chuyện về Long nhãn Hưng Yên.',
-  };
-}
-
-export default async function ArticlesPage() {
-  const articles = await getArticles();
-
-  return (
-    <section className="mx-auto max-w-6xl px-4 py-8">
-      <Breadcrumb
-        items={[{ label: 'Trang chủ', url: '/' }, { label: 'Bài viết' }]}
-      />
-      <h1 className="text-2xl md:text-3xl font-bold text-green-950 mb-6">
-        Bài viết
-      </h1>
-      {articles.length === 0 ? (
-        <p className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-600">
-          Chưa có bài viết nào.
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {articles.map((article) => (
-            <ArticleCard key={article.id} article={article} />
-          ))}
-        </div>
-      )}
-    </section>
-  );
 }
 </file>
 
@@ -48855,76 +48915,6 @@ export function LandingTestimonialsTrust() {
         </div>
       </section>
     </>
-  );
-}
-</file>
-
-<file path="apps/web/src/components/layout/header.tsx">
-import Image from 'next/image';
-import Link from 'next/link';
-import { Phone } from 'lucide-react';
-import { CONTACT_PHONE } from '@/lib/constants';
-import { formatPhoneDisplay } from '@/lib/format-phone-display';
-import { LANDING_BRAND } from '@/data/landing-page-content';
-import HeaderCartButton from './header-cart-button';
-import HeaderSearchBar from './header-search-bar';
-import MobileNav from './mobile-nav';
-
-const navLinks = [
-  { href: '/', label: 'Trang chủ' },
-  { href: '/products', label: 'Sản phẩm' },
-  { href: '/articles', label: 'Bài viết' },
-];
-
-export default function Header() {
-  const tel = CONTACT_PHONE.replace(/\s/g, '');
-  const phoneDisplay = formatPhoneDisplay(CONTACT_PHONE);
-
-  return (
-    <header className="sticky top-0 z-50 border-b border-(--brand-forest)/10 bg-(--brand-cream)/95 shadow-sm backdrop-blur-md">
-      <div className="relative mx-auto flex min-h-17 max-w-6xl items-center gap-3 px-4 py-2 md:min-h-18 md:gap-4">
-        <Link href="/" className="relative z-10 flex shrink-0 items-center">
-          <Image
-            src={LANDING_BRAND.logoSrc}
-            alt={LANDING_BRAND.logoAlt}
-            width={72}
-            height={72}
-            className="h-14 w-14 object-contain md:h-18 md:w-18"
-            priority
-          />
-        </Link>
-
-        <div className="hidden min-w-0 flex-1 items-center justify-center md:flex">
-          <HeaderSearchBar className="w-full max-w-xl" />
-        </div>
-
-        <div className="relative z-10 ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
-          <a
-            href={`tel:${tel}`}
-            className="hidden items-center gap-2.5 rounded-full border-2 border-(--brand-gold)/55 bg-linear-to-br from-(--brand-gold)/20 via-(--brand-cream) to-(--brand-gold)/10 px-3 py-1.5 text-(--brand-forest) shadow-sm transition hover:border-(--brand-gold) hover:shadow-md sm:inline-flex sm:px-4 sm:py-2"
-          >
-            <Phone className="h-4 w-4" strokeWidth={2} aria-hidden />
-            <span className="flex min-w-0 flex-col leading-tight">
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-(--brand-forest-muted) sm:text-[11px]">
-                Giao hàng tận nơi
-              </span>
-              <span className="text-sm font-bold tabular-nums">
-                {phoneDisplay}
-              </span>
-            </span>
-          </a>
-
-          <div
-            className="hidden h-8 w-px bg-(--brand-forest)/15 sm:block"
-            aria-hidden
-          />
-
-          <HeaderCartButton />
-
-          <MobileNav links={navLinks} />
-        </div>
-      </div>
-    </header>
   );
 }
 </file>
@@ -50592,6 +50582,87 @@ body {
 }
 </file>
 
+<file path="apps/api/.env.example">
+##== Environment
+NODE_ENV=development
+MODULES_SET=monolith
+
+##== Application
+APP_NAME="NestJS API"
+APP_URL=http://localhost:3001
+WEB_PUBLIC_URL=http://localhost:3000
+APP_PORT=3001
+APP_DEBUG=false
+API_PREFIX=api
+APP_FALLBACK_LANGUAGE=en
+APP_LOG_LEVEL=debug
+APP_LOG_SERVICE=console
+APP_CORS_ORIGIN=http://localhost:3000,http://example.com
+
+##== Database
+DATABASE_TYPE=postgres
+DATABASE_HOST=localhost
+DATABASE_PORT=5435
+DATABASE_USERNAME=postgres
+DATABASE_PASSWORD=postgres
+DATABASE_NAME=nestjs_api
+DATABASE_LOGGING=true
+DATABASE_SYNCHRONIZE=false
+DATABASE_MAX_CONNECTIONS=100
+DATABASE_SSL_ENABLED=false
+DATABASE_REJECT_UNAUTHORIZED=false
+DATABASE_CA=
+DATABASE_KEY=
+DATABASE_CERT=
+
+##== Redis
+REDIS_HOST=localhost
+REDIS_PORT=6380
+REDIS_PASSWORD=redispass
+REDIS_TLS_ENABLED=false
+
+##== Mailer
+MAIL_HOST=localhost
+MAIL_PORT=1026
+MAIL_USER=
+MAIL_PASSWORD=
+MAIL_IGNORE_TLS=true
+MAIL_SECURE=false
+MAIL_REQUIRE_TLS=false
+MAIL_DEFAULT_EMAIL=noreply@example.com
+MAIL_DEFAULT_NAME=No Reply
+MAIL_CLIENT_PORT=1080
+
+##== Authentication
+AUTH_JWT_SECRET=secret
+AUTH_JWT_TOKEN_EXPIRES_IN=1d
+AUTH_REFRESH_SECRET=secret_for_refresh
+AUTH_REFRESH_TOKEN_EXPIRES_IN=365d
+AUTH_FORGOT_SECRET=secret_for_forgot
+AUTH_FORGOT_TOKEN_EXPIRES_IN=7d
+AUTH_CONFIRM_EMAIL_SECRET=secret_for_confirm_email
+AUTH_CONFIRM_EMAIL_TOKEN_EXPIRES_IN=1d
+
+#== Docker production (copy to apps/api/.env.production)
+# docker-compose.prod.yml overrides DATABASE_HOST=db and REDIS_HOST=redis inside the stack.
+# PROD_* are host port bindings (run prod beside local dev on 3000–3002 / 5435 / 6380).
+NODE_ENV=production
+APP_URL=https://api.example.com
+WEB_PUBLIC_URL=https://www.example.com
+APP_CORS_ORIGIN=https://www.example.com,https://example.com,https://admin.example.com
+DATABASE_NAME=longnhan
+DATABASE_USERNAME=longnhan
+DATABASE_PASSWORD=
+DATABASE_PORT=5436
+REDIS_PORT=6381
+APP_PORT=13101
+
+#== Cloudflare Tunnel (production)
+# Prefer token: Zero Trust → Networks → Tunnels → your tunnel → copy token for `cloudflared`.
+# Routes (api / www / admin) are configured in the tunnel’s Public hostnames (not local config).
+CLOUDFLARED_TUNNEL_TOKEN=
+</file>
+
 <file path="apps/web/src/actions/order-actions.ts">
 'use server';
 
@@ -50670,6 +50741,63 @@ export async function submitOrder(formData: FormData): Promise<void> {
     captureOrderSubmitFailure(err);
     throw new Error('Đặt hàng thất bại, vui lòng thử lại.');
   }
+}
+</file>
+
+<file path="apps/web/src/app/articles/page.tsx">
+import type { Metadata } from 'next';
+import type { Article } from '@longnhan/types';
+import ArticleCard from '@/components/articles/article-card';
+import Breadcrumb from '@/components/ui/breadcrumb';
+import { fetchPaginated } from '@/lib/api-client';
+import { articlesListCacheTags } from '@/lib/content-cache-tags';
+import { buildSeoMetadata } from '@/lib/seo';
+import { cacheLife, cacheTag } from 'next/cache';
+
+async function getArticles(): Promise<Article[]> {
+  'use cache';
+  cacheLife({ revalidate: 3600 });
+  cacheTag(...articlesListCacheTags());
+  try {
+    const response = await fetchPaginated<Article>('/articles', { limit: 24 });
+    return response.data;
+  } catch {
+    return [];
+  }
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  return buildSeoMetadata({
+    title: 'Bài viết về Long nhãn Hưng Yên',
+    description: 'Kiến thức, kinh nghiệm và câu chuyện về Long nhãn Hưng Yên.',
+    canonicalPath: '/articles',
+  });
+}
+
+export default async function ArticlesPage() {
+  const articles = await getArticles();
+
+  return (
+    <section className="mx-auto max-w-6xl px-4 py-8">
+      <Breadcrumb
+        items={[{ label: 'Trang chủ', url: '/' }, { label: 'Bài viết' }]}
+      />
+      <h1 className="text-2xl md:text-3xl font-bold text-green-950 mb-6">
+        Bài viết
+      </h1>
+      {articles.length === 0 ? (
+        <p className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-600">
+          Chưa có bài viết nào.
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {articles.map((article) => (
+            <ArticleCard key={article.id} article={article} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
 }
 </file>
 
@@ -50885,10 +51013,11 @@ import Header from '@/components/layout/header';
 import Footer from '@/components/layout/footer';
 import FloatingContactWidget from '@/components/layout/floating-contact-widget';
 import BackToTopButton from '@/components/ui/back-to-top-button';
-import { buildOrganizationSchema } from '@/lib/structured-data';
 import { LANDING_SEO } from '@/data/landing-page-content';
 import { SITE_URL } from '@/lib/constants';
 import { PWA_CONFIG } from '@/lib/pwa-config';
+import { buildSeoMetadata } from '@/lib/seo';
+import { buildOrganizationSchema } from '@/lib/structured-data';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -50917,15 +51046,28 @@ export const viewport: Viewport = {
   colorScheme: 'light',
 };
 
+const landingMetadata = buildSeoMetadata({
+  title: LANDING_SEO.title,
+  description: LANDING_SEO.description,
+  canonicalPath: '/',
+  ogImage: {
+    url: PWA_CONFIG.heroImage.path,
+    width: PWA_CONFIG.heroImage.width,
+    height: PWA_CONFIG.heroImage.height,
+    alt: PWA_CONFIG.heroImage.alt,
+  },
+});
+
 export const metadata: Metadata = {
+  ...landingMetadata,
+  metadataBase: new URL(SITE_URL),
   title: {
     default: PWA_CONFIG.documentTitle,
     template: '%s | Long Nhãn Tống Trân',
   },
-  description: PWA_CONFIG.description,
   keywords: [...LANDING_SEO.keywords],
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || SITE_URL),
   applicationName: PWA_CONFIG.name,
+  category: 'food',
   icons: {
     icon: [{ url: PWA_CONFIG.icons.src, type: 'image/png' }],
     apple: [{ url: PWA_CONFIG.icons.src, type: 'image/png' }],
@@ -50934,28 +51076,6 @@ export const metadata: Metadata = {
     capable: true,
     title: PWA_CONFIG.name,
     statusBarStyle: 'black-translucent',
-  },
-  openGraph: {
-    type: 'website',
-    locale: 'vi_VN',
-    siteName: PWA_CONFIG.name,
-    title: PWA_CONFIG.documentTitle,
-    description: PWA_CONFIG.description,
-    url: PWA_CONFIG.siteUrl,
-    images: [
-      {
-        url: PWA_CONFIG.heroImage.path,
-        width: PWA_CONFIG.heroImage.width,
-        height: PWA_CONFIG.heroImage.height,
-        alt: PWA_CONFIG.heroImage.alt,
-      },
-    ],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: PWA_CONFIG.documentTitle,
-    description: PWA_CONFIG.description,
-    images: [PWA_CONFIG.heroImage.path],
   },
   robots: {
     index: true,
@@ -50989,96 +51109,6 @@ export default function RootLayout({
         </AppProviders>
       </body>
     </html>
-  );
-}
-</file>
-
-<file path="apps/web/src/components/landing/landing-articles-preview.tsx">
-// Articles preview section — up to 3 latest articles on landing page
-import Link from 'next/link';
-import Image from 'next/image';
-import type { Article } from '@longnhan/types';
-import SectionTitleLinkButton from '@/components/ui/section-title-link-button';
-
-interface LandingArticlesPreviewProps {
-  articles: Article[];
-}
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '';
-  return new Date(dateStr).toLocaleDateString('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-}
-
-export function LandingArticlesPreview({
-  articles,
-}: LandingArticlesPreviewProps) {
-  if (articles.length === 0) return null;
-
-  return (
-    <section className="bg-(--brand-cream) px-4 py-16">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <h2 className="landing-heading text-balance text-2xl font-semibold text-(--brand-forest) not-italic sm:text-3xl">
-            Bài viết & chia sẻ
-          </h2>
-          <SectionTitleLinkButton
-            buttonClassName="text-sm font-medium text-(--brand-leaf) hover:text-(--brand-forest)"
-            actionLabel="Xem tất cả bài viết"
-            href="/articles"
-            solid={false}
-          />
-        </div>
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {articles.map((article) => {
-            const cover = article.featuredImageUrl ?? article.coverImageUrl;
-            const excerpt = article.excerpt ?? article.summary;
-            return (
-              <Link
-                key={article.id}
-                href={`/articles/${article.slug}`}
-                className="group overflow-hidden rounded-xl border border-(--brand-forest)/10 bg-white shadow-sm transition hover:shadow-md"
-              >
-                {cover ? (
-                  <div className="relative aspect-video overflow-hidden">
-                    <Image
-                      src={cover}
-                      alt={article.title}
-                      fill
-                      sizes="(max-width: 640px) 100vw, 33vw"
-                      className="object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  </div>
-                ) : (
-                  <div className="aspect-video bg-(--brand-gold)/10 flex items-center justify-center text-4xl">
-                    🌿
-                  </div>
-                )}
-                <div className="p-4">
-                  <p className="mb-1 text-xs text-(--brand-forest-muted)">
-                    {formatDate(article.publishedAt)}
-                  </p>
-                  <h3 className="line-clamp-2 text-sm font-semibold text-(--brand-forest) leading-snug">
-                    {article.title}
-                  </h3>
-                  {excerpt ? (
-                    <p className="mt-1.5 line-clamp-2 text-xs text-(--brand-forest-muted)">
-                      {excerpt}
-                    </p>
-                  ) : null}
-                  <p className="mt-1.5 text-xs text-(--brand-leaf) font-medium">
-                    Đọc thêm
-                  </p>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-    </section>
   );
 }
 </file>
@@ -51166,198 +51196,72 @@ export function LandingHero() {
 }
 </file>
 
-<file path="apps/web/src/components/layout/footer.tsx">
-import { LANDING_FOOTER_TAGLINE } from '@/data/landing-page-content';
-import {
-  CONTACT_ADDRESS,
-  CONTACT_EMAIL,
-  CONTACT_PHONE,
-  SITE_NAME,
-  SOCIAL_LINKS,
-} from '@/lib/constants';
+<file path="apps/web/src/components/layout/header.tsx">
 import Image from 'next/image';
 import Link from 'next/link';
-import { connection } from 'next/server';
+import { Phone } from 'lucide-react';
+import { CONTACT_PHONE } from '@/lib/constants';
+import { formatPhoneDisplay } from '@/lib/format-phone-display';
+import { LANDING_BRAND } from '@/data/landing-page-content';
+import HeaderCartButton from './header-cart-button';
+import HeaderSearchBar from './header-search-bar';
+import MobileNav from './mobile-nav';
 
-export default async function Footer() {
-  await connection();
-  const year = new Date().getFullYear();
-  // Prefer a no-key embed that works with just an address query.
-  const mapEmbedSrc = `https://www.google.com/maps?q=${encodeURIComponent(CONTACT_ADDRESS)}&output=embed`;
+const navLinks = [
+  { href: '/', label: 'Trang chủ' },
+  { href: '/products', label: 'Sản phẩm' },
+  { href: '/articles', label: 'Bài viết' },
+];
+
+export default function Header() {
+  const tel = CONTACT_PHONE.replace(/\s/g, '');
+  const phoneDisplay = formatPhoneDisplay(CONTACT_PHONE);
 
   return (
-    <footer className="mt-auto border-t border-(--brand-gold)/25 bg-(--brand-forest) text-(--brand-cream)">
-      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-4 py-12 md:grid-cols-2 lg:grid-cols-4">
-        <div className="space-y-4">
-          <div>
-            <h2 className="landing-heading text-lg font-semibold text-(--brand-cream)">
-              {SITE_NAME}
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed text-(--brand-cream)/80">
-              {LANDING_FOOTER_TAGLINE}
-            </p>
-          </div>
+    <header className="sticky top-0 z-50 border-b border-(--brand-forest)/10 bg-(--brand-cream)/95 shadow-sm backdrop-blur-md">
+      <div className="relative mx-auto flex min-h-17 max-w-6xl items-center gap-3 px-4 py-2 md:min-h-18 md:gap-4">
+        <Link href="/" className="relative z-10 flex shrink-0 items-center">
+          <Image
+            src={LANDING_BRAND.logoSrc}
+            alt={LANDING_BRAND.logoAlt}
+            width={72}
+            height={72}
+            className="h-14 w-14 object-contain md:h-18 md:w-18"
+            priority
+          />
+        </Link>
 
-          <div className="text-sm text-(--brand-cream)/80">
-            <div className="font-semibold text-(--brand-cream)">
-              Về chúng tôi
-            </div>
-            <div className="mt-2 space-y-1">
-              <div>
-                <span className="text-(--brand-cream)/60">Điện thoại: </span>
-                <a
-                  href={`tel:${CONTACT_PHONE.replace(/\s/g, '')}`}
-                  className="transition hover:text-(--brand-cream)"
-                >
-                  {CONTACT_PHONE}
-                </a>
-              </div>
-              <div>
-                <span className="text-(--brand-cream)/60">Email: </span>
-                <a
-                  href={`mailto:${CONTACT_EMAIL}`}
-                  className="transition hover:text-(--brand-cream)"
-                >
-                  {CONTACT_EMAIL}
-                </a>
-              </div>
-              <div>
-                <span className="text-(--brand-cream)/60">Địa chỉ: </span>
-                <span>{CONTACT_ADDRESS}</span>
-              </div>
-            </div>
-          </div>
+        <div className="hidden min-w-0 flex-1 items-center justify-center md:flex">
+          <HeaderSearchBar className="w-full max-w-xl" />
+        </div>
+
+        <div className="relative z-10 ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
+          <a
+            href={`tel:${tel}`}
+            className="hidden items-center gap-2.5 rounded-full border-2 border-(--brand-gold)/55 bg-linear-to-br from-(--brand-gold)/20 via-(--brand-cream) to-(--brand-gold)/10 px-3 py-1.5 text-(--brand-forest) shadow-sm transition hover:border-(--brand-gold) hover:shadow-md sm:inline-flex sm:px-4 sm:py-2"
+          >
+            <Phone className="h-4 w-4" strokeWidth={2} aria-hidden />
+            <span className="flex min-w-0 flex-col leading-tight">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-(--brand-forest-muted) sm:text-[11px]">
+                Giao hàng tận nơi
+              </span>
+              <span className="text-sm font-bold tabular-nums">
+                {phoneDisplay}
+              </span>
+            </span>
+          </a>
 
           <div
-            className="pt-1"
-            style={{
-              contentVisibility: 'auto',
-              containIntrinsicSize: '98px 260px',
-            }}
-          >
-            <Image
-              src="/logo-da-thong-bao-bo-cong-thuong-mau-xanh-1.png"
-              alt="Đã thông báo Bộ Công Thương"
-              width={260}
-              height={98}
-              className="h-auto w-[220px] max-w-full"
-              loading="lazy"
-              fetchPriority="low"
-              decoding="async"
-            />
-          </div>
-        </div>
+            className="hidden h-8 w-px bg-(--brand-forest)/15 sm:block"
+            aria-hidden
+          />
 
-        <div>
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-(--brand-gold)">
-            Hỗ trợ khách hàng
-          </h3>
-          <ul className="space-y-2 text-sm text-(--brand-cream)/80">
-            <li>Chính sách khách hàng thân thiết</li>
-            <li>Chính sách bảo mật thông tin</li>
-            <li>Chính sách vận chuyển</li>
-            <li>Chính sách đổi - trả hàng</li>
-            <li>Chính sách thanh toán</li>
-            <li>
-              <Link href="/" className="transition hover:text-(--brand-cream)">
-                Liên hệ
-              </Link>
-            </li>
-          </ul>
-        </div>
+          <HeaderCartButton />
 
-        <div>
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-(--brand-gold)">
-            Liên kết
-          </h3>
-          <ul className="space-y-2 text-sm">
-            <li>
-              <Link
-                href="/"
-                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
-              >
-                Trang chủ
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/products"
-                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
-              >
-                Sản phẩm
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/articles"
-                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
-              >
-                Bài viết
-              </Link>
-            </li>
-            <li className="flex flex-wrap gap-x-4 gap-y-2 pt-2">
-              <a
-                href={SOCIAL_LINKS.facebook}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
-              >
-                Facebook
-              </a>
-              <a
-                href={SOCIAL_LINKS.zalo}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
-              >
-                Zalo
-              </a>
-              {SOCIAL_LINKS.shopee ? (
-                <a
-                  href={SOCIAL_LINKS.shopee}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
-                >
-                  Shopee
-                </a>
-              ) : null}
-              {SOCIAL_LINKS.tiktok ? (
-                <a
-                  href={SOCIAL_LINKS.tiktok}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
-                >
-                  TikTok
-                </a>
-              ) : null}
-            </li>
-          </ul>
-        </div>
-
-        <div>
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-(--brand-gold)">
-            Chỉ đường
-          </h3>
-          <div className="overflow-hidden rounded-lg border border-(--brand-cream)/15 bg-(--brand-cream)">
-            <iframe
-              title="Google Map"
-              src={mapEmbedSrc}
-              width="100%"
-              height="214"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              className="block w-full"
-            />
-          </div>
+          <MobileNav links={navLinks} />
         </div>
       </div>
-
-      <div className="border-t border-(--brand-cream)/15 py-4 text-center text-xs text-(--brand-cream)/60">
-        © {year} {SITE_NAME}. Bảo lưu mọi quyền.
-      </div>
-    </footer>
+    </header>
   );
 }
 </file>
@@ -53084,6 +52988,8 @@ import ArticleContent from '@/components/articles/article-content';
 import Breadcrumb from '@/components/ui/breadcrumb';
 import { fetchApi } from '@/lib/api-client';
 import { buildBreadcrumb } from '@/lib/breadcrumb';
+import { articleDetailCacheTags } from '@/lib/content-cache-tags';
+import { buildSeoMetadata } from '@/lib/seo';
 import { buildArticleSchema } from '@/lib/structured-data';
 import { cacheLife, cacheTag } from 'next/cache';
 
@@ -53094,7 +53000,7 @@ interface ArticleDetailPageProps {
 async function getArticle(slug: string): Promise<Article | null> {
   'use cache';
   cacheLife({ revalidate: 3600 });
-  cacheTag('articles', `article-${slug}`);
+  cacheTag(...articleDetailCacheTags(slug));
   try {
     return await fetchApi<Article>(`/articles/${slug}`);
   } catch {
@@ -53116,15 +53022,13 @@ export async function generateMetadata({
   const description = article.metaDescription ?? article.excerpt ?? undefined;
   const image = article.featuredImageUrl ?? article.coverImageUrl ?? undefined;
 
-  return {
+  return buildSeoMetadata({
     title,
     description,
-    openGraph: {
-      title,
-      description,
-      images: image ? [image] : undefined,
-    },
-  };
+    canonicalPath: `/articles/${article.slug}`,
+    openGraphType: 'article',
+    ...(image ? { ogImage: { url: image, alt: title } } : {}),
+  });
 }
 
 export default async function ArticleDetailPage({
@@ -53177,7 +53081,10 @@ import RelatedProducts from '@/components/products/related-products';
 import Breadcrumb from '@/components/ui/breadcrumb';
 import { fetchApi, fetchPaginated } from '@/lib/api-client';
 import { buildBreadcrumb } from '@/lib/breadcrumb';
-import { SITE_URL } from '@/lib/constants';
+import {
+  productDetailCacheTags,
+  relatedProductsCacheTags,
+} from '@/lib/content-cache-tags';
 import { buildSeoMetadata } from '@/lib/seo';
 import { buildProductSchema } from '@/lib/structured-data';
 import type { Product } from '@longnhan/types';
@@ -53192,7 +53099,7 @@ interface ProductDetailPageProps {
 async function getProduct(slug: string): Promise<Product | null> {
   'use cache';
   cacheLife({ revalidate: 60 });
-  cacheTag('products', `product-${slug}`);
+  cacheTag(...productDetailCacheTags(slug));
   try {
     return await fetchApi<Product>(`/products/${slug}`);
   } catch {
@@ -53206,7 +53113,7 @@ async function getRelatedProducts(
 ): Promise<Product[]> {
   'use cache';
   cacheLife({ revalidate: 60 });
-  cacheTag('related-products', `cat:${category ?? ''}`, `ex:${excludeSlug}`);
+  cacheTag(...relatedProductsCacheTags(category, excludeSlug));
   try {
     const relatedResponse = await fetchPaginated<Product>('/products', {
       category,
@@ -53229,11 +53136,10 @@ export async function generateMetadata({
   if (!product) {
     return buildSeoMetadata({
       title: 'Không tìm thấy sản phẩm',
-      canonicalPath: `${SITE_URL}/products/${slug}`,
+      canonicalPath: `/products/${slug}`,
     });
   }
 
-  const summary = product.summary ?? product.description ?? null;
   const firstImage =
     product.featuredImageUrl ??
     (product.images ?? [])[0] ??
@@ -53242,8 +53148,11 @@ export async function generateMetadata({
 
   return buildSeoMetadata({
     title: product.name,
-    description: summary ?? `Chi tiet san pham ${product.name}.`,
+    description: `Chi tiết sản phẩm ${product.name} của shop Long Nhãn Tống Trân.`,
     canonicalPath: `/products/${product.slug}`,
+    openGraphType: 'website',
+    category: 'food',
+    generator: 'Next.js',
     ...(firstImage
       ? {
           ogImage: {
@@ -53336,13 +53245,17 @@ import CategoryFilter from '@/components/products/category-filter';
 import Breadcrumb from '@/components/ui/breadcrumb';
 import { fetchApi, fetchPaginated } from '@/lib/api-client';
 import { buildBreadcrumb } from '@/lib/breadcrumb';
+import {
+  productListingCategoriesTag,
+  productsListCacheTags,
+} from '@/lib/content-cache-tags';
 import { loadProductSearchParams } from '@/lib/product-search-params';
 import { buildSeoMetadata } from '@/lib/seo';
 import { cacheLife, cacheTag } from 'next/cache';
 
 async function getProductListingCategories(): Promise<Category[]> {
   'use cache';
-  cacheTag('product-list-categories');
+  cacheTag(productListingCategoriesTag);
   cacheLife({ revalidate: 60 });
   try {
     return await fetchApi<Category[]>('/categories');
@@ -53357,7 +53270,7 @@ async function getProductsListing(
 ): Promise<Product[]> {
   'use cache';
   cacheLife({ revalidate: 60 });
-  cacheTag('products-list', `cat:${category ?? ''}`, `q:${q ?? ''}`);
+  cacheTag(...productsListCacheTags(category, q));
   try {
     const response = await fetchPaginated<Product>('/products', {
       category,
@@ -53562,6 +53475,292 @@ body {
 
 .landing-heading {
   font-family: var(--font-display), ui-serif, 'Georgia', serif;
+}
+</file>
+
+<file path="apps/web/src/components/landing/landing-articles-preview.tsx">
+// Articles preview section — up to 3 latest articles on landing page
+import Link from 'next/link';
+import Image from 'next/image';
+import type { Article } from '@longnhan/types';
+import SectionTitleLinkButton from '@/components/ui/section-title-link-button';
+
+interface LandingArticlesPreviewProps {
+  articles: Article[];
+}
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return '';
+  return new Date(dateStr).toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
+export function LandingArticlesPreview({
+  articles,
+}: LandingArticlesPreviewProps) {
+  if (articles.length === 0) return null;
+
+  return (
+    <section className="bg-(--brand-cream) px-4 py-16">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <h2 className="landing-heading text-balance text-2xl font-semibold text-(--brand-forest) not-italic sm:text-3xl">
+            Bài viết & chia sẻ
+          </h2>
+          <SectionTitleLinkButton
+            buttonClassName="text-sm font-medium text-(--brand-leaf) hover:text-(--brand-forest)"
+            actionLabel="Xem tất cả bài viết"
+            href="/articles"
+            solid={false}
+          />
+        </div>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {articles.map((article) => {
+            const cover = article.featuredImageUrl ?? article.coverImageUrl;
+            const excerpt = article.excerpt ?? article.summary;
+            return (
+              <Link
+                key={article.id}
+                href={`/articles/${article.slug}`}
+                className="group overflow-hidden rounded-xl border border-(--brand-forest)/10 bg-white shadow-sm transition hover:shadow-md"
+              >
+                {cover ? (
+                  <div className="relative aspect-video overflow-hidden">
+                    <Image
+                      src={cover}
+                      alt={article.title}
+                      fill
+                      sizes="(max-width: 640px) 100vw, 33vw"
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                  </div>
+                ) : (
+                  <div className="aspect-video bg-(--brand-gold)/10 flex items-center justify-center text-4xl">
+                    🌿
+                  </div>
+                )}
+                <div className="p-4">
+                  <p className="mb-1 text-xs text-(--brand-forest-muted)">
+                    {formatDate(article.publishedAt)}
+                  </p>
+                  <h3 className="line-clamp-2 text-sm font-semibold text-(--brand-forest) leading-snug">
+                    {article.title}
+                  </h3>
+                  {excerpt ? (
+                    <p className="mt-1.5 line-clamp-2 text-xs text-(--brand-forest-muted)">
+                      {excerpt}
+                    </p>
+                  ) : null}
+                  <p className="mt-1.5 text-xs text-(--brand-leaf) font-medium">
+                    Đọc thêm
+                  </p>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+</file>
+
+<file path="apps/web/src/components/layout/footer.tsx">
+import { LANDING_FOOTER_TAGLINE } from '@/data/landing-page-content';
+import {
+  CONTACT_ADDRESS,
+  CONTACT_EMAIL,
+  CONTACT_PHONE,
+  SITE_NAME,
+  SOCIAL_LINKS,
+} from '@/lib/constants';
+import Image from 'next/image';
+import Link from 'next/link';
+import { connection } from 'next/server';
+
+export default async function Footer() {
+  await connection();
+  const year = new Date().getFullYear();
+  // Prefer a no-key embed that works with just an address query.
+  const mapEmbedSrc = `https://www.google.com/maps?q=${encodeURIComponent(CONTACT_ADDRESS)}&output=embed`;
+
+  return (
+    <footer className="mt-auto border-t border-(--brand-gold)/25 bg-(--brand-forest) text-(--brand-cream)">
+      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-4 py-12 md:grid-cols-2 lg:grid-cols-4">
+        <div className="space-y-4">
+          <div>
+            <h2 className="landing-heading text-lg font-semibold text-(--brand-cream)">
+              {SITE_NAME}
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-(--brand-cream)/80">
+              {LANDING_FOOTER_TAGLINE}
+            </p>
+          </div>
+
+          <div className="text-sm text-(--brand-cream)/80">
+            <div className="font-semibold text-(--brand-cream)">
+              Về chúng tôi
+            </div>
+            <div className="mt-2 space-y-1">
+              <div>
+                <span className="text-(--brand-cream)/60">Điện thoại: </span>
+                <a
+                  href={`tel:${CONTACT_PHONE.replace(/\s/g, '')}`}
+                  className="transition hover:text-(--brand-cream)"
+                >
+                  {CONTACT_PHONE}
+                </a>
+              </div>
+              <div>
+                <span className="text-(--brand-cream)/60">Email: </span>
+                <a
+                  href={`mailto:${CONTACT_EMAIL}`}
+                  className="transition hover:text-(--brand-cream)"
+                >
+                  {CONTACT_EMAIL}
+                </a>
+              </div>
+              <div>
+                <span className="text-(--brand-cream)/60">Địa chỉ: </span>
+                <span>{CONTACT_ADDRESS}</span>
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="pt-1"
+            style={{
+              contentVisibility: 'auto',
+              containIntrinsicSize: '98px 260px',
+            }}
+          >
+            <Image
+              src="/logo-da-thong-bao-bo-cong-thuong-mau-xanh-1.png"
+              alt="Đã thông báo Bộ Công Thương"
+              width={260}
+              height={98}
+              className="h-auto w-[220px] max-w-full"
+              loading="lazy"
+              fetchPriority="low"
+              decoding="async"
+            />
+          </div>
+        </div>
+
+        <div>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-(--brand-gold)">
+            Hỗ trợ khách hàng
+          </h3>
+          <ul className="space-y-2 text-sm text-(--brand-cream)/80">
+            <li>Chính sách khách hàng thân thiết</li>
+            <li>Chính sách bảo mật thông tin</li>
+            <li>Chính sách vận chuyển</li>
+            <li>Chính sách đổi - trả hàng</li>
+            <li>Chính sách thanh toán</li>
+            <li>
+              <Link href="/" className="transition hover:text-(--brand-cream)">
+                Liên hệ
+              </Link>
+            </li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-(--brand-gold)">
+            Liên kết
+          </h3>
+          <ul className="space-y-2 text-sm">
+            <li>
+              <Link
+                href="/"
+                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
+              >
+                Trang chủ
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/products"
+                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
+              >
+                Sản phẩm
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/articles"
+                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
+              >
+                Bài viết
+              </Link>
+            </li>
+            <li className="flex flex-wrap gap-x-4 gap-y-2 pt-2">
+              <a
+                href={SOCIAL_LINKS.facebook}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
+              >
+                Facebook
+              </a>
+              <a
+                href={SOCIAL_LINKS.zalo}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
+              >
+                Zalo
+              </a>
+              {SOCIAL_LINKS.shopee ? (
+                <a
+                  href={SOCIAL_LINKS.shopee}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
+                >
+                  Shopee
+                </a>
+              ) : null}
+              {SOCIAL_LINKS.tiktok ? (
+                <a
+                  href={SOCIAL_LINKS.tiktok}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
+                >
+                  TikTok
+                </a>
+              ) : null}
+            </li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-(--brand-gold)">
+            Chỉ đường
+          </h3>
+          <div className="overflow-hidden rounded-lg border border-(--brand-cream)/15 bg-(--brand-cream)">
+            <iframe
+              title="Google Map"
+              src={mapEmbedSrc}
+              width="100%"
+              height="214"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              className="block w-full"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-(--brand-cream)/15 py-4 text-center text-xs text-(--brand-cream)/60">
+        © {year} {SITE_NAME}. Bảo lưu mọi quyền.
+      </div>
+    </footer>
+  );
 }
 </file>
 
@@ -57174,143 +57373,6 @@ export default sentryEnabled && sentryAuthToken && sentryOrg && sentryProject
   : nextConfig;
 </file>
 
-<file path="apps/web/src/app/page.tsx">
-import FeaturedProducts from '@/components/home/featured-products';
-import VideoSection from '@/components/home/video-section';
-import { LandingArticlesPreview } from '@/components/landing/landing-articles-preview';
-import { LandingCategoryCarousel } from '@/components/landing/landing-category-carousel';
-import { LandingFaq } from '@/components/landing/landing-faq';
-import { LandingHero } from '@/components/landing/landing-hero';
-import { LandingImageAlbum } from '@/components/landing/landing-image-album';
-import { LandingStory } from '@/components/landing/landing-story';
-import { LandingTestimonialsTrust } from '@/components/landing/landing-testimonials-trust';
-import ScrollReveal from '@/components/ui/scroll-reveal';
-import {
-  LANDING_IMAGE_ALBUM,
-  LANDING_SEO,
-  LANDING_VIDEO_ALBUM_URLS,
-} from '@/data/landing-page-content';
-import { fetchApi, fetchPaginated } from '@/lib/api-client';
-import { buildLandingCategoryNav } from '@/lib/landing-category-nav';
-import { buildSeoMetadata } from '@/lib/seo';
-import type { Article, Category, Product } from '@longnhan/types';
-import type { Metadata } from 'next';
-import { cacheLife, cacheTag } from 'next/cache';
-import { connection } from 'next/server';
-
-export const metadata: Metadata = buildSeoMetadata({
-  title: LANDING_SEO.title,
-  description: LANDING_SEO.description,
-  canonicalPath: '/',
-  ogImage: {
-    url: '/banner-web2.png',
-    width: 1200,
-    height: 630,
-    alt: LANDING_SEO.ogImageAlt,
-  },
-});
-
-async function getHomeProducts(): Promise<Product[]> {
-  'use cache';
-  cacheTag('home-featured-products');
-  cacheLife({ revalidate: 300 });
-  try {
-    const response = await fetchPaginated<Product>('/products', { limit: 8 });
-    return response.data;
-  } catch {
-    return [];
-  }
-}
-
-async function getHomeCategories(): Promise<Category[]> {
-  'use cache';
-  cacheTag('home-categories');
-  cacheLife({ revalidate: 300 });
-  try {
-    return await fetchApi<Category[]>('/categories');
-  } catch {
-    return [];
-  }
-}
-
-async function getHomeArticles(): Promise<Article[]> {
-  'use cache';
-  cacheTag('home-articles');
-  cacheLife({ revalidate: 300 });
-  try {
-    const response = await fetchPaginated<Article>('/articles', {
-      limit: 4,
-      page: 1,
-    });
-    return response.data;
-  } catch {
-    return [];
-  }
-}
-
-export default async function Home() {
-  // Ensure home data is fetched at request time. `next build` in Docker has no API,
-  // so prerendering would cache empty products/articles; `/products` is dynamic via searchParams.
-  await connection();
-  const [categories, products, articles] = await Promise.all([
-    getHomeCategories(),
-    getHomeProducts(),
-    getHomeArticles(),
-  ]);
-  const categoryNavItems = buildLandingCategoryNav(categories);
-  const productVideos = products
-    .map((p) => p.videoUrl)
-    .filter(Boolean) as string[];
-
-  return (
-    <div className="landing-page bg-(--brand-cream) text-(--brand-forest)">
-      <ScrollReveal>
-        <LandingHero />
-      </ScrollReveal>
-      <ScrollReveal delayMs={60}>
-        <LandingCategoryCarousel navItems={categoryNavItems} />
-      </ScrollReveal>
-      <ScrollReveal delayMs={80}>
-        <FeaturedProducts products={products} />
-      </ScrollReveal>
-      <ScrollReveal delayMs={100}>
-        <LandingArticlesPreview articles={articles} />
-      </ScrollReveal>
-      <ScrollReveal delayMs={220}>
-        <LandingStory />
-      </ScrollReveal>
-      <ScrollReveal delayMs={240}>
-        <LandingFaq />
-      </ScrollReveal>
-      {LANDING_VIDEO_ALBUM_URLS.length > 0 ? (
-        <ScrollReveal delayMs={248}>
-          <VideoSection
-            videoUrls={[...LANDING_VIDEO_ALBUM_URLS]}
-            title="Video chia sẻ"
-            sectionId="video-album"
-          />
-        </ScrollReveal>
-      ) : null}
-      <ScrollReveal delayMs={252}>
-        <LandingImageAlbum
-          sectionTitle="Hình ảnh & không gian"
-          sectionSubtitle="Hình ảnh minh họa từ vườn nhãn và sản phẩm"
-          items={LANDING_IMAGE_ALBUM}
-        />
-      </ScrollReveal>
-      <ScrollReveal delayMs={260}>
-        <VideoSection videoUrls={productVideos} />
-      </ScrollReveal>
-      <ScrollReveal delayMs={280}>
-        <section className="landing-section landing-section--decor-cta">
-          <LandingTestimonialsTrust />
-        </section>
-      </ScrollReveal>
-    </div>
-  );
-}
-</file>
-
 <file path="docs/codebase-summary.md">
 # Codebase Summary
 
@@ -58232,11 +58294,131 @@ Major landing/product additions from **4.1.0** (2026-04-01); **4.2.0** (2026-04-
 - [API App README](../apps/api/README.md)
 </file>
 
-<file path="apps/web/src/lib/constants.ts">
-// Site-wide constants for Long Nhan Hung Yen storefront
+<file path="apps/web/src/app/page.tsx">
+import FeaturedProducts from '@/components/home/featured-products';
+import VideoSection from '@/components/home/video-section';
+import { LandingArticlesPreview } from '@/components/landing/landing-articles-preview';
+import { LandingCategoryCarousel } from '@/components/landing/landing-category-carousel';
+import { LandingFaq } from '@/components/landing/landing-faq';
+import { LandingHero } from '@/components/landing/landing-hero';
+import { LandingImageAlbum } from '@/components/landing/landing-image-album';
+import { LandingStory } from '@/components/landing/landing-story';
+import { LandingTestimonialsTrust } from '@/components/landing/landing-testimonials-trust';
+import ScrollReveal from '@/components/ui/scroll-reveal';
+import {
+  LANDING_IMAGE_ALBUM,
+  LANDING_VIDEO_ALBUM_URLS,
+} from '@/data/landing-page-content';
+import { fetchApi, fetchPaginated } from '@/lib/api-client';
+import { homeContentTags } from '@/lib/content-cache-tags';
+import { buildLandingCategoryNav } from '@/lib/landing-category-nav';
+import type { Article, Category, Product } from '@longnhan/types';
+import { cacheLife, cacheTag } from 'next/cache';
+import { connection } from 'next/server';
 
-export const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || 'https://shop.longnhanhungyen.shop';
+async function getHomeProducts(): Promise<Product[]> {
+  'use cache';
+  cacheTag(homeContentTags.featuredProducts);
+  cacheLife({ revalidate: 300 });
+  try {
+    const response = await fetchPaginated<Product>('/products', { limit: 8 });
+    return response.data;
+  } catch {
+    return [];
+  }
+}
+
+async function getHomeCategories(): Promise<Category[]> {
+  'use cache';
+  cacheTag(homeContentTags.categories);
+  cacheLife({ revalidate: 300 });
+  try {
+    return await fetchApi<Category[]>('/categories');
+  } catch {
+    return [];
+  }
+}
+
+async function getHomeArticles(): Promise<Article[]> {
+  'use cache';
+  cacheTag(homeContentTags.articles);
+  cacheLife({ revalidate: 300 });
+  try {
+    const response = await fetchPaginated<Article>('/articles', {
+      limit: 4,
+      page: 1,
+    });
+    return response.data;
+  } catch {
+    return [];
+  }
+}
+
+export default async function Home() {
+  // Ensure home data is fetched at request time. `next build` in Docker has no API,
+  // so prerendering would cache empty products/articles; `/products` is dynamic via searchParams.
+  await connection();
+  const [categories, products, articles] = await Promise.all([
+    getHomeCategories(),
+    getHomeProducts(),
+    getHomeArticles(),
+  ]);
+  const categoryNavItems = buildLandingCategoryNav(categories);
+  const productVideos = products
+    .map((p) => p.videoUrl)
+    .filter(Boolean) as string[];
+
+  return (
+    <div className="landing-page bg-(--brand-cream) text-(--brand-forest)">
+      <ScrollReveal>
+        <LandingHero />
+      </ScrollReveal>
+      <ScrollReveal delayMs={60}>
+        <LandingCategoryCarousel navItems={categoryNavItems} />
+      </ScrollReveal>
+      <ScrollReveal delayMs={80}>
+        <FeaturedProducts products={products} />
+      </ScrollReveal>
+      <ScrollReveal delayMs={100}>
+        <LandingArticlesPreview articles={articles} />
+      </ScrollReveal>
+      <ScrollReveal delayMs={220}>
+        <LandingStory />
+      </ScrollReveal>
+      <ScrollReveal delayMs={240}>
+        <LandingFaq />
+      </ScrollReveal>
+      {LANDING_VIDEO_ALBUM_URLS.length > 0 ? (
+        <ScrollReveal delayMs={248}>
+          <VideoSection
+            videoUrls={[...LANDING_VIDEO_ALBUM_URLS]}
+            title="Video chia sẻ"
+            sectionId="video-album"
+          />
+        </ScrollReveal>
+      ) : null}
+      <ScrollReveal delayMs={252}>
+        <LandingImageAlbum
+          sectionTitle="Hình ảnh & không gian"
+          sectionSubtitle="Hình ảnh minh họa từ vườn nhãn và sản phẩm"
+          items={LANDING_IMAGE_ALBUM}
+        />
+      </ScrollReveal>
+      <ScrollReveal delayMs={260}>
+        <VideoSection videoUrls={productVideos} />
+      </ScrollReveal>
+      <ScrollReveal delayMs={280}>
+        <section className="landing-section landing-section--decor-cta">
+          <LandingTestimonialsTrust />
+        </section>
+      </ScrollReveal>
+    </div>
+  );
+}
+</file>
+
+<file path="apps/web/src/lib/constants.ts">
+export const SITE_URL = 'https://longnhanhungyen.shop';
 export const SITE_NAME = 'Long Nhãn Tống Trân';
 export const SITE_DESCRIPTION =
   'Long nhãn Hưng Yên — đặc sản chọn lọc, quà biếu sang trọng. Giao COD toàn quốc, Shopee, TikTok, Zalo.';

@@ -5,6 +5,8 @@ import ArticleContent from '@/components/articles/article-content';
 import Breadcrumb from '@/components/ui/breadcrumb';
 import { fetchApi } from '@/lib/api-client';
 import { buildBreadcrumb } from '@/lib/breadcrumb';
+import { articleDetailCacheTags } from '@/lib/content-cache-tags';
+import { buildSeoMetadata } from '@/lib/seo';
 import { buildArticleSchema } from '@/lib/structured-data';
 import { cacheLife, cacheTag } from 'next/cache';
 
@@ -15,7 +17,7 @@ interface ArticleDetailPageProps {
 async function getArticle(slug: string): Promise<Article | null> {
   'use cache';
   cacheLife({ revalidate: 3600 });
-  cacheTag('articles', `article-${slug}`);
+  cacheTag(...articleDetailCacheTags(slug));
   try {
     return await fetchApi<Article>(`/articles/${slug}`);
   } catch {
@@ -37,15 +39,13 @@ export async function generateMetadata({
   const description = article.metaDescription ?? article.excerpt ?? undefined;
   const image = article.featuredImageUrl ?? article.coverImageUrl ?? undefined;
 
-  return {
+  return buildSeoMetadata({
     title,
     description,
-    openGraph: {
-      title,
-      description,
-      images: image ? [image] : undefined,
-    },
-  };
+    canonicalPath: `/articles/${article.slug}`,
+    openGraphType: 'article',
+    ...(image ? { ogImage: { url: image, alt: title } } : {}),
+  });
 }
 
 export default async function ArticleDetailPage({
