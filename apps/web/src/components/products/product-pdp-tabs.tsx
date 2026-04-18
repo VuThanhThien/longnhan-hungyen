@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Product } from '@longnhan/types';
 import { fetchApi } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -135,7 +136,12 @@ function ProductReviewsTab({ productId }: { productId: string }) {
         `/products/${encodeURIComponent(productId)}/reviews`,
       );
       setData(res);
-    } catch {
+    } catch (error) {
+      captureApiFetchError(error, {
+        route: '/products/pdp',
+        section: 'reviews_list',
+        extra: { productId },
+      });
       setError('Không thể tải đánh giá.');
     } finally {
       setLoading(false);
@@ -163,7 +169,12 @@ function ProductReviewsTab({ productId }: { productId: string }) {
       setSubmitMessage('Cảm ơn bạn! Đánh giá đang chờ duyệt.');
       setComment('');
       await load();
-    } catch {
+    } catch (error) {
+      captureApiFetchError(error, {
+        route: '/products/pdp',
+        section: 'reviews_submit',
+        extra: { productId },
+      });
       setSubmitMessage(
         'Không thể gửi đánh giá. Hãy kiểm tra đơn đã giao, đúng số điện thoại, và đơn có chứa sản phẩm.',
       );

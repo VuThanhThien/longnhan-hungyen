@@ -14,6 +14,7 @@ import {
 } from '@/data/landing-page-content';
 import { fetchApi, fetchPaginated } from '@/lib/api-client';
 import { homeContentTags } from '@/lib/content-cache-tags';
+import { captureHomeContentFetchError } from '@/lib/observability/api-fetch-sentry';
 import { buildLandingCategoryNav } from '@/lib/landing-category-nav';
 import type { Article, Category, Product } from '@longnhan/types';
 import { cacheLife, cacheTag } from 'next/cache';
@@ -26,7 +27,8 @@ async function getHomeProducts(): Promise<Product[]> {
   try {
     const response = await fetchPaginated<Product>('/products', { limit: 8 });
     return response.data;
-  } catch {
+  } catch (error) {
+    captureHomeContentFetchError('products', error);
     return [];
   }
 }
@@ -37,7 +39,8 @@ async function getHomeCategories(): Promise<Category[]> {
   cacheLife({ revalidate: 300 });
   try {
     return await fetchApi<Category[]>('/categories');
-  } catch {
+  } catch (error) {
+    captureHomeContentFetchError('categories', error);
     return [];
   }
 }
@@ -52,14 +55,13 @@ async function getHomeArticles(): Promise<Article[]> {
       page: 1,
     });
     return response.data;
-  } catch {
+  } catch (error) {
+    captureHomeContentFetchError('articles', error);
     return [];
   }
 }
 
 export default async function Home() {
-  // Ensure home data is fetched at request time. `next build` in Docker has no API,
-  // so prerendering would cache empty products/articles; `/products` is dynamic via searchParams.
   await connection();
   const [categories, products, articles] = await Promise.all([
     getHomeCategories(),

@@ -4,6 +4,7 @@ import type { Article } from '@longnhan/types';
 import ArticleContent from '@/components/articles/article-content';
 import Breadcrumb from '@/components/ui/breadcrumb';
 import { fetchApi } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
 import { buildBreadcrumb } from '@/lib/breadcrumb';
 import { articleDetailCacheTags } from '@/lib/content-cache-tags';
 import { buildSeoMetadata } from '@/lib/seo';
@@ -20,7 +21,12 @@ async function getArticle(slug: string): Promise<Article | null> {
   cacheTag(...articleDetailCacheTags(slug));
   try {
     return await fetchApi<Article>(`/articles/${slug}`);
-  } catch {
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/articles/[slug]',
+      section: 'article_detail',
+      extra: { slug },
+    });
     return null;
   }
 }

@@ -5,6 +5,7 @@ import ProductPdpTabs from '@/components/products/product-pdp-tabs';
 import RelatedProducts from '@/components/products/related-products';
 import Breadcrumb from '@/components/ui/breadcrumb';
 import { fetchApi, fetchPaginated } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
 import { buildBreadcrumb } from '@/lib/breadcrumb';
 import {
   productDetailCacheTags,
@@ -27,7 +28,12 @@ async function getProduct(slug: string): Promise<Product | null> {
   cacheTag(...productDetailCacheTags(slug));
   try {
     return await fetchApi<Product>(`/products/${slug}`);
-  } catch {
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/products/[slug]',
+      section: 'product_detail',
+      extra: { slug },
+    });
     return null;
   }
 }
@@ -47,7 +53,12 @@ async function getRelatedProducts(
     return relatedResponse.data
       .filter((item) => item.slug !== excludeSlug)
       .slice(0, 4);
-  } catch {
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/products/[slug]',
+      section: 'related_products',
+      extra: { category: category ?? null, excludeSlug },
+    });
     return [];
   }
 }

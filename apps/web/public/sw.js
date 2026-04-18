@@ -1,9 +1,9 @@
 /**
- * Offline shell: network-first HTML, stale-while-revalidate for static/public.
- * Service-down: redirect to /service-unavailable (precached) on 502/503/504 or network error.
+ * Offline shell: network-first HTML; static assets use network when online, cache only when offline.
+ * Service-down: redirect to /service-unavailable on 502/503/504 while online; cache reads for pages/assets only when navigator.onLine is false.
  * Bump VERSION when changing caching rules so old caches are purged.
  */
-const VERSION = 'longnhan-web-sw-v3';
+const VERSION = 'longnhan-web-sw-v4';
 const PAGES_CACHE = `${VERSION}-pages`;
 const STATIC_CACHE = `${VERSION}-static`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
@@ -11,8 +11,29 @@ const SERVICE_UNAVAILABLE_PATH = '/service-unavailable';
 
 const ALLOWED_CACHES = new Set([PAGES_CACHE, STATIC_CACHE, RUNTIME_CACHE]);
 const LOG_PREFIX = '[LongNhan SW:worker]';
+const redundantLifecycleHooks = new WeakSet();
+
+function isNavigatorOffline() {
+  return !self.navigator?.onLine;
+}
+
+/** Covers unregister(), clear site data, or replacement by a newer worker. */
+function attachRedundantStateLogging() {
+  const reg = self.registration;
+  const sw = reg?.installing ?? reg?.waiting ?? reg?.active;
+  if (!sw || redundantLifecycleHooks.has(sw)) return;
+  redundantLifecycleHooks.add(sw);
+  sw.addEventListener('statechange', () => {
+    if (sw.state === 'redundant') {
+      console.log(
+        `${LOG_PREFIX} redundant — SW unregistered, cleared, or replaced (version ${VERSION})`,
+      );
+    }
+  });
+}
 
 self.addEventListener('install', (event) => {
+  attachRedundantStateLogging();
   console.log(`${LOG_PREFIX} install — version`, VERSION);
   self.skipWaiting();
   event.waitUntil(
@@ -42,6 +63,7 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
+  attachRedundantStateLogging();
   console.log(`${LOG_PREFIX} activate — claiming clients, pruning old caches`);
   event.waitUntil(
     (async () => {
@@ -106,8 +128,8 @@ async function matchCachedPath(cache, path) {
 }
 
 /**
- * Prefer network; cache successful HTML. Upstream 502/503/504 → redirect to SU page.
- * Network error → same URL cache, else redirect to cached SU page.
+ * Prefer network; cache successful HTML for offline use.
+ * Upstream 502/503/504 → redirect to SU page (online); cached fallbacks only when offline.
  */
 async function networkFirstPage(event, request) {
   const url = new URL(request.url);
@@ -124,8 +146,13 @@ async function networkFirstPage(event, request) {
 
     if (isUpstreamFailureStatus(networkResponse.status)) {
       if (isSuRoute) {
-        const cachedSu = await matchCachedPath(cache, SERVICE_UNAVAILABLE_PATH);
-        if (cachedSu) return cachedSu;
+        if (isNavigatorOffline()) {
+          const cachedSu = await matchCachedPath(
+            cache,
+            SERVICE_UNAVAILABLE_PATH,
+          );
+          if (cachedSu) return cachedSu;
+        }
         return minimalServiceUnavailableResponse();
       }
       console.log(
@@ -141,27 +168,35 @@ async function networkFirstPage(event, request) {
   } catch (err) {
     console.warn(`${LOG_PREFIX} network error for navigation`, err);
 
-    const cachedNav = await cache.match(request);
-    if (cachedNav) return cachedNav;
+    const offline = isNavigatorOffline();
+
+    if (offline) {
+      const cachedNav = await cache.match(request);
+      if (cachedNav) return cachedNav;
+    }
 
     if (isSuRoute) {
-      const cachedSu = await matchCachedPath(cache, SERVICE_UNAVAILABLE_PATH);
-      if (cachedSu) return cachedSu;
+      if (offline) {
+        const cachedSu = await matchCachedPath(cache, SERVICE_UNAVAILABLE_PATH);
+        if (cachedSu) return cachedSu;
+      }
       return minimalServiceUnavailableResponse();
     }
 
-    const cachedSu = await matchCachedPath(cache, SERVICE_UNAVAILABLE_PATH);
-    if (cachedSu) {
-      return Response.redirect(
-        new URL(SERVICE_UNAVAILABLE_PATH, self.location.origin).href,
-        302,
-      );
-    }
+    if (offline) {
+      const cachedSu = await matchCachedPath(cache, SERVICE_UNAVAILABLE_PATH);
+      if (cachedSu) {
+        return Response.redirect(
+          new URL(SERVICE_UNAVAILABLE_PATH, self.location.origin).href,
+          302,
+        );
+      }
 
-    const root = new URL('/', self.location.origin).href;
-    if (request.url === root || request.url.startsWith(`${root}?`)) {
-      const cachedRoot = await matchCachedPath(cache, '/');
-      if (cachedRoot) return cachedRoot;
+      const root = new URL('/', self.location.origin).href;
+      if (request.url === root || request.url.startsWith(`${root}?`)) {
+        const cachedRoot = await matchCachedPath(cache, '/');
+        if (cachedRoot) return cachedRoot;
+      }
     }
 
     return minimalServiceUnavailableResponse();
@@ -180,26 +215,28 @@ function minimalServiceUnavailableResponse() {
 async function staleWhileRevalidate(event, request, cacheName) {
   const cache = await caches.open(cacheName);
   const cached = await cache.match(request);
+  const offline = isNavigatorOffline();
 
-  const networkPromise = fetch(request)
-    .then((response) => {
+  if (offline) {
+    if (cached) return cached;
+    try {
+      const response = await fetch(request);
       if (response.ok) {
-        cache.put(request, response.clone());
+        await cache.put(request, response.clone());
       }
       return response;
-    })
-    .catch(() => undefined);
-
-  if (cached) {
-    event.waitUntil(networkPromise);
-    return cached;
+    } catch {
+      return new Response('', { status: 504, statusText: 'Gateway Timeout' });
+    }
   }
 
   try {
-    const response = await networkPromise;
-    if (response) return response;
+    const response = await fetch(request);
+    if (response.ok) {
+      event.waitUntil(cache.put(request, response.clone()));
+    }
+    return response;
   } catch {
-    /* fall through */
+    return new Response('', { status: 504, statusText: 'Gateway Timeout' });
   }
-  return new Response('', { status: 504, statusText: 'Gateway Timeout' });
 }

@@ -1,4 +1,3 @@
-// Social share buttons for product detail page — Zalo and Facebook
 interface ProductPdpShareButtonsProps {
   productName: string;
   productUrl: string;

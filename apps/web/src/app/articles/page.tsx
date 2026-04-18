@@ -3,6 +3,7 @@ import type { Article } from '@longnhan/types';
 import ArticleCard from '@/components/articles/article-card';
 import Breadcrumb from '@/components/ui/breadcrumb';
 import { fetchPaginated } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
 import { articlesListCacheTags } from '@/lib/content-cache-tags';
 import { buildSeoMetadata } from '@/lib/seo';
 import { cacheLife, cacheTag } from 'next/cache';
@@ -14,7 +15,11 @@ async function getArticles(): Promise<Article[]> {
   try {
     const response = await fetchPaginated<Article>('/articles', { limit: 24 });
     return response.data;
-  } catch {
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/articles',
+      section: 'listing',
+    });
     return [];
   }
 }

@@ -5,6 +5,7 @@ import ProductGrid from '@/components/products/product-grid';
 import CategoryFilter from '@/components/products/category-filter';
 import Breadcrumb from '@/components/ui/breadcrumb';
 import { fetchApi, fetchPaginated } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
 import { buildBreadcrumb } from '@/lib/breadcrumb';
 import {
   productListingCategoriesTag,
@@ -20,7 +21,11 @@ async function getProductListingCategories(): Promise<Category[]> {
   cacheLife({ revalidate: 60 });
   try {
     return await fetchApi<Category[]>('/categories');
-  } catch {
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/products',
+      section: 'categories',
+    });
     return [];
   }
 }
@@ -39,7 +44,12 @@ async function getProductsListing(
       limit: 24,
     });
     return response.data;
-  } catch {
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/products',
+      section: 'listing',
+      extra: { category: category ?? null, q: q ?? null },
+    });
     return [];
   }
 }

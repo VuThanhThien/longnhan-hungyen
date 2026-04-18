@@ -3,6 +3,7 @@
 import { isRedirectError } from 'next/dist/client/components/redirect-error';
 
 import { apiServer } from '@/lib/api-server';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
 import { requireNonEmptyString } from '@/lib/formdata/formdata-utils';
 
 export type PublicOrderItemSummary = {
@@ -44,6 +45,10 @@ export async function lookupOrderAction(
     return { ok: true, data };
   } catch (err) {
     if (isRedirectError(err)) throw err;
+    captureApiFetchError(err, {
+      route: '/track-order',
+      section: 'order_lookup',
+    });
     return {
       ok: false,
       error: 'Không tìm thấy đơn hàng. Vui lòng kiểm tra lại mã.',

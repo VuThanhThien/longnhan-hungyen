@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import type { Article, Product } from '@longnhan/types';
 import { fetchPaginated } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
 import { SITE_URL } from '@/lib/constants';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -14,7 +15,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ]);
     products = productRes.data;
     articles = articleRes.data;
-  } catch {
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: 'sitemap',
+      section: 'entries',
+    });
     products = [];
     articles = [];
   }

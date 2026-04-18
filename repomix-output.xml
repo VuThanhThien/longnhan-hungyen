@@ -956,6 +956,7 @@ apps/
           create-longnhan-api.ts
           extract-error-message.ts
         observability/
+          api-fetch-sentry.ts
           order-submit-sentry.ts
         types/
           api-paginated.ts
@@ -1068,82 +1069,47 @@ This section contains the contents of the repository's files.
 
 </file>
 
-<file path="apps/api/src/integrations/storefront-revalidate/storefront-cache-tags.ts">
-/**
- * Must stay in sync with `apps/web/src/lib/content-cache-tags.ts` (scope strings).
- */
-export const storefrontWebCacheTags = {
-  products: 'products',
-  relatedProducts: 'related-products',
-  productListingCategories: 'product-list-categories',
-  homeCategories: 'home-categories',
-  articles: 'articles',
-} as const;
-</file>
+<file path="apps/web/src/lib/observability/api-fetch-sentry.ts">
+import * as Sentry from '@sentry/nextjs';
 
-<file path="apps/web/src/lib/content-cache-tags.ts">
-/**
- * Shared string identifiers for Next.js `cacheTag` / `revalidateTag` and TanStack Query keys.
- * Import `contentScope` / `contentSegment` from here in `query-keys.ts` so roots and segments stay identical.
- */
+export type HomeContentSection = 'products' | 'categories' | 'articles';
 
-export const contentScope = {
-  products: 'products',
-  articles: 'articles',
-  relatedProducts: 'related-products',
-} as const;
+export type ApiFetchSentryContext = {
+  /** Logical page or feature, e.g. `/`, `/products`, `sitemap` */
+  route: string;
+  /** Sub-area, e.g. `listing`, `product_detail` */
+  section: string;
+  extra?: Record<string, unknown>;
+};
 
-export const contentSegment = {
-  list: 'list',
-  detail: 'detail',
-} as const;
+/** Reports failed API fetches when `@sentry/nextjs` is initialized (see `sentry.server.config.ts` / client init). */
+export function captureApiFetchError(
+  error: unknown,
+  context: ApiFetchSentryContext,
+): void {
+  if (!Sentry.getClient()) return;
 
-/** Category options fetch on `/products` (filter chips). */
-export const productListingCategoriesTag = 'product-list-categories' as const;
-
-export const homeContentTags = {
-  featuredProducts: 'home-featured-products',
-  categories: 'home-categories',
-  articles: 'home-articles',
-} as const;
-
-export function productsListCacheTags(
-  category: string | undefined,
-  q: string | undefined,
-): readonly [string, string, string, string] {
-  return [
-    contentScope.products,
-    contentSegment.list,
-    `cat:${category ?? ''}`,
-    `q:${q ?? ''}`,
-  ];
+  Sentry.withScope((scope) => {
+    scope.setTag('fetch_route', context.route);
+    scope.setTag('fetch_section', context.section);
+    scope.setContext('api_fetch', {
+      route: context.route,
+      section: context.section,
+      source: 'api_client',
+      ...context.extra,
+    });
+    Sentry.captureException(error);
+  });
 }
 
-export function productDetailCacheTags(
-  slug: string,
-): readonly [string, string, string] {
-  return [contentScope.products, contentSegment.detail, slug];
-}
-
-export function relatedProductsCacheTags(
-  category: string | undefined,
-  excludeSlug: string,
-): readonly [string, string, string] {
-  return [
-    contentScope.relatedProducts,
-    `cat:${category ?? ''}`,
-    `ex:${excludeSlug}`,
-  ];
-}
-
-export function articlesListCacheTags(): readonly [string, string] {
-  return [contentScope.articles, contentSegment.list];
-}
-
-export function articleDetailCacheTags(
-  slug: string,
-): readonly [string, string, string] {
-  return [contentScope.articles, contentSegment.detail, slug];
+export function captureHomeContentFetchError(
+  section: HomeContentSection,
+  error: unknown,
+): void {
+  captureApiFetchError(error, {
+    route: '/',
+    section: `home_${section}`,
+  });
 }
 </file>
 
@@ -12718,6 +12684,19 @@ export class AuthGuard implements CanActivate {
 }
 </file>
 
+<file path="apps/api/src/integrations/storefront-revalidate/storefront-cache-tags.ts">
+/**
+ * Must stay in sync with `apps/web/src/lib/content-cache-tags.ts` (scope strings).
+ */
+export const storefrontWebCacheTags = {
+  products: 'products',
+  relatedProducts: 'related-products',
+  productListingCategories: 'product-list-categories',
+  homeCategories: 'home-categories',
+  articles: 'articles',
+} as const;
+</file>
+
 <file path="apps/api/src/libs/aws/aws.module.ts">
 import { Module } from '@nestjs/common';
 
@@ -15080,6 +15059,7 @@ process.env.AUTH_CONFIRM_EMAIL_TOKEN_EXPIRES_IN = '1d';
 import { isRedirectError } from 'next/dist/client/components/redirect-error';
 
 import { apiServer } from '@/lib/api-server';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
 import { requireNonEmptyString } from '@/lib/formdata/formdata-utils';
 
 export type PublicOrderItemSummary = {
@@ -15121,6 +15101,10 @@ export async function lookupOrderAction(
     return { ok: true, data };
   } catch (err) {
     if (isRedirectError(err)) throw err;
+    captureApiFetchError(err, {
+      route: '/track-order',
+      section: 'order_lookup',
+    });
     return {
       ok: false,
       error: 'Không tìm thấy đơn hàng. Vui lòng kiểm tra lại mã.',
@@ -15336,6 +15320,7 @@ export default function robots(): MetadataRoute.Robots {
 import type { MetadataRoute } from 'next';
 import type { Article, Product } from '@longnhan/types';
 import { fetchPaginated } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
 import { SITE_URL } from '@/lib/constants';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -15349,7 +15334,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ]);
     products = productRes.data;
     articles = articleRes.data;
-  } catch {
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: 'sitemap',
+      section: 'entries',
+    });
     products = [];
     articles = [];
   }
@@ -18749,6 +18738,72 @@ export function buildBreadcrumb({
 }
 </file>
 
+<file path="apps/web/src/lib/content-cache-tags.ts">
+/**
+ * Shared string identifiers for Next.js `cacheTag` / `revalidateTag` and TanStack Query keys.
+ * Import `contentScope` / `contentSegment` from here in `query-keys.ts` so roots and segments stay identical.
+ */
+
+export const contentScope = {
+  products: 'products',
+  articles: 'articles',
+  relatedProducts: 'related-products',
+} as const;
+
+export const contentSegment = {
+  list: 'list',
+  detail: 'detail',
+} as const;
+
+/** Category options fetch on `/products` (filter chips). */
+export const productListingCategoriesTag = 'product-list-categories' as const;
+
+export const homeContentTags = {
+  featuredProducts: 'home-featured-products',
+  categories: 'home-categories',
+  articles: 'home-articles',
+} as const;
+
+export function productsListCacheTags(
+  category: string | undefined,
+  q: string | undefined,
+): readonly [string, string, string, string] {
+  return [
+    contentScope.products,
+    contentSegment.list,
+    `cat:${category ?? ''}`,
+    `q:${q ?? ''}`,
+  ];
+}
+
+export function productDetailCacheTags(
+  slug: string,
+): readonly [string, string, string] {
+  return [contentScope.products, contentSegment.detail, slug];
+}
+
+export function relatedProductsCacheTags(
+  category: string | undefined,
+  excludeSlug: string,
+): readonly [string, string, string] {
+  return [
+    contentScope.relatedProducts,
+    `cat:${category ?? ''}`,
+    `ex:${excludeSlug}`,
+  ];
+}
+
+export function articlesListCacheTags(): readonly [string, string] {
+  return [contentScope.articles, contentSegment.list];
+}
+
+export function articleDetailCacheTags(
+  slug: string,
+): readonly [string, string, string] {
+  return [contentScope.articles, contentSegment.detail, slug];
+}
+</file>
+
 <file path="apps/web/src/lib/format-phone-display.ts">
 export function formatPhoneDisplay(phone: string): string {
   const digits = phone.replace(/\D/g, '');
@@ -18791,166 +18846,6 @@ export function buildLandingCategoryNav(
     iconSrc: c.iconSrc,
     iconAlt: c.iconAlt,
   }));
-}
-</file>
-
-<file path="apps/web/src/lib/seo.ts">
-import { SITE_NAME, SITE_URL } from '@/lib/constants';
-import type { Metadata } from 'next';
-import { PWA_CONFIG } from './pwa-config';
-
-type OgImage = {
-  url: string;
-  width?: number;
-  height?: number;
-  alt?: string;
-};
-
-type SeoBuilderCore = {
-  title: string;
-  description?: string;
-  canonicalPath: string;
-  ogImage?: OgImage;
-  ogImages?: OgImage[];
-  /** Use `article` for blog posts so crawlers get the right OG type. */
-  openGraphType?: 'website' | 'article';
-};
-
-/** Core SEO fields plus any optional Next.js `Metadata` fields (merged shallowly; OG/Twitter/canonical are composed on top). */
-export type BuildSeoMetadataInput = SeoBuilderCore & Partial<Metadata>;
-
-const DEFAULT_OG_IMAGE: Required<Pick<OgImage, 'url'>> & Partial<OgImage> = {
-  url: '/banner-web2.png',
-  width: 1200,
-  height: 630,
-  alt: 'Long Nhãn Tống Trân',
-};
-
-/** Resolves image and page URLs for OG/Twitter; Facebook requires absolute https URLs. */
-export function toAbsoluteUrl(pathOrUrl: string): string {
-  const s = pathOrUrl.trim();
-  if (s.startsWith('https://')) return s;
-  if (s.startsWith('http://')) return s;
-  if (s.startsWith('//')) return `https:${s}`;
-  if (s.startsWith('/')) return `${SITE_URL}${s}`;
-  return `${SITE_URL}/${s}`;
-}
-
-function normalizeCanonicalPath(path: string): string {
-  const p = path.trim();
-  if (!p || p === '/') return '/';
-  return p.startsWith('/') ? p : `/${p}`;
-}
-
-export function buildSeoMetadata(input: BuildSeoMetadataInput): Metadata {
-  const {
-    title,
-    description,
-    canonicalPath,
-    ogImage,
-    ogImages,
-    openGraphType,
-    alternates: inputAlternates,
-    openGraph: inputOpenGraph,
-    twitter: inputTwitter,
-    ...metadataRest
-  } = input;
-
-  const pathname = normalizeCanonicalPath(canonicalPath);
-  const pageUrl = `${SITE_URL}${pathname === '/' ? '/' : pathname}`;
-
-  const images = (ogImages ?? (ogImage ? [ogImage] : [DEFAULT_OG_IMAGE]))
-    .filter(Boolean)
-    .map((img) => ({
-      ...img,
-      url: toAbsoluteUrl(img.url),
-    }));
-
-  const imageUrls = images.map((i) => i.url);
-
-  const userOg = inputOpenGraph as
-    | (NonNullable<typeof inputOpenGraph> & { type?: 'website' | 'article' })
-    | undefined;
-  const ogType = openGraphType ?? userOg?.type ?? 'website';
-
-  const userTw = inputTwitter as
-    | (NonNullable<typeof inputTwitter> & {
-        card?: 'summary' | 'summary_large_image' | 'app' | 'player';
-      })
-    | undefined;
-
-  return {
-    ...metadataRest,
-    title,
-    description,
-    alternates: {
-      ...inputAlternates,
-      canonical: pageUrl,
-    },
-    authors: [{ name: SITE_NAME, url: SITE_URL }],
-    generator: 'Next.js',
-    applicationName: SITE_NAME,
-    category: 'food',
-    metadataBase: new URL(SITE_URL),
-    openGraph: {
-      ...inputOpenGraph,
-      type: ogType,
-      locale: userOg?.locale ?? 'vi_VN',
-      siteName: userOg?.siteName ?? SITE_NAME,
-      url: userOg?.url ?? pageUrl,
-      title,
-      description,
-      images,
-    },
-    twitter: {
-      ...inputTwitter,
-      card: userTw?.card ?? 'summary_large_image',
-      title,
-      description,
-      images: imageUrls,
-    },
-    icons: {
-      icon: [{ url: '/favicon.ico', sizes: 'any' }],
-      apple: [
-        { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
-      ],
-    },
-    robots: {
-      index: true,
-      follow: true,
-      googleBot: {
-        index: true,
-        follow: true,
-      },
-    },
-    classification: 'food',
-    other: {
-      google: 'notranslate',
-      'mobile-web-app-capable': 'yes',
-      'apple-mobile-web-app-capable': 'yes',
-      'apple-mobile-web-app-status-bar-style': 'black-translucent',
-      'apple-mobile-web-app-title': SITE_NAME,
-      'application-name': SITE_NAME,
-      'msapplication-TileColor': PWA_CONFIG.themeColor,
-      'msapplication-config': '/browserconfig.xml',
-      'theme-color': PWA_CONFIG.themeColor,
-      'color-scheme': 'dark light',
-      referrer: 'origin-when-cross-origin',
-      viewport: 'width=device-width, initial-scale=1, maximum-scale=5',
-    },
-    appleWebApp: {
-      capable: true,
-      statusBarStyle: 'black-translucent',
-      title: SITE_NAME,
-      startupImage: [
-        {
-          url: '/apple-touch-startup-image-768x1004.png',
-          media: '(device-width: 768px) and (device-height: 1024px)',
-        },
-      ],
-    },
-    referrer: 'origin-when-cross-origin',
-  };
 }
 </file>
 
@@ -38163,11 +38058,11 @@ CMD [ "node", "dist/main.js" ]
 
 <file path="apps/web/public/sw.js">
 /**
- * Offline shell: network-first HTML, stale-while-revalidate for static/public.
- * Service-down: redirect to /service-unavailable (precached) on 502/503/504 or network error.
+ * Offline shell: network-first HTML; static assets use network when online, cache only when offline.
+ * Service-down: redirect to /service-unavailable on 502/503/504 while online; cache reads for pages/assets only when navigator.onLine is false.
  * Bump VERSION when changing caching rules so old caches are purged.
  */
-const VERSION = 'longnhan-web-sw-v3';
+const VERSION = 'longnhan-web-sw-v4';
 const PAGES_CACHE = `${VERSION}-pages`;
 const STATIC_CACHE = `${VERSION}-static`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
@@ -38175,8 +38070,29 @@ const SERVICE_UNAVAILABLE_PATH = '/service-unavailable';
 
 const ALLOWED_CACHES = new Set([PAGES_CACHE, STATIC_CACHE, RUNTIME_CACHE]);
 const LOG_PREFIX = '[LongNhan SW:worker]';
+const redundantLifecycleHooks = new WeakSet();
+
+function isNavigatorOffline() {
+  return !self.navigator?.onLine;
+}
+
+/** Covers unregister(), clear site data, or replacement by a newer worker. */
+function attachRedundantStateLogging() {
+  const reg = self.registration;
+  const sw = reg?.installing ?? reg?.waiting ?? reg?.active;
+  if (!sw || redundantLifecycleHooks.has(sw)) return;
+  redundantLifecycleHooks.add(sw);
+  sw.addEventListener('statechange', () => {
+    if (sw.state === 'redundant') {
+      console.log(
+        `${LOG_PREFIX} redundant — SW unregistered, cleared, or replaced (version ${VERSION})`,
+      );
+    }
+  });
+}
 
 self.addEventListener('install', (event) => {
+  attachRedundantStateLogging();
   console.log(`${LOG_PREFIX} install — version`, VERSION);
   self.skipWaiting();
   event.waitUntil(
@@ -38206,6 +38122,7 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
+  attachRedundantStateLogging();
   console.log(`${LOG_PREFIX} activate — claiming clients, pruning old caches`);
   event.waitUntil(
     (async () => {
@@ -38270,8 +38187,8 @@ async function matchCachedPath(cache, path) {
 }
 
 /**
- * Prefer network; cache successful HTML. Upstream 502/503/504 → redirect to SU page.
- * Network error → same URL cache, else redirect to cached SU page.
+ * Prefer network; cache successful HTML for offline use.
+ * Upstream 502/503/504 → redirect to SU page (online); cached fallbacks only when offline.
  */
 async function networkFirstPage(event, request) {
   const url = new URL(request.url);
@@ -38288,8 +38205,13 @@ async function networkFirstPage(event, request) {
 
     if (isUpstreamFailureStatus(networkResponse.status)) {
       if (isSuRoute) {
-        const cachedSu = await matchCachedPath(cache, SERVICE_UNAVAILABLE_PATH);
-        if (cachedSu) return cachedSu;
+        if (isNavigatorOffline()) {
+          const cachedSu = await matchCachedPath(
+            cache,
+            SERVICE_UNAVAILABLE_PATH,
+          );
+          if (cachedSu) return cachedSu;
+        }
         return minimalServiceUnavailableResponse();
       }
       console.log(
@@ -38305,27 +38227,35 @@ async function networkFirstPage(event, request) {
   } catch (err) {
     console.warn(`${LOG_PREFIX} network error for navigation`, err);
 
-    const cachedNav = await cache.match(request);
-    if (cachedNav) return cachedNav;
+    const offline = isNavigatorOffline();
+
+    if (offline) {
+      const cachedNav = await cache.match(request);
+      if (cachedNav) return cachedNav;
+    }
 
     if (isSuRoute) {
-      const cachedSu = await matchCachedPath(cache, SERVICE_UNAVAILABLE_PATH);
-      if (cachedSu) return cachedSu;
+      if (offline) {
+        const cachedSu = await matchCachedPath(cache, SERVICE_UNAVAILABLE_PATH);
+        if (cachedSu) return cachedSu;
+      }
       return minimalServiceUnavailableResponse();
     }
 
-    const cachedSu = await matchCachedPath(cache, SERVICE_UNAVAILABLE_PATH);
-    if (cachedSu) {
-      return Response.redirect(
-        new URL(SERVICE_UNAVAILABLE_PATH, self.location.origin).href,
-        302,
-      );
-    }
+    if (offline) {
+      const cachedSu = await matchCachedPath(cache, SERVICE_UNAVAILABLE_PATH);
+      if (cachedSu) {
+        return Response.redirect(
+          new URL(SERVICE_UNAVAILABLE_PATH, self.location.origin).href,
+          302,
+        );
+      }
 
-    const root = new URL('/', self.location.origin).href;
-    if (request.url === root || request.url.startsWith(`${root}?`)) {
-      const cachedRoot = await matchCachedPath(cache, '/');
-      if (cachedRoot) return cachedRoot;
+      const root = new URL('/', self.location.origin).href;
+      if (request.url === root || request.url.startsWith(`${root}?`)) {
+        const cachedRoot = await matchCachedPath(cache, '/');
+        if (cachedRoot) return cachedRoot;
+      }
     }
 
     return minimalServiceUnavailableResponse();
@@ -38344,28 +38274,30 @@ function minimalServiceUnavailableResponse() {
 async function staleWhileRevalidate(event, request, cacheName) {
   const cache = await caches.open(cacheName);
   const cached = await cache.match(request);
+  const offline = isNavigatorOffline();
 
-  const networkPromise = fetch(request)
-    .then((response) => {
+  if (offline) {
+    if (cached) return cached;
+    try {
+      const response = await fetch(request);
       if (response.ok) {
-        cache.put(request, response.clone());
+        await cache.put(request, response.clone());
       }
       return response;
-    })
-    .catch(() => undefined);
-
-  if (cached) {
-    event.waitUntil(networkPromise);
-    return cached;
+    } catch {
+      return new Response('', { status: 504, statusText: 'Gateway Timeout' });
+    }
   }
 
   try {
-    const response = await networkPromise;
-    if (response) return response;
+    const response = await fetch(request);
+    if (response.ok) {
+      event.waitUntil(cache.put(request, response.clone()));
+    }
+    return response;
   } catch {
-    /* fall through */
+    return new Response('', { status: 504, statusText: 'Gateway Timeout' });
   }
-  return new Response('', { status: 504, statusText: 'Gateway Timeout' });
 }
 </file>
 
@@ -39370,7 +39302,6 @@ export default function HeaderCartButton() {
 </file>
 
 <file path="apps/web/src/components/products/product-pdp-share-buttons.tsx">
-// Social share buttons for product detail page — Zalo and Facebook
 interface ProductPdpShareButtonsProps {
   productName: string;
   productUrl: string;
@@ -40459,42 +40390,164 @@ export const PWA_MANIFEST_SCREENSHOTS = [
 ] as const;
 </file>
 
-<file path="apps/web/src/lib/query-keys.ts">
-import { contentScope, contentSegment } from '@/lib/content-cache-tags';
+<file path="apps/web/src/lib/seo.ts">
+import { SITE_NAME, SITE_URL } from '@/lib/constants';
+import type { Metadata } from 'next';
+import { PWA_CONFIG } from './pwa-config';
 
-export const queryKeys = {
-  products: {
-    all: [contentScope.products] as const,
-    list: (params?: {
-      category?: string;
-      q?: string;
-      page?: number;
-      limit?: number;
-    }) =>
-      [
-        ...queryKeys.products.all,
-        contentSegment.list,
-        `cat:${params?.category ?? ''}`,
-        `q:${params?.q ?? ''}`,
-        params?.page,
-        params?.limit,
-      ] as const,
-    detail: (slug: string) =>
-      [...queryKeys.products.all, contentSegment.detail, slug] as const,
-  },
-  articles: {
-    all: [contentScope.articles] as const,
-    list: (params?: { page?: number; limit?: number }) =>
-      [
-        ...queryKeys.articles.all,
-        contentSegment.list,
-        params?.page,
-        params?.limit,
-      ] as const,
-    detail: (slug: string) =>
-      [...queryKeys.articles.all, contentSegment.detail, slug] as const,
-  },
-} as const;
+type OgImage = {
+  url: string;
+  width?: number;
+  height?: number;
+  alt?: string;
+};
+
+type SeoBuilderCore = {
+  title: string;
+  description?: string;
+  canonicalPath: string;
+  ogImage?: OgImage;
+  ogImages?: OgImage[];
+  /** Use `article` for blog posts so crawlers get the right OG type. */
+  openGraphType?: 'website' | 'article';
+};
+
+/** Core SEO fields plus any optional Next.js `Metadata` fields (merged shallowly; OG/Twitter/canonical are composed on top). */
+export type BuildSeoMetadataInput = SeoBuilderCore & Partial<Metadata>;
+
+const DEFAULT_OG_IMAGE: Required<Pick<OgImage, 'url'>> & Partial<OgImage> = {
+  url: '/banner-web2.png',
+  width: 1200,
+  height: 630,
+  alt: 'Long Nhãn Tống Trân',
+};
+
+/** Resolves image and page URLs for OG/Twitter; Facebook requires absolute https URLs. */
+export function toAbsoluteUrl(pathOrUrl: string): string {
+  const s = pathOrUrl.trim();
+  if (s.startsWith('https://')) return s;
+  if (s.startsWith('http://')) return s;
+  if (s.startsWith('//')) return `https:${s}`;
+  if (s.startsWith('/')) return `${SITE_URL}${s}`;
+  return `${SITE_URL}/${s}`;
+}
+
+function normalizeCanonicalPath(path: string): string {
+  const p = path.trim();
+  if (!p || p === '/') return '/';
+  return p.startsWith('/') ? p : `/${p}`;
+}
+
+export function buildSeoMetadata(input: BuildSeoMetadataInput): Metadata {
+  const {
+    title,
+    description,
+    canonicalPath,
+    ogImage,
+    ogImages,
+    openGraphType,
+    alternates: inputAlternates,
+    openGraph: inputOpenGraph,
+    twitter: inputTwitter,
+    ...metadataRest
+  } = input;
+
+  const pathname = normalizeCanonicalPath(canonicalPath);
+  const pageUrl = `${SITE_URL}${pathname === '/' ? '/' : pathname}`;
+
+  const images = (ogImages ?? (ogImage ? [ogImage] : [DEFAULT_OG_IMAGE]))
+    .filter(Boolean)
+    .map((img) => ({
+      ...img,
+      url: toAbsoluteUrl(img.url),
+    }));
+
+  const imageUrls = images.map((i) => i.url);
+
+  const userOg = inputOpenGraph as
+    | (NonNullable<typeof inputOpenGraph> & { type?: 'website' | 'article' })
+    | undefined;
+  const ogType = openGraphType ?? userOg?.type ?? 'website';
+
+  const userTw = inputTwitter as
+    | (NonNullable<typeof inputTwitter> & {
+        card?: 'summary' | 'summary_large_image' | 'app' | 'player';
+      })
+    | undefined;
+
+  return {
+    ...metadataRest,
+    title,
+    description,
+    alternates: {
+      ...inputAlternates,
+      canonical: pageUrl,
+    },
+    authors: [{ name: SITE_NAME, url: SITE_URL }],
+    generator: 'Next.js',
+    applicationName: SITE_NAME,
+    category: 'food',
+    metadataBase: new URL(SITE_URL),
+    openGraph: {
+      ...inputOpenGraph,
+      type: ogType,
+      locale: userOg?.locale ?? 'vi_VN',
+      siteName: userOg?.siteName ?? SITE_NAME,
+      url: userOg?.url ?? pageUrl,
+      title,
+      description,
+      images,
+    },
+    twitter: {
+      ...inputTwitter,
+      card: userTw?.card ?? 'summary_large_image',
+      title,
+      description,
+      images: imageUrls,
+    },
+    icons: {
+      icon: [{ url: '/favicon.ico', sizes: 'any' }],
+      apple: [
+        { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      ],
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+      },
+    },
+    classification: 'food',
+    other: {
+      google: 'notranslate',
+      'mobile-web-app-capable': 'yes',
+      'apple-mobile-web-app-capable': 'yes',
+      'apple-mobile-web-app-status-bar-style': 'black-translucent',
+      'apple-mobile-web-app-title': SITE_NAME,
+      'application-name': SITE_NAME,
+      'msapplication-TileColor': PWA_CONFIG.themeColor,
+      'msapplication-config': '/browserconfig.xml',
+      'theme-color': PWA_CONFIG.themeColor,
+      'color-scheme': 'dark light',
+      referrer: 'origin-when-cross-origin',
+      viewport: 'width=device-width, initial-scale=1, maximum-scale=5',
+    },
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: 'black-translucent',
+      title: SITE_NAME,
+      startupImage: [
+        {
+          url: '/apple-touch-startup-image-768x1004.png',
+          media: '(device-width: 768px) and (device-height: 1024px)',
+        },
+      ],
+    },
+    referrer: 'origin-when-cross-origin',
+  };
+}
 </file>
 
 <file path="apps/web/src/instrumentation.ts">
@@ -45725,6 +45778,44 @@ export default function ScrollReveal({
 }
 </file>
 
+<file path="apps/web/src/lib/query-keys.ts">
+import { contentScope, contentSegment } from '@/lib/content-cache-tags';
+
+export const queryKeys = {
+  products: {
+    all: [contentScope.products] as const,
+    list: (params?: {
+      category?: string;
+      q?: string;
+      page?: number;
+      limit?: number;
+    }) =>
+      [
+        ...queryKeys.products.all,
+        contentSegment.list,
+        `cat:${params?.category ?? ''}`,
+        `q:${params?.q ?? ''}`,
+        params?.page,
+        params?.limit,
+      ] as const,
+    detail: (slug: string) =>
+      [...queryKeys.products.all, contentSegment.detail, slug] as const,
+  },
+  articles: {
+    all: [contentScope.articles] as const,
+    list: (params?: { page?: number; limit?: number }) =>
+      [
+        ...queryKeys.articles.all,
+        contentSegment.list,
+        params?.page,
+        params?.limit,
+      ] as const,
+    detail: (slug: string) =>
+      [...queryKeys.articles.all, contentSegment.detail, slug] as const,
+  },
+} as const;
+</file>
+
 <file path="apps/web/src/lib/structured-data.ts">
 // JSON-LD structured data generators for SEO
 // Used on product pages, article pages, and all pages (organization + breadcrumb)
@@ -50744,63 +50835,6 @@ export async function submitOrder(formData: FormData): Promise<void> {
 }
 </file>
 
-<file path="apps/web/src/app/articles/page.tsx">
-import type { Metadata } from 'next';
-import type { Article } from '@longnhan/types';
-import ArticleCard from '@/components/articles/article-card';
-import Breadcrumb from '@/components/ui/breadcrumb';
-import { fetchPaginated } from '@/lib/api-client';
-import { articlesListCacheTags } from '@/lib/content-cache-tags';
-import { buildSeoMetadata } from '@/lib/seo';
-import { cacheLife, cacheTag } from 'next/cache';
-
-async function getArticles(): Promise<Article[]> {
-  'use cache';
-  cacheLife({ revalidate: 3600 });
-  cacheTag(...articlesListCacheTags());
-  try {
-    const response = await fetchPaginated<Article>('/articles', { limit: 24 });
-    return response.data;
-  } catch {
-    return [];
-  }
-}
-
-export async function generateMetadata(): Promise<Metadata> {
-  return buildSeoMetadata({
-    title: 'Bài viết về Long nhãn Hưng Yên',
-    description: 'Kiến thức, kinh nghiệm và câu chuyện về Long nhãn Hưng Yên.',
-    canonicalPath: '/articles',
-  });
-}
-
-export default async function ArticlesPage() {
-  const articles = await getArticles();
-
-  return (
-    <section className="mx-auto max-w-6xl px-4 py-8">
-      <Breadcrumb
-        items={[{ label: 'Trang chủ', url: '/' }, { label: 'Bài viết' }]}
-      />
-      <h1 className="text-2xl md:text-3xl font-bold text-green-950 mb-6">
-        Bài viết
-      </h1>
-      {articles.length === 0 ? (
-        <p className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-600">
-          Chưa có bài viết nào.
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {articles.map((article) => (
-            <ArticleCard key={article.id} article={article} />
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
-</file>
-
 <file path="apps/web/src/app/order-success/page.tsx">
 import Link from 'next/link';
 import type { Metadata } from 'next';
@@ -50999,116 +51033,6 @@ export default async function OrderSuccessPage({
         </CardFooter>
       </Card>
     </section>
-  );
-}
-</file>
-
-<file path="apps/web/src/app/layout.tsx">
-import type { Metadata, Viewport } from 'next';
-import { Geist } from 'next/font/google';
-import localFont from 'next/font/local';
-import './globals.css';
-import { AppProviders } from '@/components/providers/app-providers';
-import Header from '@/components/layout/header';
-import Footer from '@/components/layout/footer';
-import FloatingContactWidget from '@/components/layout/floating-contact-widget';
-import BackToTopButton from '@/components/ui/back-to-top-button';
-import { LANDING_SEO } from '@/data/landing-page-content';
-import { SITE_URL } from '@/lib/constants';
-import { PWA_CONFIG } from '@/lib/pwa-config';
-import { buildSeoMetadata } from '@/lib/seo';
-import { buildOrganizationSchema } from '@/lib/structured-data';
-
-const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-});
-
-const seagullDisplay = localFont({
-  src: [
-    {
-      path: '../../public/fonts/UTM SeagullBold.ttf',
-      weight: '700',
-      style: 'normal',
-    },
-    {
-      path: '../../public/fonts/UTM SeagullBoldItalic.ttf',
-      weight: '700',
-      style: 'italic',
-    },
-  ],
-  variable: '--font-seagull',
-  display: 'swap',
-});
-
-export const viewport: Viewport = {
-  themeColor: PWA_CONFIG.themeColor,
-  colorScheme: 'light',
-};
-
-const landingMetadata = buildSeoMetadata({
-  title: LANDING_SEO.title,
-  description: LANDING_SEO.description,
-  canonicalPath: '/',
-  ogImage: {
-    url: PWA_CONFIG.heroImage.path,
-    width: PWA_CONFIG.heroImage.width,
-    height: PWA_CONFIG.heroImage.height,
-    alt: PWA_CONFIG.heroImage.alt,
-  },
-});
-
-export const metadata: Metadata = {
-  ...landingMetadata,
-  metadataBase: new URL(SITE_URL),
-  title: {
-    default: PWA_CONFIG.documentTitle,
-    template: '%s | Long Nhãn Tống Trân',
-  },
-  keywords: [...LANDING_SEO.keywords],
-  applicationName: PWA_CONFIG.name,
-  category: 'food',
-  icons: {
-    icon: [{ url: PWA_CONFIG.icons.src, type: 'image/png' }],
-    apple: [{ url: PWA_CONFIG.icons.src, type: 'image/png' }],
-  },
-  appleWebApp: {
-    capable: true,
-    title: PWA_CONFIG.name,
-    statusBarStyle: 'black-translucent',
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
-  const orgSchema = buildOrganizationSchema();
-
-  return (
-    <html
-      lang="vi"
-      className={`${geistSans.variable} ${seagullDisplay.variable} h-full`}
-    >
-      <head>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
-        />
-      </head>
-      <body className="min-h-full flex flex-col antialiased">
-        <AppProviders>
-          <Header />
-          <main className="flex-1 pb-16 md:pb-0">{children}</main>
-          <Footer />
-          <FloatingContactWidget />
-          <BackToTopButton />
-        </AppProviders>
-      </body>
-    </html>
   );
 }
 </file>
@@ -52980,360 +52904,63 @@ export class ProductsService {
 }
 </file>
 
-<file path="apps/web/src/app/articles/[slug]/page.tsx">
+<file path="apps/web/src/app/articles/page.tsx">
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
 import type { Article } from '@longnhan/types';
-import ArticleContent from '@/components/articles/article-content';
+import ArticleCard from '@/components/articles/article-card';
 import Breadcrumb from '@/components/ui/breadcrumb';
-import { fetchApi } from '@/lib/api-client';
-import { buildBreadcrumb } from '@/lib/breadcrumb';
-import { articleDetailCacheTags } from '@/lib/content-cache-tags';
+import { fetchPaginated } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
+import { articlesListCacheTags } from '@/lib/content-cache-tags';
 import { buildSeoMetadata } from '@/lib/seo';
-import { buildArticleSchema } from '@/lib/structured-data';
 import { cacheLife, cacheTag } from 'next/cache';
 
-interface ArticleDetailPageProps {
-  params: Promise<{ slug: string }>;
-}
-
-async function getArticle(slug: string): Promise<Article | null> {
+async function getArticles(): Promise<Article[]> {
   'use cache';
   cacheLife({ revalidate: 3600 });
-  cacheTag(...articleDetailCacheTags(slug));
+  cacheTag(...articlesListCacheTags());
   try {
-    return await fetchApi<Article>(`/articles/${slug}`);
-  } catch {
-    return null;
-  }
-}
-
-export async function generateMetadata({
-  params,
-}: ArticleDetailPageProps): Promise<Metadata> {
-  const { slug } = await params;
-  const article = await getArticle(slug);
-
-  if (!article) {
-    return { title: 'Không tìm thấy bài viết' };
-  }
-
-  const title = article.metaTitle ?? article.title;
-  const description = article.metaDescription ?? article.excerpt ?? undefined;
-  const image = article.featuredImageUrl ?? article.coverImageUrl ?? undefined;
-
-  return buildSeoMetadata({
-    title,
-    description,
-    canonicalPath: `/articles/${article.slug}`,
-    openGraphType: 'article',
-    ...(image ? { ogImage: { url: image, alt: title } } : {}),
-  });
-}
-
-export default async function ArticleDetailPage({
-  params,
-}: ArticleDetailPageProps) {
-  const { slug } = await params;
-  const article = await getArticle(slug);
-
-  if (!article) {
-    notFound();
-  }
-
-  const articleSchema = buildArticleSchema(article);
-  const breadcrumbItems = [
-    { label: 'Trang chủ', url: '/' },
-    { label: 'Bài viết', url: '/articles' },
-    { label: article.title },
-  ];
-  const { schema: breadcrumbSchema } = buildBreadcrumb({
-    items: breadcrumbItems,
-    currentUrl: `/articles/${article.slug}`,
-  });
-
-  return (
-    <section className="mx-auto max-w-6xl px-4 py-8">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
-      />
-      {breadcrumbSchema ? (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
-        />
-      ) : null}
-
-      <Breadcrumb items={breadcrumbItems} />
-      <ArticleContent article={article} />
-    </section>
-  );
-}
-</file>
-
-<file path="apps/web/src/app/products/[slug]/page.tsx">
-import ProductImages from '@/components/products/product-images';
-import { ProductAddToCart } from '@/components/products/product-add-to-cart';
-import ProductPdpHero from '@/components/products/product-pdp-hero';
-import ProductPdpTabs from '@/components/products/product-pdp-tabs';
-import RelatedProducts from '@/components/products/related-products';
-import Breadcrumb from '@/components/ui/breadcrumb';
-import { fetchApi, fetchPaginated } from '@/lib/api-client';
-import { buildBreadcrumb } from '@/lib/breadcrumb';
-import {
-  productDetailCacheTags,
-  relatedProductsCacheTags,
-} from '@/lib/content-cache-tags';
-import { buildSeoMetadata } from '@/lib/seo';
-import { buildProductSchema } from '@/lib/structured-data';
-import type { Product } from '@longnhan/types';
-import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
-import { cacheLife, cacheTag } from 'next/cache';
-
-interface ProductDetailPageProps {
-  params: Promise<{ slug: string }>;
-}
-
-async function getProduct(slug: string): Promise<Product | null> {
-  'use cache';
-  cacheLife({ revalidate: 60 });
-  cacheTag(...productDetailCacheTags(slug));
-  try {
-    return await fetchApi<Product>(`/products/${slug}`);
-  } catch {
-    return null;
-  }
-}
-
-async function getRelatedProducts(
-  category: string | undefined,
-  excludeSlug: string,
-): Promise<Product[]> {
-  'use cache';
-  cacheLife({ revalidate: 60 });
-  cacheTag(...relatedProductsCacheTags(category, excludeSlug));
-  try {
-    const relatedResponse = await fetchPaginated<Product>('/products', {
-      category,
-      limit: 8,
-    });
-    return relatedResponse.data
-      .filter((item) => item.slug !== excludeSlug)
-      .slice(0, 4);
-  } catch {
-    return [];
-  }
-}
-
-export async function generateMetadata({
-  params,
-}: ProductDetailPageProps): Promise<Metadata> {
-  const { slug } = await params;
-  const product = await getProduct(slug);
-
-  if (!product) {
-    return buildSeoMetadata({
-      title: 'Không tìm thấy sản phẩm',
-      canonicalPath: `/products/${slug}`,
-    });
-  }
-
-  const firstImage =
-    product.featuredImageUrl ??
-    (product.images ?? [])[0] ??
-    product.imageUrls?.[0] ??
-    undefined;
-
-  return buildSeoMetadata({
-    title: product.name,
-    description: `Chi tiết sản phẩm ${product.name} của shop Long Nhãn Tống Trân.`,
-    canonicalPath: `/products/${product.slug}`,
-    openGraphType: 'website',
-    category: 'food',
-    generator: 'Next.js',
-    ...(firstImage
-      ? {
-          ogImage: {
-            url: firstImage,
-            alt: product.name,
-          },
-        }
-      : null),
-  });
-}
-
-export default async function ProductDetailPage({
-  params,
-}: ProductDetailPageProps) {
-  const { slug } = await params;
-  const product = await getProduct(slug);
-
-  if (!product) {
-    notFound();
-  }
-
-  const relatedProducts = await getRelatedProducts(
-    product.category,
-    product.slug,
-  );
-
-  const breadcrumbItems = [
-    { label: 'Trang chủ', url: '/' },
-    { label: 'Sản phẩm', url: '/products' },
-    { label: product.name },
-  ];
-
-  const { schema: breadcrumbSchema } = buildBreadcrumb({
-    items: breadcrumbItems,
-    currentUrl: `/products/${product.slug}`,
-  });
-
-  const productSchema = buildProductSchema(product);
-  const images = product.images ?? [];
-  const imageList =
-    images.length > 0
-      ? images
-      : product.featuredImageUrl
-        ? [product.featuredImageUrl]
-        : [];
-  const cartImageUrl =
-    product.featuredImageUrl ?? imageList[0] ?? product.imageUrls?.[0] ?? null;
-
-  return (
-    <section className="mx-auto max-w-6xl px-4 py-8">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
-      />
-      {breadcrumbSchema ? (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
-        />
-      ) : null}
-
-      <Breadcrumb items={breadcrumbItems} />
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <ProductImages images={imageList} productName={product.name} />
-        <div className="space-y-6">
-          <ProductPdpHero product={product} />
-          <ProductAddToCart
-            variants={product.variants}
-            productName={product.name}
-            productSlug={product.slug}
-            imageUrl={cartImageUrl}
-          />
-        </div>
-      </div>
-
-      <ProductPdpTabs product={product} />
-      <RelatedProducts products={relatedProducts} />
-    </section>
-  );
-}
-</file>
-
-<file path="apps/web/src/app/products/page.tsx">
-import type { Metadata } from 'next';
-import type { Category, Product } from '@longnhan/types';
-import type { SearchParams } from 'nuqs/server';
-import ProductGrid from '@/components/products/product-grid';
-import CategoryFilter from '@/components/products/category-filter';
-import Breadcrumb from '@/components/ui/breadcrumb';
-import { fetchApi, fetchPaginated } from '@/lib/api-client';
-import { buildBreadcrumb } from '@/lib/breadcrumb';
-import {
-  productListingCategoriesTag,
-  productsListCacheTags,
-} from '@/lib/content-cache-tags';
-import { loadProductSearchParams } from '@/lib/product-search-params';
-import { buildSeoMetadata } from '@/lib/seo';
-import { cacheLife, cacheTag } from 'next/cache';
-
-async function getProductListingCategories(): Promise<Category[]> {
-  'use cache';
-  cacheTag(productListingCategoriesTag);
-  cacheLife({ revalidate: 60 });
-  try {
-    return await fetchApi<Category[]>('/categories');
-  } catch {
-    return [];
-  }
-}
-
-async function getProductsListing(
-  category: string | undefined,
-  q: string | undefined,
-): Promise<Product[]> {
-  'use cache';
-  cacheLife({ revalidate: 60 });
-  cacheTag(...productsListCacheTags(category, q));
-  try {
-    const response = await fetchPaginated<Product>('/products', {
-      category,
-      q,
-      limit: 24,
-    });
+    const response = await fetchPaginated<Article>('/articles', { limit: 24 });
     return response.data;
-  } catch {
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/articles',
+      section: 'listing',
+    });
     return [];
   }
-}
-
-interface ProductsPageProps {
-  searchParams: Promise<SearchParams>;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
   return buildSeoMetadata({
-    title: 'Sản phẩm Long Nhãn Hưng Yên',
-    description:
-      'Danh sách sản phẩm Long Nhãn, Nhãn Long Hưng Yên và quà biếu đặc sản.',
-    canonicalPath: '/products',
+    title: 'Bài viết về Long nhãn Hưng Yên',
+    description: 'Kiến thức, kinh nghiệm và câu chuyện về Long nhãn Hưng Yên.',
+    canonicalPath: '/articles',
   });
 }
 
-export default async function ProductsPage({
-  searchParams,
-}: ProductsPageProps) {
-  const { q: qRaw, category: categoryRaw } =
-    await loadProductSearchParams(searchParams);
-  const category = categoryRaw ?? undefined;
-  const q = qRaw ?? undefined;
-
-  const [categories, products] = await Promise.all([
-    getProductListingCategories(),
-    getProductsListing(category, q),
-  ]);
-
-  const breadcrumbItems = [
-    { label: 'Trang chủ', url: '/' },
-    { label: 'Sản phẩm' },
-  ];
-  const { schema: breadcrumbSchema } = buildBreadcrumb({
-    items: breadcrumbItems,
-    currentUrl: '/products',
-  });
+export default async function ArticlesPage() {
+  const articles = await getArticles();
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8">
-      {breadcrumbSchema ? (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
-        />
-      ) : null}
-      <Breadcrumb items={breadcrumbItems} />
-      <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-green-950">
-          Danh mục sản phẩm
-        </h1>
-      </div>
-      <CategoryFilter categories={categories} current={category} />
-      <ProductGrid products={products} />
+      <Breadcrumb
+        items={[{ label: 'Trang chủ', url: '/' }, { label: 'Bài viết' }]}
+      />
+      <h1 className="text-2xl md:text-3xl font-bold text-green-950 mb-6">
+        Bài viết
+      </h1>
+      {articles.length === 0 ? (
+        <p className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-600">
+          Chưa có bài viết nào.
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {articles.map((article) => (
+            <ArticleCard key={article.id} article={article} />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -53475,6 +53102,116 @@ body {
 
 .landing-heading {
   font-family: var(--font-display), ui-serif, 'Georgia', serif;
+}
+</file>
+
+<file path="apps/web/src/app/layout.tsx">
+import type { Metadata, Viewport } from 'next';
+import { Geist } from 'next/font/google';
+import localFont from 'next/font/local';
+import './globals.css';
+import { AppProviders } from '@/components/providers/app-providers';
+import Header from '@/components/layout/header';
+import Footer from '@/components/layout/footer';
+import FloatingContactWidget from '@/components/layout/floating-contact-widget';
+import BackToTopButton from '@/components/ui/back-to-top-button';
+import { LANDING_SEO } from '@/data/landing-page-content';
+import { SITE_URL } from '@/lib/constants';
+import { PWA_CONFIG } from '@/lib/pwa-config';
+import { buildSeoMetadata } from '@/lib/seo';
+import { buildOrganizationSchema } from '@/lib/structured-data';
+
+const geistSans = Geist({
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
+});
+
+const seagullDisplay = localFont({
+  src: [
+    {
+      path: '../../public/fonts/UTM SeagullBold.ttf',
+      weight: '700',
+      style: 'normal',
+    },
+    {
+      path: '../../public/fonts/UTM SeagullBoldItalic.ttf',
+      weight: '700',
+      style: 'italic',
+    },
+  ],
+  variable: '--font-seagull',
+  display: 'swap',
+});
+
+export const viewport: Viewport = {
+  themeColor: PWA_CONFIG.themeColor,
+  colorScheme: 'light',
+};
+
+const landingMetadata = buildSeoMetadata({
+  title: LANDING_SEO.title,
+  description: LANDING_SEO.description,
+  canonicalPath: '/',
+  ogImage: {
+    url: PWA_CONFIG.heroImage.path,
+    width: PWA_CONFIG.heroImage.width,
+    height: PWA_CONFIG.heroImage.height,
+    alt: PWA_CONFIG.heroImage.alt,
+  },
+});
+
+export const metadata: Metadata = {
+  ...landingMetadata,
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: PWA_CONFIG.documentTitle,
+    template: '%s | Long Nhãn Tống Trân',
+  },
+  keywords: [...LANDING_SEO.keywords],
+  applicationName: PWA_CONFIG.name,
+  category: 'food',
+  icons: {
+    icon: [{ url: PWA_CONFIG.icons.src, type: 'image/png' }],
+    apple: [{ url: PWA_CONFIG.icons.src, type: 'image/png' }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: PWA_CONFIG.name,
+    statusBarStyle: 'black-translucent',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  const orgSchema = buildOrganizationSchema();
+
+  return (
+    <html
+      lang="vi"
+      className={`${geistSans.variable} ${seagullDisplay.variable} h-full`}
+    >
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
+        />
+      </head>
+      <body className="min-h-full flex flex-col antialiased">
+        <AppProviders>
+          <Header />
+          <main className="flex-1 pb-16 md:pb-0">{children}</main>
+          <Footer />
+          <FloatingContactWidget />
+          <BackToTopButton />
+        </AppProviders>
+      </body>
+    </html>
+  );
 }
 </file>
 
@@ -53770,6 +53507,7 @@ export default async function Footer() {
 import { useEffect, useMemo, useState } from 'react';
 import type { Product } from '@longnhan/types';
 import { fetchApi } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -53902,7 +53640,12 @@ function ProductReviewsTab({ productId }: { productId: string }) {
         `/products/${encodeURIComponent(productId)}/reviews`,
       );
       setData(res);
-    } catch {
+    } catch (error) {
+      captureApiFetchError(error, {
+        route: '/products/pdp',
+        section: 'reviews_list',
+        extra: { productId },
+      });
       setError('Không thể tải đánh giá.');
     } finally {
       setLoading(false);
@@ -53930,7 +53673,12 @@ function ProductReviewsTab({ productId }: { productId: string }) {
       setSubmitMessage('Cảm ơn bạn! Đánh giá đang chờ duyệt.');
       setComment('');
       await load();
-    } catch {
+    } catch (error) {
+      captureApiFetchError(error, {
+        route: '/products/pdp',
+        section: 'reviews_submit',
+        extra: { productId },
+      });
       setSubmitMessage(
         'Không thể gửi đánh giá. Hãy kiểm tra đơn đã giao, đúng số điện thoại, và đơn có chứa sản phẩm.',
       );
@@ -55781,6 +55529,392 @@ Targets are planning aids; **actual completion** is reflected in the phase check
 | 2026-04-01 | 2.1.0   | Phase 4 complete: 13 new components + product UX enhancements                                                                                                                                      |
 | 2026-04-01 | 2.0.0   | Updated with Phase 4-6 actual progress (82% complete)                                                                                                                                              |
 | 2026-03-30 | 1.0.0   | Initial roadmap creation                                                                                                                                                                           |
+</file>
+
+<file path="apps/web/src/app/articles/[slug]/page.tsx">
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import type { Article } from '@longnhan/types';
+import ArticleContent from '@/components/articles/article-content';
+import Breadcrumb from '@/components/ui/breadcrumb';
+import { fetchApi } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
+import { buildBreadcrumb } from '@/lib/breadcrumb';
+import { articleDetailCacheTags } from '@/lib/content-cache-tags';
+import { buildSeoMetadata } from '@/lib/seo';
+import { buildArticleSchema } from '@/lib/structured-data';
+import { cacheLife, cacheTag } from 'next/cache';
+
+interface ArticleDetailPageProps {
+  params: Promise<{ slug: string }>;
+}
+
+async function getArticle(slug: string): Promise<Article | null> {
+  'use cache';
+  cacheLife({ revalidate: 3600 });
+  cacheTag(...articleDetailCacheTags(slug));
+  try {
+    return await fetchApi<Article>(`/articles/${slug}`);
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/articles/[slug]',
+      section: 'article_detail',
+      extra: { slug },
+    });
+    return null;
+  }
+}
+
+export async function generateMetadata({
+  params,
+}: ArticleDetailPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const article = await getArticle(slug);
+
+  if (!article) {
+    return { title: 'Không tìm thấy bài viết' };
+  }
+
+  const title = article.metaTitle ?? article.title;
+  const description = article.metaDescription ?? article.excerpt ?? undefined;
+  const image = article.featuredImageUrl ?? article.coverImageUrl ?? undefined;
+
+  return buildSeoMetadata({
+    title,
+    description,
+    canonicalPath: `/articles/${article.slug}`,
+    openGraphType: 'article',
+    ...(image ? { ogImage: { url: image, alt: title } } : {}),
+  });
+}
+
+export default async function ArticleDetailPage({
+  params,
+}: ArticleDetailPageProps) {
+  const { slug } = await params;
+  const article = await getArticle(slug);
+
+  if (!article) {
+    notFound();
+  }
+
+  const articleSchema = buildArticleSchema(article);
+  const breadcrumbItems = [
+    { label: 'Trang chủ', url: '/' },
+    { label: 'Bài viết', url: '/articles' },
+    { label: article.title },
+  ];
+  const { schema: breadcrumbSchema } = buildBreadcrumb({
+    items: breadcrumbItems,
+    currentUrl: `/articles/${article.slug}`,
+  });
+
+  return (
+    <section className="mx-auto max-w-6xl px-4 py-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+      />
+      {breadcrumbSchema ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        />
+      ) : null}
+
+      <Breadcrumb items={breadcrumbItems} />
+      <ArticleContent article={article} />
+    </section>
+  );
+}
+</file>
+
+<file path="apps/web/src/app/products/[slug]/page.tsx">
+import ProductImages from '@/components/products/product-images';
+import { ProductAddToCart } from '@/components/products/product-add-to-cart';
+import ProductPdpHero from '@/components/products/product-pdp-hero';
+import ProductPdpTabs from '@/components/products/product-pdp-tabs';
+import RelatedProducts from '@/components/products/related-products';
+import Breadcrumb from '@/components/ui/breadcrumb';
+import { fetchApi, fetchPaginated } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
+import { buildBreadcrumb } from '@/lib/breadcrumb';
+import {
+  productDetailCacheTags,
+  relatedProductsCacheTags,
+} from '@/lib/content-cache-tags';
+import { buildSeoMetadata } from '@/lib/seo';
+import { buildProductSchema } from '@/lib/structured-data';
+import type { Product } from '@longnhan/types';
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { cacheLife, cacheTag } from 'next/cache';
+
+interface ProductDetailPageProps {
+  params: Promise<{ slug: string }>;
+}
+
+async function getProduct(slug: string): Promise<Product | null> {
+  'use cache';
+  cacheLife({ revalidate: 60 });
+  cacheTag(...productDetailCacheTags(slug));
+  try {
+    return await fetchApi<Product>(`/products/${slug}`);
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/products/[slug]',
+      section: 'product_detail',
+      extra: { slug },
+    });
+    return null;
+  }
+}
+
+async function getRelatedProducts(
+  category: string | undefined,
+  excludeSlug: string,
+): Promise<Product[]> {
+  'use cache';
+  cacheLife({ revalidate: 60 });
+  cacheTag(...relatedProductsCacheTags(category, excludeSlug));
+  try {
+    const relatedResponse = await fetchPaginated<Product>('/products', {
+      category,
+      limit: 8,
+    });
+    return relatedResponse.data
+      .filter((item) => item.slug !== excludeSlug)
+      .slice(0, 4);
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/products/[slug]',
+      section: 'related_products',
+      extra: { category: category ?? null, excludeSlug },
+    });
+    return [];
+  }
+}
+
+export async function generateMetadata({
+  params,
+}: ProductDetailPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const product = await getProduct(slug);
+
+  if (!product) {
+    return buildSeoMetadata({
+      title: 'Không tìm thấy sản phẩm',
+      canonicalPath: `/products/${slug}`,
+    });
+  }
+
+  const firstImage =
+    product.featuredImageUrl ??
+    (product.images ?? [])[0] ??
+    product.imageUrls?.[0] ??
+    undefined;
+
+  return buildSeoMetadata({
+    title: product.name,
+    description: `Chi tiết sản phẩm ${product.name} của shop Long Nhãn Tống Trân.`,
+    canonicalPath: `/products/${product.slug}`,
+    openGraphType: 'website',
+    category: 'food',
+    generator: 'Next.js',
+    ...(firstImage
+      ? {
+          ogImage: {
+            url: firstImage,
+            alt: product.name,
+          },
+        }
+      : null),
+  });
+}
+
+export default async function ProductDetailPage({
+  params,
+}: ProductDetailPageProps) {
+  const { slug } = await params;
+  const product = await getProduct(slug);
+
+  if (!product) {
+    notFound();
+  }
+
+  const relatedProducts = await getRelatedProducts(
+    product.category,
+    product.slug,
+  );
+
+  const breadcrumbItems = [
+    { label: 'Trang chủ', url: '/' },
+    { label: 'Sản phẩm', url: '/products' },
+    { label: product.name },
+  ];
+
+  const { schema: breadcrumbSchema } = buildBreadcrumb({
+    items: breadcrumbItems,
+    currentUrl: `/products/${product.slug}`,
+  });
+
+  const productSchema = buildProductSchema(product);
+  const images = product.images ?? [];
+  const imageList =
+    images.length > 0
+      ? images
+      : product.featuredImageUrl
+        ? [product.featuredImageUrl]
+        : [];
+  const cartImageUrl =
+    product.featuredImageUrl ?? imageList[0] ?? product.imageUrls?.[0] ?? null;
+
+  return (
+    <section className="mx-auto max-w-6xl px-4 py-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
+      />
+      {breadcrumbSchema ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        />
+      ) : null}
+
+      <Breadcrumb items={breadcrumbItems} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <ProductImages images={imageList} productName={product.name} />
+        <div className="space-y-6">
+          <ProductPdpHero product={product} />
+          <ProductAddToCart
+            variants={product.variants}
+            productName={product.name}
+            productSlug={product.slug}
+            imageUrl={cartImageUrl}
+          />
+        </div>
+      </div>
+
+      <ProductPdpTabs product={product} />
+      <RelatedProducts products={relatedProducts} />
+    </section>
+  );
+}
+</file>
+
+<file path="apps/web/src/app/products/page.tsx">
+import type { Metadata } from 'next';
+import type { Category, Product } from '@longnhan/types';
+import type { SearchParams } from 'nuqs/server';
+import ProductGrid from '@/components/products/product-grid';
+import CategoryFilter from '@/components/products/category-filter';
+import Breadcrumb from '@/components/ui/breadcrumb';
+import { fetchApi, fetchPaginated } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
+import { buildBreadcrumb } from '@/lib/breadcrumb';
+import {
+  productListingCategoriesTag,
+  productsListCacheTags,
+} from '@/lib/content-cache-tags';
+import { loadProductSearchParams } from '@/lib/product-search-params';
+import { buildSeoMetadata } from '@/lib/seo';
+import { cacheLife, cacheTag } from 'next/cache';
+
+async function getProductListingCategories(): Promise<Category[]> {
+  'use cache';
+  cacheTag(productListingCategoriesTag);
+  cacheLife({ revalidate: 60 });
+  try {
+    return await fetchApi<Category[]>('/categories');
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/products',
+      section: 'categories',
+    });
+    return [];
+  }
+}
+
+async function getProductsListing(
+  category: string | undefined,
+  q: string | undefined,
+): Promise<Product[]> {
+  'use cache';
+  cacheLife({ revalidate: 60 });
+  cacheTag(...productsListCacheTags(category, q));
+  try {
+    const response = await fetchPaginated<Product>('/products', {
+      category,
+      q,
+      limit: 24,
+    });
+    return response.data;
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/products',
+      section: 'listing',
+      extra: { category: category ?? null, q: q ?? null },
+    });
+    return [];
+  }
+}
+
+interface ProductsPageProps {
+  searchParams: Promise<SearchParams>;
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  return buildSeoMetadata({
+    title: 'Sản phẩm Long Nhãn Hưng Yên',
+    description:
+      'Danh sách sản phẩm Long Nhãn, Nhãn Long Hưng Yên và quà biếu đặc sản.',
+    canonicalPath: '/products',
+  });
+}
+
+export default async function ProductsPage({
+  searchParams,
+}: ProductsPageProps) {
+  const { q: qRaw, category: categoryRaw } =
+    await loadProductSearchParams(searchParams);
+  const category = categoryRaw ?? undefined;
+  const q = qRaw ?? undefined;
+
+  const [categories, products] = await Promise.all([
+    getProductListingCategories(),
+    getProductsListing(category, q),
+  ]);
+
+  const breadcrumbItems = [
+    { label: 'Trang chủ', url: '/' },
+    { label: 'Sản phẩm' },
+  ];
+  const { schema: breadcrumbSchema } = buildBreadcrumb({
+    items: breadcrumbItems,
+    currentUrl: '/products',
+  });
+
+  return (
+    <section className="mx-auto max-w-6xl px-4 py-8">
+      {breadcrumbSchema ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        />
+      ) : null}
+      <Breadcrumb items={breadcrumbItems} />
+      <div className="mb-6">
+        <h1 className="text-2xl md:text-3xl font-bold text-green-950">
+          Danh mục sản phẩm
+        </h1>
+      </div>
+      <CategoryFilter categories={categories} current={category} />
+      <ProductGrid products={products} />
+    </section>
+  );
+}
 </file>
 
 <file path="apps/web/src/components/home/featured-products.tsx">
@@ -58311,6 +58445,7 @@ import {
 } from '@/data/landing-page-content';
 import { fetchApi, fetchPaginated } from '@/lib/api-client';
 import { homeContentTags } from '@/lib/content-cache-tags';
+import { captureHomeContentFetchError } from '@/lib/observability/api-fetch-sentry';
 import { buildLandingCategoryNav } from '@/lib/landing-category-nav';
 import type { Article, Category, Product } from '@longnhan/types';
 import { cacheLife, cacheTag } from 'next/cache';
@@ -58323,7 +58458,8 @@ async function getHomeProducts(): Promise<Product[]> {
   try {
     const response = await fetchPaginated<Product>('/products', { limit: 8 });
     return response.data;
-  } catch {
+  } catch (error) {
+    captureHomeContentFetchError('products', error);
     return [];
   }
 }
@@ -58334,7 +58470,8 @@ async function getHomeCategories(): Promise<Category[]> {
   cacheLife({ revalidate: 300 });
   try {
     return await fetchApi<Category[]>('/categories');
-  } catch {
+  } catch (error) {
+    captureHomeContentFetchError('categories', error);
     return [];
   }
 }
@@ -58349,14 +58486,13 @@ async function getHomeArticles(): Promise<Article[]> {
       page: 1,
     });
     return response.data;
-  } catch {
+  } catch (error) {
+    captureHomeContentFetchError('articles', error);
     return [];
   }
 }
 
 export default async function Home() {
-  // Ensure home data is fetched at request time. `next build` in Docker has no API,
-  // so prerendering would cache empty products/articles; `/products` is dynamic via searchParams.
   await connection();
   const [categories, products, articles] = await Promise.all([
     getHomeCategories(),
