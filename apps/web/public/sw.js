@@ -3,7 +3,7 @@
  * Service-down: redirect to /service-unavailable (precached) on 502/503/504 or network error.
  * Bump VERSION when changing caching rules so old caches are purged.
  */
-const VERSION = 'longnhan-web-sw-v2';
+const VERSION = 'longnhan-web-sw-v3';
 const PAGES_CACHE = `${VERSION}-pages`;
 const STATIC_CACHE = `${VERSION}-static`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;

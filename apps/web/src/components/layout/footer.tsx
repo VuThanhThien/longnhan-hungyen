@@ -123,7 +123,7 @@ export default async function Footer() {
                 href="/articles"
                 className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
               >
-                Tin tức
+                Bài viết
               </Link>
             </li>
             <li className="flex flex-wrap gap-x-4 gap-y-2 pt-2">

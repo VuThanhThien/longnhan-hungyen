@@ -2,7 +2,7 @@
         build build-api build-web build-admin \
         lint format type-check \
         up down logs reset up-local \
-        deploy deploy-down prod-preflight \
+        deploy deploy-clean deploy-down prod-preflight \
         migration-up migration-up-prod migration-down migration-show migration-generate \
         seed test test-cov test-e2e
 
@@ -38,6 +38,7 @@ help:
 	@echo ""
 	@echo "  Production (Docker + Cloudflare Tunnel)"
 	@echo "    make deploy           Build & run api, web, admin, db, redis, cloudflared (ports 13100–13102)"
+	@echo "    make deploy-clean     Same as deploy but with --no-cache (full rebuild, ignores all Docker cache)"
 	@echo "    make deploy-down      Stop production stack"
 	@echo "                          See deploy/README.md (token or config.yml + credentials JSON)"
 	@echo ""
@@ -132,9 +133,18 @@ prod-preflight:
 
 deploy: prod-preflight
 	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
-	  docker compose -f docker-compose.prod.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build; \
+	  docker compose -f docker-compose.prod.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build --force-recreate; \
 	else \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build; \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build --force-recreate; \
+	fi
+
+deploy-clean: prod-preflight
+	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
+	  docker compose -f docker-compose.prod.yml --env-file apps/api/.env.production -p longnhan-prod build --no-cache && \
+	  docker compose -f docker-compose.prod.yml --env-file apps/api/.env.production -p longnhan-prod up -d --force-recreate; \
+	else \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod build --no-cache && \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --force-recreate; \
 	fi
 
 deploy-down:

@@ -11,7 +11,7 @@ import MobileNav from './mobile-nav';
 const navLinks = [
   { href: '/', label: 'Trang chủ' },
   { href: '/products', label: 'Sản phẩm' },
-  { href: '/articles', label: 'Tin tức' },
+  { href: '/articles', label: 'Bài viết' },
 ];
 
 export default function Header() {

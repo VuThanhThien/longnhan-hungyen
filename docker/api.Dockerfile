@@ -31,8 +31,11 @@ WORKDIR /app
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nestjs
 
 COPY --chown=nestjs:nodejs --from=builder /out/api /app
+# pnpm deploy only ships package "files" (dist). nestjs-i18n still resolves typesOutputPath to
+# /app/src/generated/i18n.generated.ts at runtime (see apps/api/src/utils/modules-set.ts).
+COPY --chown=nestjs:nodejs --from=builder /workspace/apps/api/src/generated/i18n.generated.ts /app/src/generated/i18n.generated.ts
 # WORKDIR creates /app as root; COPY --chown does not change ownership of the destination dir, so nestjs
-# cannot mkdir nestjs-i18n typesOutputPath (see apps/api/src/utils/modules-set.ts → /app/src/generated).
+# cannot mkdir under /app without owning it (e.g. if i18n types need regenerating).
 RUN chown nestjs:nodejs /app
 
 USER nestjs

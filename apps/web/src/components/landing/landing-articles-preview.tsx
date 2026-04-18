@@ -27,7 +27,7 @@ export function LandingArticlesPreview({
       <div className="mx-auto max-w-6xl">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <h2 className="landing-heading text-balance text-2xl font-semibold text-(--brand-forest) not-italic sm:text-3xl">
-            Tin tức & chia sẻ
+            Bài viết & chia sẻ
           </h2>
           <SectionTitleLinkButton
             buttonClassName="text-sm font-medium text-(--brand-leaf) hover:text-(--brand-forest)"

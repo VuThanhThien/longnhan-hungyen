@@ -65,6 +65,10 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
+      # Server-side fetches (RSC, route handlers) use API_URL first (see apps/web/src/lib/api-client.ts).
+      # Without this, the web container calls NEXT_PUBLIC_API_URL over the public internet; the API
+      # container never sees those requests and SSR can fail silently if tunnel/DNS is unavailable.
+      API_URL: http://api:3001/api/v1
     ports:
       - '127.0.0.1:${PORT:-13100}:3000'
     depends_on:
@@ -84,6 +88,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3002
+      API_URL: http://api:3001/api/v1
     ports:
       - '127.0.0.1:${PORT:-13102}:3002'
     depends_on:

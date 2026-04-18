@@ -12,15 +12,16 @@ async function getArticles(): Promise<Article[]> {
   try {
     const response = await fetchPaginated<Article>('/articles', { limit: 24 });
     return response.data;
-  } catch {
+  } catch (error) {
+    console.error('Error fetching articles:', error);
     return [];
   }
 }
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: 'Tin tuc ve long nhan Hung Yen',
-    description: 'Kien thuc, kinh nghiem va cau chuyen ve long nhan Hung Yen.',
+    title: 'Bài viết về Long nhãn Hưng Yên',
+    description: 'Kiến thức, kinh nghiệm và câu chuyện về Long nhãn Hưng Yên.',
   };
 }
 
@@ -30,14 +31,14 @@ export default async function ArticlesPage() {
   return (
     <section className="mx-auto max-w-6xl px-4 py-8">
       <Breadcrumb
-        items={[{ label: 'Trang chủ', url: '/' }, { label: 'Tin tuc' }]}
+        items={[{ label: 'Trang chủ', url: '/' }, { label: 'Bài viết' }]}
       />
       <h1 className="text-2xl md:text-3xl font-bold text-green-950 mb-6">
-        Tin tuc
+        Bài viết
       </h1>
       {articles.length === 0 ? (
         <p className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-600">
-          Chua co bai viet nao.
+          Chưa có bài viết nào.
         </p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">

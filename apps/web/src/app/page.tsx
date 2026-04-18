@@ -19,6 +19,7 @@ import { buildSeoMetadata } from '@/lib/seo';
 import type { Article, Category, Product } from '@longnhan/types';
 import type { Metadata } from 'next';
 import { cacheLife, cacheTag } from 'next/cache';
+import { connection } from 'next/server';
 
 export const metadata: Metadata = buildSeoMetadata({
   title: LANDING_SEO.title,
@@ -71,6 +72,9 @@ async function getHomeArticles(): Promise<Article[]> {
 }
 
 export default async function Home() {
+  // Ensure home data is fetched at request time. `next build` in Docker has no API,
+  // so prerendering would cache empty products/articles; `/products` is dynamic via searchParams.
+  await connection();
   const [categories, products, articles] = await Promise.all([
     getHomeCategories(),
     getHomeProducts(),
