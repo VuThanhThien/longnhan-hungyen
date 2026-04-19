@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { Category } from '@longnhan/types';
 import { adminClientGet } from '@/lib/admin-client';
+import { adminQueryKeys } from '@/lib/query-keys';
 import { TiptapHtmlEditor } from '@/components/articles/tiptap-html-editor';
 import { MediaUrlPicker } from '@/components/media/media-url-picker';
 import {
@@ -31,7 +32,7 @@ export function ProductForm({
   hideSubmitButton = false,
 }: ProductFormProps) {
   const { data: categories = [] } = useQuery({
-    queryKey: ['categories', 'admin'],
+    queryKey: adminQueryKeys.categories.root,
     queryFn: () => adminClientGet<Category[]>('/categories/admin'),
   });
 

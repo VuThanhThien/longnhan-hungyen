@@ -40,7 +40,7 @@ export default async function ArticlesPage() {
       <Breadcrumb
         items={[{ label: 'Trang chủ', url: '/' }, { label: 'Bài viết' }]}
       />
-      <h1 className="text-2xl md:text-3xl font-bold text-green-950 mb-6">
+      <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-6">
         Bài viết
       </h1>
       {articles.length === 0 ? (

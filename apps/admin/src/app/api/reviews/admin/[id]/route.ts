@@ -21,3 +21,22 @@ export async function PATCH(
     headers: { 'content-type': contentType },
   });
 }
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  const upstream = await forwardAdminApi(`/reviews/admin/${id}`, {
+    method: 'DELETE',
+  });
+  const text = await upstream.text();
+  if (!text) return new NextResponse(null, { status: upstream.status });
+
+  const contentType =
+    upstream.headers.get('content-type') || 'application/json';
+  return new NextResponse(text, {
+    status: upstream.status,
+    headers: { 'content-type': contentType },
+  });
+}

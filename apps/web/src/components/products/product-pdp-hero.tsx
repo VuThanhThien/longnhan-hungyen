@@ -31,7 +31,7 @@ export default function ProductPdpHero({ product }: ProductPdpHeroProps) {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl md:text-3xl font-bold text-green-950">
+      <h1 className="text-2xl md:text-3xl font-bold text-foreground">
         {product.name}
       </h1>
 

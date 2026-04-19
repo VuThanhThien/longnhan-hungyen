@@ -1,0 +1,22 @@
+**/node_modules/**
+**/.next/**
+**/out/**
+**/dist/**
+**/build/**
+**/.turbo/**
+**/.cache/**
+**/coverage/**
+**/.vercel/**
+**/.wrangler/**
+**/.pnpm-store/**
+pnpm-lock.yaml
+
+# Database migrations
+**/src/database/migrations/**
+# Logs
+**/*.log
+
+# Generated
+**/*.min.*
+**/src/generated/**
+

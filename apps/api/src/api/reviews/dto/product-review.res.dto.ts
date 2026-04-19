@@ -24,6 +24,18 @@ export class ProductReviewResDto {
   @Expose()
   comment!: string | null;
 
+  @ApiProperty()
+  @Expose()
+  isAnonymous!: boolean;
+
+  @ApiPropertyOptional()
+  @Expose()
+  variantLabelSnapshot!: string | null;
+
+  @ApiPropertyOptional()
+  @Expose()
+  publicReviewerLabel!: string | null;
+
   @ApiProperty({ enum: ProductReviewStatus })
   @Expose()
   status!: ProductReviewStatus;
@@ -49,6 +61,16 @@ export class PublicProductReviewResDto {
   @ApiPropertyOptional()
   @Expose()
   comment!: string | null;
+
+  @ApiProperty({
+    description: 'Published identity: Ẩn danh or masked name + phone',
+  })
+  @Expose()
+  reviewerLabel!: string;
+
+  @ApiProperty({ description: 'Purchased variant label at review time' })
+  @Expose()
+  variantLabel!: string;
 
   @ApiProperty()
   @Expose()

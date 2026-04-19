@@ -10,7 +10,9 @@ export function LandingStatsBar() {
             <p className="text-3xl font-bold text-(--brand-gold)">
               {stat.value}
             </p>
-            <p className="mt-1 text-sm text-green-200">{stat.label}</p>
+            <p className="mt-1 text-sm text-primary-foreground/70">
+              {stat.label}
+            </p>
           </div>
         ))}
       </div>

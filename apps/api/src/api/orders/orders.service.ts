@@ -353,7 +353,9 @@ function mapOrderToPublicSummary(order: OrderEntity) {
   const addressPreview = getAddressPreview(order.address);
 
   return {
+    id: order.id,
     code: order.code,
+    phone: order.phone,
     orderStatus: order.orderStatus,
     paymentStatus: order.paymentStatus,
     paymentMethod: order.paymentMethod,
@@ -361,11 +363,20 @@ function mapOrderToPublicSummary(order: OrderEntity) {
     createdAt: order.createdAt,
     province: order.province ?? null,
     addressPreview,
-    items: (order.items ?? []).map((i) => ({
-      name: String((i.variantSnapshot as any)?.label ?? 'Sản phẩm'),
-      qty: i.qty,
-      subtotal: i.subtotal,
-    })),
+    items: (order.items ?? []).map((i) => {
+      const snap = i.variantSnapshot as Record<string, unknown>;
+      const productId =
+        snap?.productId != null ? String(snap.productId) : undefined;
+      const variantLabel =
+        typeof snap?.label === 'string' ? snap.label : undefined;
+      return {
+        name: String(snap?.label ?? 'Sản phẩm'),
+        qty: i.qty,
+        subtotal: i.subtotal,
+        ...(productId ? { productId } : {}),
+        ...(variantLabel ? { variantLabel } : {}),
+      };
+    }),
   };
 }
 

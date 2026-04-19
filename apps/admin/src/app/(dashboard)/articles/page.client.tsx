@@ -1,13 +1,26 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2 } from 'lucide-react';
+import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import { ListPagination } from '@/components/admin/list-pagination';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import {
   Table,
   TableBody,
@@ -18,7 +31,13 @@ import {
 } from '@/components/ui/table';
 import { buildAdminListQuery } from '@/lib/admin-list-query';
 import { toPaginated } from '@/lib/admin-data';
+import { extractErrorMessage } from '@/lib/http/extract-error-message';
+import { adminQueryKeys } from '@/lib/query-keys';
 import { formatDateShort } from '@/lib/utils';
+import {
+  adminArticleListFilterSchema,
+  type AdminArticleListFilterValues,
+} from '@/lib/validation/admin-list-filter-schemas';
 import { adminClientDelete, adminClientGet } from '@/lib/admin-client';
 import type { Article } from '@longnhan/types';
 
@@ -26,6 +45,7 @@ const PAGE_LIMIT = 30;
 
 export default function ArticlesPageClient() {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   const params = useMemo(
@@ -50,31 +70,45 @@ export default function ArticlesPageClient() {
     );
   }, [page, params.q, params.tag]);
 
+  const filterForm = useForm<AdminArticleListFilterValues>({
+    resolver: zodResolver(adminArticleListFilterSchema),
+    defaultValues: {
+      q: params.q ?? '',
+      tag: params.tag ?? '',
+    },
+  });
+
+  useEffect(() => {
+    filterForm.reset({
+      q: params.q ?? '',
+      tag: params.tag ?? '',
+    });
+  }, [params.q, params.tag, filterForm]);
+
   const {
     data: raw,
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ['articles', 'admin', queryString],
+    queryKey: adminQueryKeys.articles.list(queryString),
     queryFn: () => adminClientGet<unknown>(`/articles/admin?${queryString}`),
   });
 
   const { data: articles, pagination } = toPaginated<Article>(raw ?? null);
 
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      setDeletingId(id);
       await adminClientDelete(`/articles/${id}`);
     },
     onSuccess: async () => {
       toast.success('Đã xóa bài viết');
-      await queryClient.invalidateQueries({ queryKey: ['articles', 'admin'] });
+      await queryClient.invalidateQueries({
+        queryKey: adminQueryKeys.articles.root,
+      });
     },
-    onError: () => {
-      toast.error('Xóa bài viết thất bại');
+    onError: (err) => {
+      toast.error(extractErrorMessage(err));
     },
-    onSettled: () => setDeletingId(null),
   });
 
   const filterFields = {
@@ -82,55 +116,80 @@ export default function ArticlesPageClient() {
     tag: params.tag,
   };
 
+  function applyFilters(values: AdminArticleListFilterValues) {
+    const next = new URLSearchParams();
+    const q = values.q.trim();
+    const tag = values.tag.trim();
+    if (q) next.set('q', q);
+    if (tag) next.set('tag', tag);
+    const qs = next.toString();
+    router.push(qs ? `/articles?${qs}` : '/articles');
+  }
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <Header title="Bài viết" />
-      <main className="flex-1 overflow-y-auto p-6 space-y-6">
+      <main className="flex flex-1 flex-col space-y-6 overflow-y-auto p-6">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Bộ lọc</CardTitle>
           </CardHeader>
           <CardContent>
-            <form
-              className="grid grid-cols-1 gap-4 md:grid-cols-4"
-              method="get"
-              action="/articles"
-            >
-              <div className="space-y-1 md:col-span-2">
-                <label className="text-sm text-muted-foreground" htmlFor="q">
-                  Tìm theo tiêu đề
-                </label>
-                <input
-                  id="q"
+            <Form {...filterForm}>
+              <form
+                className="grid grid-cols-1 gap-4 md:grid-cols-4"
+                onSubmit={filterForm.handleSubmit(applyFilters)}
+              >
+                <FormField
+                  control={filterForm.control}
                   name="q"
-                  type="search"
-                  defaultValue={params.q || ''}
-                  placeholder="Nhập từ khóa…"
-                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
+                  render={({ field }) => (
+                    <FormItem className="md:col-span-2">
+                      <FormLabel>Tìm theo tiêu đề</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="search"
+                          placeholder="Nhập từ khóa…"
+                          autoComplete="off"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm text-muted-foreground" htmlFor="tag">
-                  Tag
-                </label>
-                <input
-                  id="tag"
+                <FormField
+                  control={filterForm.control}
                   name="tag"
-                  type="text"
-                  defaultValue={params.tag || ''}
-                  placeholder="Một tag"
-                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tag</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="text"
+                          placeholder="Một tag"
+                          autoComplete="off"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <div className="flex items-end">
-                <button
-                  type="submit"
-                  className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors duration-150 hover:text-destructive"
-                >
-                  Lọc
-                </button>
-              </div>
-            </form>
+                <div className="flex items-end">
+                  <Button
+                    type="submit"
+                    className="w-full md:w-auto"
+                    disabled={filterForm.formState.isSubmitting}
+                  >
+                    {filterForm.formState.isSubmitting ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : null}
+                    Lọc
+                  </Button>
+                </div>
+              </form>
+            </Form>
           </CardContent>
         </Card>
 
@@ -161,41 +220,62 @@ export default function ArticlesPageClient() {
                   <TableHead>Tiêu đề</TableHead>
                   <TableHead>Trạng thái</TableHead>
                   <TableHead>Ngày cập nhật</TableHead>
-                  <TableHead />
+                  <TableHead className="w-[1%] whitespace-nowrap text-right">
+                    Action
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {articles.map((article) => (
-                  <TableRow key={article.id}>
-                    <TableCell>{article.title}</TableCell>
-                    <TableCell>{article.status}</TableCell>
-                    <TableCell>{formatDateShort(article.updatedAt)}</TableCell>
-                    <TableCell className="space-x-3">
-                      <Link
-                        href={`/articles/${article.id}/edit`}
-                        className="text-sm text-success hover:underline"
-                      >
-                        Sửa
-                      </Link>
-                      <button
-                        type="button"
-                        className="text-sm text-destructive hover:underline disabled:opacity-60"
-                        disabled={
-                          deleteMutation.isPending &&
-                          deletingId === String(article.id)
-                        }
-                        onClick={() =>
-                          deleteMutation.mutate(String(article.id))
-                        }
-                      >
-                        {deleteMutation.isPending &&
-                        deletingId === String(article.id)
-                          ? 'Đang xóa…'
-                          : 'Xóa'}
-                      </button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {articles.map((article) => {
+                  const rowDeleting =
+                    deleteMutation.isPending &&
+                    deleteMutation.variables === String(article.id);
+                  return (
+                    <TableRow key={article.id}>
+                      <TableCell>{article.title}</TableCell>
+                      <TableCell>{article.status}</TableCell>
+                      <TableCell>
+                        {formatDateShort(article.updatedAt)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex flex-wrap justify-end gap-2">
+                          <Button
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            className="cursor-pointer"
+                          >
+                            <Link href={`/articles/${article.id}/edit`}>
+                              Sửa
+                            </Link>
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="cursor-pointer"
+                            disabled={deleteMutation.isPending}
+                            onClick={() => {
+                              if (
+                                !window.confirm(
+                                  'Xóa vĩnh viễn bài viết này? Hành động không hoàn tác.',
+                                )
+                              ) {
+                                return;
+                              }
+                              deleteMutation.mutate(String(article.id));
+                            }}
+                          >
+                            {rowDeleting ? (
+                              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                            ) : null}
+                            {rowDeleting ? 'Đang xóa…' : 'Xóa'}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {articles.length === 0 ? (
                   <TableRow>
                     <TableCell

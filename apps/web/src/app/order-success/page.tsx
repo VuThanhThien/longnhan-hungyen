@@ -10,6 +10,7 @@ import {
 
 import { apiServer } from '@/lib/api-server';
 import { OrderSuccessCartClearer } from '@/components/orders/order-success-cart-clearer';
+import { AutoSaveOrderForReviews } from '@/components/orders/auto-save-order-for-reviews';
 import {
   paymentMethodLabel,
   paymentStatusLabel,
@@ -156,6 +157,10 @@ export default async function OrderSuccessPage({
                   Xem tiến trình đơn hàng
                 </Link>
               </Button>
+
+              {summary?.id && summary.phone ? (
+                <AutoSaveOrderForReviews summary={summary} />
+              ) : null}
             </div>
           ) : (
             <p className="text-center text-sm text-muted-foreground">

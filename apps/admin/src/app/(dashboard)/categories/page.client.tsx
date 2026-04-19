@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Header } from '@/components/layout/header';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -15,6 +16,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { adminClientDelete, adminClientGet } from '@/lib/admin-client';
+import { extractErrorMessage } from '@/lib/http/extract-error-message';
+import { adminQueryKeys } from '@/lib/query-keys';
 import type { Category } from '@longnhan/types';
 
 export default function CategoriesPageClient() {
@@ -25,24 +28,23 @@ export default function CategoriesPageClient() {
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ['categories', 'admin'],
+    queryKey: adminQueryKeys.categories.root,
     queryFn: () => adminClientGet<Category[]>('/categories/admin'),
   });
 
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      setDeletingId(id);
       await adminClientDelete(`/categories/${id}`);
     },
     onSuccess: async () => {
       toast.success('Đã tắt danh mục');
-      await queryClient.invalidateQueries({ queryKey: ['categories'] });
+      await queryClient.invalidateQueries({
+        queryKey: adminQueryKeys.categories.root,
+      });
     },
-    onError: () => {
-      toast.error('Thao tác thất bại (có thể còn sản phẩm gắn danh mục)');
+    onError: (err) => {
+      toast.error(extractErrorMessage(err));
     },
-    onSettled: () => setDeletingId(null),
   });
 
   return (
@@ -77,7 +79,9 @@ export default function CategoriesPageClient() {
                   <TableHead>Slug</TableHead>
                   <TableHead>Thứ tự</TableHead>
                   <TableHead>Trạng thái</TableHead>
-                  <TableHead />
+                  <TableHead className="text-right w-[1%] whitespace-nowrap">
+                    Action
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -95,34 +99,43 @@ export default function CategoriesPageClient() {
                         <span className="text-muted-foreground">Tắt</span>
                       )}
                     </TableCell>
-                    <TableCell className="space-x-3">
-                      <Link
-                        href={`/categories/${cat.id}/edit`}
-                        className="text-sm text-success hover:underline"
-                      >
-                        Sửa
-                      </Link>
-                      <button
-                        type="button"
-                        className="text-sm text-destructive hover:underline disabled:opacity-60"
-                        disabled={
-                          deleteMutation.isPending && deletingId === cat.id
-                        }
-                        onClick={() => {
-                          if (
-                            !window.confirm(
-                              'Tắt danh mục này? (Không xóa vĩnh viễn nếu API dùng soft delete)',
-                            )
-                          ) {
-                            return;
-                          }
-                          deleteMutation.mutate(cat.id);
-                        }}
-                      >
-                        {deleteMutation.isPending && deletingId === cat.id
-                          ? 'Đang xử lý…'
-                          : 'Tắt'}
-                      </button>
+                    <TableCell className="text-right">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Button
+                          asChild
+                          variant="outline"
+                          size="sm"
+                          className="cursor-pointer"
+                        >
+                          <Link href={`/categories/${cat.id}/edit`}>Sửa</Link>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          className="cursor-pointer"
+                          disabled={deleteMutation.isPending}
+                          onClick={() => {
+                            if (
+                              !window.confirm(
+                                'Tắt danh mục này? (Không xóa vĩnh viễn nếu API dùng soft delete)',
+                              )
+                            ) {
+                              return;
+                            }
+                            deleteMutation.mutate(cat.id);
+                          }}
+                        >
+                          {deleteMutation.isPending &&
+                          deleteMutation.variables === cat.id ? (
+                            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                          ) : null}
+                          {deleteMutation.isPending &&
+                          deleteMutation.variables === cat.id
+                            ? 'Đang xử lý…'
+                            : 'Tắt'}
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

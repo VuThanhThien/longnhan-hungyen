@@ -16,8 +16,28 @@ import { useCartStore, useCartTotals } from '@/services/cart/cart-store';
 
 const HOVER_CLOSE_MS = 140;
 
+const HOVER_PREVIEW_MQ = '(hover: hover) and (pointer: fine)';
+
+function useHoverCartPreview() {
+  const [enabled, setEnabled] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia(HOVER_PREVIEW_MQ);
+    const sync = () => setEnabled(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+
+  return enabled;
+}
+
+const cartIconClassName =
+  'relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-(--brand-gold)/60 bg-(--brand-cream) text-(--brand-forest) shadow-sm transition hover:border-(--brand-gold) hover:bg-(--brand-gold)/15 hover:shadow-md';
+
 /** Radix Popover + hover: bridge pointer moves between anchor and portaled content. */
 export default function HeaderCartButton() {
+  const hoverPreview = useHoverCartPreview();
   const [open, setOpen] = useState(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -49,6 +69,41 @@ export default function HeaderCartButton() {
     return () => cancelScheduledClose();
   }, [cancelScheduledClose]);
 
+  const totalsBlock = (
+    <div className="flex min-w-0 flex-col items-end leading-tight">
+      <span className="text-xs font-bold tabular-nums text-(--brand-forest) sm:text-sm">
+        {formatVnd(totalVnd)}
+      </span>
+      <span className="text-[10px] text-(--brand-forest-muted) sm:text-xs">
+        {itemCount} sản phẩm
+      </span>
+    </div>
+  );
+
+  const cartIconBadge = itemCount > 0 && (
+    <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-(--brand-gold-dark) px-1 text-[10px] font-bold leading-none text-white">
+      {itemCount > 99 ? '99+' : itemCount}
+    </span>
+  );
+
+  if (!hoverPreview) {
+    const mobileLabel = `Giỏ hàng, ${itemCount} sản phẩm, ${formatVnd(totalVnd)}`;
+    return (
+      <Link
+        href="/cart"
+        className="flex items-center gap-2 sm:gap-3"
+        aria-label={mobileLabel}
+        title="Giỏ hàng"
+      >
+        {totalsBlock}
+        <span className={cartIconClassName} aria-hidden>
+          <ShoppingCart className="h-5 w-5 text-(--brand-leaf)" aria-hidden />
+          {cartIconBadge}
+        </span>
+      </Link>
+    );
+  }
+
   return (
     <Popover open={open} onOpenChange={setOpen} modal={false}>
       <PopoverAnchor asChild>
@@ -57,26 +112,15 @@ export default function HeaderCartButton() {
           onPointerEnter={handleOpenPointer}
           onPointerLeave={scheduleClose}
         >
-          <div className="flex min-w-0 flex-col items-end leading-tight">
-            <span className="text-xs font-bold tabular-nums text-(--brand-forest) sm:text-sm">
-              {formatVnd(totalVnd)}
-            </span>
-            <span className="text-[10px] text-(--brand-forest-muted) sm:text-xs">
-              {itemCount} sản phẩm
-            </span>
-          </div>
+          {totalsBlock}
           <Link
             href="/cart"
-            className="relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-(--brand-gold)/60 bg-(--brand-cream) text-(--brand-forest) shadow-sm transition hover:border-(--brand-gold) hover:bg-(--brand-gold)/15 hover:shadow-md"
+            className={cartIconClassName}
             aria-label={`Giỏ hàng, ${itemCount} sản phẩm, ${formatVnd(totalVnd)}`}
             title="Giỏ hàng"
           >
             <ShoppingCart className="h-5 w-5 text-(--brand-leaf)" aria-hidden />
-            {itemCount > 0 ? (
-              <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-(--brand-gold-dark) px-1 text-[10px] font-bold leading-none text-white">
-                {itemCount > 99 ? '99+' : itemCount}
-              </span>
-            ) : null}
+            {cartIconBadge}
           </Link>
         </div>
       </PopoverAnchor>

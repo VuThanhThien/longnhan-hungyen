@@ -14,7 +14,7 @@ export default function HeroSection() {
           <br />
           <span className="text-yellow-300">Đặc Sản Chính Gốc</span>
         </h1>
-        <p className="text-lg md:text-xl text-green-100 max-w-xl leading-relaxed">
+        <p className="text-lg md:text-xl text-primary-foreground/85 max-w-xl leading-relaxed">
           Nhãn lồng Hưng Yên tươi ngon, long nhãn sấy khô thơm dịu. Thu hái tự
           nhiên, không hóa chất. Giao hàng toàn quốc.
         </p>

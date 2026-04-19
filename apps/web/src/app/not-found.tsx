@@ -20,7 +20,7 @@ export default function NotFound() {
         </FuzzyText>
       </div>
       <span className="sr-only">404</span>
-      <h1 className="text-2xl md:text-3xl font-bold text-green-950">
+      <h1 className="text-2xl md:text-3xl font-bold text-foreground">
         Không tìm thấy nội dung
       </h1>
       <p className="mt-3 text-gray-600">

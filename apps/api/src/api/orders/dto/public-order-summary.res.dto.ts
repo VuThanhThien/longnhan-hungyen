@@ -18,12 +18,36 @@ export class PublicOrderItemSummaryResDto {
   @ApiProperty()
   @Expose()
   subtotal!: number;
+
+  @ApiPropertyOptional({
+    description: 'Product id from line snapshot (for saved-order / reviews)',
+  })
+  @Expose()
+  productId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Variant label from snapshot',
+  })
+  @Expose()
+  variantLabel?: string;
 }
 
 export class PublicOrderSummaryResDto {
+  @ApiProperty({
+    description: 'Order id (UUID) — same secrecy tier as order code',
+  })
+  @Expose()
+  id!: string;
+
   @ApiProperty()
   @Expose()
   code!: string;
+
+  @ApiProperty({
+    description: 'Phone on the order (for device-local review verification)',
+  })
+  @Expose()
+  phone!: string;
 
   @ApiProperty({ enum: OrderStatus })
   @Expose()

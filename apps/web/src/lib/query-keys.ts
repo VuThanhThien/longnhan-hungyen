@@ -19,6 +19,8 @@ export const queryKeys = {
       ] as const,
     detail: (slug: string) =>
       [...queryKeys.products.all, contentSegment.detail, slug] as const,
+    reviews: (productId: string) =>
+      [...queryKeys.products.all, 'reviews', productId] as const,
   },
   articles: {
     all: [contentScope.articles] as const,

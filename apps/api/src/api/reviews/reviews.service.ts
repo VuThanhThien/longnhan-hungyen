@@ -21,6 +21,11 @@ import {
   ProductReviewEntity,
   ProductReviewStatus,
 } from './entities/product-review.entity';
+import {
+  buildPublicReviewerLabel,
+  looksLikeVietnamPhoneNumber,
+  normalizeVietnamPhone,
+} from './utils/review-public-label.util';
 
 @Injectable()
 export class ReviewsService {
@@ -44,13 +49,29 @@ export class ReviewsService {
     });
     if (!product) throw new NotFoundException('Product not found');
 
+    const orderCode = dto.orderCode.trim();
+    if (!orderCode) {
+      throw new BadRequestException('Mã đơn hàng không hợp lệ.');
+    }
+
     const order = await this.orderRepo.findOne({
-      where: { id: dto.orderId as Uuid },
+      where: { code: orderCode },
     });
     if (!order) throw new NotFoundException('Order not found');
 
     if (order.orderStatus !== OrderStatus.DELIVERED) {
       throw new BadRequestException('Đơn hàng chưa được giao thành công.');
+    }
+
+    const isAnonymous = dto.isAnonymous === true;
+    const displayName = (dto.displayName ?? '').trim();
+    if (!isAnonymous) {
+      if (!displayName) {
+        throw new BadRequestException('Vui lòng nhập tên hiển thị.');
+      }
+      if (looksLikeVietnamPhoneNumber(displayName)) {
+        throw new BadRequestException('Tên hiển thị không hợp lệ.');
+      }
     }
 
     const inputPhone = normalizeVietnamPhone(dto.phone);
@@ -63,13 +84,26 @@ export class ReviewsService {
       where: { orderId: order.id },
     });
 
-    const hasProduct = items.some((i) => {
-      const snap = i.variantSnapshot as any;
+    const matchingItem = items.find((i) => {
+      const snap = i.variantSnapshot as Record<string, unknown>;
       return String(snap?.productId ?? '') === String(productId);
     });
-    if (!hasProduct) {
+    if (!matchingItem) {
       throw new BadRequestException('Đơn hàng không chứa sản phẩm này.');
     }
+
+    const snap = matchingItem.variantSnapshot as Record<string, unknown>;
+    const variantLabelRaw = snap?.label;
+    const variantLabelSnapshot =
+      typeof variantLabelRaw === 'string' && variantLabelRaw.trim()
+        ? variantLabelRaw.trim()
+        : null;
+
+    const publicReviewerLabel = buildPublicReviewerLabel({
+      isAnonymous,
+      displayName: isAnonymous ? undefined : displayName,
+      orderPhone: order.phone,
+    });
 
     try {
       const created = await this.reviewRepo.save(
@@ -78,6 +112,9 @@ export class ReviewsService {
           orderId: order.id,
           rating: dto.rating,
           comment: dto.comment ? dto.comment : null,
+          isAnonymous,
+          variantLabelSnapshot,
+          publicReviewerLabel,
           status: ProductReviewStatus.PENDING,
         }),
       );
@@ -129,6 +166,8 @@ export class ReviewsService {
           rating: i.rating,
           comment: i.comment,
           createdAt: i.createdAt,
+          reviewerLabel: i.publicReviewerLabel ?? 'Khách hàng',
+          variantLabel: i.variantLabelSnapshot ?? '—',
         })),
       },
       { excludeExtraneousValues: true },
@@ -164,11 +203,10 @@ export class ReviewsService {
       excludeExtraneousValues: true,
     });
   }
-}
 
-function normalizeVietnamPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
-  if (!digits) return '';
-  if (digits.startsWith('84')) return `0${digits.slice(2)}`;
-  return digits;
+  async deleteReview(id: Uuid): Promise<void> {
+    const review = await this.reviewRepo.findOne({ where: { id } });
+    if (!review) throw new NotFoundException('Review not found');
+    await this.reviewRepo.delete({ id });
+  }
 }

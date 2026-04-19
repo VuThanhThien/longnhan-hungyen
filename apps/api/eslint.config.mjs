@@ -18,6 +18,7 @@ export default tsEslint.config(
       'eslint.config.mjs',
       'docs/.vuepress/**/*',
       'src/generated/i18n.generated.ts',
+      'src/database/migrations/**/*',
     ],
     rules: {
       '@typescript-eslint/interface-name-prefix': 'off',

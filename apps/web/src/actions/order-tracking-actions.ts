@@ -10,10 +10,14 @@ export type PublicOrderItemSummary = {
   name: string;
   qty: number;
   subtotal: number;
+  productId?: string;
+  variantLabel?: string;
 };
 
 export type PublicOrderSummary = {
+  id: string;
   code: string;
+  phone: string;
   orderStatus: string;
   paymentStatus: string;
   paymentMethod: string;

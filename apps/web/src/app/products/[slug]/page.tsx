@@ -2,6 +2,7 @@ import ProductImages from '@/components/products/product-images';
 import { ProductAddToCart } from '@/components/products/product-add-to-cart';
 import ProductPdpHero from '@/components/products/product-pdp-hero';
 import ProductPdpTabs from '@/components/products/product-pdp-tabs';
+import ProductReviewsSection from '@/components/products/product-reviews-section';
 import RelatedProducts from '@/components/products/related-products';
 import Breadcrumb from '@/components/ui/breadcrumb';
 import { fetchApi, fetchPaginated } from '@/lib/api-client';
@@ -166,6 +167,10 @@ export default async function ProductDetailPage({
       </div>
 
       <ProductPdpTabs product={product} />
+      <ProductReviewsSection
+        productId={product.id as string}
+        productName={product.name}
+      />
       <RelatedProducts products={relatedProducts} />
     </section>
   );

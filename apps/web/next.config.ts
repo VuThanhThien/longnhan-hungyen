@@ -5,6 +5,7 @@ import { withSentryConfig } from '@sentry/nextjs';
 const repoRoot = path.join(__dirname, '../..');
 
 const nextConfig: NextConfig = {
+  deploymentId: process.env.NEXT_PUBLIC_DEPLOYMENT_ID,
   output: 'standalone',
   outputFileTracingRoot: repoRoot,
   cacheComponents: true,
@@ -44,6 +45,9 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
+  },
+  generateBuildId: () => {
+    return process.env.NEXT_PUBLIC_DEPLOYMENT_ID ?? null;
   },
 };
 

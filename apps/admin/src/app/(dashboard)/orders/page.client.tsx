@@ -1,13 +1,33 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useMemo } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2 } from 'lucide-react';
+import { useForm } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import { ListPagination } from '@/components/admin/list-pagination';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -18,7 +38,13 @@ import {
 } from '@/components/ui/table';
 import { buildAdminListQuery } from '@/lib/admin-list-query';
 import { toPaginated } from '@/lib/admin-data';
+import { adminQueryKeys } from '@/lib/query-keys';
 import { formatCurrency, formatDateShort } from '@/lib/utils';
+import {
+  ADMIN_FILTER_ALL,
+  adminOrderListFilterSchema,
+  type AdminOrderListFilterValues,
+} from '@/lib/validation/admin-list-filter-schemas';
 import { adminClientGet } from '@/lib/admin-client';
 import type { Order } from '@longnhan/types';
 
@@ -45,6 +71,7 @@ function toIsoEndDay(d: string | undefined): string | undefined {
 }
 
 export default function OrdersPageClient() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const params = useMemo(
     () => ({
@@ -70,12 +97,37 @@ export default function OrdersPageClient() {
     { limit: PAGE_LIMIT, defaultPage: 1 },
   );
 
+  const filterForm = useForm<AdminOrderListFilterValues>({
+    resolver: zodResolver(adminOrderListFilterSchema),
+    defaultValues: {
+      orderStatus: params.orderStatus ?? ADMIN_FILTER_ALL,
+      paymentStatus: params.paymentStatus ?? ADMIN_FILTER_ALL,
+      dateFrom: params.dateFrom ?? '',
+      dateTo: params.dateTo ?? '',
+    },
+  });
+
+  useEffect(() => {
+    filterForm.reset({
+      orderStatus: params.orderStatus ?? ADMIN_FILTER_ALL,
+      paymentStatus: params.paymentStatus ?? ADMIN_FILTER_ALL,
+      dateFrom: params.dateFrom ?? '',
+      dateTo: params.dateTo ?? '',
+    });
+  }, [
+    params.orderStatus,
+    params.paymentStatus,
+    params.dateFrom,
+    params.dateTo,
+    filterForm,
+  ]);
+
   const {
     data: raw,
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ['orders', query],
+    queryKey: adminQueryKeys.orders.list(query),
     queryFn: () => adminClientGet<unknown>(`/orders?${query}`),
   });
 
@@ -88,101 +140,133 @@ export default function OrdersPageClient() {
     dateTo: params.dateTo,
   };
 
+  function applyFilters(values: AdminOrderListFilterValues) {
+    const next = new URLSearchParams();
+    if (values.orderStatus && values.orderStatus !== ADMIN_FILTER_ALL) {
+      next.set('orderStatus', values.orderStatus);
+    }
+    if (values.paymentStatus && values.paymentStatus !== ADMIN_FILTER_ALL) {
+      next.set('paymentStatus', values.paymentStatus);
+    }
+    if (values.dateFrom) next.set('dateFrom', values.dateFrom);
+    if (values.dateTo) next.set('dateTo', values.dateTo);
+    const qs = next.toString();
+    router.push(qs ? `/orders?${qs}` : '/orders');
+  }
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <Header title="Đơn hàng" />
-      <main className="flex-1 overflow-y-auto p-6 space-y-6">
+      <main className="flex flex-1 flex-col space-y-6 overflow-y-auto p-6">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Bộ lọc</CardTitle>
           </CardHeader>
           <CardContent>
-            <form
-              className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-6"
-              method="get"
-              action="/orders"
-            >
-              <div className="space-y-1">
-                <label
-                  className="text-sm text-muted-foreground"
-                  htmlFor="orderStatus"
-                >
-                  Trạng thái đơn
-                </label>
-                <select
-                  id="orderStatus"
+            <Form {...filterForm}>
+              <form
+                className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-6"
+                onSubmit={filterForm.handleSubmit(applyFilters)}
+              >
+                <FormField
+                  control={filterForm.control}
                   name="orderStatus"
-                  defaultValue={params.orderStatus || ''}
-                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
-                >
-                  <option value="">Tất cả</option>
-                  {orderStatuses.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label
-                  className="text-sm text-muted-foreground"
-                  htmlFor="paymentStatus"
-                >
-                  Thanh toán
-                </label>
-                <select
-                  id="paymentStatus"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Trạng thái đơn</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Tất cả" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value={ADMIN_FILTER_ALL}>
+                            Tất cả
+                          </SelectItem>
+                          {orderStatuses.map((status) => (
+                            <SelectItem key={status} value={status}>
+                              {status}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={filterForm.control}
                   name="paymentStatus"
-                  defaultValue={params.paymentStatus || ''}
-                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
-                >
-                  <option value="">Tất cả</option>
-                  {paymentStatuses.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label
-                  className="text-sm text-muted-foreground"
-                  htmlFor="dateFrom"
-                >
-                  Từ ngày
-                </label>
-                <input
-                  id="dateFrom"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Thanh toán</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Tất cả" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value={ADMIN_FILTER_ALL}>
+                            Tất cả
+                          </SelectItem>
+                          {paymentStatuses.map((status) => (
+                            <SelectItem key={status} value={status}>
+                              {status}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={filterForm.control}
                   name="dateFrom"
-                  type="date"
-                  defaultValue={params.dateFrom || ''}
-                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Từ ngày</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <div className="space-y-1">
-                <label
-                  className="text-sm text-muted-foreground"
-                  htmlFor="dateTo"
-                >
-                  Đến ngày
-                </label>
-                <input
-                  id="dateTo"
+                <FormField
+                  control={filterForm.control}
                   name="dateTo"
-                  type="date"
-                  defaultValue={params.dateTo || ''}
-                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Đến ngày</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="date" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <div className="flex items-end lg:col-span-2">
-                <button
-                  type="submit"
-                  className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors duration-150 hover:text-destructive"
-                >
-                  Lọc
-                </button>
-              </div>
-            </form>
+                <div className="flex items-end lg:col-span-2">
+                  <Button
+                    type="submit"
+                    disabled={filterForm.formState.isSubmitting}
+                  >
+                    {filterForm.formState.isSubmitting ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : null}
+                    Lọc
+                  </Button>
+                </div>
+              </form>
+            </Form>
           </CardContent>
         </Card>
 
@@ -210,7 +294,9 @@ export default function OrdersPageClient() {
                   <TableHead>Trạng thái</TableHead>
                   <TableHead>Thanh toán</TableHead>
                   <TableHead>Ngày tạo</TableHead>
-                  <TableHead />
+                  <TableHead className="w-[1%] whitespace-nowrap text-right">
+                    Action
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -226,13 +312,17 @@ export default function OrdersPageClient() {
                       <Badge variant="outline">{order.paymentStatus}</Badge>
                     </TableCell>
                     <TableCell>{formatDateShort(order.createdAt)}</TableCell>
-                    <TableCell>
-                      <Link
-                        href={`/orders/${order.id}`}
-                        className="text-sm text-success hover:underline"
-                      >
-                        Xem chi tiết
-                      </Link>
+                    <TableCell className="text-right">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Button
+                          asChild
+                          variant="outline"
+                          size="sm"
+                          className="cursor-pointer"
+                        >
+                          <Link href={`/orders/${order.id}`}>Xem chi tiết</Link>
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

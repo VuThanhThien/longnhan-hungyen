@@ -20,7 +20,7 @@ export default function Error({
 
   return (
     <section className="mx-auto max-w-2xl px-4 py-16 text-center">
-      <h1 className="text-2xl font-bold text-green-950">Đã xảy ra lỗi</h1>
+      <h1 className="text-2xl font-bold text-foreground">Đã xảy ra lỗi</h1>
       <p className="mt-3 text-gray-600">
         Trang không tải được. Bạn có thể thử lại hoặc quay về trang chủ.
       </p>

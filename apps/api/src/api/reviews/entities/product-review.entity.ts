@@ -45,6 +45,25 @@ export class ProductReviewEntity {
   @Column({ type: 'text', nullable: true })
   comment: string | null;
 
+  @Column({ name: 'is_anonymous', type: 'boolean', default: false })
+  isAnonymous!: boolean;
+
+  @Column({
+    name: 'variant_label_snapshot',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  variantLabelSnapshot: string | null;
+
+  @Column({
+    name: 'public_reviewer_label',
+    type: 'varchar',
+    length: 120,
+    nullable: true,
+  })
+  publicReviewerLabel: string | null;
+
   @Column({
     type: 'enum',
     enum: ProductReviewStatus,

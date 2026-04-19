@@ -3,6 +3,7 @@ import { ApiAuth, ApiPublic } from '@/decorators/http.decorators';
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -76,5 +77,13 @@ export class ReviewsController {
     @Body() dto: UpdateProductReviewStatusReqDto,
   ): Promise<ProductReviewResDto> {
     return this.reviewsService.updateReviewStatus(id, dto);
+  }
+
+  @ApiAuth({ summary: 'Delete review (admin)' })
+  @ApiParam({ name: 'id', type: 'String' })
+  @Delete('reviews/admin/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(@Param('id', ParseUUIDPipe) id: Uuid): Promise<void> {
+    return this.reviewsService.deleteReview(id);
   }
 }
