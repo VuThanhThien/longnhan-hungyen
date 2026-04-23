@@ -47,11 +47,16 @@ export async function submitOrder(formData: FormData): Promise<void> {
     throw new Error('Dữ liệu sản phẩm không hợp lệ');
   }
 
-  const body = {
+  const body: Record<string, unknown> = {
     ...customerParse.data,
     email: customerParse.data.email ? customerParse.data.email : undefined,
     items: itemsParse.data,
   };
+
+  const voucherCode = optionalString(formData, 'voucherCode');
+  if (voucherCode) {
+    body.voucherCode = voucherCode.trim().toUpperCase();
+  }
 
   try {
     const { data } = await apiServer.post<{

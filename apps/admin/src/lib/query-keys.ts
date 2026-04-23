@@ -20,4 +20,11 @@ export const adminQueryKeys = {
     list: (query: string) => ['orders', query] as const,
     detail: (orderId: string) => ['orders', orderId] as const,
   },
+  vouchers: {
+    all: ['vouchers', 'admin'] as const,
+    list: (query: string) => ['vouchers', 'admin', 'list', query] as const,
+    detail: (id: string) => ['vouchers', 'admin', id] as const,
+    usages: (id: string, query: string) =>
+      ['vouchers', 'admin', id, 'usages', query] as const,
+  },
 } as const;

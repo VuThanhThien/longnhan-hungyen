@@ -12,6 +12,7 @@ import { PostModule } from './post/post.module';
 import { ProductsModule } from './products/products.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { UserModule } from './user/user.module';
+import { VouchersModule } from './vouchers/vouchers.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { UserModule } from './user/user.module';
     CategoriesModule,
     ReviewsModule,
     OrdersModule,
+    VouchersModule,
     ArticlesModule,
     MediaModule,
     DashboardModule,

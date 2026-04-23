@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useTransition } from 'react';
+import { useCallback, useEffect, useState, useTransition } from 'react';
 
 import { submitOrder } from '@/actions/order-actions';
 import { CheckoutCustomerForm } from '@/components/checkout/checkout-customer-form';
 import { CheckoutOrderSummary } from '@/components/checkout/checkout-order-summary';
+import { CheckoutVoucherInput } from '@/components/checkout/checkout-voucher-input';
 import { SHIPPING_FLAT_VND } from '@/lib/constants';
 import {
   orderItemsSchema,
@@ -17,14 +18,50 @@ function cartSubtotal(lines: { quantity: number; unitPriceVnd: number }[]) {
   return lines.reduce((sum, l) => sum + l.quantity * l.unitPriceVnd, 0);
 }
 
+type AppliedVoucher = {
+  code: string;
+  discountAmount: number;
+};
+
 export function CheckoutPageContent() {
   const lines = useCartStore((s) => s.lines);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [phone, setPhone] = useState('');
+  const [appliedVoucher, setAppliedVoucher] = useState<AppliedVoucher | null>(
+    null,
+  );
 
   const subtotalVnd = cartSubtotal(lines);
   const shippingVnd = lines.length > 0 ? SHIPPING_FLAT_VND : 0;
-  const grandTotalVnd = subtotalVnd + shippingVnd;
+  const orderTotalBeforeDiscount = subtotalVnd + shippingVnd;
+  const discountVnd = appliedVoucher?.discountAmount ?? 0;
+  const grandTotalVnd = Math.max(0, orderTotalBeforeDiscount - discountVnd);
+
+  // Clear voucher when cart changes — discount may no longer be valid.
+  useEffect(() => {
+    queueMicrotask(() => setAppliedVoucher(null));
+  }, [subtotalVnd]);
+
+  const handlePhoneChange = useCallback((next: string) => {
+    setPhone((prev) => {
+      if (prev === next) return prev;
+      // Phone changed — drop applied voucher (per-phone rules may differ).
+      setAppliedVoucher(null);
+      return next;
+    });
+  }, []);
+
+  const handleVoucherApplied = useCallback(
+    (discountAmount: number, code: string) => {
+      setAppliedVoucher({ code, discountAmount });
+    },
+    [],
+  );
+
+  const handleVoucherRemoved = useCallback(() => {
+    setAppliedVoucher(null);
+  }, []);
 
   if (lines.length === 0) {
     return (
@@ -65,6 +102,7 @@ export function CheckoutPageContent() {
     fd.set('paymentMethod', values.paymentMethod);
     if (values.notes) fd.set('notes', values.notes);
     fd.set('items', JSON.stringify(parsedItems.data));
+    if (appliedVoucher) fd.set('voucherCode', appliedVoucher.code);
 
     startTransition(async () => {
       try {
@@ -87,8 +125,21 @@ export function CheckoutPageContent() {
           isPending={isPending}
           submitError={submitError}
           totalAmountVnd={grandTotalVnd}
+          onPhoneChange={handlePhoneChange}
+          voucherSlot={
+            <CheckoutVoucherInput
+              orderTotal={orderTotalBeforeDiscount}
+              phone={phone}
+              appliedVoucher={appliedVoucher}
+              onVoucherApplied={handleVoucherApplied}
+              onVoucherRemoved={handleVoucherRemoved}
+            />
+          }
         />
-        <CheckoutOrderSummary />
+        <CheckoutOrderSummary
+          discountAmount={discountVnd}
+          voucherCode={appliedVoucher?.code ?? null}
+        />
       </div>
     </section>
   );

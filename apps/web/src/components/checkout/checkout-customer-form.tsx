@@ -1,6 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useEffect } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 
 import QrPaymentInfo from '@/components/orders/qr-payment-info';
@@ -39,6 +40,8 @@ type CheckoutCustomerFormProps = {
   isPending: boolean;
   submitError: string | null;
   totalAmountVnd: number;
+  onPhoneChange?: (phone: string) => void;
+  voucherSlot?: React.ReactNode;
 };
 
 export function CheckoutCustomerForm({
@@ -46,6 +49,8 @@ export function CheckoutCustomerForm({
   isPending,
   submitError,
   totalAmountVnd,
+  onPhoneChange,
+  voucherSlot,
 }: CheckoutCustomerFormProps) {
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(orderFormSchema),
@@ -64,6 +69,15 @@ export function CheckoutCustomerForm({
     control: form.control,
     name: 'paymentMethod',
   });
+
+  const phoneValue = useWatch({
+    control: form.control,
+    name: 'phone',
+  });
+
+  useEffect(() => {
+    onPhoneChange?.(phoneValue ?? '');
+  }, [phoneValue, onPhoneChange]);
 
   return (
     <section className="rounded-2xl border border-(--brand-forest)/10 bg-(--brand-cream) p-4 shadow-sm md:p-6">
@@ -253,6 +267,8 @@ export function CheckoutCustomerForm({
           {paymentMethod === 'bank_transfer' ? (
             <QrPaymentInfo totalAmount={totalAmountVnd} />
           ) : null}
+
+          {voucherSlot}
 
           <FormField
             control={form.control}

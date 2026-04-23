@@ -4,11 +4,14 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   Relation,
   UpdateDateColumn,
 } from 'typeorm';
+import { VoucherEntity } from '../../vouchers/entities/voucher.entity';
 import { OrderItemEntity } from './order-item.entity';
 
 export enum PaymentMethod {
@@ -61,6 +64,20 @@ export class OrderEntity {
 
   @Column({ type: 'int' })
   total!: number; // VND integer
+
+  @Column({ type: 'int', default: 0 })
+  discountAmount!: number; // VND deducted; 0 if no voucher
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  voucherCode: string | null; // snapshot of code used
+
+  @Column({ name: 'voucher_id', type: 'uuid', nullable: true })
+  @Index('IDX_order_voucher_id')
+  voucherId: Uuid | null;
+
+  @ManyToOne(() => VoucherEntity, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'voucher_id' })
+  voucher: Relation<VoucherEntity> | null;
 
   @Column({ type: 'enum', enum: PaymentMethod, default: PaymentMethod.COD })
   paymentMethod!: PaymentMethod;

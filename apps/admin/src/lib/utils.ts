@@ -30,6 +30,15 @@ export function formatDateShort(dateStr: string): string {
   }).format(new Date(dateStr));
 }
 
+/**
+ * Mask phone number: show first 3 and last 3 digits, replace middle with ***.
+ * e.g. "0912345678" → "091***678"
+ */
+export function maskPhone(phone: string): string {
+  if (!phone || phone.length < 6) return phone;
+  return `${phone.slice(0, 3)}***${phone.slice(-3)}`;
+}
+
 export function generateSlug(text: string): string {
   return text
     .toLowerCase()

@@ -33,3 +33,6 @@ Thumbs.db
 
 # TypeScript
 *.tsbuildinfo
+
+# ADF local settings
+.claude/settings.local.json

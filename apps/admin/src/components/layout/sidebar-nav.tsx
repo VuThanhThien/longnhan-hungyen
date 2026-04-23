@@ -10,6 +10,7 @@ import {
   Image,
   Star,
   FolderTree,
+  Ticket,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +21,7 @@ const navItems = [
   { href: '/categories', label: 'Danh mục', icon: FolderTree },
   { href: '/articles', label: 'Bài viết', icon: FileText },
   { href: '/reviews', label: 'Đánh giá', icon: Star },
+  { href: '/vouchers', label: 'Mã giảm giá', icon: Ticket },
   { href: '/media', label: 'Media', icon: Image },
 ];
 

@@ -3,6 +3,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProductVariantEntity } from '../products/entities/product-variant.entity';
+import { VouchersModule } from '../vouchers/vouchers.module';
 import { OrderItemEntity } from './entities/order-item.entity';
 import { OrderTrackingTokenEntity } from './entities/order-tracking-token.entity';
 import { OrderEntity } from './entities/order.entity';
@@ -26,6 +27,7 @@ import { OrdersService } from './orders.service';
         },
       },
     }),
+    VouchersModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

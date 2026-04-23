@@ -48,6 +48,9 @@ export class CreateOrderReqDto {
   @StringFieldOptional()
   notes?: string;
 
+  @StringFieldOptional({ maxLength: 50 })
+  voucherCode?: string;
+
   @ApiProperty({ type: [CreateOrderItemDto] })
   @IsArray()
   @ArrayMinSize(1)

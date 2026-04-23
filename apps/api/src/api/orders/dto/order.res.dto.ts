@@ -62,6 +62,14 @@ export class OrderResDto {
   @Expose()
   total!: number;
 
+  @ApiProperty()
+  @Expose()
+  discountAmount!: number;
+
+  @ApiPropertyOptional()
+  @Expose()
+  voucherCode: string | null;
+
   @ApiProperty({ enum: PaymentMethod })
   @Expose()
   paymentMethod!: PaymentMethod;

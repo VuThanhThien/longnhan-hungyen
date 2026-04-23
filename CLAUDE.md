@@ -81,6 +81,69 @@ This ensures packages installed by `install.sh` (google-genai, pypdf, etc.) are 
 - After modularization, continue with main task
 - When not to modularize: Markdown files, plain text files, bash scripts, configuration files, environment variables files, etc.
 
+## Repository Overview
+
+E-commerce platform for longan fruit products. **pnpm + Turborepo monorepo** with three apps and one shared package.
+
+```
+apps/
+  api/     @longnhan/api    NestJS 10 REST API (port 3001, Swagger at /api-docs)
+  web/     @longnhan/web    Next.js storefront (port 3000)
+  admin/   @longnhan/admin  Next.js admin panel (port 3002)
+packages/
+  types/   @longnhan/types  Shared TS types (workspace:*)
+```
+
+**Stack:** Node ≥20.10, pnpm ≥9.5, PostgreSQL (port 5435 in Docker), Redis/BullMQ (6380), TypeORM, Cloudinary, MailDev (1080), pgAdmin (5050).
+
+## Common Commands
+
+Run from repo root unless noted. Turbo fans out to all apps; use `pnpm --filter <pkg>` or the `:api`/`:web`/`:admin` aliases for a single app.
+
+```bash
+# Dev
+pnpm dev                    # all apps via turbo
+pnpm dev:api | dev:web | dev:admin
+
+# Build / lint / format / typecheck (turbo or per-app)
+pnpm build           pnpm build:api
+pnpm lint            pnpm lint:fix       pnpm lint:api
+pnpm format          pnpm type-check
+
+# Local infra (DB, Redis, MailDev, pgAdmin)
+docker compose up -d db redis maildev pgadmin
+pnpm docker:up | docker:down | docker:reset
+
+# API DB workflow (run inside apps/api or via filter)
+pnpm --filter @longnhan/api migration:up
+pnpm --filter @longnhan/api migration:generate src/database/migrations/<Name>
+pnpm --filter @longnhan/api migration:down
+pnpm --filter @longnhan/api seed:run
+pnpm --filter @longnhan/api db:create | db:drop
+
+# API tests (Jest)
+pnpm --filter @longnhan/api test
+pnpm --filter @longnhan/api test -- <pattern>      # single file/pattern
+pnpm --filter @longnhan/api test:watch
+pnpm --filter @longnhan/api test:cov
+pnpm --filter @longnhan/api test:e2e
+
+# Frontend "test" = type-check (no Jest configured for web/admin)
+pnpm --filter @longnhan/admin test    # tsc --noEmit
+```
+
+First-time setup: `pnpm install` → copy `.env.example` files → `docker compose up -d db redis maildev pgadmin` → `pnpm --filter @longnhan/api migration:up` → `pnpm dev`.
+
+## Architecture Notes
+
+**API (`apps/api/src/`)** — NestJS feature modules under `api/` (auth, products, orders, reviews, vouchers, articles, categories, media, user, dashboard, post, home, health). Cross-cutting concerns live in sibling top-level dirs: `common/`, `config/`, `database/` (data-source + migrations + seeders), `guards/`, `filters/`, `decorators/`, `exceptions/`, `i18n/`, `mail/`, `redis/`, `background/` (BullMQ workers), `integrations/` (Cloudinary etc.), `shared/`, `libs/`, `generated/`. Entry: `main.ts` → `app.module.ts` → `api/api.module.ts`. TypeORM data source: `src/database/data-source.ts` (used by all `pnpm typeorm` scripts via `env-cmd`).
+
+**Web & Admin (Next.js App Router)** — `app/` routes, `components/` (shadcn/ui under `components/ui/`), `features/` (admin only, feature-sliced), `services/` (API clients), `hooks/`, `lib/`, `proxy.ts` for backend proxying. State/data via TanStack Query. Admin uses Radix primitives + Tailwind (shadcn). Web adds Sentry instrumentation.
+
+**Shared types** — `packages/types` re-exported as `@longnhan/types`; use it instead of duplicating DTO/entity shapes across apps.
+
+**Turbo pipeline** — `turbo.json` defines `dev`/`build`/`lint`/`type-check`/`format` tasks across the workspace; prefer the root `pnpm <task>` form so caching works.
+
 ## Documentation Management
 
 We keep all important docs in `./docs` folder and keep updating them, structure like below:

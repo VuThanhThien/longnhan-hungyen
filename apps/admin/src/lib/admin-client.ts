@@ -29,6 +29,12 @@ export async function adminClientPut<T>(path: string, body?: unknown) {
   return (json?.data ?? json) as T;
 }
 
+export async function adminClientPatch<T>(path: string, body?: unknown) {
+  const res = await httpClient.patch(path, body);
+  const json = res.data;
+  return (json?.data ?? json) as T;
+}
+
 export async function adminClientDelete<T>(path: string) {
   const res = await httpClient.delete(path);
   const json = res.data;

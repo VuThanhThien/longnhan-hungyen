@@ -10,12 +10,20 @@ function cartSubtotal(lines: { quantity: number; unitPriceVnd: number }[]) {
   return lines.reduce((sum, l) => sum + l.quantity * l.unitPriceVnd, 0);
 }
 
-export function CheckoutOrderSummary() {
+type CheckoutOrderSummaryProps = {
+  discountAmount?: number;
+  voucherCode?: string | null;
+};
+
+export function CheckoutOrderSummary({
+  discountAmount = 0,
+  voucherCode = null,
+}: CheckoutOrderSummaryProps = {}) {
   const lines = useCartStore((s) => s.lines);
 
   const subtotalVnd = cartSubtotal(lines);
   const shippingVnd = lines.length > 0 ? SHIPPING_FLAT_VND : 0;
-  const grandTotalVnd = subtotalVnd + shippingVnd;
+  const grandTotalVnd = Math.max(0, subtotalVnd + shippingVnd - discountAmount);
 
   return (
     <aside className="rounded-2xl border border-(--brand-gold)/25 bg-(--brand-cream) p-4 shadow-sm lg:sticky lg:top-24">
@@ -62,6 +70,16 @@ export function CheckoutOrderSummary() {
             {formatVnd(shippingVnd)}
           </span>
         </div>
+        {discountAmount > 0 ? (
+          <div className="flex items-center justify-between py-2">
+            <span className="text-(--brand-forest-muted)">
+              Giảm giá{voucherCode ? ` (${voucherCode})` : ''}
+            </span>
+            <span className="font-semibold tabular-nums text-(--brand-leaf)">
+              -{formatVnd(discountAmount)}
+            </span>
+          </div>
+        ) : null}
         <div className="my-2 h-px bg-(--brand-forest)/10" />
         <div className="flex items-baseline justify-between pt-2">
           <span className="text-sm font-semibold">Tổng cộng</span>
@@ -69,22 +87,6 @@ export function CheckoutOrderSummary() {
             {formatVnd(grandTotalVnd)}
           </span>
         </div>
-      </div>
-
-      <div className="mt-4 rounded-xl border border-(--brand-forest)/10 bg-(--brand-gold)/10 p-3">
-        <input
-          disabled
-          aria-disabled="true"
-          placeholder="Mã giảm giá (sắp ra mắt)"
-          className="h-11 w-full rounded-xl border border-(--brand-forest)/15 bg-(--brand-cream) px-3 text-sm text-(--brand-forest) opacity-60 cursor-not-allowed"
-        />
-        <button
-          type="button"
-          disabled
-          className="mt-2 inline-flex h-11 w-full items-center justify-center rounded-xl border-2 border-(--brand-gold)/40 bg-(--brand-gold)/10 text-sm font-semibold text-(--brand-forest) opacity-60 cursor-not-allowed"
-        >
-          Áp dụng
-        </button>
       </div>
 
       <div className="mt-4">

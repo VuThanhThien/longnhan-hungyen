@@ -18,6 +18,8 @@ import { plainToInstance } from 'class-transformer';
 import crypto from 'crypto';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { ProductVariantEntity } from '../products/entities/product-variant.entity';
+import { VoucherEntity } from '../vouchers/entities/voucher.entity';
+import { VouchersService } from '../vouchers/vouchers.service';
 import { CreateOrderReqDto } from './dto/create-order.req.dto';
 import { OrderQueryReqDto } from './dto/order-query.req.dto';
 import { OrderResDto } from './dto/order.res.dto';
@@ -44,10 +46,13 @@ export class OrdersService {
     @InjectQueue(QueueName.EMAIL)
     private readonly emailQueue: Queue<IOrderTrackingLinkJob, any, string>,
     private readonly dataSource: DataSource,
+    private readonly vouchersService: VouchersService,
   ) {}
 
   /** Public: create order with transaction (validates stock, decrements) */
   async create(dto: CreateOrderReqDto): Promise<OrderResDto> {
+    dto.phone = dto.phone.trim();
+
     const result = await this.dataSource.transaction(async (em) => {
       // Load variants with SELECT FOR UPDATE to prevent race conditions
       const variantIds = dto.items.map((i) => i.variantId);
@@ -99,6 +104,23 @@ export class OrdersService {
       // Generate unique order code: LN-YYMMDD-XXXX
       const code = await this.generateOrderCode(em);
 
+      // Apply voucher if provided
+      let discountAmount = 0;
+      let voucherEntity: VoucherEntity | null = null;
+
+      if (dto.voucherCode) {
+        const voucherResult = await this.vouchersService.validateForOrder(
+          em,
+          dto.voucherCode.toUpperCase(),
+          total,
+          dto.phone,
+        );
+        discountAmount = voucherResult.discountAmount;
+        voucherEntity = voucherResult.voucher;
+      }
+
+      const finalTotal = total - discountAmount;
+
       // Create order
       const order = em.create(OrderEntity, {
         code,
@@ -107,7 +129,10 @@ export class OrdersService {
         email: dto.email ?? null,
         address: dto.address,
         province: dto.province ?? null,
-        total,
+        total: finalTotal,
+        discountAmount,
+        voucherCode: dto.voucherCode?.toUpperCase() ?? null,
+        voucherId: voucherEntity?.id ?? null,
         paymentMethod: dto.paymentMethod ?? PaymentMethod.COD,
         notes: dto.notes ?? null,
       });
@@ -126,6 +151,17 @@ export class OrdersService {
           { id: item.variantId as Uuid },
           'stock',
           item.qty,
+        );
+      }
+
+      // Record voucher usage (increment usedCount + create VoucherUsage row)
+      if (voucherEntity) {
+        await this.vouchersService.applyVoucherInTransaction(
+          em,
+          voucherEntity.id,
+          savedOrder.id,
+          dto.phone,
+          total, // pre-discount total (service calculates discount itself)
         );
       }
 
