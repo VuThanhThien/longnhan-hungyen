@@ -92,10 +92,20 @@ export class SepayService {
     const amount =
       typeof amountRaw === 'number' ? amountRaw : Number(amountRaw);
 
+    const txn = data?.transaction ?? order?.transaction;
+    const sepayTransactionId: string | undefined =
+      txn?.id ?? txn?.transaction_id ?? undefined;
+
+    const paidAtRaw =
+      txn?.transaction_date ?? txn?.paid_at ?? txn?.created_at ?? undefined;
+    const paidAt = paidAtRaw ? new Date(paidAtRaw) : undefined;
+
     return {
       status,
       amount: Number.isFinite(amount) ? amount : NaN,
       currency,
+      sepayTransactionId,
+      paidAt: paidAt && !isNaN(paidAt.getTime()) ? paidAt : undefined,
     };
   }
 }

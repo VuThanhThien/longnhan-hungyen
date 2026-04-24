@@ -94,7 +94,7 @@ packages/
   types/   @longnhan/types  Shared TS types (workspace:*)
 ```
 
-**Stack:** Node ≥20.10, pnpm ≥9.5, PostgreSQL (port 5435 in Docker), Redis/BullMQ (6380), TypeORM, Cloudinary, MailDev (1080), pgAdmin (5050).
+**Stack:** Node ≥20.10, pnpm ≥9.5, PostgreSQL (port 5435 in Docker), Redis/BullMQ (6380), TypeORM, Cloudinary, pgAdmin (5050).
 
 ## Common Commands
 
@@ -110,8 +110,8 @@ pnpm build           pnpm build:api
 pnpm lint            pnpm lint:fix       pnpm lint:api
 pnpm format          pnpm type-check
 
-# Local infra (DB, Redis, MailDev, pgAdmin)
-docker compose up -d db redis maildev pgadmin
+# Local infra (DB, Redis, pgAdmin)
+docker compose up -d db redis pgadmin
 pnpm docker:up | docker:down | docker:reset
 
 # API DB workflow (run inside apps/api or via filter)
@@ -132,7 +132,7 @@ pnpm --filter @longnhan/api test:e2e
 pnpm --filter @longnhan/admin test    # tsc --noEmit
 ```
 
-First-time setup: `pnpm install` → copy `.env.example` files → `docker compose up -d db redis maildev pgadmin` → `pnpm --filter @longnhan/api migration:up` → `pnpm dev`.
+First-time setup: `pnpm install` → copy `.env.example` files → `docker compose up -d db redis pgadmin` → `pnpm --filter @longnhan/api migration:up` → `pnpm dev`.
 
 ## Architecture Notes
 

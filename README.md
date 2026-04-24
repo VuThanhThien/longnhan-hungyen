@@ -25,8 +25,8 @@ pnpm install
 cp .env.example .env
 cp apps/api/.env.example apps/api/.env  # then fill in values
 
-# 3. Start local infrastructure (DB, Redis, MailDev, pgAdmin)
-docker compose up -d db redis maildev pgadmin
+# 3. Start local infrastructure (DB, Redis, pgAdmin)
+docker compose up -d db redis pgadmin
 
 # 4. Run database migrations
 pnpm --filter @longnhan/api migration:run
@@ -47,7 +47,6 @@ pnpm dev:admin    # admin only (http://localhost:3002)
 | Web        | http://localhost:3000          | Storefront        |
 | Admin      | http://localhost:3002          | Admin panel       |
 | PostgreSQL | localhost:5435                 | Database (Docker) |
-| MailDev    | http://localhost:1080          | Email testing UI  |
 | Redis      | localhost:6380                 | Cache / BullMQ    |
 | pgAdmin    | http://localhost:5050          | Database UI       |
 
@@ -55,7 +54,7 @@ pnpm dev:admin    # admin only (http://localhost:3002)
 
 ```bash
 # Infra only (recommended for local dev)
-docker compose up -d db redis maildev pgadmin
+docker compose up -d db redis pgadmin
 
 # Full stack with API hot-reload
 docker compose -f docker-compose.local.yml up --build -d

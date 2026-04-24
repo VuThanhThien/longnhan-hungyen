@@ -1,8 +1,38 @@
 # Project Changelog
 
-**Last Updated:** 2026-04-18
+**Last Updated:** 2026-04-25
 
 All notable changes to the Long Nhan Hung Yen e-commerce project are documented here. **Phase status** is canonical in [Project Roadmap](./project-roadmap.md).
+
+---
+
+## [5.2.0] - 2026-04-25 - Migrate to Brevo SDK
+
+### Changed
+
+- Replaced `@nestjs-modules/mailer` + Nodemailer SMTP with `@getbrevo/brevo` HTTP SDK
+- Simplified mail config: 9 SMTP vars → 3 vars (`BREVO_API_KEY`, `MAIL_DEFAULT_EMAIL`, `MAIL_DEFAULT_NAME`)
+- `MailService` now compiles Handlebars templates locally and sends via Brevo API
+- `MailModule` is a plain NestJS module (no MailerModule dependency)
+
+### Removed
+
+- `@nestjs-modules/mailer`, `nodemailer`, `@types/nodemailer` dependencies
+- `mailer-custom-logger.ts` and its spec (Nodemailer-specific)
+- SMTP-related env vars: `MAIL_HOST`, `MAIL_PORT`, `MAIL_USER`, `MAIL_PASSWORD`, `MAIL_IGNORE_TLS`, `MAIL_SECURE`, `MAIL_REQUIRE_TLS`
+
+---
+
+## [5.1.0] - 2026-04-24 - Remove MailDev, production SMTP
+
+### Changed
+
+- Removed MailDev service from `docker-compose.yml`, `docker-compose.local.yml`, and `Makefile`
+- Deleted `apps/api/maildev.Dockerfile`
+- Updated `.env.example` with production-ready SMTP provider placeholders (Brevo as example)
+- Removed `MAIL_CLIENT_PORT` env var (only used for MailDev UI)
+- Fixed `MAIL_PASS` → `MAIL_PASSWORD` in `mail-config.spec.ts` to match runtime config
+- Updated all documentation to reflect SMTP provider workflow instead of MailDev
 
 ---
 
@@ -216,7 +246,7 @@ Storefront updates: guest shopping cart, header search tied to query params, sup
 
 #### Infrastructure
 
-- Docker Compose setup (PostgreSQL, Redis, MailDev, pgAdmin)
+- Docker Compose setup (PostgreSQL, Redis, pgAdmin)
 - Email service with Nodemailer + Handlebars templates
 - Redis caching manager with TTL strategy
 - Helmet security headers, CORS configuration

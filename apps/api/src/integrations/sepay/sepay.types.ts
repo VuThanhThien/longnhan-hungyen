@@ -35,4 +35,5 @@ export type SepayVerifiedPayment = {
   amount: number;
   currency: string;
   paidAt?: Date;
+  sepayTransactionId?: string;
 };

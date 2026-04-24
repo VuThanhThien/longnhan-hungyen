@@ -234,3 +234,14 @@ This ensures every bank transfer order has a corresponding transaction record, e
 ### Recurring payment
 
 SePay’s recurring offering is documented as coming soon on the official side; this repo’s storefront flow is **one-time PURCHASE** only until a product update is published.
+
+### Hourly PG sweep (missed IPN)
+
+When IPN delivery fails (timeout, downtime, retry exhaustion), a **BullMQ repeatable job** catches up:
+
+- **Queue:** `sepay-reconcile`, **job:** `sepay-pg-sweep`, **cron:** `0 * * * *` (hourly).
+- **Candidate query:** `payment_method=bank_transfer`, `payment_status=pending`, `order_status=pending`, `sepay_transaction_id IS NULL`, `created_at >= now() - 24h`, ordered `ASC`, capped at 200.
+- **Per order:** re-verify via `SepayService.verifyOrderPayment(orderCode)` → if CAPTURED/APPROVED + amount/currency match → apply same DB transaction as IPN (order PAID+CONFIRMED, transaction COMPLETED, status history).
+- **Safety:** cancelled orders excluded by query + re-read before write. Idempotent on `sepay_transaction_id` unique index. Per-order errors do not fail the sweep.
+- **Toggle:** `SEPAY_RECONCILE_ENABLED` env var (default `true`).
+- **Design spec:** [features/sepay-pg-reconcile-sweep.md](../features/sepay-pg-reconcile-sweep.md).

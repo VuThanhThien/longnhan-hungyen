@@ -1,8 +1,5 @@
 'use client';
 
-import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   CheckCircle2,
@@ -15,13 +12,15 @@ import {
   ShoppingBag,
   XCircle,
 } from 'lucide-react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
-import { fetchApi } from '@/lib/api-client';
+import { OrderSuccessCartClearer } from '@/components/orders/order-success-cart-clearer';
 import {
   paymentMethodLabel,
   paymentStatusLabel,
 } from '@/components/orders/order-summary-panel';
-import { OrderSuccessCartClearer } from '@/components/orders/order-success-cart-clearer';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -29,6 +28,7 @@ import {
   CardFooter,
   CardHeader,
 } from '@/components/ui/card';
+import { fetchApi } from '@/lib/api-client';
 
 type PaymentPollSummary = {
   code: string;
@@ -169,13 +169,6 @@ export default function CheckoutSuccessPage() {
                 )}
               </div>
             </div>
-
-            {isPending && pollingActive ? (
-              <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-primary">
-                <Loader2 className="size-4 animate-spin" />
-                Đang kiểm tra trạng thái thanh toán...
-              </div>
-            ) : null}
 
             {isPending && !pollingActive ? (
               <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">

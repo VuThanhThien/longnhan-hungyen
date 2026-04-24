@@ -15,7 +15,7 @@ help:
 	@echo "    make install          Install all dependencies"
 	@echo ""
 	@echo "  Development"
-	@echo "    make dev              Infra (db, redis, maildev, pgadmin) + all apps in watch mode"
+	@echo "    make dev              Infra (db, redis, pgadmin) + all apps in watch mode"
 	@echo "    make dev-api          Start API only (http://localhost:3001)"
 	@echo "    make dev-web          Start storefront only (http://localhost:3000)"
 	@echo "    make dev-admin        Start admin only (http://localhost:3002)"
@@ -30,7 +30,7 @@ help:
 	@echo "    make type-check       Type-check all apps"
 	@echo ""
 	@echo "  Docker (infra)"
-	@echo "    make up               Start infra services (db, redis, maildev, pgadmin)"
+	@echo "    make up               Start infra services (db, redis, pgadmin)"
 	@echo "    make down             Stop all services"
 	@echo "    make logs             Tail service logs"
 	@echo "    make reset            Reset volumes & restart services"
@@ -102,7 +102,7 @@ type-check:
 # ── Docker ────────────────────────────────────────────────────────────────────
 
 up:
-	docker compose up -d db redis maildev pgadmin
+	docker compose up -d db redis pgadmin
 
 down:
 	docker compose down
@@ -111,7 +111,7 @@ logs:
 	docker compose logs -f
 
 reset:
-	docker compose down -v && docker compose up -d db redis maildev pgadmin
+	docker compose down -v && docker compose up -d db redis pgadmin
 
 up-local:
 	docker compose -f docker-compose.local.yml up --build -d

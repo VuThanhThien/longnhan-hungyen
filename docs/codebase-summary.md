@@ -51,7 +51,6 @@ longnhantongtran/
 │   │   ├── test/                    # E2E tests
 │   │   ├── docs/                    # API documentation (README, guides)
 │   │   ├── Dockerfile               # Production image
-│   │   ├── maildev.Dockerfile       # MailDev container
 │   │   ├── jest.config.json         # Jest configuration
 │   │   ├── tsconfig.json            # TypeScript config
 │   │   ├── nest-cli.json            # NestJS CLI config
@@ -639,8 +638,7 @@ Reusable NestJS modules:
 
 ### Email
 
-- `@nestjs-modules/mailer` — Email service
-- `nodemailer` — SMTP client
+- `@getbrevo/brevo` — Brevo transactional email SDK
 - `handlebars` — Email templates
 
 ### Background Jobs
@@ -756,9 +754,9 @@ Key variables from `.env.example`:
 | **Auth**       | `AUTH_JWT_SECRET`           | secret_key                                                                |
 |                | `AUTH_JWT_TOKEN_EXPIRES_IN` | 1d                                                                        |
 |                | `AUTH_REFRESH_SECRET`       | refresh_key                                                               |
-| **Email**      | `MAIL_HOST`                 | localhost                                                                 |
-|                | `MAIL_PORT`                 | 1025                                                                      |
-|                | `MAIL_CLIENT_PORT`          | 1080                                                                      |
+| **Email**      | `BREVO_API_KEY`             | Brevo transactional email API key                                         |
+|                | `MAIL_DEFAULT_EMAIL`        | noreply@example.com                                                       |
+|                | `MAIL_DEFAULT_NAME`         | No Reply                                                                  |
 | **Cloudinary** | `CLOUDINARY_CLOUD_NAME`     | (prod only)                                                               |
 |                | `CLOUDINARY_API_KEY`        | (prod only)                                                               |
 |                | `CLOUDINARY_API_SECRET`     | (prod only)                                                               |
@@ -767,11 +765,10 @@ Key variables from `.env.example`:
 
 ## Docker Services
 
-### Production (docker-compose.yml)
+### Infrastructure (docker-compose.yml)
 
 - **postgres** — PostgreSQL 13 on host port 5435 (maps to container 5432)
 - **redis** — Redis on host port 6380 (maps to container 6379)
-- **maildev** — SMTP on port 1025, Web UI on port 1080
 - **pgadmin** — PostgreSQL GUI on port 5050
 
 ### Local Dev (docker-compose.local.yml)

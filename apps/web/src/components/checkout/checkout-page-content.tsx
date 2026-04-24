@@ -43,7 +43,6 @@ export function CheckoutPageContent() {
   const shippingVnd = lines.length > 0 ? SHIPPING_FLAT_VND : 0;
   const orderTotalBeforeDiscount = subtotalVnd + shippingVnd;
   const discountVnd = appliedVoucher?.discountAmount ?? 0;
-  const grandTotalVnd = Math.max(0, orderTotalBeforeDiscount - discountVnd);
 
   // Clear voucher when cart changes — discount may no longer be valid.
   useEffect(() => {

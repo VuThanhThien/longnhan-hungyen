@@ -70,7 +70,7 @@ make migration-up
 ## 5. Local development
 
 ```bash
-make dev    # docker: db, redis, maildev, pgadmin + pnpm dev
+make dev    # docker: db, redis, pgadmin + pnpm dev
 ```
 
 Uses default `docker-compose.yml` (not `docker-compose.prod.yml`).

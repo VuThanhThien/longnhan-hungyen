@@ -24,7 +24,7 @@ This guide covers setting up, deploying, and maintaining the Long Nhan Hung Yen 
 ### Required Credentials
 
 - Cloudinary account (production media uploads)
-- SMTP server credentials or MailDev (local/staging)
+- Brevo API key (https://app.brevo.com/settings/keys/api)
 - PostgreSQL database credentials
 - JWT secret key (generate securely)
 
@@ -69,18 +69,17 @@ AUTH_JWT_SECRET=dev-secret-key-change-in-prod
 AUTH_JWT_TOKEN_EXPIRES_IN=1d
 AUTH_REFRESH_SECRET=dev-refresh-secret-change-in-prod
 
-# Email (MailDev)
-MAIL_HOST=localhost
-MAIL_PORT=1025
-MAIL_CLIENT_PORT=1080
+# Email (Brevo SDK — get key at https://app.brevo.com/settings/keys/api)
+BREVO_API_KEY=<your-brevo-api-key>
 MAIL_DEFAULT_EMAIL=noreply@localhost
+MAIL_DEFAULT_NAME=No Reply
 ```
 
 ### 3. Start Infrastructure
 
 ```bash
 # Option A: Start only database/cache services
-docker compose up -d db redis maildev pgadmin
+docker compose up -d db redis pgadmin
 
 # Option B: Full local dev stack with API container (hot-reload)
 docker compose -f docker-compose.local.yml up --build -d
@@ -90,8 +89,6 @@ docker compose -f docker-compose.local.yml up --build -d
 
 - PostgreSQL: localhost:5435
 - Redis: localhost:6380
-- MailDev SMTP: localhost:1025
-- MailDev Web UI: http://localhost:1080
 - PgAdmin: http://localhost:5050
 - API (if using `docker-compose.local.yml`): http://localhost:3001 (host mapping in compose)
 
@@ -155,9 +152,9 @@ AUTH_JWT_SECRET=$(openssl rand -hex 32)
 AUTH_JWT_TOKEN_EXPIRES_IN=1d
 AUTH_REFRESH_SECRET=$(openssl rand -hex 32)
 
-MAIL_HOST=mail
-MAIL_PORT=1025
-MAIL_CLIENT_PORT=1080
+BREVO_API_KEY=<staging-brevo-api-key>
+MAIL_DEFAULT_EMAIL=noreply@staging.example.com
+MAIL_DEFAULT_NAME=No Reply
 
 # Cloudinary (if available in staging)
 # CLOUDINARY_CLOUD_NAME=xxx
@@ -166,7 +163,7 @@ MAIL_CLIENT_PORT=1080
 EOF
 
 # 4. Start infrastructure
-docker compose up -d db redis maildev pgadmin
+docker compose up -d db redis pgadmin
 ```
 
 ### Deploy API
@@ -203,7 +200,7 @@ docker exec api pnpm seed:run
 - [ ] Swagger docs accessible at `/api-docs`
 - [ ] Database migrations applied
 - [ ] Sample data seeded
-- [ ] MailDev web UI working at port 1080
+- [ ] SMTP configured (provider sandbox for staging)
 - [ ] PostgreSQL accessible via PgAdmin
 - [ ] Redis available for caching
 
@@ -247,14 +244,10 @@ AUTH_JWT_SECRET=<secure-random-hex-32>
 AUTH_JWT_TOKEN_EXPIRES_IN=1d
 AUTH_REFRESH_SECRET=<secure-random-hex-32>
 
-# Email (Production SMTP)
-MAIL_HOST=smtp.sendgrid.net
-MAIL_PORT=587
-MAIL_USER=apikey
-MAIL_PASSWORD=<sendgrid-api-key>
-MAIL_SECURE=false
-MAIL_REQUIRE_TLS=true
+# Email (Brevo SDK)
+BREVO_API_KEY=<production-brevo-api-key>
 MAIL_DEFAULT_EMAIL=noreply@longnhan.vn
+MAIL_DEFAULT_NAME=Long Nhan Hung Yen
 
 # Cloudinary (Required)
 CLOUDINARY_CLOUD_NAME=<your-cloud-name>

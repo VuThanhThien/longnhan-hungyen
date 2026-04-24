@@ -45,7 +45,7 @@ _Phase 7 “100%” here means **go-live succeeded** (all services Live). The ta
 ### Deliverables
 
 - [x] Monorepo structure: apps/ (api, web, admin), packages/ (types)
-- [x] docker-compose.yml (PostgreSQL, Redis, MailDev, pgAdmin)
+- [x] docker-compose.yml (PostgreSQL, Redis, pgAdmin)
 - [x] docker-compose.local.yml (+ NestJS API with hot reload)
 - [x] GitHub Actions workflows (lint, test, build)
 - [x] Root TypeScript & ESLint config

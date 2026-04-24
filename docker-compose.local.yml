@@ -22,7 +22,6 @@ services:
     depends_on:
       - db
       - redis
-      - maildev
     networks:
       - longnhan-network
 
@@ -51,19 +50,6 @@ services:
     command: redis-server --save 20 1 --loglevel warning
     volumes:
       - redis_data:/data
-    networks:
-      - longnhan-network
-
-  maildev:
-    build:
-      context: ./apps/api
-      dockerfile: maildev.Dockerfile
-    container_name: longnhan_maildev
-    ports:
-      - '${MAIL_CLIENT_PORT:-1080}:1080'
-      # Host port (API on machine uses MAIL_HOST=localhost MAIL_PORT=1026) → MailDev SMTP 1025 in container
-      - '${MAIL_SMTP_HOST_PORT:-1026}:1025'
-    restart: unless-stopped
     networks:
       - longnhan-network
 

@@ -117,7 +117,7 @@ longnhantongtran/
 │   └── admin/                  # Next.js admin dashboard
 ├── packages/
 │   └── types/                  # Shared TypeScript interfaces
-├── docker-compose.yml          # Prod infra (db, redis, maildev, pgadmin)
+├── docker-compose.yml          # Infra (db, redis, pgadmin)
 ├── docker-compose.local.yml    # Local dev stack (+ API hot-reload)
 ├── pnpm-workspace.yaml         # Workspace config
 └── turbo.json                  # Turborepo orchestration
@@ -230,7 +230,7 @@ longnhantongtran/
 ### External Services
 
 - **Cloudinary** — Media storage and CDN
-- **SMTP Server** — Email delivery (MailDev for local)
+- **Brevo** — Transactional email delivery (HTTP SDK)
 - **PostgreSQL Database** — Data persistence
 - **Redis** — Caching and queue backend
 
@@ -269,8 +269,8 @@ All configs in `.env.example`:
 
 **Email**
 
-- `MAIL_HOST`, `MAIL_PORT` — SMTP settings
-- `MAIL_CLIENT_PORT` — MailDev web UI port (1080)
+- `BREVO_API_KEY` — Brevo transactional email API key
+- `MAIL_DEFAULT_EMAIL`, `MAIL_DEFAULT_NAME` — Sender defaults
 
 **Cloudinary** (production only)
 

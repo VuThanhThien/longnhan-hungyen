@@ -40,7 +40,6 @@ longnhantongtran/
 │   │   ├── test/              # E2E tests
 │   │   ├── docs/              # API documentation
 │   │   ├── Dockerfile         # Production image
-│   │   ├── maildev.Dockerfile # MailDev service
 │   │   └── package.json
 │   ├── admin/                 # Next.js admin panel (Next.js 16, React 19, Tailwind CSS v4)
 │   │   ├── src/
@@ -151,6 +150,8 @@ Each module follows standard NestJS structure:
 - **Fallback**: If PENDING transaction is not found (e.g., race condition or manual order creation), a COMPLETED transaction is created directly with the SePay reference.
 
 - **Documentation** — Sequence diagram, IPN vs redirect URLs, sandbox/go-live, rate limits, and reconciliation: [sepay/payment-flow-sepay.md](./sepay/payment-flow-sepay.md).
+
+- **Hourly PG sweep (missed IPN):** A BullMQ repeatable job (`sepay-reconcile` queue, cron `0 * * * *`) queries PENDING bank-transfer orders within 24h, re-verifies each via `SepayService.verifyOrderPayment`, and applies the same capture path as IPN. Cancelled orders are never auto-promoted. Toggle: `SEPAY_RECONCILE_ENABLED=true|false`.
 
 - **Entities** — TypeORM entity definitions per module
 - **Migrations** — Auto-generated via TypeORM CLI
@@ -453,9 +454,6 @@ Services:
   ├── redis
   │   └── Host port: 6380 (container 6379)
   │   └── Volume: redis_data
-  ├── maildev (SMTP + Web UI)
-  │   ├── SMTP Port: 1025
-  │   └── Web UI: http://localhost:1080
   ├── pgadmin (PostgreSQL GUI)
   │   └── Port: 5050
   │   └── Volume: pgadmin_data
@@ -486,7 +484,6 @@ Services:
 ```bash
 docker compose -f docker-compose.local.yml up --build -d
 # API available at http://localhost:3000
-# MailDev at http://localhost:1080
 ```
 
 ---

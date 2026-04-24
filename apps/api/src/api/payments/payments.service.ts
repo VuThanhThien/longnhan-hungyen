@@ -5,6 +5,7 @@ import {
 import {
   OrderEntity,
   OrderStatus,
+  PaymentMethod,
   PaymentStatus,
 } from '@/api/orders/entities/order.entity';
 import {
@@ -17,7 +18,7 @@ import {
 import { Uuid } from '@/common/types/common.type';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, IsNull, Repository } from 'typeorm';
 import { SepayService } from '../../integrations/sepay/sepay.service';
 import { SepayIpnReqDto } from './dto/sepay-ipn.req.dto';
 
@@ -84,17 +85,95 @@ export class PaymentsService {
       ? new Date(payload.transaction.transaction_date)
       : new Date();
 
+    await this.applyVerifiedSepayCapture(order, {
+      sepayTransactionId: payload.transaction.id,
+      paidAt,
+    });
+
+    return { success: true };
+  }
+
+  async reconcileSepayOrder(orderId: Uuid): Promise<boolean> {
+    const order = await this.orderRepo.findOne({ where: { id: orderId } });
+    if (!order) return false;
+
+    if (
+      order.paymentMethod !== PaymentMethod.BANK_TRANSFER ||
+      order.paymentStatus !== PaymentStatus.PENDING ||
+      order.orderStatus !== OrderStatus.PENDING ||
+      order.sepayTransactionId
+    ) {
+      return false;
+    }
+
+    const verified = await this.sepayService.verifyOrderPayment(order.code);
+
+    if (verified.status !== 'CAPTURED' && verified.status !== 'APPROVED') {
+      return false;
+    }
+
+    const expectedAmount = Number(order.total);
+    if (
+      !Number.isFinite(verified.amount) ||
+      verified.amount !== expectedAmount ||
+      (verified.currency ?? 'VND') !== 'VND'
+    ) {
+      this.logger.warn(`Reconcile: amount/currency mismatch`, {
+        orderCode: order.code,
+        expectedAmount,
+        verified,
+      });
+      return false;
+    }
+
+    if (!verified.sepayTransactionId) {
+      this.logger.error(`Reconcile: missing sepayTransactionId from PG`, {
+        orderCode: order.code,
+      });
+      return false;
+    }
+
+    // Re-read to guard against race (IPN or cancel between verify call)
+    const fresh = await this.orderRepo.findOne({ where: { id: orderId } });
+    if (
+      !fresh ||
+      fresh.paymentStatus !== PaymentStatus.PENDING ||
+      fresh.orderStatus !== OrderStatus.PENDING ||
+      fresh.sepayTransactionId
+    ) {
+      return false;
+    }
+
+    await this.applyVerifiedSepayCapture(fresh, {
+      sepayTransactionId: verified.sepayTransactionId,
+      paidAt: verified.paidAt ?? new Date(),
+    });
+
+    return true;
+  }
+
+  private async applyVerifiedSepayCapture(
+    order: OrderEntity,
+    input: { sepayTransactionId: string; paidAt: Date },
+  ): Promise<void> {
     await this.dataSource.transaction(async (em) => {
-      await em.update(
+      const result = await em.update(
         OrderEntity,
-        { id: order.id as Uuid },
+        { id: order.id as Uuid, sepayTransactionId: IsNull() },
         {
-          sepayTransactionId: payload.transaction.id,
-          sepayPaidAt: paidAt,
+          sepayTransactionId: input.sepayTransactionId,
+          sepayPaidAt: input.paidAt,
           paymentStatus: PaymentStatus.PAID,
           orderStatus: OrderStatus.CONFIRMED,
         },
       );
+
+      if (result.affected === 0) {
+        this.logger.warn(`Apply capture skipped: already reconciled`, {
+          orderId: order.id,
+        });
+        return;
+      }
 
       const pendingTx = await em.findOne(TransactionEntity, {
         where: {
@@ -106,8 +185,8 @@ export class PaymentsService {
 
       if (pendingTx) {
         pendingTx.status = TransactionStatus.COMPLETED;
-        pendingTx.referenceNo = payload.transaction.id;
-        pendingTx.occurredAt = paidAt;
+        pendingTx.referenceNo = input.sepayTransactionId;
+        pendingTx.occurredAt = input.paidAt;
         await em.save(TransactionEntity, pendingTx);
       } else {
         await em.save(
@@ -119,9 +198,9 @@ export class PaymentsService {
             amount: Number(order.total),
             direction: TransactionDirection.IN,
             status: TransactionStatus.COMPLETED,
-            referenceNo: payload.transaction.id,
+            referenceNo: input.sepayTransactionId,
             referenceNote: null,
-            occurredAt: paidAt,
+            occurredAt: input.paidAt,
             createdByAdminId: null,
           }),
         );
@@ -135,7 +214,5 @@ export class PaymentsService {
         actorId: null,
       });
     });
-
-    return { success: true };
   }
 }
