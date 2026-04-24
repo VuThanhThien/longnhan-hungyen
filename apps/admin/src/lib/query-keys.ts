@@ -19,6 +19,14 @@ export const adminQueryKeys = {
     all: ['orders'] as const,
     list: (query: string) => ['orders', query] as const,
     detail: (orderId: string) => ['orders', orderId] as const,
+    statusHistory: (orderId: string) =>
+      ['orders', orderId, 'status-history'] as const,
+    transactions: (orderId: string) =>
+      ['orders', orderId, 'transactions'] as const,
+  },
+  transactions: {
+    all: ['transactions'] as const,
+    list: (query: string) => ['transactions', 'list', query] as const,
   },
   vouchers: {
     all: ['vouchers', 'admin'] as const,

@@ -74,7 +74,10 @@ export function OrderSummaryPanel({ data }: { data: PublicOrderSummary }) {
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Tiến trình đơn hàng
         </h2>
-        <OrderStatusTimeline orderStatus={data.orderStatus} />
+        <OrderStatusTimeline
+          orderStatus={data.orderStatus}
+          history={data.statusHistory}
+        />
       </div>
 
       {data.items?.length ? (

@@ -68,6 +68,7 @@
     "pino-pretty": "^11.3.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "sepay-pg-node": "^1.0.0",
     "slugify": "^1.6.8",
     "streamifier": "^0.1.1",
     "tslib": "^2.8.1",

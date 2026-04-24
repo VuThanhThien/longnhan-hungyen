@@ -80,6 +80,7 @@ longnhantongtran/
 - **ArticlesModule** — Blog/content articles
 - **MediaModule** — File uploads to Cloudinary
 - **DashboardModule** — Admin analytics + statistics
+- **PaymentsModule** — Payment webhooks (e.g. SePay IPN)
 
 Each module follows standard NestJS structure:
 
@@ -118,6 +119,38 @@ Each module follows standard NestJS structure:
 - **ApiAuth** decorator — Mark endpoints as admin-only
 
 #### Database (src/database/)
+
+---
+
+## Payments — SePay (bank transfer via hosted checkout)
+
+**Flow (order-first):**
+
+- **Web** creates order with `paymentMethod=bank_transfer` (API always returns SePay checkout fields for this method).
+- **API** returns `sepay: { url, fields }` for the checkout form and web auto-submits to SePay.
+- **SePay** calls **IPN** `POST /payments/sepay/ipn` (public).
+- **API** re-verifies payment via SePay gateway API (`sepay-pg-node` → `order.retrieve(order_invoice_number)`) and then marks the order **PAID + CONFIRMED** idempotently using `order.sepay_transaction_id` unique index.
+
+**Transaction lifecycle:**
+
+- **Order creation** (paymentMethod=BANK_TRANSFER): A PENDING `TransactionEntity` is auto-created in the same database transaction as the order. This captures the payment intent with:
+  - `type: PAYMENT`
+  - `method: BANK_TRANSFER`
+  - `status: PENDING`
+  - `amount: order.total`
+  - `direction: IN` (incoming payment)
+  - `referenceNo: null` (populated on completion)
+
+- **IPN confirmation**: When SePay IPN arrives with `ORDER_PAID` + `APPROVED`, the handler:
+  1. Verifies the order via SePay PG API (amount, currency, status)
+  2. Finds the PENDING transaction by `orderId` + `type=PAYMENT` + `status=PENDING`
+  3. Updates it to COMPLETED with `referenceNo=sepay_transaction_id` and `occurredAt=payment_date`
+  4. Inserts an `OrderStatusHistory` record for PENDING→CONFIRMED transition
+  5. Marks order as PAID + CONFIRMED (idempotent on `sepay_transaction_id`)
+
+- **Fallback**: If PENDING transaction is not found (e.g., race condition or manual order creation), a COMPLETED transaction is created directly with the SePay reference.
+
+- **Documentation** — Sequence diagram, IPN vs redirect URLs, sandbox/go-live, rate limits, and reconciliation: [sepay/payment-flow-sepay.md](./sepay/payment-flow-sepay.md).
 
 - **Entities** — TypeORM entity definitions per module
 - **Migrations** — Auto-generated via TypeORM CLI

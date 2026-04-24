@@ -34,6 +34,7 @@
       "@/filters/*": ["src/filters/*"],
       "@/generated/*": ["src/generated/*"],
       "@/guards/*": ["src/guards/*"],
+      "@/integrations/*": ["src/integrations/*"],
       "@/interceptors/*": ["src/interceptors/*"],
       "@/libs/*": ["src/libs/*"],
       "@/mail/*": ["src/mail/*"],

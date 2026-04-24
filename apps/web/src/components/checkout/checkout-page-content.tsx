@@ -1,12 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState, useTransition } from 'react';
 
 import { submitOrder } from '@/actions/order-actions';
 import { CheckoutCustomerForm } from '@/components/checkout/checkout-customer-form';
 import { CheckoutOrderSummary } from '@/components/checkout/checkout-order-summary';
 import { CheckoutVoucherInput } from '@/components/checkout/checkout-voucher-input';
+import { SepayRedirectForm } from '@/components/checkout/sepay-redirect-form';
 import { SHIPPING_FLAT_VND } from '@/lib/constants';
 import {
   orderItemsSchema,
@@ -27,10 +29,15 @@ export function CheckoutPageContent() {
   const lines = useCartStore((s) => s.lines);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
   const [phone, setPhone] = useState('');
   const [appliedVoucher, setAppliedVoucher] = useState<AppliedVoucher | null>(
     null,
   );
+  const [sepayRedirect, setSepayRedirect] = useState<{
+    url: string;
+    fields: Record<string, string>;
+  } | null>(null);
 
   const subtotalVnd = cartSubtotal(lines);
   const shippingVnd = lines.length > 0 ? SHIPPING_FLAT_VND : 0;
@@ -82,6 +89,7 @@ export function CheckoutPageContent() {
 
   const onSubmit = (values: OrderFormValues) => {
     setSubmitError(null);
+    setSepayRedirect(null);
 
     const items = lines.map((l) => ({
       variantId: l.variantId,
@@ -106,7 +114,12 @@ export function CheckoutPageContent() {
 
     startTransition(async () => {
       try {
-        await submitOrder(fd);
+        const res = await submitOrder(fd);
+        if (res.kind === 'sepay') {
+          setSepayRedirect(res.sepay);
+          return;
+        }
+        router.push(`/order-success?code=${encodeURIComponent(res.code)}`);
       } catch (err) {
         setSubmitError(
           err instanceof Error
@@ -119,12 +132,17 @@ export function CheckoutPageContent() {
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8 text-(--brand-forest) md:py-12">
+      {sepayRedirect ? (
+        <SepayRedirectForm
+          url={sepayRedirect.url}
+          fields={sepayRedirect.fields}
+        />
+      ) : null}
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <CheckoutCustomerForm
           onSubmit={onSubmit}
           isPending={isPending}
           submitError={submitError}
-          totalAmountVnd={grandTotalVnd}
           onPhoneChange={handlePhoneChange}
           voucherSlot={
             <CheckoutVoucherInput

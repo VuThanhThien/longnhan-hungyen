@@ -17,17 +17,38 @@ import { Queue } from 'bullmq';
 import { plainToInstance } from 'class-transformer';
 import crypto from 'crypto';
 import { DataSource, EntityManager, Repository } from 'typeorm';
+import { SepayService } from '../../integrations/sepay/sepay.service';
 import { ProductVariantEntity } from '../products/entities/product-variant.entity';
+import {
+  TransactionDirection,
+  TransactionEntity,
+  TransactionMethod,
+  TransactionStatus,
+  TransactionType,
+} from '../transactions/entities/transaction.entity';
+import { TransactionsService } from '../transactions/transactions.service';
 import { VoucherEntity } from '../vouchers/entities/voucher.entity';
 import { VouchersService } from '../vouchers/vouchers.service';
 import { CreateOrderReqDto } from './dto/create-order.req.dto';
 import { OrderQueryReqDto } from './dto/order-query.req.dto';
+import {
+  OrderStatusHistoryResDto,
+  PublicOrderStatusHistoryResDto,
+} from './dto/order-status-history.res.dto';
 import { OrderResDto } from './dto/order.res.dto';
 import { PublicOrderSummaryResDto } from './dto/public-order-summary.res.dto';
 import { UpdateOrderStatusReqDto } from './dto/update-order-status.req.dto';
 import { OrderItemEntity } from './entities/order-item.entity';
+import {
+  OrderStatusHistoryActor,
+  OrderStatusHistoryEntity,
+} from './entities/order-status-history.entity';
 import { OrderTrackingTokenEntity } from './entities/order-tracking-token.entity';
-import { OrderEntity, PaymentMethod } from './entities/order.entity';
+import {
+  OrderEntity,
+  OrderStatus,
+  PaymentMethod,
+} from './entities/order.entity';
 
 @Injectable()
 export class OrdersService {
@@ -47,6 +68,8 @@ export class OrdersService {
     private readonly emailQueue: Queue<IOrderTrackingLinkJob, any, string>,
     private readonly dataSource: DataSource,
     private readonly vouchersService: VouchersService,
+    private readonly transactionsService: TransactionsService,
+    private readonly sepayService: SepayService,
   ) {}
 
   /** Public: create order with transaction (validates stock, decrements) */
@@ -144,6 +167,34 @@ export class OrdersService {
       );
       savedOrder.items = await em.save(OrderItemEntity, items);
 
+      await em.insert(OrderStatusHistoryEntity, {
+        orderId: savedOrder.id,
+        fromStatus: null,
+        toStatus: OrderStatus.PENDING,
+        actorType: OrderStatusHistoryActor.SYSTEM,
+        actorId: null,
+      });
+
+      if (
+        (dto.paymentMethod ?? PaymentMethod.COD) === PaymentMethod.BANK_TRANSFER
+      ) {
+        await em.save(
+          TransactionEntity,
+          em.create(TransactionEntity, {
+            orderId: savedOrder.id,
+            type: TransactionType.PAYMENT,
+            method: TransactionMethod.BANK_TRANSFER,
+            amount: finalTotal,
+            direction: TransactionDirection.IN,
+            status: TransactionStatus.PENDING,
+            referenceNo: null,
+            referenceNote: null,
+            occurredAt: new Date(),
+            createdByAdminId: null,
+          }),
+        );
+      }
+
       // Decrement stock
       for (const item of dto.items) {
         await em.decrement(
@@ -165,9 +216,19 @@ export class OrdersService {
         );
       }
 
-      return plainToInstance(OrderResDto, savedOrder, {
+      const resDto = plainToInstance(OrderResDto, savedOrder, {
         excludeExtraneousValues: true,
       });
+
+      const wantsSepay =
+        (dto.paymentMethod ?? PaymentMethod.COD) ===
+        PaymentMethod.BANK_TRANSFER;
+
+      if (wantsSepay) {
+        resDto.sepay = this.sepayService.buildCheckoutFields(savedOrder);
+      }
+
+      return resDto;
     });
 
     const order = await this.orderRepo.findOne({
@@ -244,24 +305,133 @@ export class OrdersService {
     });
   }
 
-  /** Admin: update order/payment status */
+  /** Admin: update order/payment status (atomic + appends status history) */
   async updateStatus(
     id: Uuid,
     dto: UpdateOrderStatusReqDto,
-  ): Promise<OrderResDto> {
-    const order = await this.orderRepo.findOne({
-      where: { id },
-      relations: ['items'],
+    actorId: Uuid | null,
+  ): Promise<OrderResDto & { suggestRefund?: { suggestedAmount: number } }> {
+    const result = await this.dataSource.transaction(async (em) => {
+      const order = await em
+        .createQueryBuilder(OrderEntity, 'order')
+        .setLock('pessimistic_write')
+        .where('order.id = :id', { id })
+        .getOne();
+      if (!order) throw new NotFoundException('Order not found');
+
+      let transitioned = false;
+
+      const paymentStatusChanging =
+        dto.paymentStatus !== undefined &&
+        dto.paymentStatus !== order.paymentStatus;
+
+      if (
+        dto.orderStatus !== undefined &&
+        dto.orderStatus === order.orderStatus &&
+        !paymentStatusChanging
+      ) {
+        throw new BadRequestException('Order is already in this status');
+      }
+
+      if (dto.orderStatus && dto.orderStatus !== order.orderStatus) {
+        this.assertValidTransition(order.orderStatus, dto.orderStatus);
+        const fromStatus = order.orderStatus;
+        order.orderStatus = dto.orderStatus;
+        await em.insert(OrderStatusHistoryEntity, {
+          orderId: order.id,
+          fromStatus,
+          toStatus: dto.orderStatus,
+          actorType: OrderStatusHistoryActor.ADMIN,
+          actorId,
+        });
+        transitioned = true;
+      }
+
+      if (dto.paymentStatus !== undefined) {
+        order.paymentStatus = dto.paymentStatus;
+      }
+
+      const saved = await em.save(OrderEntity, order);
+      const withItems = await em.findOne(OrderEntity, {
+        where: { id: saved.id },
+        relations: ['items'],
+      });
+
+      let suggestRefund: { suggestedAmount: number } | undefined;
+      if (transitioned && saved.orderStatus === OrderStatus.CANCELLED) {
+        const net = await this.transactionsService.getPaidAmount(saved.id);
+        if (net > 0) suggestRefund = { suggestedAmount: net };
+      }
+
+      return { order: withItems!, suggestRefund };
     });
+
+    const dtoOut = plainToInstance(OrderResDto, result.order, {
+      excludeExtraneousValues: true,
+    }) as OrderResDto & { suggestRefund?: { suggestedAmount: number } };
+    if (result.suggestRefund) dtoOut.suggestRefund = result.suggestRefund;
+    return dtoOut;
+  }
+
+  /** Admin: full status history (with actor identity). */
+  async getStatusHistory(orderId: Uuid): Promise<OrderStatusHistoryResDto[]> {
+    const order = await this.orderRepo.findOne({ where: { id: orderId } });
     if (!order) throw new NotFoundException('Order not found');
-
-    if (dto.orderStatus) order.orderStatus = dto.orderStatus;
-    if (dto.paymentStatus) order.paymentStatus = dto.paymentStatus;
-
-    const saved = await this.orderRepo.save(order);
-    return plainToInstance(OrderResDto, saved, {
+    const rows = await this.dataSource
+      .getRepository(OrderStatusHistoryEntity)
+      .find({ where: { orderId }, order: { createdAt: 'ASC' } });
+    return plainToInstance(OrderStatusHistoryResDto, rows, {
       excludeExtraneousValues: true,
     });
+  }
+
+  /** Public: guest-safe history via tracking token (single-use, expires). */
+  async getPublicStatusHistory(
+    token: string,
+  ): Promise<PublicOrderStatusHistoryResDto[]> {
+    const orderId = await this.consumeTrackingToken(token);
+    const rows = await this.dataSource
+      .getRepository(OrderStatusHistoryEntity)
+      .find({ where: { orderId }, order: { createdAt: 'ASC' } });
+    return plainToInstance(PublicOrderStatusHistoryResDto, rows, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  private assertValidTransition(from: OrderStatus, to: OrderStatus): void {
+    const allowed: Record<OrderStatus, OrderStatus[]> = {
+      [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+      [OrderStatus.CONFIRMED]: [OrderStatus.SHIPPING, OrderStatus.CANCELLED],
+      [OrderStatus.SHIPPING]: [OrderStatus.DELIVERED, OrderStatus.CANCELLED],
+      [OrderStatus.DELIVERED]: [],
+      [OrderStatus.CANCELLED]: [],
+    };
+    if (!allowed[from].includes(to)) {
+      throw new BadRequestException(
+        `Invalid status transition: ${from} → ${to}`,
+      );
+    }
+  }
+
+  private async consumeTrackingToken(token: string): Promise<Uuid> {
+    if (!token || token.length < 20 || token.length > 512) {
+      throw new NotFoundException('Order not found');
+    }
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const updateRes = await this.orderTrackingTokenRepo
+      .createQueryBuilder()
+      .update(OrderTrackingTokenEntity)
+      .set({ usedAt: new Date() })
+      .where('"tokenHash" = :tokenHash', { tokenHash })
+      .andWhere('"usedAt" IS NULL')
+      .andWhere('"expiresAt" > NOW()')
+      .returning(['orderId'])
+      .execute();
+    const orderId = updateRes.raw?.[0]?.orderId as Uuid | undefined;
+    if (updateRes.affected !== 1 || !orderId) {
+      throw new NotFoundException('Order not found');
+    }
+    return orderId;
   }
 
   /**
@@ -301,12 +471,11 @@ export class OrdersService {
     });
     if (!order) throw new NotFoundException('Order not found');
 
+    const history = await this.loadPublicStatusHistory(order.id);
     return plainToInstance(
       PublicOrderSummaryResDto,
-      mapOrderToPublicSummary(order),
-      {
-        excludeExtraneousValues: true,
-      },
+      mapOrderToPublicSummary(order, history),
+      { excludeExtraneousValues: true },
     );
   }
 
@@ -347,27 +516,7 @@ export class OrdersService {
 
   /** Public: exchange token for guest-safe summary (single-use, expires) */
   async trackByToken(token: string): Promise<PublicOrderSummaryResDto> {
-    if (!token || token.length < 20 || token.length > 512) {
-      throw new NotFoundException('Order not found');
-    }
-
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-
-    const now = new Date();
-    const updateRes = await this.orderTrackingTokenRepo
-      .createQueryBuilder()
-      .update(OrderTrackingTokenEntity)
-      .set({ usedAt: now })
-      .where('"tokenHash" = :tokenHash', { tokenHash })
-      .andWhere('"usedAt" IS NULL')
-      .andWhere('"expiresAt" > NOW()')
-      .returning(['orderId'])
-      .execute();
-
-    const orderId = updateRes.raw?.[0]?.orderId as Uuid | undefined;
-    if (updateRes.affected !== 1 || !orderId) {
-      throw new NotFoundException('Order not found');
-    }
+    const orderId = await this.consumeTrackingToken(token);
 
     const order = await this.orderRepo.findOne({
       where: { id: orderId },
@@ -375,17 +524,30 @@ export class OrdersService {
     });
     if (!order) throw new NotFoundException('Order not found');
 
+    const history = await this.loadPublicStatusHistory(order.id);
     return plainToInstance(
       PublicOrderSummaryResDto,
-      mapOrderToPublicSummary(order),
-      {
-        excludeExtraneousValues: true,
-      },
+      mapOrderToPublicSummary(order, history),
+      { excludeExtraneousValues: true },
     );
+  }
+
+  private async loadPublicStatusHistory(
+    orderId: Uuid,
+  ): Promise<PublicOrderStatusHistoryResDto[]> {
+    const rows = await this.dataSource
+      .getRepository(OrderStatusHistoryEntity)
+      .find({ where: { orderId }, order: { createdAt: 'ASC' } });
+    return plainToInstance(PublicOrderStatusHistoryResDto, rows, {
+      excludeExtraneousValues: true,
+    });
   }
 }
 
-function mapOrderToPublicSummary(order: OrderEntity) {
+function mapOrderToPublicSummary(
+  order: OrderEntity,
+  statusHistory: PublicOrderStatusHistoryResDto[] = [],
+) {
   const addressPreview = getAddressPreview(order.address);
 
   return {
@@ -399,6 +561,7 @@ function mapOrderToPublicSummary(order: OrderEntity) {
     createdAt: order.createdAt,
     province: order.province ?? null,
     addressPreview,
+    statusHistory,
     items: (order.items ?? []).map((i) => {
       const snap = i.variantSnapshot as Record<string, unknown>;
       const productId =

@@ -2,9 +2,11 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { ProductVariant } from '@longnhan/types';
+import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { submitOrder } from '@/actions/order-actions';
+import { SepayRedirectForm } from '@/components/checkout/sepay-redirect-form';
 import VariantSelector from '@/components/products/variant-selector';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,7 +34,6 @@ import {
   orderCustomerSchema as orderFormSchema,
   type OrderFormValues,
 } from '@/lib/validation/order/order-schemas';
-import QrPaymentInfo from './qr-payment-info';
 
 interface OrderFormProps {
   variants: ProductVariant[];
@@ -40,6 +41,7 @@ interface OrderFormProps {
 }
 
 export default function OrderForm({ variants, productName }: OrderFormProps) {
+  const router = useRouter();
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
     variants.find(
       (v) => (v.active || v.isActive) && (v.stock ?? v.stockQuantity ?? 0) > 0,
@@ -49,6 +51,10 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
   const [variantError, setVariantError] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [sepayRedirect, setSepayRedirect] = useState<{
+    url: string;
+    fields: Record<string, string>;
+  } | null>(null);
 
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(orderFormSchema),
@@ -79,6 +85,7 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
     }
     setVariantError(false);
     setSubmitError(null);
+    setSepayRedirect(null);
 
     const fd = new FormData();
     fd.set('customerName', values.customerName);
@@ -99,7 +106,12 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
 
     startTransition(async () => {
       try {
-        await submitOrder(fd);
+        const res = await submitOrder(fd);
+        if (res.kind === 'sepay') {
+          setSepayRedirect(res.sepay);
+          return;
+        }
+        router.push(`/order-success?code=${encodeURIComponent(res.code)}`);
       } catch (err) {
         setSubmitError(
           err instanceof Error
@@ -112,6 +124,12 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
 
   return (
     <section className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+      {sepayRedirect ? (
+        <SepayRedirectForm
+          url={sepayRedirect.url}
+          fields={sepayRedirect.fields}
+        />
+      ) : null}
       <h2 className="text-xl font-bold text-foreground mb-6">Đặt hàng ngay</h2>
 
       <div className="mb-5">
@@ -311,7 +329,10 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
           />
 
           {paymentMethod === 'bank_transfer' ? (
-            <QrPaymentInfo totalAmount={totalAmount} />
+            <p className="rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+              Sau khi đặt hàng, bạn sẽ được chuyển đến SePay để thanh toán bằng
+              QR hoặc chuyển khoản với đúng số tiền và nội dung đơn.
+            </p>
           ) : null}
 
           <FormField

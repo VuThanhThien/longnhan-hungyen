@@ -82,6 +82,18 @@ export class OrderEntity {
   @Column({ type: 'enum', enum: PaymentMethod, default: PaymentMethod.COD })
   paymentMethod!: PaymentMethod;
 
+  @Column({
+    name: 'sepay_transaction_id',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
+  @Index('UQ_order_sepay_transaction_id', { unique: true })
+  sepayTransactionId: string | null;
+
+  @Column({ name: 'sepay_paid_at', type: 'timestamptz', nullable: true })
+  sepayPaidAt: Date | null;
+
   @Column({ type: 'enum', enum: PaymentStatus, default: PaymentStatus.PENDING })
   @Index('IDX_order_payment_status')
   paymentStatus!: PaymentStatus;

@@ -9,6 +9,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsEnum,
+  IsIn,
   IsOptional,
   IsUUID,
   ValidateNested,
@@ -44,6 +45,16 @@ export class CreateOrderReqDto {
   @IsOptional()
   @IsEnum(PaymentMethod)
   paymentMethod?: PaymentMethod;
+
+  @ApiPropertyOptional({
+    enum: ['manual', 'sepay'],
+    deprecated: true,
+    description:
+      'Ignored: bank_transfer always uses SePay Payment Gateway checkout. Kept for backward-compatible clients.',
+  })
+  @IsOptional()
+  @IsIn(['manual', 'sepay'])
+  bankTransferProvider?: 'manual' | 'sepay';
 
   @StringFieldOptional()
   notes?: string;

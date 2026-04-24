@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 
-import QrPaymentInfo from '@/components/orders/qr-payment-info';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -39,7 +38,6 @@ type CheckoutCustomerFormProps = {
   onSubmit: (values: OrderFormValues) => void;
   isPending: boolean;
   submitError: string | null;
-  totalAmountVnd: number;
   onPhoneChange?: (phone: string) => void;
   voucherSlot?: React.ReactNode;
 };
@@ -48,7 +46,6 @@ export function CheckoutCustomerForm({
   onSubmit,
   isPending,
   submitError,
-  totalAmountVnd,
   onPhoneChange,
   voucherSlot,
 }: CheckoutCustomerFormProps) {
@@ -265,7 +262,11 @@ export function CheckoutCustomerForm({
           />
 
           {paymentMethod === 'bank_transfer' ? (
-            <QrPaymentInfo totalAmount={totalAmountVnd} />
+            <p className="rounded-xl border border-(--brand-forest)/15 bg-(--brand-cream) px-3 py-2 text-sm text-(--brand-forest-muted)">
+              Sau khi bạn đặt hàng, hệ thống sẽ chuyển bạn đến trang thanh toán
+              SePay để quét mã QR hoặc chuyển khoản với đúng số tiền và nội dung
+              đơn hàng.
+            </p>
           ) : null}
 
           {voucherSlot}

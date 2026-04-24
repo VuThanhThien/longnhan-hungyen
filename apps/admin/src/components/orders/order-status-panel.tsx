@@ -14,6 +14,7 @@ interface OrderStatusPanelProps {
   orderId: string;
   initialOrderStatus: OrderStatus;
   initialPaymentStatus: PaymentStatus;
+  onSuggestRefund?: (suggestedAmount: number) => void;
 }
 
 const orderStatusLabels: Record<OrderStatus, string> = {
@@ -47,6 +48,7 @@ export function OrderStatusPanel({
   orderId,
   initialOrderStatus,
   initialPaymentStatus,
+  onSuggestRefund,
 }: OrderStatusPanelProps) {
   const [draftOrderStatus, setDraftOrderStatus] = useState(initialOrderStatus);
   const [draftPaymentStatus, setDraftPaymentStatus] =
@@ -80,13 +82,21 @@ export function OrderStatusPanel({
         paymentStatus: draftPaymentStatus,
       },
       {
-        onSuccess: async () => {
+        onSuccess: async (result) => {
           setBaselineOrderStatus(draftOrderStatus);
           setBaselinePaymentStatus(draftPaymentStatus);
-          await queryClient.invalidateQueries({
-            queryKey: adminQueryKeys.orders.all,
-          });
+          await Promise.all([
+            queryClient.invalidateQueries({
+              queryKey: adminQueryKeys.orders.all,
+            }),
+            queryClient.invalidateQueries({
+              queryKey: adminQueryKeys.orders.statusHistory(orderId),
+            }),
+          ]);
           toast.success('Cập nhật trạng thái thành công');
+          if (result?.suggestRefund && onSuggestRefund) {
+            onSuggestRefund(result.suggestRefund.suggestedAmount);
+          }
         },
         onError: (err) => {
           toast.error(extractErrorMessage(err));

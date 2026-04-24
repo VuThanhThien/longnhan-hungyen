@@ -15,7 +15,7 @@ import {
   paymentMethodLabel,
   paymentStatusLabel,
 } from '@/components/orders/order-summary-panel';
-import QrPaymentInfo from '@/components/orders/qr-payment-info';
+import { OrderStatusTimeline } from '@/components/orders/order-status-timeline';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -65,7 +65,6 @@ export default async function OrderSuccessPage({
   }
 
   const orderCode = summary?.code ?? codeFromQuery;
-  const showBankQr = summary?.paymentMethod === 'bank_transfer';
 
   return (
     <section className="relative mx-auto max-w-xl px-4 py-12 md:py-20">
@@ -158,6 +157,15 @@ export default async function OrderSuccessPage({
                 </Link>
               </Button>
 
+              {summary ? (
+                <div className="mt-2">
+                  <OrderStatusTimeline
+                    orderStatus={summary.orderStatus}
+                    history={summary.statusHistory}
+                  />
+                </div>
+              ) : null}
+
               {summary?.id && summary.phone ? (
                 <AutoSaveOrderForReviews summary={summary} />
               ) : null}
@@ -168,15 +176,6 @@ export default async function OrderSuccessPage({
               trợ.
             </p>
           )}
-
-          {showBankQr ? (
-            <div className="mx-auto max-w-lg">
-              <QrPaymentInfo
-                totalAmount={summary?.total}
-                orderCode={orderCode ?? undefined}
-              />
-            </div>
-          ) : null}
         </CardContent>
 
         <CardFooter className="flex flex-col gap-3 border-t border-border/80 bg-muted/20 px-4 py-6 sm:flex-row sm:justify-center sm:gap-4">

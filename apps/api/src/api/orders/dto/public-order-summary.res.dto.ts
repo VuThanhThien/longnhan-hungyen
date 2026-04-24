@@ -1,10 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Expose } from 'class-transformer';
+import { Expose, Type } from 'class-transformer';
 import {
   OrderStatus,
   PaymentMethod,
   PaymentStatus,
 } from '../entities/order.entity';
+import { PublicOrderStatusHistoryResDto } from './order-status-history.res.dto';
 
 export class PublicOrderItemSummaryResDto {
   @ApiProperty()
@@ -82,4 +83,9 @@ export class PublicOrderSummaryResDto {
   @ApiProperty({ type: [PublicOrderItemSummaryResDto] })
   @Expose()
   items!: PublicOrderItemSummaryResDto[];
+
+  @ApiProperty({ type: [PublicOrderStatusHistoryResDto] })
+  @Expose()
+  @Type(() => PublicOrderStatusHistoryResDto)
+  statusHistory!: PublicOrderStatusHistoryResDto[];
 }

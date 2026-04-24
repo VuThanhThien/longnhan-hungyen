@@ -1,7 +1,13 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
+import {
+  TransactionDirection,
+  TransactionStatus,
+  type Order,
+} from '@longnhan/types';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -14,22 +20,55 @@ import {
 } from '@/components/ui/table';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { OrderStatusPanel } from '@/components/orders/order-status-panel';
+import { OrderStatusTimeline } from '@/components/orders/order-status-timeline';
+import { OrderTransactionsTable } from '@/components/orders/order-transactions-table';
+import { OrderMoneySummary } from '@/components/orders/order-money-summary';
+import { RefundSuggestionDialog } from '@/components/orders/refund-suggestion-dialog';
 import { adminClientGet } from '@/lib/admin-client';
-import type { Order } from '@longnhan/types';
+import { ordersApi } from '@/features/orders/api/orders-api';
+import { adminQueryKeys } from '@/lib/query-keys';
 
 export default function OrderDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
+
+  const [refundOpen, setRefundOpen] = useState(false);
+  const [refundAmount, setRefundAmount] = useState(0);
 
   const {
     data: order,
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ['orders', id],
+    queryKey: adminQueryKeys.orders.detail(id ?? ''),
     enabled: Boolean(id),
     queryFn: () => adminClientGet<Order>(`/orders/${id}`),
   });
+
+  const { data: history = [] } = useQuery({
+    queryKey: adminQueryKeys.orders.statusHistory(id ?? ''),
+    enabled: Boolean(id),
+    queryFn: () => ordersApi.getStatusHistory(id!),
+  });
+
+  const { data: transactions = [] } = useQuery({
+    queryKey: adminQueryKeys.orders.transactions(id ?? ''),
+    enabled: Boolean(id),
+    queryFn: () => ordersApi.getTransactions(id!),
+  });
+
+  const paid = useMemo(
+    () =>
+      transactions
+        .filter((t) => t.status === TransactionStatus.COMPLETED)
+        .reduce(
+          (acc, t) =>
+            acc +
+            (t.direction === TransactionDirection.IN ? t.amount : -t.amount),
+          0,
+        ),
+    [transactions],
+  );
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -45,6 +84,8 @@ export default function OrderDetailPage() {
         ) : null}
         {!order ? null : (
           <>
+            <OrderMoneySummary total={order.total} paid={paid} />
+
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
@@ -83,16 +124,44 @@ export default function OrderDetailPage() {
               </CardContent>
             </Card>
 
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">
+                    Cập nhật trạng thái
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <OrderStatusPanel
+                    orderId={order.id}
+                    initialOrderStatus={order.orderStatus}
+                    initialPaymentStatus={order.paymentStatus}
+                    onSuggestRefund={(amount) => {
+                      setRefundAmount(amount);
+                      setRefundOpen(true);
+                    }}
+                  />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">
+                    Lịch sử trạng thái
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <OrderStatusTimeline history={history} />
+                </CardContent>
+              </Card>
+            </div>
+
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Cập nhật trạng thái</CardTitle>
+                <CardTitle className="text-base">Giao dịch</CardTitle>
               </CardHeader>
               <CardContent>
-                <OrderStatusPanel
-                  orderId={order.id}
-                  initialOrderStatus={order.orderStatus}
-                  initialPaymentStatus={order.paymentStatus}
-                />
+                <OrderTransactionsTable orderId={order.id} />
               </CardContent>
             </Card>
 
@@ -125,6 +194,14 @@ export default function OrderDetailPage() {
                 </Table>
               </CardContent>
             </Card>
+
+            <RefundSuggestionDialog
+              orderId={order.id}
+              open={refundOpen}
+              onOpenChange={setRefundOpen}
+              suggestedAmount={refundAmount}
+              orderPaymentMethod={order.paymentMethod}
+            />
           </>
         )}
       </main>

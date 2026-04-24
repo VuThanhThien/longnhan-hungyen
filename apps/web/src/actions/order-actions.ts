@@ -1,8 +1,5 @@
 'use server';
 
-import { redirect } from 'next/navigation';
-import { isRedirectError } from 'next/dist/client/components/redirect-error';
-
 import { apiServer } from '@/lib/api-server';
 import {
   orderCustomerSchema,
@@ -18,7 +15,17 @@ import {
   captureOrderSubmitSuccess,
 } from '@/lib/observability/order-submit-sentry';
 
-export async function submitOrder(formData: FormData): Promise<void> {
+export type SubmitOrderResult =
+  | { kind: 'success'; code: string }
+  | {
+      kind: 'sepay';
+      code: string;
+      sepay: { url: string; fields: Record<string, string> };
+    };
+
+export async function submitOrder(
+  formData: FormData,
+): Promise<SubmitOrderResult> {
   let itemsJson: unknown;
   try {
     itemsJson = requireJsonString(formData, 'items');
@@ -63,6 +70,7 @@ export async function submitOrder(formData: FormData): Promise<void> {
       code: string;
       total: number;
       paymentMethod: string;
+      sepay?: { url: string; fields: Record<string, string> };
     }>('/orders', body);
 
     if (!data?.code) {
@@ -71,12 +79,12 @@ export async function submitOrder(formData: FormData): Promise<void> {
 
     captureOrderSubmitSuccess(data.code);
 
-    redirect(`/order-success?code=${encodeURIComponent(data.code)}`);
-  } catch (err) {
-    if (isRedirectError(err)) {
-      throw err;
+    if (data.sepay) {
+      return { kind: 'sepay', code: data.code, sepay: data.sepay };
     }
 
+    return { kind: 'success', code: data.code };
+  } catch (err) {
     captureOrderSubmitFailure(err);
     throw new Error('Đặt hàng thất bại, vui lòng thử lại.');
   }

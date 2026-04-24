@@ -14,6 +14,14 @@ export type PublicOrderItemSummary = {
   variantLabel?: string;
 };
 
+export type PublicOrderStatusHistoryEntry = {
+  id: string;
+  fromStatus: string | null;
+  toStatus: string;
+  actorType: 'system' | 'admin' | 'customer';
+  createdAt: string;
+};
+
 export type PublicOrderSummary = {
   id: string;
   code: string;
@@ -26,6 +34,7 @@ export type PublicOrderSummary = {
   province: string | null;
   addressPreview: string | null;
   items: PublicOrderItemSummary[];
+  statusHistory?: PublicOrderStatusHistoryEntry[];
 };
 
 export type LookupOrderState =

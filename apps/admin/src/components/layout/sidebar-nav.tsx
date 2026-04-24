@@ -11,12 +11,14 @@ import {
   Star,
   FolderTree,
   Ticket,
+  Receipt,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/', label: 'Tổng quan', icon: LayoutDashboard },
   { href: '/orders', label: 'Đơn hàng', icon: ShoppingCart },
+  { href: '/transactions', label: 'Giao dịch', icon: Receipt },
   { href: '/products', label: 'Sản phẩm', icon: Package },
   { href: '/categories', label: 'Danh mục', icon: FolderTree },
   { href: '/articles', label: 'Bài viết', icon: FileText },

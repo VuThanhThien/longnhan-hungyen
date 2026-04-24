@@ -6,7 +6,6 @@ import {
   PaymentMethod,
   PaymentStatus,
 } from '../entities/order.entity';
-
 export class OrderItemResDto {
   @ApiProperty()
   @Expose()
@@ -98,4 +97,15 @@ export class OrderResDto {
   @ApiProperty()
   @Expose()
   updatedAt!: Date;
+
+  @ApiPropertyOptional({
+    description: 'Present when bank transfer uses SePay hosted checkout',
+    type: 'object',
+    additionalProperties: true,
+  })
+  @Expose()
+  sepay?: {
+    url: string;
+    fields: Record<string, string>;
+  };
 }

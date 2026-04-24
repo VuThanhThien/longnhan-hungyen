@@ -1,6 +1,7 @@
 import { Check, Circle, Package, Truck, XCircle } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import type { PublicOrderStatusHistoryEntry } from '@/actions/order-tracking-actions';
 
 export type OrderStatusValue =
   | 'pending'
@@ -45,22 +46,54 @@ function statusIndex(status: OrderStatusValue): number {
   }
 }
 
+function formatShortTimestamp(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function buildStepTimestamps(
+  history: PublicOrderStatusHistoryEntry[] | undefined,
+): Record<OrderStatusValue, string | undefined> {
+  const out: Record<OrderStatusValue, string | undefined> = {
+    pending: undefined,
+    confirmed: undefined,
+    shipping: undefined,
+    delivered: undefined,
+    cancelled: undefined,
+  };
+  if (!history?.length) return out;
+  for (const entry of history) {
+    const s = entry.toStatus as OrderStatusValue;
+    if (!out[s]) out[s] = entry.createdAt;
+  }
+  return out;
+}
+
 export function OrderStatusTimeline({
   orderStatus,
+  history,
   className,
 }: {
   orderStatus: string;
+  history?: PublicOrderStatusHistoryEntry[];
   className?: string;
 }) {
   const s = orderStatus as OrderStatusValue;
   const cancelled = s === 'cancelled';
   const currentIdx = statusIndex(s);
   const delivered = s === 'delivered';
+  const timestamps = buildStepTimestamps(history);
 
   const isStepComplete = (idx: number) => delivered || idx < currentIdx;
   const isStepCurrent = (idx: number) => !delivered && idx === currentIdx;
 
   if (cancelled) {
+    const cancelAt = timestamps.cancelled;
     return (
       <div
         className={cn(
@@ -78,6 +111,11 @@ export function OrderStatusTimeline({
             <p className="mt-1 text-muted-foreground">
               Đơn không còn được xử lý. Liên hệ hỗ trợ nếu bạn cần trợ giúp.
             </p>
+            {cancelAt ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Hủy lúc {formatShortTimestamp(cancelAt)}
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
@@ -91,6 +129,7 @@ export function OrderStatusTimeline({
           const isLast = idx === STEPS.length - 1;
           const complete = isStepComplete(idx);
           const current = isStepCurrent(idx);
+          const ts = timestamps[step.key];
 
           return (
             <li key={step.key} className="relative flex gap-4">
@@ -101,7 +140,7 @@ export function OrderStatusTimeline({
                     complete &&
                       'border-primary bg-primary text-primary-foreground shadow-sm',
                     current &&
-                      'border-primary bg-background text-primary ring-4 ring-primary/15',
+                      'border-primary bg-background text-primary ring-4 ring-primary/15 animate-pulse',
                     !complete &&
                       !current &&
                       'border-border bg-muted/50 text-muted-foreground',
@@ -140,6 +179,11 @@ export function OrderStatusTimeline({
                 <p className="mt-1 text-sm text-muted-foreground">
                   {step.description}
                 </p>
+                {ts ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formatShortTimestamp(ts)}
+                  </p>
+                ) : null}
                 {current && step.key === 'shipping' ? (
                   <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
                     <Truck className="size-3.5" aria-hidden />

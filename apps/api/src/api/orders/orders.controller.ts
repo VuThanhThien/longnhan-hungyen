@@ -1,5 +1,6 @@
 import { OffsetPaginatedDto } from '@/common/dto/offset-pagination/paginated.dto';
 import { Uuid } from '@/common/types/common.type';
+import { CurrentUser } from '@/decorators/current-user.decorator';
 import { ApiAuth, ApiPublic } from '@/decorators/http.decorators';
 import {
   Body,
@@ -16,8 +17,13 @@ import {
 } from '@nestjs/common';
 import { ApiParam, ApiTags } from '@nestjs/swagger';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
+import { JwtPayloadType } from '../auth/types/jwt-payload.type';
 import { CreateOrderReqDto } from './dto/create-order.req.dto';
 import { OrderQueryReqDto } from './dto/order-query.req.dto';
+import {
+  OrderStatusHistoryResDto,
+  PublicOrderStatusHistoryResDto,
+} from './dto/order-status-history.res.dto';
 import { OrderResDto } from './dto/order.res.dto';
 import { PublicOrderSummaryResDto } from './dto/public-order-summary.res.dto';
 import { UpdateOrderStatusReqDto } from './dto/update-order-status.req.dto';
@@ -97,7 +103,35 @@ export class OrdersController {
   async updateStatus(
     @Param('id', ParseUUIDPipe) id: Uuid,
     @Body() dto: UpdateOrderStatusReqDto,
+    @CurrentUser() user: JwtPayloadType,
   ): Promise<OrderResDto> {
-    return this.ordersService.updateStatus(id, dto);
+    return this.ordersService.updateStatus(id, dto, (user?.id as Uuid) ?? null);
+  }
+
+  @ApiAuth({
+    type: OrderStatusHistoryResDto,
+    summary: 'Get order status history (admin)',
+  })
+  @ApiParam({ name: 'id', type: 'String' })
+  @Get(':id/status-history')
+  async getStatusHistory(
+    @Param('id', ParseUUIDPipe) id: Uuid,
+  ): Promise<OrderStatusHistoryResDto[]> {
+    return this.ordersService.getStatusHistory(id);
+  }
+
+  @ApiPublic({
+    type: PublicOrderStatusHistoryResDto,
+    summary: 'Public status history via tracking token (single-use)',
+    statusCode: 200,
+  })
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
+  @Get('track-by-token/status-history')
+  @HttpCode(HttpStatus.OK)
+  async getPublicStatusHistory(
+    @Query('t') token: string,
+  ): Promise<PublicOrderStatusHistoryResDto[]> {
+    return this.ordersService.getPublicStatusHistory(token);
   }
 }

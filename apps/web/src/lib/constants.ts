@@ -16,7 +16,7 @@ export const SOCIAL_LINKS = {
 
 export const PAYMENT_METHODS = [
   { value: 'cod', label: 'Thanh toán khi nhận hàng (COD)' },
-  { value: 'bank_transfer', label: 'Chuyển khoản ngân hàng' },
+  { value: 'bank_transfer', label: 'Chuyển khoản (SePay — QR / CK)' },
 ];
 
 export const SHIPPING_FLAT_VND = 30_000;
