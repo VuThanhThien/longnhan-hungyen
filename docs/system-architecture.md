@@ -146,6 +146,7 @@ Each module follows standard NestJS structure:
   3. Updates it to COMPLETED with `referenceNo=sepay_transaction_id` and `occurredAt=payment_date`
   4. Inserts an `OrderStatusHistory` record for PENDING→CONFIRMED transition
   5. Marks order as PAID + CONFIRMED (idempotent on `sepay_transaction_id`)
+  6. Enqueues order tracking email via BullMQ (sent only after payment success)
 
 - **Fallback**: If PENDING transaction is not found (e.g., race condition or manual order creation), a COMPLETED transaction is created directly with the SePay reference.
 
@@ -160,9 +161,10 @@ Each module follows standard NestJS structure:
 
 #### Email Service (src/mail/)
 
-- **MailerService** — Nodemailer + NestJS Mailer wrapper
-- **Templates** — Handlebars email templates
-- HTML emails for: sign-up, reset password, order confirmation, etc.
+- **MailService** — Brevo SDK HTTP wrapper for email delivery
+- **Templates** — Handlebars email templates compiled locally
+- HTML emails for: sign-up, reset password, order confirmation, order tracking (sent after payment success), etc.
+- **Order tracking email** — Triggered on successful payment confirmation (IPN), not on order creation
 
 #### Caching (src/shared/cache/)
 
@@ -407,18 +409,22 @@ TypeORM Repository.save(productEntity)
 HTTP Response (201 Created + Product)
 ```
 
-### Background Job Flow (Example: Send Email)
+### Background Job Flow (Example: Send Email on Payment Success)
 
 ```
-EmailService.sendEmail(dto)
+PaymentsService.applyVerifiedSepayCapture()
+  ↓
+[Order marked PAID + CONFIRMED]
+  ↓
+EmailService.enqueueOrderTrackingLinkEmail(orderId)
   ↓
 EmailQueue.add(job)
   ↓
 [BullMQ processor picks up job]
   ↓
-MailerService.sendMail(template, recipients)
+MailService.sendMail(template, recipients)
   ↓
-Nodemailer/SMTP delivery
+Brevo API delivery
   ↓
 [Log delivery status]
   ↓

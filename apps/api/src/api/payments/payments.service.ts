@@ -2,6 +2,7 @@ import {
   OrderStatusHistoryActor,
   OrderStatusHistoryEntity,
 } from '@/api/orders/entities/order-status-history.entity';
+import { OrderTrackingTokenEntity } from '@/api/orders/entities/order-tracking-token.entity';
 import {
   OrderEntity,
   OrderStatus,
@@ -15,9 +16,16 @@ import {
   TransactionStatus,
   TransactionType,
 } from '@/api/transactions/entities/transaction.entity';
+import { IOrderTrackingLinkJob } from '@/common/interfaces/job.interface';
 import { Uuid } from '@/common/types/common.type';
+import { AllConfigType } from '@/config/config.type';
+import { JobName, QueueName } from '@/constants/job.constant';
+import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Queue } from 'bullmq';
+import crypto from 'crypto';
 import { DataSource, IsNull, Repository } from 'typeorm';
 import { SepayService } from '../../integrations/sepay/sepay.service';
 import { SepayIpnReqDto } from './dto/sepay-ipn.req.dto';
@@ -29,6 +37,11 @@ export class PaymentsService {
   constructor(
     @InjectRepository(OrderEntity)
     private readonly orderRepo: Repository<OrderEntity>,
+    @InjectRepository(OrderTrackingTokenEntity)
+    private readonly orderTrackingTokenRepo: Repository<OrderTrackingTokenEntity>,
+    @InjectQueue(QueueName.EMAIL)
+    private readonly emailQueue: Queue<IOrderTrackingLinkJob, any, string>,
+    private readonly configService: ConfigService<AllConfigType>,
     private readonly dataSource: DataSource,
     private readonly sepayService: SepayService,
   ) {}
@@ -214,5 +227,51 @@ export class PaymentsService {
         actorId: null,
       });
     });
+
+    if (order.email) {
+      try {
+        await this.enqueueOrderTrackingLinkEmail(order);
+      } catch (err) {
+        this.logger.error(
+          `Failed to enqueue tracking email for order ${order.code}`,
+          err instanceof Error ? err.stack : err,
+        );
+      }
+    }
+  }
+
+  private async enqueueOrderTrackingLinkEmail(
+    order: OrderEntity,
+  ): Promise<void> {
+    if (!order.email) return;
+
+    const token = crypto.randomBytes(32).toString('base64url');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const ttlHours = 48;
+    const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000);
+
+    await this.orderTrackingTokenRepo.save(
+      this.orderTrackingTokenRepo.create({
+        orderId: order.id,
+        tokenHash,
+        expiresAt,
+        usedAt: null,
+      }),
+    );
+
+    const webPublicUrl = this.configService.getOrThrow('app.webPublicUrl', {
+      infer: true,
+    });
+    const url = `${webPublicUrl.replace(/\/$/, '')}/track-order?t=${encodeURIComponent(token)}`;
+
+    await this.emailQueue.add(
+      JobName.ORDER_TRACKING_LINK,
+      {
+        email: order.email,
+        url,
+        orderCode: order.code,
+      },
+      { attempts: 3, backoff: { type: 'exponential', delay: 60000 } },
+    );
   }
 }

@@ -1,5 +1,3 @@
-import { QueueName, QueuePrefix } from '@/constants/job.constant';
-import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProductVariantEntity } from '../products/entities/product-variant.entity';
@@ -21,15 +19,6 @@ import { OrdersService } from './orders.service';
       OrderTrackingTokenEntity,
       ProductVariantEntity,
     ]),
-    BullModule.registerQueue({
-      name: QueueName.EMAIL,
-      prefix: QueuePrefix.AUTH,
-      streams: {
-        events: {
-          maxLen: 1000,
-        },
-      },
-    }),
     VouchersModule,
     TransactionsModule,
   ],

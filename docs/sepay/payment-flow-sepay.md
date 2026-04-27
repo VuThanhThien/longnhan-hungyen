@@ -73,6 +73,7 @@ sequenceDiagram
   participant PAY as SePay hosted checkout
   participant PG as SePay PG API
   participant IPN as API IPN handler
+  participant EM as Email queue
 
   U->>W: Submit checkout bank_transfer
   W->>A: POST create order
@@ -94,6 +95,8 @@ sequenceDiagram
   IPN->>IPN: Update transaction status to COMPLETED
   IPN->>IPN: Insert OrderStatusHistory PENDING→CONFIRMED
   IPN->>IPN: Idempotent sepay_transaction_id
+  IPN->>EM: Enqueue order tracking email
+  EM-->>IPN: Job queued
   IPN-->>PAY: 200 JSON ack
 
   PAY-->>U: Redirect success error cancel URL
@@ -159,7 +162,7 @@ sequenceDiagram
 - **Web** (`apps/web`): Server action creates an order with `paymentMethod: bank_transfer`. The API returns `sepay: { url, fields }`. The client renders **SepayRedirectForm** — a hidden form that **auto-POSTs** to SePay with the signed fields.
 - **Quick order** uses the same pattern.
 - **After payment**, SePay redirects to `apps/web/src/app/checkout/success|error|cancel`.
-- **API** (`apps/api`): SePay **IPN** hits your configured URL (e.g. `POST` payment webhook). The service treats **`ORDER_PAID`** + **`APPROVED`** as candidates, then **re-verifies** the order via the SePay PG SDK (`order.retrieve(order_invoice_number)`) and checks amount/currency before marking the order paid — **idempotent** on `sepay_transaction_id`. See `docs/system-architecture.md` (Payments — SePay).
+- **API** (`apps/api`): SePay **IPN** hits your configured URL (e.g. `POST` payment webhook). The service treats **`ORDER_PAID`** + **`APPROVED`** as candidates, then **re-verifies** the order via the SePay PG SDK (`order.retrieve(order_invoice_number)`) and checks amount/currency before marking the order paid — **idempotent** on `sepay_transaction_id`. After payment confirmation, the handler **enqueues the order tracking email** via BullMQ (sent only after successful payment, not on order creation). See `docs/system-architecture.md` (Payments — SePay).
 
 **Transaction tracking:**
 
@@ -170,8 +173,9 @@ sequenceDiagram
   2. Updates its status to COMPLETED with the SePay transaction ID as reference
   3. Records the payment timestamp (`occurredAt`)
   4. Creates an `OrderStatusHistory` entry for the PENDING→CONFIRMED state transition
+  5. Enqueues order tracking email via BullMQ (sent only after payment success)
 
-This ensures every bank transfer order has a corresponding transaction record, enabling financial reporting and reconciliation workflows.
+This ensures every bank transfer order has a corresponding transaction record, enabling financial reporting and reconciliation workflows. Order tracking emails are sent only after payment confirmation, not on order creation.
 
 ---
 

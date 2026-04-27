@@ -39,7 +39,7 @@ Provide a scalable, secure, and maintainable backend API for an e-commerce platf
 - **Articles** — Blog/CMS with DRAFT/PUBLISHED status, Tiptap content
 - **Media** — Cloudinary upload/delete, folder management, dual removal safety
 - **Dashboard** — Admin stats (revenue by period, order count, daily breakdown)
-- **Email** — Nodemailer + templates (queued via BullMQ)
+- **Email** — Brevo SDK HTTP wrapper + Handlebars templates (queued via BullMQ); order tracking emails sent on payment success (IPN), not on order creation
 - **API Documentation** — Swagger/OpenAPI at `/api-docs`
 - **Database** — TypeORM with PostgreSQL, auto-generated migrations
 - **Caching** — Redis cache-manager, pessimistic locking

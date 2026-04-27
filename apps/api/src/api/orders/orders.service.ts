@@ -1,19 +1,13 @@
 import { OffsetPaginatedDto } from '@/common/dto/offset-pagination/paginated.dto';
-import { IOrderTrackingLinkJob } from '@/common/interfaces/job.interface';
+
 import { Uuid } from '@/common/types/common.type';
-import { AllConfigType } from '@/config/config.type';
-import { JobName, QueueName } from '@/constants/job.constant';
 import { paginate } from '@/utils/offset-pagination';
-import { InjectQueue } from '@nestjs/bullmq';
 import {
   BadRequestException,
   Injectable,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Queue } from 'bullmq';
 import { plainToInstance } from 'class-transformer';
 import crypto from 'crypto';
 import { DataSource, EntityManager, Repository } from 'typeorm';
@@ -52,10 +46,7 @@ import {
 
 @Injectable()
 export class OrdersService {
-  private readonly logger = new Logger(OrdersService.name);
-
   constructor(
-    private readonly configService: ConfigService<AllConfigType>,
     @InjectRepository(OrderEntity)
     private readonly orderRepo: Repository<OrderEntity>,
     @InjectRepository(OrderItemEntity)
@@ -64,8 +55,6 @@ export class OrdersService {
     private readonly orderTrackingTokenRepo: Repository<OrderTrackingTokenEntity>,
     @InjectRepository(ProductVariantEntity)
     private readonly variantRepo: Repository<ProductVariantEntity>,
-    @InjectQueue(QueueName.EMAIL)
-    private readonly emailQueue: Queue<IOrderTrackingLinkJob, any, string>,
     private readonly dataSource: DataSource,
     private readonly vouchersService: VouchersService,
     private readonly transactionsService: TransactionsService,
@@ -230,20 +219,6 @@ export class OrdersService {
 
       return resDto;
     });
-
-    const order = await this.orderRepo.findOne({
-      where: { code: result.code },
-    });
-    if (order?.email) {
-      try {
-        await this.enqueueOrderTrackingLinkEmail(order);
-      } catch (err) {
-        this.logger.error(
-          `Failed to enqueue tracking email for order ${order.code}`,
-          err instanceof Error ? err.stack : err,
-        );
-      }
-    }
 
     return result;
   }
@@ -476,41 +451,6 @@ export class OrdersService {
       PublicOrderSummaryResDto,
       mapOrderToPublicSummary(order, history),
       { excludeExtraneousValues: true },
-    );
-  }
-
-  private async enqueueOrderTrackingLinkEmail(
-    order: OrderEntity,
-  ): Promise<void> {
-    if (!order.email) return;
-
-    const token = crypto.randomBytes(32).toString('base64url');
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const ttlHours = 48;
-    const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000);
-
-    await this.orderTrackingTokenRepo.save(
-      this.orderTrackingTokenRepo.create({
-        orderId: order.id,
-        tokenHash,
-        expiresAt,
-        usedAt: null,
-      }),
-    );
-
-    const webPublicUrl = this.configService.getOrThrow('app.webPublicUrl', {
-      infer: true,
-    });
-    const url = `${webPublicUrl.replace(/\/$/, '')}/track-order?t=${encodeURIComponent(token)}`;
-
-    await this.emailQueue.add(
-      JobName.ORDER_TRACKING_LINK,
-      {
-        email: order.email,
-        url,
-        orderCode: order.code,
-      },
-      { attempts: 3, backoff: { type: 'exponential', delay: 60000 } },
     );
   }
 

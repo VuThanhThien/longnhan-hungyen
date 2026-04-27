@@ -465,9 +465,10 @@ Reusable NestJS modules:
 
 #### Email Service (`src/mail/`)
 
-- **mail.service.ts** — Nodemailer wrapper
-- **templates/** — Handlebars HTML templates
-- Integration: NestJS Mailer + Nodemailer
+- **mail.service.ts** — Brevo SDK HTTP wrapper for email delivery
+- **templates/** — Handlebars HTML templates compiled locally
+- Integration: Brevo API for SMTP delivery
+- **Order tracking email** — Triggered on successful payment confirmation (IPN), not on order creation
 
 #### Caching (`src/shared/cache/`)
 

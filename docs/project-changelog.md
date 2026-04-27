@@ -6,6 +6,25 @@ All notable changes to the Long Nhan Hung Yen e-commerce project are documented 
 
 ---
 
+## [5.4.0] - 2026-04-27 - Fix: Order tracking email sent only after payment success
+
+### Fixed
+
+- **Order tracking email timing** — Moved `enqueueOrderTrackingLinkEmail()` from `OrdersService.createOrder()` to `PaymentsService.applyVerifiedSepayCapture()`. Order tracking emails are now sent only after successful payment confirmation (IPN), not on order creation. This prevents customers from receiving tracking emails for unpaid orders.
+  - Removed email call from order creation flow
+  - Added email call to IPN payment success handler
+  - Added email call to reconciliation sweep (`SepayReconcileProcessor`) when it catches a paid order
+  - Idempotent: email sent only once per order
+
+### Changed
+
+- `docs/system-architecture.md` — Updated Payments section and Email Service description
+- `docs/sepay/payment-flow-sepay.md` — Updated sequence diagram and IPN handler documentation
+- `docs/codebase-summary.md` — Updated Email Service section
+- `docs/project-overview-pdr.md` — Updated email feature description
+
+---
+
 ## [5.3.0] - 2026-04-27 - Admin dashboard data layer & UI primitives
 
 ### Added

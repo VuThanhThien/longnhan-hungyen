@@ -1,3 +1,4 @@
+import { FOOTER_PAGES } from '@/data/footer-pages';
 import { LANDING_FOOTER_TAGLINE } from '@/data/landing-page-content';
 import {
   CONTACT_ADDRESS,
@@ -84,11 +85,16 @@ export default async function Footer() {
             Hỗ trợ khách hàng
           </h3>
           <ul className="space-y-2 text-sm text-(--brand-cream)/80">
-            <li>Chính sách khách hàng thân thiết</li>
-            <li>Chính sách bảo mật thông tin</li>
-            <li>Chính sách vận chuyển</li>
-            <li>Chính sách đổi - trả hàng</li>
-            <li>Chính sách thanh toán</li>
+            {FOOTER_PAGES.map((page) => (
+              <li key={page.slug}>
+                <Link
+                  href={`/${page.slug}`}
+                  className="transition hover:text-(--brand-cream)"
+                >
+                  {page.title}
+                </Link>
+              </li>
+            ))}
             <li>
               <Link href="/" className="transition hover:text-(--brand-cream)">
                 Liên hệ
