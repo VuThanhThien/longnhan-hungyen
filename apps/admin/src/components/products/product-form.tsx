@@ -1,10 +1,15 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import type { Category } from '@longnhan/types';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2, Trash2 } from 'lucide-react';
+import { useFieldArray, useForm, type Resolver } from 'react-hook-form';
+import { toast } from 'sonner';
 import { adminClientGet } from '@/lib/admin-client';
 import { adminQueryKeys } from '@/lib/query-keys';
+import { extractErrorMessage } from '@/lib/http/extract-error-message';
 import { TiptapHtmlEditor } from '@/components/articles/tiptap-html-editor';
 import { MediaUrlPicker } from '@/components/media/media-url-picker';
 import {
@@ -13,8 +18,33 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { useForm, type Resolver } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
+import { Button } from '@/components/ui/button';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 import type { ProductFormProps, VariantDraft } from './product-form.interface';
 import {
   productFormSchema,
@@ -36,20 +66,11 @@ export function ProductForm({
     queryFn: () => adminClientGet<Category[]>('/categories/admin'),
   });
 
-  const [featuredImageUrl, setFeaturedImageUrl] = useState(
-    initialProduct?.featuredImageUrl || '',
-  );
-  const [descriptionHtml, setDescriptionHtml] = useState(
-    initialProduct?.descriptionHtml || '',
-  );
   const initialSummary =
     initialProduct?.summary || initialProduct?.description || '';
-  const [summaryHtml, setSummaryHtml] = useState(
-    initialSummary ? coerceToHtml(initialSummary) : '',
-  );
-  const [variants, setVariants] = useState<VariantDraft[] | null>(() => {
-    if (!showVariants) return null;
-    return (
+  const initialVariants = useMemo<VariantDraft[] | undefined>(() => {
+    if (!showVariants) return undefined;
+    const fromProduct =
       initialProduct?.variants?.map((variant) => ({
         label: variant.label,
         price: variant.price,
@@ -58,348 +79,506 @@ export function ProductForm({
         skuCode: variant.skuCode || undefined,
         sortOrder: variant.sortOrder,
         active: variant.active,
-      })) || [{ label: '', price: 0, stock: 0, sortOrder: 0, active: true }]
-    );
-  });
+      })) ?? [];
+    return fromProduct.length > 0
+      ? fromProduct
+      : [{ label: '', price: 0, stock: 0, sortOrder: 0, active: true }];
+  }, [initialProduct?.variants, showVariants]);
 
-  const variantsJson = useMemo(
-    () => (variants ? JSON.stringify(variants) : ''),
-    [variants],
-  );
-
-  function updateVariant(
-    index: number,
-    key: keyof VariantDraft,
-    value: string | number | boolean,
-  ) {
-    setVariants((prev) => {
-      if (!prev) return prev;
-      return prev.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, [key]: value } : item,
-      );
-    });
-  }
-
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    formState: { errors },
-  } = useForm<ProductFormValues>({
-    resolver: yupResolver(
+  const form = useForm<ProductFormValues>({
+    resolver: zodResolver(
       productFormSchema,
     ) as unknown as Resolver<ProductFormValues>,
+    mode: 'onSubmit',
+    reValidateMode: 'onSubmit',
     defaultValues: {
-      name: initialProduct?.name || '',
+      name: initialProduct?.name ?? '',
       categoryId: initialProduct?.categoryBrief?.id ?? '',
-      basePrice: initialProduct?.basePrice || 0,
-      videoUrl: initialProduct?.videoUrl || '',
+      basePrice: initialProduct?.basePrice ?? 0,
+      videoUrl: initialProduct?.videoUrl ?? '',
       active: initialProduct?.active ?? true,
-      images: initialProduct?.images?.join('\n') || '',
-      summary: summaryHtml,
-      descriptionHtml: descriptionHtml,
-      featuredImageUrl: featuredImageUrl,
-      variantsJson: showVariants ? variantsJson : undefined,
+      images: initialProduct?.images?.join('\n') ?? '',
+      summary: initialSummary ? coerceToHtml(initialSummary) : '',
+      descriptionHtml: initialProduct?.descriptionHtml ?? '',
+      featuredImageUrl: initialProduct?.featuredImageUrl ?? '',
+      variants: showVariants ? initialVariants : [],
     },
   });
 
-  useEffect(() => {
-    setValue('featuredImageUrl', featuredImageUrl, { shouldValidate: true });
-  }, [featuredImageUrl, setValue]);
+  const variantsArray = useFieldArray({
+    control: form.control,
+    name: 'variants',
+  });
 
-  useEffect(() => {
-    setValue('summary', summaryHtml, { shouldValidate: true });
-  }, [summaryHtml, setValue]);
+  const submitMutation = useMutation({
+    mutationFn: async (formData: FormData) => {
+      await onSubmit(formData);
+    },
+    onSuccess: () => {
+      toast.success('Đã lưu sản phẩm');
+    },
+    onError: (err) => {
+      toast.error(extractErrorMessage(err));
+    },
+  });
 
-  useEffect(() => {
-    setValue('descriptionHtml', descriptionHtml, { shouldValidate: true });
-  }, [descriptionHtml, setValue]);
-
-  useEffect(() => {
-    if (!showVariants) return;
-    setValue('variantsJson', variantsJson, { shouldValidate: true });
-  }, [showVariants, variantsJson, setValue]);
+  const submitting = isSubmitting ?? submitMutation.isPending;
 
   return (
-    <form
-      id={formId}
-      className="space-y-4"
-      onSubmit={handleSubmit(async (data: ProductFormValues) => {
-        const formData = new FormData();
-        formData.set('name', data.name);
-        formData.set('categoryId', data.categoryId);
-        formData.set('basePrice', String(data.basePrice ?? 0));
-        if (data.videoUrl) formData.set('videoUrl', data.videoUrl);
-        if (data.active) formData.set('active', 'on');
-        formData.set('summary', data.summary || '');
-        formData.set('descriptionHtml', data.descriptionHtml || '');
-        formData.set('featuredImageUrl', data.featuredImageUrl || '');
-        formData.set('images', data.images || '');
-        if (showVariants) {
-          formData.set('variantsJson', data.variantsJson || '[]');
-        }
-        await onSubmit(formData);
-      })}
-    >
-      <Accordion
-        type="single"
-        collapsible
-        defaultValue="basic"
-        className="w-full rounded-lg border border-border px-4"
+    <Form {...form}>
+      <form
+        id={formId}
+        className="space-y-5"
+        onSubmit={form.handleSubmit(async (data) => {
+          const formData = new FormData();
+          formData.set('name', data.name);
+          formData.set('categoryId', data.categoryId);
+          formData.set('basePrice', String(data.basePrice ?? 0));
+          if (data.videoUrl) formData.set('videoUrl', data.videoUrl);
+          if (data.active) formData.set('active', 'on');
+          formData.set('summary', data.summary || '');
+          formData.set('descriptionHtml', data.descriptionHtml || '');
+          formData.set('featuredImageUrl', data.featuredImageUrl || '');
+          formData.set('images', data.images || '');
+          if (showVariants) {
+            const variants = (data.variants ?? []).map((v, i) => ({
+              ...v,
+              sortOrder: i,
+            }));
+            formData.set('variantsJson', JSON.stringify(variants));
+          }
+          await submitMutation.mutateAsync(formData);
+        })}
       >
-        <AccordionItem value="basic">
-          <AccordionTrigger>Thông tin cơ bản</AccordionTrigger>
-          <AccordionContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-1">
-                <label className="text-sm text-muted-foreground">
-                  Tên sản phẩm
-                </label>
-                <input
-                  {...register('name')}
-                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
-                  required
+        <Accordion
+          type="single"
+          collapsible
+          defaultValue="basic"
+          className="w-full rounded-lg border border-border px-4"
+        >
+          <AccordionItem value="basic">
+            <AccordionTrigger>Thông tin cơ bản</AccordionTrigger>
+            <AccordionContent className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tên sản phẩm</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="VD: Long nhãn Hưng Yên"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                {errors.name?.message ? (
-                  <p className="text-xs text-destructive">
-                    {errors.name.message}
-                  </p>
-                ) : null}
-              </div>
-              <div className="space-y-1">
-                <label
-                  className="text-sm text-muted-foreground"
-                  htmlFor="product-categoryId"
-                >
-                  Danh mục
-                </label>
-                <select
-                  id="product-categoryId"
-                  {...register('categoryId')}
-                  className="h-10 w-full rounded-md border border-border bg-popover px-3 text-sm"
-                >
-                  <option value="">— Chọn danh mục —</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                      {!c.active ? ' (đã tắt)' : ''}
-                    </option>
-                  ))}
-                </select>
-                {errors.categoryId?.message ? (
-                  <p className="text-xs text-destructive">
-                    {errors.categoryId.message}
-                  </p>
-                ) : null}
-              </div>
-            </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="space-y-1">
-                <label className="text-sm text-muted-foreground">Giá gốc</label>
-                <input
-                  type="number"
-                  min={0}
-                  {...register('basePrice', { valueAsNumber: true })}
-                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
-                  required
-                />
-                {errors.basePrice?.message ? (
-                  <p className="text-xs text-destructive">
-                    {errors.basePrice.message}
-                  </p>
-                ) : null}
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm text-muted-foreground">
-                  Video URL
-                </label>
-                <input
-                  {...register('videoUrl')}
-                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
+                <FormField
+                  control={form.control}
+                  name="categoryId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Danh mục</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={(value) => field.onChange(value)}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="— Chọn danh mục —" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {categories.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}
+                              {!c.active ? ' (đã tắt)' : ''}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
               </div>
-              <div className="flex items-end">
-                <label className="inline-flex items-center gap-2 text-sm text-foreground/90">
-                  <input type="checkbox" {...register('active')} />
-                  Kích hoạt sản phẩm
-                </label>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <FormField
+                  control={form.control}
+                  name="basePrice"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Giá gốc</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={0}
+                          step={1000}
+                          value={field.value ?? 0}
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value === ''
+                                ? 0
+                                : Number(e.target.value),
+                            )
+                          }
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="videoUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Video URL (tuỳ chọn)</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="https://…" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="active"
+                  render={({ field }) => (
+                    <FormItem className="flex h-9 mt-2 items-end">
+                      <label className="inline-flex cursor-pointer items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={(next: boolean | 'indeterminate') =>
+                            field.onChange(Boolean(next))
+                          }
+                        />
+                        <span>Kích hoạt sản phẩm</span>
+                      </label>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-            </div>
-          </AccordionContent>
-        </AccordionItem>
+            </AccordionContent>
+          </AccordionItem>
 
-        <AccordionItem value="summary">
-          <AccordionTrigger>Tóm tắt</AccordionTrigger>
-          <AccordionContent className="space-y-1">
-            <label className="sr-only">Tóm tắt</label>
-            <TiptapHtmlEditor
-              value={summaryHtml}
-              onChange={setSummaryHtml}
-              placeholder="Viết tóm tắt ngắn…"
-              className="rounded-md border border-border"
-            />
-          </AccordionContent>
-        </AccordionItem>
-
-        <AccordionItem value="description">
-          <AccordionTrigger>Mô tả chi tiết</AccordionTrigger>
-          <AccordionContent className="space-y-1">
-            <label className="sr-only">Mô tả</label>
-            <TiptapHtmlEditor
-              value={descriptionHtml}
-              onChange={setDescriptionHtml}
-              placeholder="Viết mô tả chi tiết… Gõ / để chèn khối."
-              className="rounded-md border border-border"
-            />
-          </AccordionContent>
-        </AccordionItem>
-
-        <AccordionItem value="media">
-          <AccordionTrigger>Ảnh & thư viện</AccordionTrigger>
-          <AccordionContent className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm text-muted-foreground">
-                Ảnh đại diện
-              </label>
-              <MediaUrlPicker
-                value={featuredImageUrl}
-                onChange={setFeaturedImageUrl}
-                folder="products"
+          <AccordionItem value="summary">
+            <AccordionTrigger>Tóm tắt</AccordionTrigger>
+            <AccordionContent className="space-y-1">
+              <FormField
+                control={form.control}
+                name="summary"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="sr-only">Tóm tắt</FormLabel>
+                    <FormControl>
+                      <TiptapHtmlEditor
+                        value={field.value ?? ''}
+                        onChange={field.onChange}
+                        placeholder="Viết tóm tắt ngắn…"
+                        className="rounded-md border border-border"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
+            </AccordionContent>
+          </AccordionItem>
 
-            <div className="space-y-1">
-              <label className="text-sm text-muted-foreground">
-                Danh sách ảnh (mỗi dòng 1 URL)
-              </label>
-              <textarea
-                rows={4}
-                {...register('images')}
-                className="w-full rounded-md border border-border px-3 py-2 text-sm"
+          <AccordionItem value="description">
+            <AccordionTrigger>Mô tả chi tiết</AccordionTrigger>
+            <AccordionContent className="space-y-1">
+              <FormField
+                control={form.control}
+                name="descriptionHtml"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="sr-only">Mô tả</FormLabel>
+                    <FormControl>
+                      <TiptapHtmlEditor
+                        value={field.value ?? ''}
+                        onChange={field.onChange}
+                        placeholder="Viết mô tả chi tiết… Gõ / để chèn khối."
+                        className="rounded-md border border-border"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-          </AccordionContent>
-        </AccordionItem>
+            </AccordionContent>
+          </AccordionItem>
 
-        {showVariants && variants ? (
-          <AccordionItem value="variants">
-            <AccordionTrigger>Biến thể sản phẩm</AccordionTrigger>
-            <AccordionContent className="space-y-3">
-              <div className="flex items-center justify-end">
-                <button
-                  type="button"
-                  className="rounded-md border border-border px-3 py-1 text-sm hover:bg-background"
-                  onClick={() =>
-                    setVariants((prev) => [
-                      ...(prev ?? []),
-                      {
+          <AccordionItem value="media">
+            <AccordionTrigger>Ảnh & thư viện</AccordionTrigger>
+            <AccordionContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="featuredImageUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ảnh đại diện</FormLabel>
+                    <FormControl>
+                      <MediaUrlPicker
+                        value={field.value ?? ''}
+                        onChange={field.onChange}
+                        folder="products"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="images"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Danh sách ảnh (mỗi dòng 1 URL)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        rows={4}
+                        placeholder="https://...\nhttps://..."
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </AccordionContent>
+          </AccordionItem>
+
+          {showVariants ? (
+            <AccordionItem value="variants">
+              <AccordionTrigger>Biến thể sản phẩm</AccordionTrigger>
+              <AccordionContent className="space-y-3">
+                <div className="flex items-center justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      variantsArray.append({
                         label: '',
                         price: 0,
                         stock: 0,
-                        sortOrder: (prev ?? []).length,
+                        weightG: undefined,
+                        skuCode: undefined,
+                        sortOrder: variantsArray.fields.length,
                         active: true,
-                      },
-                    ])
-                  }
-                >
-                  + Thêm biến thể
-                </button>
-              </div>
-              <div className="grid grid-cols-1 gap-3 rounded-md border border-border p-3 md:grid-cols-6">
-                <div className="col-span-2">Tên biến thể</div>
-                <div className="col-span-1">Giá</div>
-                <div className="col-span-1">Tồn kho</div>
-                <div className="col-span-1">Khối lượng(g)</div>
-                <div className="col-span-1">SKU</div>
-              </div>
-
-              {variants.map((variant, index) => (
-                <div
-                  key={index}
-                  className="grid grid-cols-1 gap-3 rounded-md border border-border p-3 md:grid-cols-6"
-                >
-                  <input
-                    placeholder="Tên biến thể"
-                    value={variant.label}
-                    onChange={(event) =>
-                      updateVariant(index, 'label', event.target.value)
+                      })
                     }
-                    className="h-9 rounded-md border border-border px-2 text-sm md:col-span-2"
-                  />
-                  <input
-                    type="number"
-                    min={0}
-                    placeholder="Giá"
-                    value={variant.price}
-                    onChange={(event) =>
-                      updateVariant(
-                        index,
-                        'price',
-                        Number(event.target.value || 0),
-                      )
-                    }
-                    className="h-9 rounded-md border border-border px-2 text-sm"
-                  />
-                  <input
-                    type="number"
-                    min={0}
-                    placeholder="Tồn kho"
-                    value={variant.stock}
-                    onChange={(event) =>
-                      updateVariant(
-                        index,
-                        'stock',
-                        Number(event.target.value || 0),
-                      )
-                    }
-                    className="h-9 rounded-md border border-border px-2 text-sm"
-                  />
-                  <input
-                    type="number"
-                    min={0}
-                    placeholder="Khối lượng(g)"
-                    value={variant.weightG || ''}
-                    onChange={(event) =>
-                      updateVariant(
-                        index,
-                        'weightG',
-                        Number(event.target.value || 0),
-                      )
-                    }
-                    className="h-9 rounded-md border border-border px-2 text-sm"
-                  />
-                  <input
-                    placeholder="SKU"
-                    value={variant.skuCode || ''}
-                    onChange={(event) =>
-                      updateVariant(index, 'skuCode', event.target.value)
-                    }
-                    className="h-9 rounded-md border border-border px-2 text-sm"
-                  />
+                  >
+                    + Thêm biến thể
+                  </Button>
                 </div>
-              ))}
-            </AccordionContent>
-          </AccordionItem>
-        ) : null}
-      </Accordion>
 
-      <input type="hidden" {...register('featuredImageUrl')} />
-      <input type="hidden" {...register('summary')} />
-      <input type="hidden" {...register('descriptionHtml')} />
-      {showVariants ? (
-        <input type="hidden" {...register('variantsJson')} />
-      ) : null}
+                <div className="overflow-hidden rounded-lg border border-border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[26%]">Tên biến thể</TableHead>
+                        <TableHead className="w-[14%]">Giá</TableHead>
+                        <TableHead className="w-[12%]">Tồn kho</TableHead>
+                        <TableHead className="w-[14%]">
+                          Khối lượng (g)
+                        </TableHead>
+                        <TableHead className="w-[20%]">SKU</TableHead>
+                        <TableHead className="w-[8%]">Active</TableHead>
+                        <TableHead className="w-[1%] whitespace-nowrap text-right">
+                          Action
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {variantsArray.fields.map((row, index) => (
+                        <TableRow key={row.id}>
+                          <TableCell>
+                            <FormField
+                              control={form.control}
+                              name={`variants.${index}.label`}
+                              render={({ field }) => (
+                                <FormItem className="space-y-1">
+                                  <FormControl>
+                                    <Input
+                                      {...field}
+                                      placeholder="Tên biến thể"
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <FormField
+                              control={form.control}
+                              name={`variants.${index}.price`}
+                              render={({ field }) => (
+                                <FormItem className="space-y-1">
+                                  <FormControl>
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      step={1000}
+                                      value={field.value ?? 0}
+                                      onChange={(e) =>
+                                        field.onChange(
+                                          e.target.value === ''
+                                            ? 0
+                                            : Number(e.target.value),
+                                        )
+                                      }
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <FormField
+                              control={form.control}
+                              name={`variants.${index}.stock`}
+                              render={({ field }) => (
+                                <FormItem className="space-y-1">
+                                  <FormControl>
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      step={1}
+                                      value={field.value ?? 0}
+                                      onChange={(e) =>
+                                        field.onChange(
+                                          e.target.value === ''
+                                            ? 0
+                                            : Number(e.target.value),
+                                        )
+                                      }
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <FormField
+                              control={form.control}
+                              name={`variants.${index}.weightG`}
+                              render={({ field }) => (
+                                <FormItem className="space-y-1">
+                                  <FormControl>
+                                    <Input
+                                      type="number"
+                                      min={0}
+                                      step={1}
+                                      value={field.value ?? ''}
+                                      onChange={(e) =>
+                                        field.onChange(
+                                          e.target.value === ''
+                                            ? undefined
+                                            : Number(e.target.value),
+                                        )
+                                      }
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <FormField
+                              control={form.control}
+                              name={`variants.${index}.skuCode`}
+                              render={({ field }) => (
+                                <FormItem className="space-y-1">
+                                  <FormControl>
+                                    <Input
+                                      {...field}
+                                      value={field.value ?? ''}
+                                      placeholder="SKU"
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <FormField
+                              control={form.control}
+                              name={`variants.${index}.active`}
+                              render={({ field }) => (
+                                <FormItem className="space-y-1">
+                                  <label className="inline-flex h-9 items-center gap-2 text-sm">
+                                    <Checkbox
+                                      checked={Boolean(field.value)}
+                                      onCheckedChange={(
+                                        next: boolean | 'indeterminate',
+                                      ) => field.onChange(Boolean(next))}
+                                    />
+                                    <span className="sr-only">Active</span>
+                                  </label>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => variantsArray.remove(index)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="sr-only">Xóa</span>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
 
-      {hideSubmitButton ? null : (
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors duration-150 hover:text-destructive disabled:opacity-60"
-        >
-          {isSubmitting ? 'Đang lưu…' : submitLabel}
-        </button>
-      )}
-    </form>
+                      {variantsArray.fields.length === 0 ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={7}
+                            className="py-6 text-center text-sm text-muted-foreground"
+                          >
+                            Chưa có biến thể
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
+                    </TableBody>
+                  </Table>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          ) : null}
+        </Accordion>
+
+        {hideSubmitButton ? null : (
+          <Button type="submit" disabled={submitting} className="w-fit">
+            {submitting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : null}
+            {submitting ? 'Đang lưu…' : submitLabel}
+          </Button>
+        )}
+      </form>
+    </Form>
   );
 }

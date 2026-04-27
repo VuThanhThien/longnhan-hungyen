@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -12,7 +12,6 @@ import {
 import { adminClientGet, adminClientPatch } from '@/lib/admin-client';
 import { adminQueryKeys } from '@/lib/query-keys';
 import { extractErrorMessage } from '@/lib/http/extract-error-message';
-import { useState } from 'react';
 
 type Voucher = {
   id: string;
@@ -38,7 +37,7 @@ function toDatetimeLocal(val: string | Date | null | undefined): string {
 export default function VoucherEditPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: voucher, isLoading } = useQuery({
     queryKey: adminQueryKeys.vouchers.detail(id),
@@ -46,23 +45,28 @@ export default function VoucherEditPage() {
     enabled: Boolean(id),
   });
 
-  async function handleSubmit(values: VoucherFormValues) {
-    try {
-      setIsSubmitting(true);
-      await adminClientPatch(`/vouchers/${id}`, {
+  const mutation = useMutation({
+    mutationFn: (values: VoucherFormValues) =>
+      adminClientPatch(`/vouchers/${id}`, {
         ...values,
         expiresAt: values.expiresAt || null,
         minOrderAmount: values.minOrderAmount ?? null,
         maxUses: values.maxUses ?? null,
-      });
+      }),
+    onSuccess: async () => {
       toast.success('Đã cập nhật mã giảm giá');
+      await queryClient.invalidateQueries({
+        queryKey: adminQueryKeys.vouchers.detail(id),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: adminQueryKeys.vouchers.all,
+      });
       router.push(`/vouchers/${id}`);
-    } catch (err) {
+    },
+    onError: (err) => {
       toast.error(extractErrorMessage(err));
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
+    },
+  });
 
   if (isLoading) {
     return (
@@ -99,8 +103,8 @@ export default function VoucherEditPage() {
                   expiresAt: toDatetimeLocal(voucher.expiresAt),
                 }}
                 submitLabel="Lưu thay đổi"
-                onSubmit={handleSubmit}
-                isSubmitting={isSubmitting}
+                onSubmit={(values) => mutation.mutate(values)}
+                isSubmitting={mutation.isPending}
               />
             ) : (
               <div className="text-sm text-destructive">

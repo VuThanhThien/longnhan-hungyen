@@ -203,7 +203,7 @@ export default function VouchersPageClient() {
                         />
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex flex-wrap justify-end gap-2">
+                        <div className="flex justify-end gap-2">
                           <Button asChild variant="outline" size="sm">
                             <Link href={`/vouchers/${v.id}`}>Chi tiết</Link>
                           </Button>

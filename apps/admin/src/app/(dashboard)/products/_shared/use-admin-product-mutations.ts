@@ -6,6 +6,7 @@ import {
   adminClientPost,
   adminClientPut,
 } from '@/lib/admin-client';
+import { adminQueryKeys } from '@/lib/query-keys';
 import {
   PRODUCTS_ADMIN_PATHS,
   PRODUCTS_ADMIN_TOAST,
@@ -13,13 +14,18 @@ import {
 import { adminProductQueryKey } from './products.utils';
 
 export function useCreateProductMutation(options: { onDone: () => void }) {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async (formData: FormData) => {
       const payload = parseProductPayload(formData);
       await adminClientPost('/products', payload);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success(PRODUCTS_ADMIN_TOAST.createSuccess);
+      await queryClient.invalidateQueries({
+        queryKey: adminQueryKeys.products.root,
+      });
       options.onDone();
     },
     onError: () => {
@@ -32,6 +38,8 @@ export function useUpdateProductMutation(
   productId?: string,
   options?: { onDone?: () => void },
 ) {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async (formData: FormData) => {
       if (!productId) {
@@ -43,8 +51,16 @@ export function useUpdateProductMutation(
       delete (payload as { variants?: unknown }).variants;
       await adminClientPut(`/products/${productId}`, payload);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success(PRODUCTS_ADMIN_TOAST.updateSuccess);
+      if (productId) {
+        await queryClient.invalidateQueries({
+          queryKey: adminProductQueryKey(productId),
+        });
+        await queryClient.invalidateQueries({
+          queryKey: adminQueryKeys.products.root,
+        });
+      }
       options?.onDone?.();
     },
     onError: () => {

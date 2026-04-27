@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Header } from '@/components/layout/header';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -58,7 +59,7 @@ export default function CategoriesPageClient() {
               href="/categories/new"
               className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors duration-150 hover:text-destructive"
             >
-              + Thêm danh mục
+              Thêm danh mục
             </Link>
           </CardHeader>
           <CardContent>
@@ -89,18 +90,18 @@ export default function CategoriesPageClient() {
                   <TableRow key={cat.id}>
                     <TableCell>{cat.name}</TableCell>
                     <TableCell className="font-mono text-sm">
-                      {cat.slug}
+                      <Badge variant="outline" className="font-mono">
+                        {cat.slug}
+                      </Badge>
                     </TableCell>
                     <TableCell>{cat.sortOrder}</TableCell>
                     <TableCell>
-                      {cat.active ? (
-                        <span className="text-success">Hoạt động</span>
-                      ) : (
-                        <span className="text-muted-foreground">Tắt</span>
-                      )}
+                      <Badge variant={cat.active ? 'success' : 'secondary'}>
+                        {cat.active ? 'Hoạt động' : 'Tắt'}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex flex-wrap justify-end gap-2">
+                      <div className="flex justify-end gap-2">
                         <Button
                           asChild
                           variant="outline"
@@ -133,7 +134,7 @@ export default function CategoriesPageClient() {
                           {deleteMutation.isPending &&
                           deleteMutation.variables === cat.id
                             ? 'Đang xử lý…'
-                            : 'Tắt'}
+                            : 'Xoá'}
                         </Button>
                       </div>
                     </TableCell>

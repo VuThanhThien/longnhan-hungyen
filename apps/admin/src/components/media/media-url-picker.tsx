@@ -56,12 +56,12 @@ export function MediaUrlPicker({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder="https://..."
-          className="h-10 w-full rounded-md border border-border px-3 text-sm"
+          className="bg-white h-10 w-full rounded-md border border-border px-3 text-sm"
         />
         <button
           type="button"
           onClick={toggleLibrary}
-          className="h-10 rounded-md border border-border px-3 text-sm hover:bg-background"
+          className="bg-white h-10 rounded-md border border-border px-3 text-sm hover:bg-background"
           disabled={isLoading}
         >
           {isLoading ? 'Đang tải...' : 'Chọn'}
@@ -82,7 +82,7 @@ export function MediaUrlPicker({
         />
         <label
           htmlFor="media-file-upload"
-          className="inline-flex h-9 cursor-pointer items-center rounded-md border border-border px-3 text-sm hover:bg-background"
+          className="bg-white inline-flex h-9 cursor-pointer items-center rounded-md border border-border px-3 text-sm hover:bg-background"
         >
           {uploadMutation.isPending ? 'Đang upload...' : 'Upload ảnh'}
         </label>

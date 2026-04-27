@@ -382,6 +382,22 @@ Reusable NestJS modules:
 - **Forms:** react-hook-form + yup validation, Server Actions for login/mutations
 - **Cache:** `revalidatePath()` after mutations to sync Server Component state
 
+**Dashboard data layer:**
+
+- **`lib/dashboard/dashboard-types.ts`** — Type definitions for dashboard stats
+  - `DashboardPeriod` — Period selector type (`'today' | 'week' | 'month' | 'all'`)
+  - `DashboardStats` — Mirrors API `DashboardStatsResDto` (orders, revenue, daily breakdown)
+  - `DailyStatPoint` — Daily aggregation (date, count, revenue)
+  - `parsePeriod()` — Safe period parser with default fallback
+  - `PERIOD_LABELS` — Localized period display strings (Vietnamese)
+
+**Dashboard UI components:**
+
+- **`components/ui/empty-state.tsx`** — Shared empty state primitive (icon, title, description, action)
+- **`components/ui/inline-error-state.tsx`** — Shared error state primitive (error message display)
+- **`components/dashboard/period-switcher.tsx`** — Client component for URL-based period switching
+- **`components/dashboard/dashboard-error-state.tsx`** — Dashboard-level error card wrapper
+
 **Key libraries (admin):**
 
 - **shadcn/ui-style `components/ui/`** — Radix primitives (`@radix-ui/*`) composed with Tailwind; extend via shadcn registry CLI from `apps/admin`
@@ -587,10 +603,15 @@ Reusable NestJS modules:
 - title (varchar)
 - slug (unique, varchar)
 - content (text)
+- tags (TypeORM `simple-array`; stored as comma-separated text)
 - thumbnailId (FK → Media, nullable)
 - createdAt, updatedAt
 - Relations: Media
 ```
+
+**Notes**
+
+- Tag filtering in SQL must treat `tags` as comma-separated text, e.g. `:tag = ANY(COALESCE(string_to_array(article.tags, ','), ARRAY[]::text[]))`.
 
 **Media**
 

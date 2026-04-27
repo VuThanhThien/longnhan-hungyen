@@ -48,7 +48,10 @@ export class ArticlesService {
     }
 
     if (dto.tag) {
-      qb.andWhere(':tag = ANY(article.tags)', { tag: dto.tag });
+      qb.andWhere(
+        ":tag = ANY(COALESCE(string_to_array(article.tags, ','), ARRAY[]::text[]))",
+        { tag: dto.tag },
+      );
     }
     if (dto.q) {
       qb.andWhere('article.title ILIKE :q', { q: `%${dto.q}%` });

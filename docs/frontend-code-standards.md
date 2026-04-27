@@ -843,13 +843,13 @@ apps/admin/src/
 │   └── page.tsx               # Root page (redirect)
 ├── components/
 │   ├── layout/                # Header, sidebar, etc.
-│   ├── dashboard/             # Dashboard widgets
+│   ├── dashboard/             # Dashboard widgets (stats, charts, period switcher, error states)
 │   ├── products/              # Product components
 │   ├── articles/              # Article components
 │   ├── orders/                # Order components
 │   ├── media/                 # Media components
 │   ├── providers/             # React Query, Auth providers
-│   └── ui/                    # Radix UI wrappers
+│   └── ui/                    # Radix UI wrappers (empty-state, inline-error-state, etc.)
 ├── features/
 │   ├── media/                 # Media hooks, API calls
 │   │   ├── hooks.ts
@@ -929,6 +929,84 @@ describe('Button', () => {
     expect(onClick).toHaveBeenCalled();
   });
 });
+```
+
+---
+
+## Admin Dashboard Patterns
+
+### Dashboard Data Types
+
+Dashboard stats use a shared type contract (`DashboardStats`) that mirrors the API response (`DashboardStatsResDto`):
+
+```typescript
+// apps/admin/src/lib/dashboard/dashboard-types.ts
+export type DashboardPeriod = 'today' | 'week' | 'month' | 'all';
+
+export interface DashboardStats {
+  totalOrders: number;
+  pendingOrders: number;
+  confirmedOrders: number;
+  deliveredOrders: number;
+  cancelledOrders: number;
+  totalRevenue: number;
+  paidRevenue: number;
+  dailyStats: DailyStatPoint[]; // For charts
+}
+
+export const PERIOD_LABELS: Record<DashboardPeriod, string> = {
+  today: 'Hôm nay',
+  week: '7 ngày',
+  month: '30 ngày',
+  all: 'Tất cả',
+};
+
+export function parsePeriod(raw: unknown): DashboardPeriod {
+  // Safe parser with default fallback to 'month'
+}
+```
+
+**Usage:** Import types in dashboard components; use `parsePeriod()` to validate URL params.
+
+### Shared UI Primitives
+
+**EmptyState** — Reusable empty state card:
+
+```tsx
+import { EmptyState } from '@/components/ui/empty-state';
+
+<EmptyState
+  icon={<ShoppingCart className="h-8 w-8" />}
+  title="No orders yet"
+  description="Orders will appear here once customers place them."
+/>;
+```
+
+**InlineErrorState** — Error message display:
+
+```tsx
+import { InlineErrorState } from '@/components/ui/inline-error-state';
+
+<InlineErrorState error={error} />;
+```
+
+**PeriodSwitcher** — URL-based period selection (client component):
+
+```tsx
+'use client';
+import { PeriodSwitcher } from '@/components/dashboard/period-switcher';
+
+<PeriodSwitcher currentPeriod={period} />;
+```
+
+**DashboardErrorState** — Dashboard-level error wrapper:
+
+```tsx
+import { DashboardErrorState } from '@/components/dashboard/dashboard-error-state';
+
+{
+  error && <DashboardErrorState error={error} />;
+}
 ```
 
 ---

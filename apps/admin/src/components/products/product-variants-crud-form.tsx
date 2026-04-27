@@ -1,13 +1,19 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Product } from '@longnhan/types';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2, Trash2 } from 'lucide-react';
+import { useForm, type UseFormReturn } from 'react-hook-form';
+import { z } from 'zod';
 
 import {
   useCreateProductVariantMutation,
   useDeleteProductVariantMutation,
   useUpdateProductVariantMutation,
 } from '@/app/(dashboard)/products/_shared/use-admin-product-mutations';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -16,6 +22,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 interface VariantDraft {
   id: string;
@@ -46,6 +69,71 @@ function toDraft(v: Product['variants'][number]): VariantDraft {
   };
 }
 
+const skuCodeSchema = z
+  .string()
+  .trim()
+  .max(64, 'SKU tối đa 64 ký tự')
+  .regex(/^[a-zA-Z0-9._-]*$/, 'SKU chỉ gồm chữ/số và . _ -');
+
+const variantSchema = z.object({
+  label: z.string().trim().min(1, 'Vui lòng nhập tên biến thể'),
+  price: z.coerce.number().min(0, 'Giá phải ≥ 0'),
+  stock: z.coerce
+    .number()
+    .int('Tồn kho phải là số nguyên')
+    .min(0, 'Tồn kho phải ≥ 0'),
+  weightG: z
+    .union([z.coerce.number().min(0, 'Khối lượng phải ≥ 0'), z.null()])
+    .optional()
+    .transform((v) => v ?? null),
+  skuCode: z
+    .union([skuCodeSchema, z.literal('')])
+    .optional()
+    .transform((v) => (v ?? '').trim()),
+  sortOrder: z.coerce.number().int('Sort order phải là số nguyên').min(0),
+  active: z.boolean(),
+});
+
+const variantsCrudFormSchema = z.object({
+  variants: z.record(z.string(), variantSchema),
+  create: variantSchema,
+});
+
+type VariantsCrudFormInput = z.input<typeof variantsCrudFormSchema>;
+
+function normalizeVariantInput(input: {
+  label: string;
+  price: unknown;
+  stock: unknown;
+  weightG?: unknown;
+  skuCode?: string | undefined;
+  sortOrder: unknown;
+  active: boolean;
+}): {
+  label: string;
+  price: number;
+  stock: number;
+  weightG: number | null;
+  skuCode: string;
+  sortOrder: number;
+  active: boolean;
+} {
+  return {
+    label: input.label.trim(),
+    price: Number(input.price ?? 0),
+    stock: Number(input.stock ?? 0),
+    weightG:
+      input.weightG === null ||
+      input.weightG === undefined ||
+      input.weightG === ''
+        ? null
+        : Number(input.weightG),
+    skuCode: (input.skuCode ?? '').trim(),
+    sortOrder: Number(input.sortOrder ?? 0),
+    active: Boolean(input.active),
+  };
+}
+
 export function ProductVariantsCrudForm({
   productId,
   variants,
@@ -54,381 +142,571 @@ export function ProductVariantsCrudForm({
   const updateMutation = useUpdateProductVariantMutation(productId);
   const deleteMutation = useDeleteProductVariantMutation(productId);
 
-  const byId = useMemo(
-    () => new Map((variants ?? []).map((v) => [v.id, v])),
-    [variants],
-  );
-
-  const [draftById, setDraftById] = useState<Record<string, VariantDraft>>({});
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [createDraft, setCreateDraft] = useState<Omit<VariantDraft, 'id'>>({
-    label: '',
-    price: 0,
-    stock: 0,
-    weightG: null,
-    skuCode: '',
-    sortOrder: (variants ?? []).length,
-    active: true,
-  });
-
-  function getDraft(variantId: string): VariantDraft {
-    const existing = draftById[variantId];
-    if (existing) return existing;
-    const v = byId.get(variantId);
-    if (!v) {
-      return {
-        id: variantId,
-        label: '',
-        price: 0,
-        stock: 0,
-        weightG: null,
-        skuCode: '',
-        sortOrder: 0,
-        active: true,
-      };
-    }
-    return toDraft(v);
-  }
-
-  function setDraft(variantId: string, next: VariantDraft) {
-    setDraftById((prev) => ({ ...prev, [variantId]: next }));
-  }
-
-  function isDirty(variantId: string) {
-    const v = byId.get(variantId);
-    if (!v) return true;
-    const d = getDraft(variantId);
-    return (
-      d.label !== v.label ||
-      d.price !== v.price ||
-      d.stock !== v.stock ||
-      (d.weightG ?? null) !== (v.weightG ?? null) ||
-      (d.skuCode || '') !== (v.skuCode ?? '') ||
-      d.sortOrder !== v.sortOrder ||
-      d.active !== v.active
-    );
-  }
+  const [savingVariantId, setSavingVariantId] = useState<string | null>(null);
+  const [deletingVariantId, setDeletingVariantId] = useState<string | null>(
+    null,
+  );
 
   const isBusy =
     createMutation.isPending ||
     updateMutation.isPending ||
     deleteMutation.isPending;
 
+  const defaultValues = useMemo<VariantsCrudFormInput>(() => {
+    const variantValues = Object.fromEntries(
+      (variants ?? []).map((v) => {
+        const d = toDraft(v);
+        return [
+          v.id,
+          {
+            label: d.label,
+            price: d.price,
+            stock: d.stock,
+            weightG: d.weightG,
+            skuCode: d.skuCode,
+            sortOrder: d.sortOrder,
+            active: d.active,
+          },
+        ] as const;
+      }),
+    );
+
+    return {
+      variants: variantValues,
+      create: {
+        label: '',
+        price: 0,
+        stock: 0,
+        weightG: null,
+        skuCode: '',
+        sortOrder: (variants ?? []).length,
+        active: true,
+      },
+    };
+  }, [variants]);
+
+  const form = useForm<VariantsCrudFormInput>({
+    resolver: zodResolver(variantsCrudFormSchema),
+    defaultValues,
+    mode: 'onChange',
+  });
+
+  useEffect(() => {
+    form.reset(defaultValues, { keepDirtyValues: true });
+  }, [defaultValues, form]);
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-sm text-muted-foreground">
-          Thêm / sửa / xoá biến thể (tách riêng khỏi cập nhật sản phẩm).
-        </div>
-        <button
-          type="button"
-          disabled={isBusy}
-          className="inline-flex h-9 items-center rounded-md border border-border px-3 text-sm hover:bg-background disabled:opacity-60"
-          onClick={() => {
-            setCreateDraft({
-              label: '',
-              price: 0,
-              stock: 0,
-              weightG: null,
-              skuCode: '',
-              sortOrder: (variants ?? []).length,
-              active: true,
-            });
-            setIsCreateOpen(true);
-          }}
-        >
-          + Thêm biến thể
-        </button>
-      </div>
-
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Thêm biến thể</DialogTitle>
-            <DialogDescription>
-              Nhập thông tin biến thể, sau đó bấm Lưu để tạo.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid grid-cols-1 gap-3">
-            <div className="space-y-1">
-              <label className="text-sm text-muted-foreground">
-                Tên biến thể
-              </label>
-              <input
-                className="h-10 w-full rounded-md border border-border px-3 text-sm"
-                value={createDraft.label}
-                onChange={(e) =>
-                  setCreateDraft((p) => ({ ...p, label: e.target.value }))
-                }
-                placeholder="VD: 500g, 1kg…"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <div className="space-y-1">
-                <label className="text-sm text-muted-foreground">Giá</label>
-                <input
-                  type="number"
-                  min={0}
-                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
-                  value={createDraft.price}
-                  onChange={(e) =>
-                    setCreateDraft((p) => ({
-                      ...p,
-                      price: Number(e.target.value || 0),
-                    }))
-                  }
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm text-muted-foreground">Tồn kho</label>
-                <input
-                  type="number"
-                  min={0}
-                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
-                  value={createDraft.stock}
-                  onChange={(e) =>
-                    setCreateDraft((p) => ({
-                      ...p,
-                      stock: Number(e.target.value || 0),
-                    }))
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              <div className="space-y-1">
-                <label className="text-sm text-muted-foreground">
-                  Khối lượng (g)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
-                  value={createDraft.weightG ?? ''}
-                  onChange={(e) =>
-                    setCreateDraft((p) => ({
-                      ...p,
-                      weightG:
-                        e.target.value === '' ? null : Number(e.target.value),
-                    }))
-                  }
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-sm text-muted-foreground">
-                  Sort order
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  className="h-10 w-full rounded-md border border-border px-3 text-sm"
-                  value={createDraft.sortOrder}
-                  onChange={(e) =>
-                    setCreateDraft((p) => ({
-                      ...p,
-                      sortOrder: Number(e.target.value || 0),
-                    }))
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-sm text-muted-foreground">
-                SKU (tuỳ chọn)
-              </label>
-              <input
-                className="h-10 w-full rounded-md border border-border px-3 text-sm"
-                value={createDraft.skuCode}
-                onChange={(e) =>
-                  setCreateDraft((p) => ({ ...p, skuCode: e.target.value }))
-                }
-                placeholder="VD: LN-500G-001"
-              />
-              <p className="text-xs text-muted-foreground">
-                Để trống nếu chưa có SKU (có thể cập nhật sau).
-              </p>
-            </div>
-
-            <label className="inline-flex items-center gap-2 text-sm text-foreground/90">
-              <input
-                type="checkbox"
-                checked={createDraft.active}
-                onChange={(e) =>
-                  setCreateDraft((p) => ({ ...p, active: e.target.checked }))
-                }
-              />
-              Kích hoạt biến thể
-            </label>
+    <Form {...form}>
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-sm text-muted-foreground">
+            Thêm / sửa / xoá biến thể (tách riêng khỏi cập nhật sản phẩm).
           </div>
-
-          <DialogFooter className="mt-2">
-            <button
-              type="button"
-              className="inline-flex h-10 items-center rounded-md border border-border px-4 text-sm hover:bg-background disabled:opacity-60"
-              onClick={() => setIsCreateOpen(false)}
-              disabled={createMutation.isPending}
-            >
-              Huỷ
-            </button>
-            <button
-              type="button"
-              disabled={
-                createMutation.isPending ||
-                createDraft.label.trim().length === 0
-              }
-              className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors duration-150 hover:text-destructive disabled:opacity-60"
-              onClick={async () => {
-                const trimmedSku = createDraft.skuCode.trim();
-                await createMutation.mutateAsync({
-                  label: createDraft.label.trim(),
-                  price: createDraft.price,
-                  stock: createDraft.stock,
-                  weightG: createDraft.weightG,
-                  ...(trimmedSku ? { skuCode: trimmedSku } : {}),
-                  sortOrder: createDraft.sortOrder,
-                  active: createDraft.active,
-                });
-                setIsCreateOpen(false);
-              }}
-            >
-              {createMutation.isPending ? 'Đang lưu…' : 'Lưu biến thể'}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <div className="grid grid-cols-1 gap-3 rounded-md border border-border p-3 md:grid-cols-10">
-        <div className="md:col-span-2">Tên</div>
-        <div className="md:col-span-1">Giá</div>
-        <div className="md:col-span-1">Tồn</div>
-        <div className="md:col-span-1">Khối lượng</div>
-        <div className="md:col-span-2">SKU</div>
-        <div className="md:col-span-1">Sort</div>
-        <div className="md:col-span-1">Active</div>
-        <div className="md:col-span-1">Actions</div>
-      </div>
-
-      {(variants ?? []).map((v) => {
-        const d = getDraft(v.id);
-        const dirty = isDirty(v.id);
-
-        return (
-          <div
-            key={v.id}
-            className="grid grid-cols-1 items-center gap-3 rounded-md border border-border p-3 md:grid-cols-10"
+          <Button
+            type="button"
+            disabled={isBusy}
+            onClick={() => {
+              form.resetField('create', {
+                defaultValue: {
+                  label: '',
+                  price: 0,
+                  stock: 0,
+                  weightG: null,
+                  skuCode: '',
+                  sortOrder: (variants ?? []).length,
+                  active: true,
+                },
+              });
+              setIsCreateOpen(true);
+            }}
+            variant="outline"
+            size="sm"
           >
-            <input
-              className="h-9 rounded-md border border-border px-2 text-sm md:col-span-2"
-              value={d.label}
-              onChange={(e) => setDraft(v.id, { ...d, label: e.target.value })}
-            />
-            <input
-              type="number"
-              min={0}
-              className="h-9 rounded-md border border-border px-2 text-sm md:col-span-1"
-              value={d.price}
-              onChange={(e) =>
-                setDraft(v.id, { ...d, price: Number(e.target.value || 0) })
-              }
-            />
-            <input
-              type="number"
-              min={0}
-              className="h-9 rounded-md border border-border px-2 text-sm md:col-span-1"
-              value={d.stock}
-              onChange={(e) =>
-                setDraft(v.id, { ...d, stock: Number(e.target.value || 0) })
-              }
-            />
-            <input
-              type="number"
-              min={0}
-              className="h-9 rounded-md border border-border px-2 text-sm md:col-span-1"
-              value={d.weightG ?? ''}
-              onChange={(e) =>
-                setDraft(v.id, {
-                  ...d,
-                  weightG:
-                    e.target.value === '' ? null : Number(e.target.value),
-                })
-              }
-            />
-            <input
-              className="h-9 rounded-md border border-border px-2 text-sm md:col-span-2"
-              value={d.skuCode}
-              onChange={(e) =>
-                setDraft(v.id, { ...d, skuCode: e.target.value })
-              }
-            />
-            <input
-              type="number"
-              min={0}
-              className="h-9 rounded-md border border-border px-2 text-sm md:col-span-1"
-              value={d.sortOrder}
-              onChange={(e) =>
-                setDraft(v.id, { ...d, sortOrder: Number(e.target.value || 0) })
-              }
-            />
-            <label className="flex items-center gap-2 text-sm md:col-span-1">
-              <input
-                type="checkbox"
-                checked={d.active}
-                onChange={(e) =>
-                  setDraft(v.id, { ...d, active: e.target.checked })
-                }
-              />
-              <span className="text-foreground/90">Bật</span>
-            </label>
+            + Thêm biến thể
+          </Button>
+        </div>
 
-            <div className="flex items-center gap-2 md:col-span-1">
-              <button
+        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Thêm biến thể</DialogTitle>
+              <DialogDescription>
+                Nhập thông tin biến thể, sau đó bấm Lưu để tạo.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid grid-cols-1 gap-3">
+              <FormField
+                control={form.control}
+                name="create.label"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tên biến thể</FormLabel>
+                    <FormControl>
+                      <Input placeholder="VD: 500g, 1kg…" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="create.price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Giá</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={0}
+                          inputMode="numeric"
+                          {...field}
+                          value={String(field.value ?? 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="create.stock"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tồn kho</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={0}
+                          inputMode="numeric"
+                          {...field}
+                          value={String(field.value ?? 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="create.weightG"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Khối lượng (g)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={0}
+                          inputMode="numeric"
+                          value={
+                            field.value === null
+                              ? ''
+                              : String(field.value ?? '')
+                          }
+                          onChange={(e) =>
+                            field.onChange(
+                              e.target.value === ''
+                                ? null
+                                : Number(e.target.value),
+                            )
+                          }
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="create.sortOrder"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Sort order</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min={0}
+                          inputMode="numeric"
+                          {...field}
+                          value={String(field.value ?? 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="create.skuCode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>SKU (tuỳ chọn)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="VD: LN-500G-001" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                    <p className="text-xs text-muted-foreground">
+                      Để trống nếu chưa có SKU (có thể cập nhật sau).
+                    </p>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="create.active"
+                render={({ field }) => (
+                  <FormItem className="flex items-center gap-2 space-y-0 rounded-md border border-border p-3">
+                    <FormControl>
+                      <Checkbox
+                        checked={Boolean(field.value)}
+                        onCheckedChange={(value) =>
+                          field.onChange(Boolean(value))
+                        }
+                      />
+                    </FormControl>
+                    <FormLabel className="cursor-pointer">
+                      Kích hoạt biến thể
+                    </FormLabel>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <DialogFooter className="mt-2">
+              <Button
                 type="button"
-                disabled={isBusy || !dirty}
-                className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors duration-150 hover:text-destructive disabled:opacity-60"
+                variant="outline"
+                onClick={() => setIsCreateOpen(false)}
+                disabled={createMutation.isPending}
+              >
+                Huỷ
+              </Button>
+              <Button
+                type="button"
+                disabled={createMutation.isPending}
                 onClick={async () => {
-                  await updateMutation.mutateAsync({
-                    variantId: v.id,
-                    patch: {
-                      label: d.label,
-                      price: d.price,
-                      stock: d.stock,
-                      weightG: d.weightG,
-                      skuCode: d.skuCode,
-                      sortOrder: d.sortOrder,
-                      active: d.active,
-                    },
+                  const ok = await form.trigger('create');
+                  if (!ok) return;
+
+                  const v = form.getValues('create');
+                  const normalized = normalizeVariantInput(v);
+                  const trimmedSku = normalized.skuCode;
+
+                  await createMutation.mutateAsync({
+                    label: normalized.label,
+                    price: normalized.price,
+                    stock: normalized.stock,
+                    weightG: normalized.weightG,
+                    ...(trimmedSku ? { skuCode: trimmedSku } : {}),
+                    sortOrder: normalized.sortOrder,
+                    active: normalized.active,
                   });
-                  setDraftById((prev) => {
-                    const next = { ...prev };
-                    delete next[v.id];
-                    return next;
-                  });
+
+                  setIsCreateOpen(false);
                 }}
               >
-                Lưu
-              </button>
-              <button
-                type="button"
-                disabled={isBusy}
-                className="inline-flex h-9 items-center rounded-md border border-destructive/30 px-3 text-sm text-destructive hover:bg-destructive/10 disabled:opacity-60"
-                onClick={() => deleteMutation.mutateAsync(v.id)}
-              >
-                Xoá
-              </button>
-            </div>
+                {createMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : null}
+                Lưu biến thể
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-            {dirty ? (
-              <div className="text-xs text-amber-700 md:col-span-10">
-                Có thay đổi chưa lưu
-              </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="min-w-[220px]">Tên</TableHead>
+              <TableHead className="w-[120px]">Giá</TableHead>
+              <TableHead className="w-[110px]">Tồn</TableHead>
+              <TableHead className="w-[140px]">Khối lượng</TableHead>
+              <TableHead className="min-w-[200px]">SKU</TableHead>
+              <TableHead className="w-[90px]">Sort</TableHead>
+              <TableHead className="w-[90px]">Active</TableHead>
+              <TableHead className="w-[200px] text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {(variants ?? []).map((variant) => (
+              <ProductVariantRow
+                key={variant.id}
+                variant={variant}
+                form={form}
+                isBusy={isBusy}
+                savingVariantId={savingVariantId}
+                deletingVariantId={deletingVariantId}
+                onSave={async () => {
+                  const prefix = `variants.${variant.id}` as const;
+                  const ok = await form.trigger(prefix);
+                  if (!ok) return;
+
+                  const next = form.getValues(prefix);
+                  const normalized = normalizeVariantInput(next);
+                  try {
+                    setSavingVariantId(variant.id);
+                    await updateMutation.mutateAsync({
+                      variantId: variant.id,
+                      patch: {
+                        label: normalized.label,
+                        price: normalized.price,
+                        stock: normalized.stock,
+                        weightG: normalized.weightG,
+                        skuCode: normalized.skuCode,
+                        sortOrder: normalized.sortOrder,
+                        active: normalized.active,
+                      },
+                    });
+                    form.resetField(prefix, {
+                      defaultValue: {
+                        ...normalized,
+                      },
+                    });
+                  } finally {
+                    setSavingVariantId(null);
+                  }
+                }}
+                onDelete={async () => {
+                  try {
+                    setDeletingVariantId(variant.id);
+                    await deleteMutation.mutateAsync(variant.id);
+                  } finally {
+                    setDeletingVariantId(null);
+                  }
+                }}
+              />
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </Form>
+  );
+}
+
+function ProductVariantRow(props: {
+  variant: NonNullable<Product['variants']>[number];
+  form: UseFormReturn<VariantsCrudFormInput>;
+  isBusy: boolean;
+  savingVariantId: string | null;
+  deletingVariantId: string | null;
+  onSave: () => Promise<void>;
+  onDelete: () => Promise<void>;
+}) {
+  const {
+    variant,
+    form,
+    isBusy,
+    savingVariantId,
+    deletingVariantId,
+    onSave,
+    onDelete,
+  } = props;
+
+  const prefix = `variants.${variant.id}` as const;
+  const watched = form.watch(prefix);
+  const baseline = useMemo(() => toDraft(variant), [variant]);
+
+  const dirty =
+    (watched?.label ?? '').trim() !== baseline.label ||
+    Number(watched?.price ?? 0) !== baseline.price ||
+    Number(watched?.stock ?? 0) !== baseline.stock ||
+    (watched?.weightG === '' ? null : (watched?.weightG ?? null)) !==
+      baseline.weightG ||
+    (watched?.skuCode ?? '').trim() !== baseline.skuCode ||
+    Number(watched?.sortOrder ?? 0) !== baseline.sortOrder ||
+    Boolean(watched?.active ?? false) !== baseline.active;
+
+  const isSavingThisRow = savingVariantId === variant.id;
+  const isDeletingThisRow = deletingVariantId === variant.id;
+
+  return (
+    <TableRow className="align-top">
+      <TableCell className="py-3">
+        <FormField
+          control={form.control}
+          name={`${prefix}.label` as const}
+          render={({ field }) => (
+            <FormItem className="space-y-1">
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </TableCell>
+
+      <TableCell className="py-3">
+        <FormField
+          control={form.control}
+          name={`${prefix}.price` as const}
+          render={({ field }) => (
+            <FormItem className="space-y-1">
+              <FormControl>
+                <Input
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  {...field}
+                  value={String(field.value ?? 0)}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </TableCell>
+
+      <TableCell className="py-3">
+        <FormField
+          control={form.control}
+          name={`${prefix}.stock` as const}
+          render={({ field }) => (
+            <FormItem className="space-y-1">
+              <FormControl>
+                <Input
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  {...field}
+                  value={String(field.value ?? 0)}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </TableCell>
+
+      <TableCell className="py-3">
+        <FormField
+          control={form.control}
+          name={`${prefix}.weightG` as const}
+          render={({ field }) => (
+            <FormItem className="space-y-1">
+              <FormControl>
+                <Input
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  value={field.value === null ? '' : String(field.value ?? '')}
+                  onChange={(e) =>
+                    field.onChange(
+                      e.target.value === '' ? null : Number(e.target.value),
+                    )
+                  }
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </TableCell>
+
+      <TableCell className="py-3">
+        <FormField
+          control={form.control}
+          name={`${prefix}.skuCode` as const}
+          render={({ field }) => (
+            <FormItem className="space-y-1">
+              <FormControl>
+                <Input
+                  placeholder="VD: LN-500G-001"
+                  {...field}
+                  value={(field.value ?? '') as string}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </TableCell>
+
+      <TableCell className="py-3">
+        <FormField
+          control={form.control}
+          name={`${prefix}.sortOrder` as const}
+          render={({ field }) => (
+            <FormItem className="space-y-1">
+              <FormControl>
+                <Input
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  {...field}
+                  value={String(field.value ?? 0)}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </TableCell>
+
+      <TableCell className="py-3">
+        <FormField
+          control={form.control}
+          name={`${prefix}.active` as const}
+          render={({ field }) => (
+            <FormItem className="space-y-1">
+              <FormControl>
+                <Checkbox
+                  checked={Boolean(field.value)}
+                  onCheckedChange={(value) => field.onChange(Boolean(value))}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </TableCell>
+
+      <TableCell className="py-3 text-right">
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={isBusy || !dirty}
+            onClick={onSave}
+          >
+            {isSavingThisRow ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : null}
+            Lưu
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={isBusy}
+            onClick={onDelete}
+            className="text-red-500"
+          >
+            {isDeletingThisRow ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4 text-red-500" />
+            )}
+            Xoá
+          </Button>
+        </div>
+        {dirty ? (
+          <div className="mt-2 text-xs text-amber-700">
+            Có thay đổi chưa lưu
           </div>
-        );
-      })}
-    </div>
+        ) : null}
+      </TableCell>
+    </TableRow>
   );
 }

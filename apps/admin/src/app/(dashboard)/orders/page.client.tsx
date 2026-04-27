@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useMemo } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2 } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -11,6 +12,7 @@ import { Header } from '@/components/layout/header';
 import { ListPagination } from '@/components/admin/list-pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Form,
@@ -20,7 +22,11 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -59,6 +65,20 @@ const orderStatuses = [
 ];
 const paymentStatuses = ['pending', 'paid', 'failed'];
 
+const orderStatusLabels: Record<string, string> = {
+  pending: 'Chờ xác nhận',
+  confirmed: 'Đã xác nhận',
+  shipping: 'Đang giao',
+  delivered: 'Đã giao',
+  cancelled: 'Đã hủy',
+};
+
+const paymentStatusLabels: Record<string, string> = {
+  pending: 'Chờ thanh toán',
+  paid: 'Đã thanh toán',
+  failed: 'Thất bại',
+};
+
 /** URL stores YYYY-MM-DD; API expects ISO date strings */
 function toIsoStartDay(d: string | undefined): string | undefined {
   if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return undefined;
@@ -68,6 +88,42 @@ function toIsoStartDay(d: string | undefined): string | undefined {
 function toIsoEndDay(d: string | undefined): string | undefined {
   if (!d || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return undefined;
   return `${d}T23:59:59.999Z`;
+}
+
+function DatePickerField({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  placeholder: string;
+}) {
+  const selected = value ? parseISO(value) : undefined;
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          data-empty={!value}
+          className="w-full justify-start text-left font-normal data-[empty=true]:text-muted-foreground"
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {selected ? format(selected, 'PPP') : <span>{placeholder}</span>}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0">
+        <Calendar
+          mode="single"
+          selected={selected}
+          onSelect={(d) => onChange(d ? format(d, 'yyyy-MM-dd') : '')}
+          initialFocus
+        />
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 export default function OrdersPageClient() {
@@ -140,6 +196,12 @@ export default function OrdersPageClient() {
     dateTo: params.dateTo,
   };
 
+  const hasActiveFilters =
+    Boolean(params.orderStatus) ||
+    Boolean(params.paymentStatus) ||
+    Boolean(params.dateFrom) ||
+    Boolean(params.dateTo);
+
   function applyFilters(values: AdminOrderListFilterValues) {
     const next = new URLSearchParams();
     if (values.orderStatus && values.orderStatus !== ADMIN_FILTER_ALL) {
@@ -152,6 +214,16 @@ export default function OrdersPageClient() {
     if (values.dateTo) next.set('dateTo', values.dateTo);
     const qs = next.toString();
     router.push(qs ? `/orders?${qs}` : '/orders');
+  }
+
+  function clearFilters() {
+    filterForm.reset({
+      orderStatus: ADMIN_FILTER_ALL,
+      paymentStatus: ADMIN_FILTER_ALL,
+      dateFrom: '',
+      dateTo: '',
+    });
+    router.push('/orders');
   }
 
   return (
@@ -189,7 +261,7 @@ export default function OrdersPageClient() {
                           </SelectItem>
                           {orderStatuses.map((status) => (
                             <SelectItem key={status} value={status}>
-                              {status}
+                              {orderStatusLabels[status] ?? status}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -219,7 +291,7 @@ export default function OrdersPageClient() {
                           </SelectItem>
                           {paymentStatuses.map((status) => (
                             <SelectItem key={status} value={status}>
-                              {status}
+                              {paymentStatusLabels[status] ?? status}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -235,7 +307,11 @@ export default function OrdersPageClient() {
                     <FormItem>
                       <FormLabel>Từ ngày</FormLabel>
                       <FormControl>
-                        <Input {...field} type="date" />
+                        <DatePickerField
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Chọn ngày"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -248,23 +324,39 @@ export default function OrdersPageClient() {
                     <FormItem>
                       <FormLabel>Đến ngày</FormLabel>
                       <FormControl>
-                        <Input {...field} type="date" />
+                        <DatePickerField
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Chọn ngày"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                <div className="flex items-end lg:col-span-2">
-                  <Button
-                    type="submit"
-                    disabled={filterForm.formState.isSubmitting}
-                  >
-                    {filterForm.formState.isSubmitting ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <FormItem className="lg:col-span-2">
+                  <FormLabel className="invisible">Submit</FormLabel>
+                  <div className="flex items-end gap-2">
+                    {hasActiveFilters ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={clearFilters}
+                      >
+                        Xóa lọc
+                      </Button>
                     ) : null}
-                    Lọc
-                  </Button>
-                </div>
+                    <Button
+                      type="submit"
+                      disabled={filterForm.formState.isSubmitting}
+                    >
+                      {filterForm.formState.isSubmitting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : null}
+                      Lọc
+                    </Button>
+                  </div>
+                </FormItem>
               </form>
             </Form>
           </CardContent>
@@ -306,10 +398,16 @@ export default function OrdersPageClient() {
                     <TableCell>{order.customerName}</TableCell>
                     <TableCell>{formatCurrency(order.total)}</TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{order.orderStatus}</Badge>
+                      <Badge variant="secondary">
+                        {orderStatusLabels[order.orderStatus] ??
+                          order.orderStatus}
+                      </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{order.paymentStatus}</Badge>
+                      <Badge variant="outline">
+                        {paymentStatusLabels[order.paymentStatus] ??
+                          order.paymentStatus}
+                      </Badge>
                     </TableCell>
                     <TableCell>{formatDateShort(order.createdAt)}</TableCell>
                     <TableCell className="text-right">

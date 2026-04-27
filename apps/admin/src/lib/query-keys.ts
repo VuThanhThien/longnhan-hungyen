@@ -1,4 +1,10 @@
 export const adminQueryKeys = {
+  dashboard: {
+    root: ['dashboard'] as const,
+    stats: (period: string) => ['dashboard', 'stats', period] as const,
+    recentOrders: (query: string) =>
+      ['dashboard', 'recent-orders', query] as const,
+  },
   reviews: {
     root: ['reviews-admin'] as const,
     list: (status: string) => ['reviews-admin', status] as const,

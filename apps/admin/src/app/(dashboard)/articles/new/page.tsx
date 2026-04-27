@@ -2,25 +2,29 @@
 
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArticleForm } from '@/components/articles/article-form';
 import { parseArticlePayload } from '@/lib/admin-form-parsers';
 import { adminClientPost } from '@/lib/admin-client';
+import { adminQueryKeys } from '@/lib/query-keys';
 
 export default function ArticleCreatePage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: async (formData: FormData) => {
       const payload = parseArticlePayload(formData);
       await adminClientPost('/articles', payload);
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success('Đã tạo bài viết');
+      await queryClient.invalidateQueries({
+        queryKey: adminQueryKeys.articles.root,
+      });
       router.push('/articles');
-      router.refresh();
     },
     onError: () => {
       toast.error('Tạo bài viết thất bại');

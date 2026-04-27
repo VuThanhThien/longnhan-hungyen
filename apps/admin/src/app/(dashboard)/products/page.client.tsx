@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import { ListPagination } from '@/components/admin/list-pagination';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -132,6 +133,8 @@ export default function ProductsPageClient() {
     category: params.category,
   };
 
+  const hasActiveFilters = Boolean(params.q) || Boolean(params.category);
+
   function applyFilters(values: AdminProductListFilterValues) {
     const next = new URLSearchParams();
     const q = values.q.trim();
@@ -139,8 +142,17 @@ export default function ProductsPageClient() {
     if (values.category && values.category !== ADMIN_FILTER_ALL) {
       next.set('category', values.category);
     }
+    next.set('page', '1');
     const qs = next.toString();
     router.push(qs ? `/products?${qs}` : '/products');
+  }
+
+  function clearFilters() {
+    filterForm.reset({
+      q: '',
+      category: ADMIN_FILTER_ALL,
+    });
+    router.push('/products');
   }
 
   return (
@@ -205,18 +217,29 @@ export default function ProductsPageClient() {
                     </FormItem>
                   )}
                 />
-                <div className="flex items-end">
-                  <Button
-                    type="submit"
-                    className="w-full md:w-auto"
-                    disabled={filterForm.formState.isSubmitting}
-                  >
-                    {filterForm.formState.isSubmitting ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <FormItem>
+                  <FormLabel className="invisible">Submit</FormLabel>
+                  <div className="flex h-10 items-center justify-end gap-2">
+                    {hasActiveFilters ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={clearFilters}
+                      >
+                        Đặt lại
+                      </Button>
                     ) : null}
-                    Lọc
-                  </Button>
-                </div>
+                    <Button
+                      type="submit"
+                      disabled={filterForm.formState.isSubmitting}
+                    >
+                      {filterForm.formState.isSubmitting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : null}
+                      Lọc
+                    </Button>
+                  </div>
+                </FormItem>
               </form>
             </Form>
           </CardContent>
@@ -269,11 +292,15 @@ export default function ProductsPageClient() {
                       </TableCell>
                       <TableCell>{formatCurrency(product.basePrice)}</TableCell>
                       <TableCell>
-                        {product.active ? 'active' : 'inactive'}
+                        <Badge
+                          variant={product.active ? 'success' : 'secondary'}
+                        >
+                          {product.active ? 'active' : 'inactive'}
+                        </Badge>
                       </TableCell>
                       <TableCell>{product.variants.length}</TableCell>
                       <TableCell className="text-right">
-                        <div className="flex flex-wrap justify-end gap-2">
+                        <div className="flex justify-end gap-2">
                           <Button
                             asChild
                             variant="outline"

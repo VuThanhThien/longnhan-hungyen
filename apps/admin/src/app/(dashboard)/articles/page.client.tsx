@@ -40,6 +40,7 @@ import {
 } from '@/lib/validation/admin-list-filter-schemas';
 import { adminClientDelete, adminClientGet } from '@/lib/admin-client';
 import type { Article } from '@longnhan/types';
+import { Badge } from '@/components/ui/badge';
 
 const PAGE_LIMIT = 30;
 
@@ -116,14 +117,25 @@ export default function ArticlesPageClient() {
     tag: params.tag,
   };
 
+  const hasActiveFilters = Boolean(params.q) || Boolean(params.tag);
+
   function applyFilters(values: AdminArticleListFilterValues) {
     const next = new URLSearchParams();
     const q = values.q.trim();
     const tag = values.tag.trim();
     if (q) next.set('q', q);
     if (tag) next.set('tag', tag);
+    next.set('page', '1');
     const qs = next.toString();
     router.push(qs ? `/articles?${qs}` : '/articles');
+  }
+
+  function clearFilters() {
+    filterForm.reset({
+      q: '',
+      tag: '',
+    });
+    router.push('/articles');
   }
 
   return (
@@ -176,18 +188,30 @@ export default function ArticlesPageClient() {
                     </FormItem>
                   )}
                 />
-                <div className="flex items-end">
-                  <Button
-                    type="submit"
-                    className="w-full md:w-auto"
-                    disabled={filterForm.formState.isSubmitting}
-                  >
-                    {filterForm.formState.isSubmitting ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <FormItem>
+                  <FormLabel className="invisible">Submit</FormLabel>
+                  <div className="flex h-10 items-center justify-end gap-2">
+                    {hasActiveFilters ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={clearFilters}
+                      >
+                        Đặt lại
+                      </Button>
                     ) : null}
-                    Lọc
-                  </Button>
-                </div>
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      disabled={filterForm.formState.isSubmitting}
+                    >
+                      {filterForm.formState.isSubmitting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : null}
+                      Tìm
+                    </Button>
+                  </div>
+                </FormItem>
               </form>
             </Form>
           </CardContent>
@@ -198,9 +222,9 @@ export default function ArticlesPageClient() {
             <CardTitle className="text-base">Danh sách bài viết</CardTitle>
             <Link
               href="/articles/new"
-              className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors duration-150 hover:text-destructive"
+              className="inline-flex h-9 items-center rounded-md bg-white px-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors duration-150 hover:text-destructive"
             >
-              + Thêm bài viết
+              Thêm bài viết
             </Link>
           </CardHeader>
           <CardContent>
@@ -218,6 +242,7 @@ export default function ArticlesPageClient() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Tiêu đề</TableHead>
+                  <TableHead>Tags</TableHead>
                   <TableHead>Trạng thái</TableHead>
                   <TableHead>Ngày cập nhật</TableHead>
                   <TableHead className="w-[1%] whitespace-nowrap text-right">
@@ -233,12 +258,23 @@ export default function ArticlesPageClient() {
                   return (
                     <TableRow key={article.id}>
                       <TableCell>{article.title}</TableCell>
-                      <TableCell>{article.status}</TableCell>
                       <TableCell>
-                        {formatDateShort(article.updatedAt)}
+                        {article.tags.map((tag) => (
+                          <Badge variant="outline" key={tag}>
+                            {tag}
+                          </Badge>
+                        ))}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{article.status}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {formatDateShort(article.updatedAt)}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex flex-wrap justify-end gap-2">
+                        <div className="flex justify-end gap-2">
                           <Button
                             asChild
                             variant="outline"

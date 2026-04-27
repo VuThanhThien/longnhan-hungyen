@@ -198,7 +198,7 @@ export default function ReviewsPageClient() {
                         {new Date(r.createdAt).toLocaleDateString('vi-VN')}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex flex-wrap justify-end gap-2">
+                        <div className="flex justify-end gap-2">
                           <Button
                             type="button"
                             size="sm"

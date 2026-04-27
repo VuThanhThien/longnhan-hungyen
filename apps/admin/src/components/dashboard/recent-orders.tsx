@@ -1,8 +1,17 @@
+'use client';
+
 import Link from 'next/link';
 import { type Order } from '@longnhan/types';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
+import { InlineErrorState } from '@/components/ui/inline-error-state';
+import { adminClientGet } from '@/lib/admin-client';
+import { toList } from '@/lib/admin-data';
+import { adminQueryKeys } from '@/lib/query-keys';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { ShoppingBag } from 'lucide-react';
 
 const orderStatusLabels: Record<
   string,
@@ -25,11 +34,19 @@ const orderStatusLabels: Record<
   cancelled: { label: 'Đã hủy', variant: 'destructive' },
 };
 
-interface RecentOrdersProps {
-  orders: Order[];
-}
+export function RecentOrders() {
+  const queryString = 'limit=10&page=1';
+  const ordersQuery = useQuery({
+    queryKey: adminQueryKeys.dashboard.recentOrders(queryString),
+    queryFn: async () => {
+      const raw = await adminClientGet<unknown>(`/orders?${queryString}`);
+      return toList<Order>(raw);
+    },
+  });
 
-export function RecentOrders({ orders }: RecentOrdersProps) {
+  const orders = ordersQuery.data ?? [];
+  const error = ordersQuery.isError;
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -42,12 +59,24 @@ export function RecentOrders({ orders }: RecentOrdersProps) {
         </Link>
       </CardHeader>
       <CardContent>
-        {orders.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            Chưa có đơn hàng nào
-          </p>
+        {ordersQuery.isPending ? (
+          <div className="space-y-2">
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="h-12 animate-pulse rounded-lg bg-muted"
+              />
+            ))}
+          </div>
+        ) : error ? (
+          <InlineErrorState message="Không thể tải đơn hàng gần đây." />
+        ) : orders.length === 0 ? (
+          <EmptyState
+            icon={<ShoppingBag className="h-7 w-7" />}
+            title="Chưa có đơn hàng nào"
+          />
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-1">
             {orders.map((order) => {
               const status = orderStatusLabels[order.orderStatus] ?? {
                 label: order.orderStatus,

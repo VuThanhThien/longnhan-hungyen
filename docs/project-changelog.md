@@ -1,8 +1,41 @@
 # Project Changelog
 
-**Last Updated:** 2026-04-25
+**Last Updated:** 2026-04-27
 
 All notable changes to the Long Nhan Hung Yen e-commerce project are documented here. **Phase status** is canonical in [Project Roadmap](./project-roadmap.md).
+
+---
+
+## [5.3.0] - 2026-04-27 - Admin dashboard data layer & UI primitives
+
+### Added
+
+- **Dashboard data types** (`apps/admin/src/lib/dashboard/dashboard-types.ts`):
+  - `DashboardPeriod` type for period selection (`'today' | 'week' | 'month' | 'all'`)
+  - `DashboardStats` interface mirroring API `DashboardStatsResDto`
+  - `DailyStatPoint` for daily aggregation (date, count, revenue)
+  - `parsePeriod()` safe parser with default fallback
+  - `PERIOD_LABELS` localized period display strings (Vietnamese)
+
+- **Shared UI primitives** (`apps/admin/src/components/ui/`):
+  - `empty-state.tsx` — Reusable empty state card (icon, title, description, action)
+  - `inline-error-state.tsx` — Error message display component
+
+- **Dashboard components** (`apps/admin/src/components/dashboard/`):
+  - `period-switcher.tsx` — Client component for URL-based period switching
+  - `dashboard-error-state.tsx` — Dashboard-level error card wrapper
+
+### Changed
+
+- `apps/admin/src/app/(dashboard)/page.tsx` — Integrated real API data, period param, visible error states
+- `apps/admin/src/components/dashboard/stat-cards.tsx` — Aligned to `DashboardStatsResDto` contract
+- `apps/admin/src/components/dashboard/revenue-chart.tsx` — Uses `dailyStats`, dynamic title based on period
+- `apps/admin/src/components/dashboard/recent-orders.tsx` — Added error prop, uses shared `EmptyState`
+
+### Documentation
+
+- Updated `docs/codebase-summary.md` — Dashboard data layer and UI primitives inventory
+- Updated `docs/frontend-code-standards.md` — Dashboard patterns, data types, and UI primitive usage examples
 
 ---
 

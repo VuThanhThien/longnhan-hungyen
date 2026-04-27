@@ -7,6 +7,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import { OrderStatus, PaymentStatus } from '@longnhan/types';
 import { useUpdateOrderStatus } from '@/features/orders/hooks/use-update-order-status';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { extractErrorMessage } from '@/lib/http/extract-error-message';
 import { adminQueryKeys } from '@/lib/query-keys';
 
@@ -112,49 +119,53 @@ export function OrderStatusPanel({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="space-y-1">
           <label
-            htmlFor="orderStatus"
+            id="orderStatusLabel"
             className="text-sm text-muted-foreground"
           >
             Trạng thái đơn
           </label>
-          <select
-            id="orderStatus"
+          <Select
             value={draftOrderStatus}
-            onChange={(event) =>
-              setDraftOrderStatus(event.target.value as OrderStatus)
-            }
+            onValueChange={(value) => setDraftOrderStatus(value as OrderStatus)}
             disabled={pending}
-            className="h-10 w-full rounded-md border border-border px-3 text-sm"
           >
-            {orderStatuses.map((status) => (
-              <option key={status} value={status}>
-                {orderStatusLabels[status]}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger aria-labelledby="orderStatusLabel">
+              <SelectValue placeholder="Chọn trạng thái" />
+            </SelectTrigger>
+            <SelectContent>
+              {orderStatuses.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {orderStatusLabels[status]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="space-y-1">
           <label
-            htmlFor="paymentStatus"
+            id="paymentStatusLabel"
             className="text-sm text-muted-foreground"
           >
             Trạng thái thanh toán
           </label>
-          <select
-            id="paymentStatus"
+          <Select
             value={draftPaymentStatus}
-            onChange={(event) =>
-              setDraftPaymentStatus(event.target.value as PaymentStatus)
+            onValueChange={(value) =>
+              setDraftPaymentStatus(value as PaymentStatus)
             }
             disabled={pending}
-            className="h-10 w-full rounded-md border border-border px-3 text-sm"
           >
-            {paymentStatuses.map((status) => (
-              <option key={status} value={status}>
-                {paymentStatusLabels[status]}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger aria-labelledby="paymentStatusLabel">
+              <SelectValue placeholder="Chọn trạng thái" />
+            </SelectTrigger>
+            <SelectContent>
+              {paymentStatuses.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {paymentStatusLabels[status]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
       <div className="flex flex-wrap gap-2">

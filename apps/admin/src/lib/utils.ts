@@ -12,6 +12,12 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+export function formatVndCompact(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K`;
+  return value.toString();
+}
+
 export function formatDate(dateStr: string): string {
   return new Intl.DateTimeFormat('vi-VN', {
     year: 'numeric',

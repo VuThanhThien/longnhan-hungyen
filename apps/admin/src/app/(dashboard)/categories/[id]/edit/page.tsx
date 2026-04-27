@@ -1,11 +1,14 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
+import { Loader2, PackageX } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CategoryForm } from '@/components/categories/category-form';
+import { EmptyState } from '@/components/ui/empty-state';
+import { InlineErrorState } from '@/components/ui/inline-error-state';
 import type { CategoryFormValues } from '@/components/categories/category-form.constant';
 import { adminClientGet, adminClientPut } from '@/lib/admin-client';
 import type { Category } from '@longnhan/types';
@@ -52,19 +55,22 @@ export default function CategoryEditPage() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <Header title={category ? `Sửa: ${category.name}` : 'Sửa danh mục'} />
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 overflow-y-auto p-6 space-y-4">
         {isLoading ? (
-          <div className="text-sm text-muted-foreground">Đang tải…</div>
+          <EmptyState
+            icon={<Loader2 className="h-5 w-5 animate-spin" />}
+            title="Đang tải…"
+          />
         ) : null}
         {isError ? (
-          <div className="text-sm text-destructive">
-            Không tải được danh sách
-          </div>
+          <InlineErrorState message="Không tải được danh sách" />
         ) : null}
         {!isLoading && id && !category ? (
-          <div className="text-sm text-destructive">
-            Không tìm thấy danh mục
-          </div>
+          <EmptyState
+            icon={<PackageX className="h-6 w-6" />}
+            title="Không tìm thấy danh mục"
+            description="Danh mục có thể đã bị tắt hoặc bạn không có quyền truy cập."
+          />
         ) : null}
         {category ? (
           <Card>

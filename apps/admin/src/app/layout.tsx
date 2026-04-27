@@ -3,6 +3,7 @@ import { Geist } from 'next/font/google';
 import './globals.css';
 import { Toaster } from 'sonner';
 import { QueryProvider } from '@/components/providers/query-provider';
+import { NuqsAdapter } from 'nuqs/adapters/next/app';
 
 const geist = Geist({
   variable: '--font-geist-sans',
@@ -22,10 +23,12 @@ export default function RootLayout({
   return (
     <html lang="vi" className={`${geist.variable} h-full`}>
       <body className="h-full antialiased bg-background text-foreground">
-        <QueryProvider>
-          {children}
-          <Toaster richColors closeButton position="top-right" />
-        </QueryProvider>
+        <NuqsAdapter>
+          <QueryProvider>
+            {children}
+            <Toaster richColors closeButton position="top-right" />
+          </QueryProvider>
+        </NuqsAdapter>
       </body>
     </html>
   );
