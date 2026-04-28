@@ -67,7 +67,7 @@ export default function VoucherDetailPageClient() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <Header title={voucher ? `Mã: ${voucher.code}` : 'Mã giảm giá'} />
-      <main className="flex-1 space-y-6 overflow-y-auto p-6">
+      <main className="flex-1 space-y-6 overflow-y-auto p-4 lg:p-6">
         {isLoading ? (
           <div className="text-sm text-muted-foreground">Đang tải…</div>
         ) : null}

@@ -36,7 +36,7 @@ export default function CategoryCreatePage() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <Header title="Tạo danh mục" />
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 overflow-y-auto p-4 lg:p-6">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Thông tin danh mục</CardTitle>

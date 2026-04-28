@@ -381,6 +381,7 @@ Reusable NestJS modules:
 - **State:** AuthProvider (context), React Query (stale 30s), Radix UI toast notifications
 - **Forms:** react-hook-form + yup validation, Server Actions for login/mutations
 - **Cache:** `revalidatePath()` after mutations to sync Server Component state
+- **Mobile navigation:** Sheet-based mobile sidebar (`components/layout/mobile-sidebar.tsx`) with hamburger trigger in header; visible below `lg:` breakpoint
 
 **Dashboard data layer:**
 
@@ -401,6 +402,7 @@ Reusable NestJS modules:
 **Key libraries (admin):**
 
 - **shadcn/ui-style `components/ui/`** — Radix primitives (`@radix-ui/*`) composed with Tailwind; extend via shadcn registry CLI from `apps/admin`
+  - `sheet.tsx` — Sheet component (Radix Dialog-based slide-out panel)
 - `recharts` — Revenue & stats charts
 - `react-hook-form` + `yup` — Form validation
 - `axios` — HTTP client

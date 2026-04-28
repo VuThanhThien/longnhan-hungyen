@@ -72,7 +72,7 @@ export default async function Footer() {
               alt="Đã thông báo Bộ Công Thương"
               width={260}
               height={98}
-              className="h-auto w-[220px] max-w-full"
+              className="h-auto w-[160px] max-w-full sm:w-[220px]"
               loading="lazy"
               fetchPriority="low"
               decoding="async"

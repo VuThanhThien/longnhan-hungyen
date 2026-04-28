@@ -79,7 +79,7 @@ export default function ProductPdpTabs({ product }: ProductPdpTabsProps) {
                     key={row.key}
                     className="border-b border-gray-100 last:border-b-0"
                   >
-                    <th className="w-44 bg-gray-50 px-4 py-3 text-left">
+                    <th className="w-28 bg-gray-50 px-3 py-3 text-left sm:w-44 sm:px-4">
                       {row.key}
                     </th>
                     <td className="px-4 py-3 text-gray-700">{row.value}</td>

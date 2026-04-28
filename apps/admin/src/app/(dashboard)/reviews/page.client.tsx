@@ -98,7 +98,7 @@ export default function ReviewsPageClient() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <Header title="Đánh giá" />
-      <main className="flex flex-1 flex-col space-y-6 overflow-y-auto p-6">
+      <main className="flex flex-1 flex-col space-y-6 overflow-y-auto p-4 lg:p-6">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Bộ lọc</CardTitle>
@@ -109,7 +109,7 @@ export default function ReviewsPageClient() {
               value={status}
               onValueChange={(v) => setStatus(v as ReviewFilter)}
             >
-              <SelectTrigger className="h-10 w-[200px]">
+              <SelectTrigger className="h-10 w-full sm:w-[200px]">
                 <SelectValue placeholder="Trạng thái" />
               </SelectTrigger>
               <SelectContent>

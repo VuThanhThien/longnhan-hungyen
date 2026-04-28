@@ -1,13 +1,20 @@
 'use client';
 
 import { ChevronDownIcon, MagnifyingGlassIcon } from '@radix-ui/react-icons';
-import { useQueryStates } from 'nuqs';
 import { useRouter } from 'next/navigation';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { serializeProductSearchUrl } from '@/lib/product-search-params';
 import {
-  productSearchParamsParsers,
-  serializeProductSearchUrl,
-} from '@/lib/product-search-params';
+  addRecent,
+  readRecents,
+  type RecentQuery,
+} from '@/lib/header-search-recent-queries';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import { useProductSuggestions } from '@/services/product-suggestions';
+import HeaderSearchSuggestions, {
+  getOptionsCount,
+  type SuggestionOption,
+} from './header-search-suggestions';
 
 const ACCENT = '#E8A240';
 
@@ -26,24 +33,169 @@ export default function HeaderSearchBar({
   className = '',
 }: HeaderSearchBarProps) {
   const router = useRouter();
-  const [{ q, category }, setSearchParams] = useQueryStates(
-    productSearchParamsParsers,
+  const [inputQ, setInputQ] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const [composing, setComposing] = useState(false);
+  const [recents, setRecents] = useState<RecentQuery[]>([]);
+  const wrapperRef = useRef<HTMLFormElement>(null);
+
+  const trimmedQ = inputQ.trim();
+  const debouncedQ = useDebouncedValue(trimmedQ, 250);
+
+  const {
+    data: suggestions,
+    isLoading,
+    isError,
+  } = useProductSuggestions(debouncedQ, open && !composing);
+
+  const apiCategories = useMemo(
+    () => suggestions?.categories ?? [],
+    [suggestions?.categories],
+  );
+  const apiProducts = useMemo(
+    () => suggestions?.products ?? [],
+    [suggestions?.products],
+  );
+
+  const optionsCount = getOptionsCount(
+    trimmedQ,
+    recents.length,
+    apiCategories.length,
+    apiProducts.length,
+  );
+
+  const refreshRecents = useCallback(() => setRecents(readRecents()), []);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const navigate = useCallback(
+    (url: string) => {
+      setOpen(false);
+      setInputQ('');
+      router.push(url);
+    },
+    [router],
+  );
+
+  const handleSelect = useCallback(
+    (option: SuggestionOption) => {
+      setOpen(false);
+      switch (option.type) {
+        case 'recent':
+          navigate(
+            serializeProductSearchUrl('/products', {
+              q: option.item.q,
+              category: option.item.category || null,
+            }),
+          );
+          break;
+        case 'category':
+          addRecent({
+            q: trimmedQ || option.item.name,
+            category: option.item.slug,
+          });
+          navigate(
+            serializeProductSearchUrl('/products', {
+              q: null,
+              category: option.item.slug,
+            }),
+          );
+          break;
+        case 'product':
+          addRecent({ q: trimmedQ, category: selectedCategory || null });
+          navigate(`/products/${option.item.slug}`);
+          break;
+      }
+    },
+    [navigate, trimmedQ, selectedCategory],
   );
 
   const submit = useCallback(() => {
-    const trimmed = (q ?? '').trim();
-    router.push(
-      serializeProductSearchUrl('/products', {
-        q: trimmed || null,
-        category: category || null,
-      }),
-    );
-  }, [q, category, router]);
+    if (trimmedQ) {
+      addRecent({ q: trimmedQ, category: selectedCategory || null });
+    }
+    setOpen(false);
+    const url = serializeProductSearchUrl('/products', {
+      q: trimmedQ || null,
+      category: selectedCategory || null,
+    });
+    setInputQ('');
+    router.push(url);
+  }, [trimmedQ, selectedCategory, router]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (!open || composing || e.nativeEvent.isComposing) return;
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          setActiveIndex((prev) => (prev < optionsCount - 1 ? prev + 1 : prev));
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setActiveIndex((prev) => (prev > 0 ? prev - 1 : -1));
+          break;
+        case 'Enter':
+          if (activeIndex >= 0) {
+            e.preventDefault();
+            const options: SuggestionOption[] = [];
+            if (trimmedQ.length === 0) {
+              recents.forEach((r) => options.push({ type: 'recent', item: r }));
+            } else if (trimmedQ.length >= 2) {
+              apiCategories.forEach((c) =>
+                options.push({ type: 'category', item: c }),
+              );
+              apiProducts.forEach((p) =>
+                options.push({ type: 'product', item: p }),
+              );
+            }
+            const selected = options[activeIndex];
+            if (selected) handleSelect(selected);
+          }
+          break;
+        case 'Escape':
+          e.preventDefault();
+          setOpen(false);
+          setActiveIndex(-1);
+          break;
+      }
+    },
+    [
+      open,
+      composing,
+      activeIndex,
+      optionsCount,
+      trimmedQ,
+      recents,
+      apiCategories,
+      apiProducts,
+      handleSelect,
+    ],
+  );
+
+  const hasDropdownContent =
+    (trimmedQ.length === 0 && recents.length > 0) || trimmedQ.length >= 2;
 
   return (
     <form
+      ref={wrapperRef}
       role="search"
-      className={`flex h-10 w-full min-w-0 max-w-xl justify-center ${className}`}
+      className={`relative flex h-10 w-full min-w-0 max-w-xl justify-center ${className}`}
       onSubmit={(e) => {
         e.preventDefault();
         submit();
@@ -64,10 +216,8 @@ export default function HeaderSearchBar({
           </label>
           <select
             id="header-search-category"
-            value={category ?? ''}
-            onChange={(e) =>
-              setSearchParams({ category: e.target.value || null })
-            }
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
             className="h-full w-full min-w-0 cursor-pointer appearance-none bg-transparent py-0 pr-5 pl-7 text-xs text-(--brand-forest-muted) outline-none transition-colors duration-200 ease-out group-hover:text-(--brand-forest) sm:pl-8 sm:text-sm"
           >
             {CATEGORY_OPTIONS.map((opt) => (
@@ -90,10 +240,29 @@ export default function HeaderSearchBar({
             id="header-search-q"
             type="search"
             name="q"
-            value={q ?? ''}
-            onChange={(e) => setSearchParams({ q: e.target.value || null })}
+            value={inputQ}
+            onChange={(e) => {
+              setInputQ(e.target.value);
+              setActiveIndex(-1);
+            }}
+            onFocus={() => {
+              setOpen(true);
+              refreshRecents();
+            }}
+            onCompositionStart={() => setComposing(true)}
+            onCompositionEnd={() => setComposing(false)}
+            onKeyDown={handleKeyDown}
             placeholder="Tìm kiếm..."
             autoComplete="off"
+            role="combobox"
+            aria-expanded={open && hasDropdownContent}
+            aria-controls="header-search-listbox"
+            aria-autocomplete="list"
+            aria-activedescendant={
+              activeIndex >= 0
+                ? `header-search-option-${activeIndex}`
+                : undefined
+            }
             className="h-full min-w-0 flex-1 border-0 bg-transparent px-3 text-sm text-(--brand-forest) placeholder:text-(--brand-forest-muted)/80 outline-none"
           />
         </div>
@@ -107,6 +276,21 @@ export default function HeaderSearchBar({
       >
         <MagnifyingGlassIcon className="h-5 w-5 text-[#5c2e20]" aria-hidden />
       </button>
+
+      {open && hasDropdownContent && (
+        <HeaderSearchSuggestions
+          q={trimmedQ}
+          recents={recents}
+          categories={apiCategories}
+          products={apiProducts}
+          isLoading={isLoading}
+          isError={isError}
+          activeIndex={activeIndex}
+          onSelect={handleSelect}
+          onActiveIndexChange={setActiveIndex}
+          onRecentsChange={refreshRecents}
+        />
+      )}
     </form>
   );
 }

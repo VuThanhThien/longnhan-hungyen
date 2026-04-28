@@ -72,7 +72,7 @@ export default function VoucherEditPage() {
     return (
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header title="Chỉnh sửa mã giảm giá" />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
           <div className="text-sm text-muted-foreground">Đang tải…</div>
         </main>
       </div>
@@ -84,7 +84,7 @@ export default function VoucherEditPage() {
       <Header
         title={voucher ? `Sửa: ${voucher.code}` : 'Chỉnh sửa mã giảm giá'}
       />
-      <main className="flex-1 overflow-y-auto p-6">
+      <main className="flex-1 overflow-y-auto p-4 lg:p-6">
         <Card className="max-w-xl">
           <CardHeader>
             <CardTitle className="text-base">Thông tin mã giảm giá</CardTitle>

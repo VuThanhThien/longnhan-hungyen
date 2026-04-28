@@ -16,6 +16,12 @@ import { CreateProductVariantReqDto } from './dto/create-product-variant.req.dto
 import { CreateProductReqDto } from './dto/create-product.req.dto';
 import { ProductCategoryBriefResDto } from './dto/product-category-brief.res.dto';
 import { ProductQueryReqDto } from './dto/product-query.req.dto';
+import { ProductSuggestionsQueryReqDto } from './dto/product-suggestions-query.req.dto';
+import {
+  CategorySuggestionItemResDto,
+  ProductSuggestionItemResDto,
+  ProductSuggestionsResDto,
+} from './dto/product-suggestions.res.dto';
 import { ProductResDto } from './dto/product.res.dto';
 import { UpdateProductVariantReqDto } from './dto/update-product-variant.req.dto';
 import { UpdateProductReqDto } from './dto/update-product.req.dto';
@@ -69,6 +75,73 @@ export class ProductsService {
       return this.categoriesService.findBySlugKeyOrThrow(dto.category);
     }
     throw new BadRequestException('Either categoryId or category is required');
+  }
+
+  async suggestions(
+    dto: ProductSuggestionsQueryReqDto,
+  ): Promise<ProductSuggestionsResDto> {
+    const q = dto.q.trim();
+    const limit = Math.min(dto.limit ?? 8, 20);
+
+    if (q.length < 2) {
+      return plainToInstance(
+        ProductSuggestionsResDto,
+        { q, categories: [], products: [] },
+        { excludeExtraneousValues: true },
+      );
+    }
+
+    const pattern = `%${q.replace(/[%_]/g, '\\$&')}%`;
+
+    const [categories, products] = await Promise.all([
+      this.dataSource
+        .getRepository(CategoryEntity)
+        .createQueryBuilder('c')
+        .select(['c.slug', 'c.name'])
+        .where('c.active = true')
+        .andWhere('(c.name ILIKE :pattern OR c.slug ILIKE :pattern)', {
+          pattern,
+        })
+        .orderBy('c.sortOrder', 'ASC')
+        .limit(5)
+        .getMany(),
+
+      this.productRepo
+        .createQueryBuilder('p')
+        .select(['p.name', 'p.slug', 'p.featuredImageUrl', 'p.basePrice'])
+        .where('p.active = true')
+        .andWhere('p.name ILIKE :pattern', { pattern })
+        .orderBy('p.createdAt', 'DESC')
+        .limit(limit)
+        .getMany(),
+    ]);
+
+    return plainToInstance(
+      ProductSuggestionsResDto,
+      {
+        q,
+        categories: categories.map((c) =>
+          plainToInstance(
+            CategorySuggestionItemResDto,
+            { slug: c.slug, name: c.name },
+            { excludeExtraneousValues: true },
+          ),
+        ),
+        products: products.map((p) =>
+          plainToInstance(
+            ProductSuggestionItemResDto,
+            {
+              name: p.name,
+              slug: p.slug,
+              featuredImageUrl: p.featuredImageUrl,
+              basePrice: p.basePrice,
+            },
+            { excludeExtraneousValues: true },
+          ),
+        ),
+      },
+      { excludeExtraneousValues: true },
+    );
   }
 
   /** Public: list active products with variants */

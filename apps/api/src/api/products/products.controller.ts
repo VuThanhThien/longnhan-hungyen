@@ -18,6 +18,8 @@ import { ApiParam, ApiTags } from '@nestjs/swagger';
 import { CreateProductVariantReqDto } from './dto/create-product-variant.req.dto';
 import { CreateProductReqDto } from './dto/create-product.req.dto';
 import { ProductQueryReqDto } from './dto/product-query.req.dto';
+import { ProductSuggestionsQueryReqDto } from './dto/product-suggestions-query.req.dto';
+import { ProductSuggestionsResDto } from './dto/product-suggestions.res.dto';
 import { ProductResDto } from './dto/product.res.dto';
 import { UpdateProductVariantReqDto } from './dto/update-product-variant.req.dto';
 import { UpdateProductReqDto } from './dto/update-product.req.dto';
@@ -50,6 +52,17 @@ export class ProductsController {
     @Query() dto: ProductQueryReqDto,
   ): Promise<OffsetPaginatedDto<ProductResDto>> {
     return this.productsService.findMany(dto, { includeInactive: true });
+  }
+
+  @ApiPublic({
+    type: ProductSuggestionsResDto,
+    summary: 'Search suggestions (categories + products)',
+  })
+  @Get('suggestions')
+  async suggestions(
+    @Query() dto: ProductSuggestionsQueryReqDto,
+  ): Promise<ProductSuggestionsResDto> {
+    return this.productsService.suggestions(dto);
   }
 
   @ApiPublic({ type: ProductResDto, summary: 'Get product by slug' })

@@ -229,7 +229,7 @@ export default function OrdersPageClient() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <Header title="Đơn hàng" />
-      <main className="flex flex-1 flex-col space-y-6 overflow-y-auto p-6">
+      <main className="flex flex-1 flex-col space-y-6 overflow-y-auto p-4 lg:p-6">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Bộ lọc</CardTitle>

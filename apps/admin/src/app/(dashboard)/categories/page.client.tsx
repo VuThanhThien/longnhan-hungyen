@@ -51,7 +51,7 @@ export default function CategoriesPageClient() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <Header title="Danh mục sản phẩm" />
-      <main className="flex-1 overflow-y-auto p-6 space-y-6">
+      <main className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Danh sách danh mục</CardTitle>

@@ -47,7 +47,7 @@ export default function ProductEditPage() {
             onValueChange={setTab}
             className="flex min-h-0 flex-1 flex-col"
           >
-            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border bg-popover px-6 py-3">
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border bg-popover px-4 py-3 lg:px-6">
               <TabsList className="max-w-full flex-wrap justify-start gap-1 h-auto min-h-10 py-1">
                 <TabsTrigger value="info">Thông tin</TabsTrigger>
                 <TabsTrigger value="variants">Biến thể</TabsTrigger>
@@ -69,7 +69,7 @@ export default function ProductEditPage() {
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-6">
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 lg:p-6">
               <TabsContent value="info" className="m-0 focus-visible:ring-0">
                 <Card>
                   <CardHeader>

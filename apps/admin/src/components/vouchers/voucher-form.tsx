@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm, type Resolver } from 'react-hook-form';
+import { useForm, useWatch, type Resolver } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2 } from 'lucide-react';
@@ -85,7 +85,10 @@ export function VoucherForm({
     },
   });
 
-  const discountType = form.watch('discountType');
+  const discountType = useWatch({
+    control: form.control,
+    name: 'discountType',
+  });
 
   return (
     <Form {...form}>

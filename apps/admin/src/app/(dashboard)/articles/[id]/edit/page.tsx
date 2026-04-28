@@ -75,7 +75,7 @@ export default function ArticleEditPage() {
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto p-6">
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 lg:p-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">Nội dung bài viết</CardTitle>

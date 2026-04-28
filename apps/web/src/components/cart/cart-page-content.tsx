@@ -81,22 +81,6 @@ export function CartPageContent() {
               </div>
             </div>
 
-            <div className="mt-4 rounded-xl border border-(--brand-forest)/10 bg-(--brand-gold)/10 p-3">
-              <input
-                disabled
-                aria-disabled="true"
-                placeholder="Mã giảm giá (sắp ra mắt)"
-                className="h-11 w-full rounded-xl border border-(--brand-forest)/15 bg-(--brand-cream) px-3 text-sm text-(--brand-forest) opacity-60 cursor-not-allowed"
-              />
-              <button
-                type="button"
-                disabled
-                className="mt-2 inline-flex h-11 w-full items-center justify-center rounded-xl border-2 border-(--brand-gold)/40 bg-(--brand-gold)/10 text-sm font-semibold text-(--brand-forest) opacity-60 cursor-not-allowed"
-              >
-                Áp dụng
-              </button>
-            </div>
-
             <div className="mt-4 grid gap-3">
               <Link
                 href="/checkout"

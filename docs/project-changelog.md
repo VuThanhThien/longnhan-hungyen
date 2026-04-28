@@ -1,8 +1,36 @@
 # Project Changelog
 
-**Last Updated:** 2026-04-27
+**Last Updated:** 2026-04-28
 
 All notable changes to the Long Nhan Hung Yen e-commerce project are documented here. **Phase status** is canonical in [Project Roadmap](./project-roadmap.md).
+
+---
+
+## [5.5.0] - 2026-04-28 - Admin mobile sidebar + responsive verification
+
+### Added
+
+- **Sheet UI component** (`apps/admin/src/components/ui/sheet.tsx`) — Radix Dialog-based slide-out panel for mobile navigation
+- **Mobile sidebar component** (`apps/admin/src/components/layout/mobile-sidebar.tsx`) — Sheet-based mobile navigation drawer with hamburger trigger
+  - Reuses existing `SidebarNav` component for consistent navigation items
+  - Auto-closes on route change via `usePathname` effect
+  - Visible only below `lg:` breakpoint (matches desktop sidebar hide point)
+  - Matches desktop sidebar visual style (`bg-sidebar text-sidebar-foreground`)
+
+### Changed
+
+- `apps/admin/src/components/layout/header.tsx` — Added hamburger menu trigger button (visible below `lg:` breakpoint)
+- `apps/admin/src/app/(dashboard)/layout.tsx` — Integrated mobile sidebar component
+
+### Verified
+
+- **Admin responsive:** Fixed padding, select widths, input widths across breakpoints
+- **Storefront responsive:** Fixed grid gap, table width, footer logo, category filter scroll behavior
+
+### Documentation
+
+- Updated `docs/codebase-summary.md` — Added Sheet component and mobile sidebar architecture notes
+- Updated `docs/codebase-summary.md` — Admin architecture section now documents mobile navigation pattern
 
 ---
 

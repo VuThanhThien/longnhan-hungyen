@@ -55,7 +55,7 @@ export default function CategoryEditPage() {
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <Header title={category ? `Sửa: ${category.name}` : 'Sửa danh mục'} />
-      <main className="flex-1 overflow-y-auto p-6 space-y-4">
+      <main className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4">
         {isLoading ? (
           <EmptyState
             icon={<Loader2 className="h-5 w-5 animate-spin" />}
