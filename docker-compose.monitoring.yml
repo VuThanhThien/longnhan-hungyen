@@ -1,0 +1,31 @@
+services:
+  alloy:
+    image: grafana/alloy:v1.9.0
+    container_name: longnhan_alloy
+    env_file:
+      - apps/api/.env.production
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy/data
+      - --server.http.listen-addr=0.0.0.0:12345
+    volumes:
+      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy_data:/var/lib/alloy/data
+    environment:
+      DB_USERNAME: ${DATABASE_USERNAME:-longnhan}
+      DB_PASSWORD: ${DATABASE_PASSWORD:-longnhan}
+      DB_DATABASE: ${DATABASE_NAME:-longnhan}
+    ports:
+      - '127.0.0.1:12345:12345'
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    networks:
+      - longnhan-prod
+
+volumes:
+  alloy_data:

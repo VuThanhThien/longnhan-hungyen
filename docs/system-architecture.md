@@ -184,11 +184,30 @@ Each module follows standard NestJS structure:
 - **ExceptionFilter** — Unified error response formatting
 - Consistent HTTP status codes and error messages
 
-#### Logging & Monitoring (src/interceptors/)
+#### Logging & Monitoring (src/interceptors/, src/libs/metrics/)
 
 - **Pino** logger integration
 - Request/response logging via nestjs-pino
-- Performance metrics capture
+- **Prometheus metrics** via `prom-client` (`GET /metrics`)
+  - HTTP request duration histogram and counter (method, route, status_code)
+  - Node.js runtime defaults (heap, CPU, event loop, GC)
+
+#### Monitoring Stack (Production)
+
+**Grafana Cloud** (free tier) with **Grafana Alloy** agent for data shipping.
+
+- **Grafana Cloud** — Managed Loki (logs, 50GB/mo), Mimir (metrics, 10K series), Grafana UI
+- **Grafana Alloy** — Single container ships logs + scrapes metrics (API, Postgres, Redis)
+- **Dashboards:** API Overview, Logs Explorer, Node.js Runtime, Infrastructure
+
+```bash
+docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env-file .env.production up -d
+# Alloy UI: http://localhost:12345
+# Dashboards: Grafana Cloud portal
+```
+
+**Config:** `monitoring/alloy/config.alloy`
+**Env vars:** `GRAFANA_CLOUD_PROMETHEUS_URL`, `GRAFANA_CLOUD_LOKI_URL`, `GRAFANA_CLOUD_USER`, `GRAFANA_CLOUD_API_KEY`
 
 ### 4. Configuration Layer (src/config/)
 

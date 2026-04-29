@@ -1,0 +1,117 @@
+// Logging: Collect Docker container logs → push to Grafana Cloud Loki
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "docker_logs" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "service"
+  }
+}
+
+loki.source.docker "containers" {
+  host    = "unix:///var/run/docker.sock"
+  targets = discovery.relabel.docker_logs.output
+
+  forward_to = [loki.process.pino_parser.receiver]
+}
+
+loki.process "pino_parser" {
+  stage.json {
+    expressions = {
+      level         = "level",
+      msg           = "msg",
+      req_id        = "req.id",
+      response_time = "responseTime",
+    }
+  }
+
+  stage.labels {
+    values = {
+      level = "level",
+    }
+  }
+
+  stage.static_labels {
+    values = {
+      project = "longnhan",
+    }
+  }
+
+  forward_to = [loki.write.grafana_cloud.receiver]
+}
+
+loki.write "grafana_cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_CLOUD_LOKI_URL")
+
+    basic_auth {
+      username = sys.env("GRAFANA_CLOUD_LOKI_USER")
+      password = sys.env("GRAFANA_CLOUD_API_KEY")
+    }
+  }
+}
+
+// Metrics: Scrape API /metrics → push to Grafana Cloud Mimir
+
+prometheus.scrape "api" {
+  targets = [{
+    __address__ = "api:3001",
+  }]
+  metrics_path = "/metrics"
+  scrape_interval = "15s"
+
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+// Postgres metrics via built-in exporter
+
+prometheus.exporter.postgres "db" {
+  data_source_names = [
+    "postgresql://" + sys.env("DB_USERNAME") + ":" + sys.env("DB_PASSWORD") + "@db:5432/" + sys.env("DB_DATABASE") + "?sslmode=disable",
+  ]
+}
+
+prometheus.scrape "postgres" {
+  targets         = prometheus.exporter.postgres.db.targets
+  scrape_interval = "30s"
+
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+// Redis metrics via built-in exporter
+
+prometheus.exporter.redis "cache" {
+  redis_addr = "redis:6379"
+}
+
+prometheus.scrape "redis" {
+  targets         = prometheus.exporter.redis.cache.targets
+  scrape_interval = "15s"
+
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+// Remote write to Grafana Cloud Mimir
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_CLOUD_PROMETHEUS_URL")
+
+    basic_auth {
+      username = sys.env("GRAFANA_CLOUD_PROMETHEUS_USER")
+      password = sys.env("GRAFANA_CLOUD_API_KEY")
+    }
+  }
+}
