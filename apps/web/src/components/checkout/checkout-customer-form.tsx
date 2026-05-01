@@ -40,6 +40,7 @@ type CheckoutCustomerFormProps = {
   submitError: string | null;
   onPhoneChange?: (phone: string) => void;
   voucherSlot?: React.ReactNode;
+  turnstileSlot?: React.ReactNode;
 };
 
 export function CheckoutCustomerForm({
@@ -48,6 +49,7 @@ export function CheckoutCustomerForm({
   submitError,
   onPhoneChange,
   voucherSlot,
+  turnstileSlot,
 }: CheckoutCustomerFormProps) {
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(orderFormSchema),
@@ -268,6 +270,8 @@ export function CheckoutCustomerForm({
               đơn hàng.
             </p>
           ) : null}
+
+          {paymentMethod === 'cod' && turnstileSlot ? turnstileSlot : null}
 
           {voucherSlot}
 

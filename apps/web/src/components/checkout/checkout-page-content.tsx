@@ -2,11 +2,15 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState, useTransition } from 'react';
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 
 import { submitOrder } from '@/actions/order-actions';
 import { CheckoutCustomerForm } from '@/components/checkout/checkout-customer-form';
 import { CheckoutOrderSummary } from '@/components/checkout/checkout-order-summary';
+import {
+  CheckoutTurnstile,
+  type CheckoutTurnstileRef,
+} from '@/components/checkout/checkout-turnstile';
 import { CheckoutVoucherInput } from '@/components/checkout/checkout-voucher-input';
 import { SepayRedirectForm } from '@/components/checkout/sepay-redirect-form';
 import { SHIPPING_FLAT_VND } from '@/lib/constants';
@@ -38,6 +42,8 @@ export function CheckoutPageContent() {
     url: string;
     fields: Record<string, string>;
   } | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<CheckoutTurnstileRef>(null);
 
   const subtotalVnd = cartSubtotal(lines);
   const shippingVnd = lines.length > 0 ? SHIPPING_FLAT_VND : 0;
@@ -111,6 +117,14 @@ export function CheckoutPageContent() {
     fd.set('items', JSON.stringify(parsedItems.data));
     if (appliedVoucher) fd.set('voucherCode', appliedVoucher.code);
 
+    if (values.paymentMethod === 'cod') {
+      if (!turnstileToken) {
+        setSubmitError('Vui lòng chờ xác minh bảo mật hoàn tất.');
+        return;
+      }
+      fd.set('cf-turnstile-response', turnstileToken);
+    }
+
     startTransition(async () => {
       try {
         const res = await submitOrder(fd);
@@ -125,6 +139,10 @@ export function CheckoutPageContent() {
             ? err.message
             : 'Đặt hàng thất bại, vui lòng thử lại.',
         );
+        if (values.paymentMethod === 'cod') {
+          setTurnstileToken(null);
+          turnstileRef.current?.reset();
+        }
       }
     });
   };
@@ -150,6 +168,13 @@ export function CheckoutPageContent() {
               appliedVoucher={appliedVoucher}
               onVoucherApplied={handleVoucherApplied}
               onVoucherRemoved={handleVoucherRemoved}
+            />
+          }
+          turnstileSlot={
+            <CheckoutTurnstile
+              ref={turnstileRef}
+              onToken={setTurnstileToken}
+              onExpire={() => setTurnstileToken(null)}
             />
           }
         />

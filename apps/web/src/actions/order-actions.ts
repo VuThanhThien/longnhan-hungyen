@@ -34,6 +34,40 @@ export async function submitOrder(
   }
 
   const rawPaymentMethod = requireNonEmptyString(formData, 'paymentMethod');
+  if (rawPaymentMethod === 'cod') {
+    const turnstileToken = formData.get('cf-turnstile-response');
+    if (!turnstileToken || typeof turnstileToken !== 'string') {
+      throw new Error('Thiếu mã xác minh bảo mật.');
+    }
+
+    const secretKey = process.env.TURNSTILE_SECRET_KEY;
+    if (!secretKey) {
+      console.error('[Turnstile] TURNSTILE_SECRET_KEY not configured');
+      throw new Error('Lỗi cấu hình hệ thống. Vui lòng liên hệ hỗ trợ.');
+    }
+
+    const verifyRes = await fetch(
+      'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          secret: secretKey,
+          response: turnstileToken,
+        }),
+      },
+    );
+
+    const verifyData: unknown = await verifyRes.json();
+    if (
+      !verifyData ||
+      typeof verifyData !== 'object' ||
+      !('success' in verifyData) ||
+      (verifyData as { success?: boolean }).success !== true
+    ) {
+      throw new Error('Xác minh thất bại. Vui lòng tải lại trang và thử lại.');
+    }
+  }
   const customerParse = orderCustomerSchema.safeParse({
     customerName: requireNonEmptyString(formData, 'customerName'),
     phone: requireNonEmptyString(formData, 'phone'),

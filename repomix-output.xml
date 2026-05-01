@@ -904,6 +904,8 @@ apps/
     tsconfig.json
   web/
     public/
+      .email-assets/
+        logo-44.png
       fonts/
         UTM SeagullBold.ttf
         UTM SeagullBoldItalic.ttf
@@ -993,6 +995,7 @@ apps/
           checkout-customer-form.tsx
           checkout-order-summary.tsx
           checkout-page-content.tsx
+          checkout-turnstile.tsx
           checkout-voucher-input.tsx
           sepay-redirect-form.tsx
         home/
@@ -1230,760 +1233,41 @@ This section contains the contents of the repository's files.
 
 </file>
 
-<file path="apps/api/src/libs/metrics/metrics.controller.ts">
-import { Public } from '@/decorators/public.decorator';
-import { Controller, Get, Header } from '@nestjs/common';
-import { ApiExcludeController } from '@nestjs/swagger';
-import { register } from 'prom-client';
+<file path="apps/web/src/components/checkout/checkout-turnstile.tsx">
+'use client';
 
-@ApiExcludeController()
-@Controller()
-export class MetricsController {
-  @Get('metrics')
-  @Public()
-  @Header('Content-Type', register.contentType)
-  async getMetrics(): Promise<string> {
-    return register.metrics();
-  }
-}
-</file>
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
+import { forwardRef, useImperativeHandle, useRef } from 'react';
 
-<file path="apps/api/src/libs/metrics/metrics.middleware.ts">
-import { Injectable, NestMiddleware } from '@nestjs/common';
-import { NextFunction, Request, Response } from 'express';
-import { Counter, Histogram } from 'prom-client';
+export type CheckoutTurnstileRef = {
+  reset: () => void;
+};
 
-const httpRequestDuration = new Histogram({
-  name: 'http_request_duration_seconds',
-  help: 'Duration of HTTP requests in seconds',
-  labelNames: ['method', 'route', 'status_code'],
-  buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+type CheckoutTurnstileProps = {
+  onToken: (token: string) => void;
+  onExpire?: () => void;
+};
+
+export const CheckoutTurnstile = forwardRef<
+  CheckoutTurnstileRef,
+  CheckoutTurnstileProps
+>(function CheckoutTurnstile({ onToken, onExpire }, ref) {
+  const turnstileRef = useRef<TurnstileInstance>(null);
+
+  useImperativeHandle(ref, () => ({
+    reset: () => turnstileRef.current?.reset(),
+  }));
+
+  return (
+    <Turnstile
+      ref={turnstileRef}
+      siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+      onSuccess={onToken}
+      onExpire={onExpire}
+      options={{ theme: 'light', size: 'flexible' }}
+    />
+  );
 });
-
-const httpRequestsTotal = new Counter({
-  name: 'http_requests_total',
-  help: 'Total number of HTTP requests',
-  labelNames: ['method', 'route', 'status_code'],
-});
-
-@Injectable()
-export class MetricsMiddleware implements NestMiddleware {
-  use(req: Request, res: Response, next: NextFunction): void {
-    if (req.path === '/metrics' || req.path === '/health') {
-      return next();
-    }
-
-    const end = httpRequestDuration.startTimer();
-
-    res.on('finish', () => {
-      const route = req.route?.path || 'unmatched';
-      const labels = {
-        method: req.method,
-        route,
-        status_code: String(res.statusCode),
-      };
-      end(labels);
-      httpRequestsTotal.inc(labels);
-    });
-
-    next();
-  }
-}
-</file>
-
-<file path="apps/api/src/libs/metrics/metrics.module.ts">
-import {
-  MiddlewareConsumer,
-  Module,
-  NestModule,
-  OnModuleInit,
-} from '@nestjs/common';
-import { collectDefaultMetrics } from 'prom-client';
-import { MetricsController } from './metrics.controller';
-import { MetricsMiddleware } from './metrics.middleware';
-
-@Module({
-  controllers: [MetricsController],
-})
-export class MetricsModule implements NestModule, OnModuleInit {
-  onModuleInit() {
-    collectDefaultMetrics();
-  }
-
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(MetricsMiddleware).forRoutes('*');
-  }
-}
-</file>
-
-<file path="monitoring/alloy/config.alloy">
-// Logging: Collect Docker container logs → push to Grafana Cloud Loki
-
-discovery.docker "containers" {
-  host = "unix:///var/run/docker.sock"
-}
-
-discovery.relabel "docker_logs" {
-  targets = discovery.docker.containers.targets
-
-  rule {
-    source_labels = ["__meta_docker_container_name"]
-    regex         = "/(.*)"
-    target_label  = "container"
-  }
-
-  rule {
-    source_labels = ["__meta_docker_container_name"]
-    regex         = "/(.*)"
-    target_label  = "service"
-  }
-}
-
-loki.source.docker "containers" {
-  host    = "unix:///var/run/docker.sock"
-  targets = discovery.relabel.docker_logs.output
-
-  forward_to = [loki.process.pino_parser.receiver]
-}
-
-loki.process "pino_parser" {
-  stage.json {
-    expressions = {
-      level         = "level",
-      msg           = "msg",
-      req_id        = "req.id",
-      response_time = "responseTime",
-    }
-  }
-
-  stage.labels {
-    values = {
-      level = "level",
-    }
-  }
-
-  stage.static_labels {
-    values = {
-      project = "longnhan",
-    }
-  }
-
-  forward_to = [loki.write.grafana_cloud.receiver]
-}
-
-loki.write "grafana_cloud" {
-  endpoint {
-    url = sys.env("GRAFANA_CLOUD_LOKI_URL")
-
-    basic_auth {
-      username = sys.env("GRAFANA_CLOUD_LOKI_USER")
-      password = sys.env("GRAFANA_CLOUD_API_KEY")
-    }
-  }
-}
-
-// Metrics: Scrape API /metrics → push to Grafana Cloud Mimir
-
-prometheus.scrape "api" {
-  targets = [{
-    __address__ = "api:3001",
-  }]
-  metrics_path = "/metrics"
-  scrape_interval = "15s"
-
-  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
-}
-
-// Postgres metrics via built-in exporter
-
-prometheus.exporter.postgres "db" {
-  data_source_names = [
-    "postgresql://" + sys.env("DB_USERNAME") + ":" + sys.env("DB_PASSWORD") + "@db:5432/" + sys.env("DB_DATABASE") + "?sslmode=disable",
-  ]
-}
-
-prometheus.scrape "postgres" {
-  targets         = prometheus.exporter.postgres.db.targets
-  scrape_interval = "30s"
-
-  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
-}
-
-// Redis metrics via built-in exporter
-
-prometheus.exporter.redis "cache" {
-  redis_addr = "redis:6379"
-}
-
-prometheus.scrape "redis" {
-  targets         = prometheus.exporter.redis.cache.targets
-  scrape_interval = "15s"
-
-  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
-}
-
-// Remote write to Grafana Cloud Mimir
-
-prometheus.remote_write "grafana_cloud" {
-  endpoint {
-    url = sys.env("GRAFANA_CLOUD_PROMETHEUS_URL")
-
-    basic_auth {
-      username = sys.env("GRAFANA_CLOUD_PROMETHEUS_USER")
-      password = sys.env("GRAFANA_CLOUD_API_KEY")
-    }
-  }
-}
-</file>
-
-<file path="monitoring/dashboards/api-overview.json">
-{
-  "annotations": { "list": [] },
-  "editable": true,
-  "fiscalYearStartMonth": 0,
-  "graphTooltip": 1,
-  "links": [],
-  "panels": [
-    {
-      "title": "Request Rate",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
-      "targets": [
-        {
-          "expr": "sum(rate(http_requests_total[5m]))",
-          "legendFormat": "req/s",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "reqps",
-          "custom": { "lineWidth": 2, "fillOpacity": 10 }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "title": "Latency p50 / p95 / p99",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
-      "targets": [
-        {
-          "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
-          "legendFormat": "p50",
-          "refId": "A"
-        },
-        {
-          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
-          "legendFormat": "p95",
-          "refId": "B"
-        },
-        {
-          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
-          "legendFormat": "p99",
-          "refId": "C"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": { "lineWidth": 2, "fillOpacity": 10 }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "title": "Error Rate (5xx)",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
-      "targets": [
-        {
-          "expr": "sum(rate(http_requests_total{status_code=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m])) * 100",
-          "legendFormat": "5xx %",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "custom": { "lineWidth": 2, "fillOpacity": 10 },
-          "color": { "mode": "fixed", "fixedColor": "red" }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "title": "Error Rate (4xx)",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
-      "targets": [
-        {
-          "expr": "sum(rate(http_requests_total{status_code=~\"4..\"}[5m])) / sum(rate(http_requests_total[5m])) * 100",
-          "legendFormat": "4xx %",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "custom": { "lineWidth": 2, "fillOpacity": 10 },
-          "color": { "mode": "fixed", "fixedColor": "orange" }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "title": "Top Routes (1h)",
-      "type": "table",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
-      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
-      "targets": [
-        {
-          "expr": "topk(10, sum by (route) (increase(http_requests_total[1h])))",
-          "format": "table",
-          "instant": true,
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "title": "Status Codes (1h)",
-      "type": "piechart",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
-      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
-      "targets": [
-        {
-          "expr": "sum by (status_code) (increase(http_requests_total[1h]))",
-          "legendFormat": "{{status_code}}",
-          "refId": "A"
-        }
-      ]
-    }
-  ],
-  "schemaVersion": 39,
-  "tags": ["longnhan", "api"],
-  "templating": { "list": [] },
-  "time": { "from": "now-1h", "to": "now" },
-  "timepicker": {},
-  "timezone": "browser",
-  "title": "API Overview",
-  "uid": "longnhan-api-overview"
-}
-</file>
-
-<file path="monitoring/dashboards/infrastructure.json">
-{
-  "annotations": { "list": [] },
-  "editable": true,
-  "fiscalYearStartMonth": 0,
-  "graphTooltip": 1,
-  "links": [],
-  "panels": [
-    {
-      "title": "Postgres — Active Connections",
-      "type": "stat",
-      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
-      "targets": [
-        {
-          "expr": "pg_stat_activity_count",
-          "legendFormat": "connections",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "title": "Postgres — Queries/s",
-      "type": "timeseries",
-      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
-      "targets": [
-        {
-          "expr": "rate(pg_stat_database_xact_commit[5m]) + rate(pg_stat_database_xact_rollback[5m])",
-          "legendFormat": "queries/s",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "ops",
-          "custom": { "lineWidth": 2, "fillOpacity": 10 }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "title": "Postgres — Cache Hit Ratio",
-      "type": "gauge",
-      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
-      "targets": [
-        {
-          "expr": "pg_stat_database_blks_hit / (pg_stat_database_blks_hit + pg_stat_database_blks_read)",
-          "legendFormat": "hit ratio",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit",
-          "min": 0,
-          "max": 1,
-          "thresholds": {
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "yellow", "value": 0.9 },
-              { "color": "green", "value": 0.95 }
-            ]
-          }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "title": "Redis — Memory Used",
-      "type": "stat",
-      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 6 },
-      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
-      "targets": [
-        {
-          "expr": "redis_memory_used_bytes",
-          "legendFormat": "memory",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": { "unit": "bytes" },
-        "overrides": []
-      }
-    },
-    {
-      "title": "Redis — Connected Clients",
-      "type": "stat",
-      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 6 },
-      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
-      "targets": [
-        {
-          "expr": "redis_connected_clients",
-          "legendFormat": "clients",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "title": "Redis — Ops/s",
-      "type": "timeseries",
-      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 6 },
-      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
-      "targets": [
-        {
-          "expr": "rate(redis_commands_processed_total[5m])",
-          "legendFormat": "ops/s",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "ops",
-          "custom": { "lineWidth": 2, "fillOpacity": 10 }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "title": "Redis — Hit Rate",
-      "type": "gauge",
-      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 6 },
-      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
-      "targets": [
-        {
-          "expr": "redis_keyspace_hits_total / (redis_keyspace_hits_total + redis_keyspace_misses_total)",
-          "legendFormat": "hit rate",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit",
-          "min": 0,
-          "max": 1,
-          "thresholds": {
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "yellow", "value": 0.8 },
-              { "color": "green", "value": 0.9 }
-            ]
-          }
-        },
-        "overrides": []
-      }
-    }
-  ],
-  "schemaVersion": 39,
-  "tags": ["longnhan", "infrastructure"],
-  "templating": { "list": [] },
-  "time": { "from": "now-1h", "to": "now" },
-  "timepicker": {},
-  "timezone": "browser",
-  "title": "Infrastructure",
-  "uid": "longnhan-infrastructure"
-}
-</file>
-
-<file path="monitoring/dashboards/logs-explorer.json">
-{
-  "annotations": { "list": [] },
-  "editable": true,
-  "fiscalYearStartMonth": 0,
-  "graphTooltip": 1,
-  "links": [],
-  "panels": [
-    {
-      "title": "Log Volume by Level",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
-      "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
-      "targets": [
-        {
-          "expr": "sum by (level) (count_over_time({project=\"longnhan\"} [1m]))",
-          "legendFormat": "{{level}}",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "custom": { "lineWidth": 1, "fillOpacity": 30, "drawStyle": "bars" }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "title": "Log Stream",
-      "type": "logs",
-      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 8 },
-      "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
-      "targets": [
-        {
-          "expr": "{project=\"longnhan\", service=~\"$service\"} |= \"$search\"",
-          "refId": "A"
-        }
-      ],
-      "options": {
-        "showTime": true,
-        "showLabels": true,
-        "showCommonLabels": false,
-        "wrapLogMessage": true,
-        "prettifyLogMessage": true,
-        "enableLogDetails": true,
-        "sortOrder": "Descending"
-      }
-    }
-  ],
-  "schemaVersion": 39,
-  "tags": ["longnhan", "logs"],
-  "templating": {
-    "list": [
-      {
-        "name": "service",
-        "type": "query",
-        "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
-        "query": "label_values({project=\"longnhan\"}, service)",
-        "includeAll": true,
-        "current": { "text": "All", "value": "$__all" },
-        "multi": false
-      },
-      {
-        "name": "search",
-        "type": "textbox",
-        "current": { "text": "", "value": "" }
-      }
-    ]
-  },
-  "time": { "from": "now-1h", "to": "now" },
-  "timepicker": {},
-  "timezone": "browser",
-  "title": "Logs Explorer",
-  "uid": "longnhan-logs-explorer"
-}
-</file>
-
-<file path="monitoring/dashboards/nodejs-runtime.json">
-{
-  "annotations": { "list": [] },
-  "editable": true,
-  "fiscalYearStartMonth": 0,
-  "graphTooltip": 1,
-  "links": [],
-  "panels": [
-    {
-      "title": "Heap Used vs Total",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
-      "targets": [
-        {
-          "expr": "nodejs_heap_size_used_bytes",
-          "legendFormat": "Used",
-          "refId": "A"
-        },
-        {
-          "expr": "nodejs_heap_size_total_bytes",
-          "legendFormat": "Total",
-          "refId": "B"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes",
-          "custom": { "lineWidth": 2, "fillOpacity": 10 }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "title": "Event Loop Lag",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
-      "targets": [
-        {
-          "expr": "nodejs_eventloop_lag_seconds",
-          "legendFormat": "lag",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": { "lineWidth": 2, "fillOpacity": 10 }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "title": "Active Handles",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
-      "targets": [
-        {
-          "expr": "nodejs_active_handles_total",
-          "legendFormat": "handles",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "custom": { "lineWidth": 2, "fillOpacity": 10 }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "title": "GC Duration",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
-      "targets": [
-        {
-          "expr": "rate(nodejs_gc_duration_seconds_sum[5m])",
-          "legendFormat": "gc/s",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": { "lineWidth": 2, "fillOpacity": 10 }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "title": "CPU Usage",
-      "type": "timeseries",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
-      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
-      "targets": [
-        {
-          "expr": "rate(process_cpu_seconds_total[5m])",
-          "legendFormat": "cpu",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit",
-          "custom": { "lineWidth": 2, "fillOpacity": 10 }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "title": "RSS Memory",
-      "type": "stat",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
-      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
-      "targets": [
-        {
-          "expr": "process_resident_memory_bytes",
-          "legendFormat": "RSS",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": { "unit": "bytes" },
-        "overrides": []
-      }
-    }
-  ],
-  "schemaVersion": 39,
-  "tags": ["longnhan", "nodejs"],
-  "templating": { "list": [] },
-  "time": { "from": "now-1h", "to": "now" },
-  "timepicker": {},
-  "timezone": "browser",
-  "title": "Node.js Runtime",
-  "uid": "longnhan-nodejs-runtime"
-}
-</file>
-
-<file path="docker-compose.monitoring.yml">
-services:
-  alloy:
-    image: grafana/alloy:v1.9.0
-    container_name: longnhan_alloy
-    env_file:
-      - apps/api/.env.production
-    command:
-      - run
-      - /etc/alloy/config.alloy
-      - --storage.path=/var/lib/alloy/data
-      - --server.http.listen-addr=0.0.0.0:12345
-    volumes:
-      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - alloy_data:/var/lib/alloy/data
-    environment:
-      DB_USERNAME: ${DATABASE_USERNAME:-longnhan}
-      DB_PASSWORD: ${DATABASE_PASSWORD:-longnhan}
-      DB_DATABASE: ${DATABASE_NAME:-longnhan}
-    ports:
-      - '127.0.0.1:12345:12345'
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-    networks:
-      - longnhan-prod
-
-volumes:
-  alloy_data:
 </file>
 
 <file path="apps/admin/public/file.svg">
@@ -17161,16 +16445,90 @@ import { Module } from '@nestjs/common';
 export class GcpModule {}
 </file>
 
-<file path="apps/api/src/libs/libs.module.ts">
-import { Module } from '@nestjs/common';
-import { AwsModule } from './aws/aws.module';
-import { GcpModule } from './gcp/gcp.module';
-import { MetricsModule } from './metrics/metrics.module';
+<file path="apps/api/src/libs/metrics/metrics.controller.ts">
+import { Public } from '@/decorators/public.decorator';
+import { Controller, Get, Header } from '@nestjs/common';
+import { ApiExcludeController } from '@nestjs/swagger';
+import { register } from 'prom-client';
+
+@ApiExcludeController()
+@Controller()
+export class MetricsController {
+  @Get('metrics')
+  @Public()
+  @Header('Content-Type', register.contentType)
+  async getMetrics(): Promise<string> {
+    return register.metrics();
+  }
+}
+</file>
+
+<file path="apps/api/src/libs/metrics/metrics.middleware.ts">
+import { Injectable, NestMiddleware } from '@nestjs/common';
+import { NextFunction, Request, Response } from 'express';
+import { Counter, Histogram } from 'prom-client';
+
+const httpRequestDuration = new Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['method', 'route', 'status_code'],
+  buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
+});
+
+const httpRequestsTotal = new Counter({
+  name: 'http_requests_total',
+  help: 'Total number of HTTP requests',
+  labelNames: ['method', 'route', 'status_code'],
+});
+
+@Injectable()
+export class MetricsMiddleware implements NestMiddleware {
+  use(req: Request, res: Response, next: NextFunction): void {
+    if (req.path === '/metrics' || req.path === '/health') {
+      return next();
+    }
+
+    const end = httpRequestDuration.startTimer();
+
+    res.on('finish', () => {
+      const route = req.route?.path || 'unmatched';
+      const labels = {
+        method: req.method,
+        route,
+        status_code: String(res.statusCode),
+      };
+      end(labels);
+      httpRequestsTotal.inc(labels);
+    });
+
+    next();
+  }
+}
+</file>
+
+<file path="apps/api/src/libs/metrics/metrics.module.ts">
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  OnModuleInit,
+} from '@nestjs/common';
+import { collectDefaultMetrics } from 'prom-client';
+import { MetricsController } from './metrics.controller';
+import { MetricsMiddleware } from './metrics.middleware';
 
 @Module({
-  imports: [AwsModule, GcpModule, MetricsModule],
+  controllers: [MetricsController],
 })
-export class LibsModule {}
+export class MetricsModule implements NestModule, OnModuleInit {
+  onModuleInit() {
+    collectDefaultMetrics();
+  }
+
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(MetricsMiddleware).forRoutes('*');
+  }
+}
 </file>
 
 <file path="apps/api/src/redis/config/redis-config.type.ts">
@@ -18377,101 +17735,6 @@ import generateModulesSet from './utils/modules-set';
   imports: generateModulesSet(),
 })
 export class AppModule {}
-</file>
-
-<file path="apps/api/src/main.ts">
-import {
-  ClassSerializerInterceptor,
-  HttpStatus,
-  RequestMethod,
-  UnprocessableEntityException,
-  ValidationError,
-  ValidationPipe,
-  VersioningType,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { NestFactory, Reflector } from '@nestjs/core';
-import compression from 'compression';
-import helmet from 'helmet';
-import { Logger } from 'nestjs-pino';
-import { AuthService } from './api/auth/auth.service';
-import { AppModule } from './app.module';
-import { type AllConfigType } from './config/config.type';
-import { GlobalExceptionFilter } from './filters/global-exception.filter';
-import { AuthGuard } from './guards/auth.guard';
-import setupSwagger from './utils/setup-swagger';
-
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
-    bufferLogs: true,
-  });
-
-  app.useLogger(app.get(Logger));
-
-  // Setup security headers
-  app.use(helmet());
-
-  // For high-traffic websites in production, it is strongly recommended to offload compression from the application server - typically in a reverse proxy (e.g., Nginx). In that case, you should not use compression middleware.
-  app.use(compression());
-
-  const configService = app.get(ConfigService<AllConfigType>);
-  const reflector = app.get(Reflector);
-  const isDevelopment =
-    configService.getOrThrow('app.nodeEnv', { infer: true }) === 'development';
-  const corsOrigin = configService.getOrThrow('app.corsOrigin', {
-    infer: true,
-  });
-
-  app.enableCors({
-    origin: corsOrigin,
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    allowedHeaders: 'Content-Type, Accept',
-    credentials: true,
-  });
-  console.info('CORS Origin:', corsOrigin);
-
-  // Use global prefix if you don't have subdomain
-  app.setGlobalPrefix(
-    configService.getOrThrow('app.apiPrefix', { infer: true }),
-    {
-      exclude: [
-        { method: RequestMethod.GET, path: '/' },
-        { method: RequestMethod.GET, path: 'health' },
-        { method: RequestMethod.GET, path: 'metrics' },
-      ],
-    },
-  );
-
-  app.enableVersioning({
-    type: VersioningType.URI,
-  });
-
-  app.useGlobalGuards(new AuthGuard(reflector, app.get(AuthService)));
-  app.useGlobalFilters(new GlobalExceptionFilter(configService));
-  app.useGlobalPipes(
-    new ValidationPipe({
-      transform: true,
-      whitelist: true,
-      errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
-      exceptionFactory: (errors: ValidationError[]) => {
-        return new UnprocessableEntityException(errors);
-      },
-    }),
-  );
-  app.useGlobalInterceptors(new ClassSerializerInterceptor(reflector));
-
-  if (isDevelopment) {
-    setupSwagger(app);
-  }
-
-  await app.listen(configService.getOrThrow('app.port', { infer: true }));
-
-  console.info(`Server running on ${await app.getUrl()}`);
-
-  return app;
-}
-
-void bootstrap();
 </file>
 
 <file path="apps/api/test/transactions.e2e-spec.ts">
@@ -26692,6 +25955,642 @@ Manual QA checklist:
 - Whether product rows show thumbnail + price (recommended: thumbnail yes, price optional).
 </file>
 
+<file path="monitoring/alloy/config.alloy">
+// Logging: Collect Docker container logs → push to Grafana Cloud Loki
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "docker_logs" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "service"
+  }
+}
+
+loki.source.docker "containers" {
+  host    = "unix:///var/run/docker.sock"
+  targets = discovery.relabel.docker_logs.output
+
+  forward_to = [loki.process.pino_parser.receiver]
+}
+
+loki.process "pino_parser" {
+  stage.json {
+    expressions = {
+      level         = "level",
+      msg           = "msg",
+      req_id        = "req.id",
+      response_time = "responseTime",
+    }
+  }
+
+  stage.labels {
+    values = {
+      level = "level",
+    }
+  }
+
+  stage.static_labels {
+    values = {
+      project = "longnhan",
+    }
+  }
+
+  forward_to = [loki.write.grafana_cloud.receiver]
+}
+
+loki.write "grafana_cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_CLOUD_LOKI_URL")
+
+    basic_auth {
+      username = sys.env("GRAFANA_CLOUD_LOKI_USER")
+      password = sys.env("GRAFANA_CLOUD_API_KEY")
+    }
+  }
+}
+
+// Metrics: Scrape API /metrics → push to Grafana Cloud Mimir
+
+prometheus.scrape "api" {
+  targets = [{
+    __address__ = "api:3001",
+  }]
+  metrics_path = "/metrics"
+  scrape_interval = "15s"
+
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+// Postgres metrics via built-in exporter
+
+prometheus.exporter.postgres "db" {
+  data_source_names = [
+    "postgresql://" + sys.env("DB_USERNAME") + ":" + sys.env("DB_PASSWORD") + "@db:5432/" + sys.env("DB_DATABASE") + "?sslmode=disable",
+  ]
+}
+
+prometheus.scrape "postgres" {
+  targets         = prometheus.exporter.postgres.db.targets
+  scrape_interval = "30s"
+
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+// Redis metrics via built-in exporter
+
+prometheus.exporter.redis "cache" {
+  redis_addr = "redis:6379"
+}
+
+prometheus.scrape "redis" {
+  targets         = prometheus.exporter.redis.cache.targets
+  scrape_interval = "15s"
+
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+// Remote write to Grafana Cloud Mimir
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = sys.env("GRAFANA_CLOUD_PROMETHEUS_URL")
+
+    basic_auth {
+      username = sys.env("GRAFANA_CLOUD_PROMETHEUS_USER")
+      password = sys.env("GRAFANA_CLOUD_API_KEY")
+    }
+  }
+}
+</file>
+
+<file path="monitoring/dashboards/api-overview.json">
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "title": "Request Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total[5m]))",
+          "legendFormat": "req/s",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Latency p50 / p95 / p99",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Error Rate (5xx)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{status_code=~\"5..\"}[5m])) / sum(rate(http_requests_total[5m])) * 100",
+          "legendFormat": "5xx %",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 },
+          "color": { "mode": "fixed", "fixedColor": "red" }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Error Rate (4xx)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{status_code=~\"4..\"}[5m])) / sum(rate(http_requests_total[5m])) * 100",
+          "legendFormat": "4xx %",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 },
+          "color": { "mode": "fixed", "fixedColor": "orange" }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Top Routes (1h)",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "targets": [
+        {
+          "expr": "topk(10, sum by (route) (increase(http_requests_total[1h])))",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Status Codes (1h)",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "targets": [
+        {
+          "expr": "sum by (status_code) (increase(http_requests_total[1h]))",
+          "legendFormat": "{{status_code}}",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["longnhan", "api"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "API Overview",
+  "uid": "longnhan-api-overview"
+}
+</file>
+
+<file path="monitoring/dashboards/infrastructure.json">
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "title": "Postgres — Active Connections",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "targets": [
+        {
+          "expr": "pg_stat_activity_count",
+          "legendFormat": "connections",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Postgres — Queries/s",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "targets": [
+        {
+          "expr": "rate(pg_stat_database_xact_commit[5m]) + rate(pg_stat_database_xact_rollback[5m])",
+          "legendFormat": "queries/s",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Postgres — Cache Hit Ratio",
+      "type": "gauge",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "targets": [
+        {
+          "expr": "pg_stat_database_blks_hit / (pg_stat_database_blks_hit + pg_stat_database_blks_read)",
+          "legendFormat": "hit ratio",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.9 },
+              { "color": "green", "value": 0.95 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Redis — Memory Used",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "targets": [
+        {
+          "expr": "redis_memory_used_bytes",
+          "legendFormat": "memory",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "bytes" },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Redis — Connected Clients",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "targets": [
+        {
+          "expr": "redis_connected_clients",
+          "legendFormat": "clients",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Redis — Ops/s",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "targets": [
+        {
+          "expr": "rate(redis_commands_processed_total[5m])",
+          "legendFormat": "ops/s",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Redis — Hit Rate",
+      "type": "gauge",
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "targets": [
+        {
+          "expr": "redis_keyspace_hits_total / (redis_keyspace_hits_total + redis_keyspace_misses_total)",
+          "legendFormat": "hit rate",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.8 },
+              { "color": "green", "value": 0.9 }
+            ]
+          }
+        },
+        "overrides": []
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["longnhan", "infrastructure"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Infrastructure",
+  "uid": "longnhan-infrastructure"
+}
+</file>
+
+<file path="monitoring/dashboards/logs-explorer.json">
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "title": "Log Volume by Level",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+      "targets": [
+        {
+          "expr": "sum by (level) (count_over_time({project=\"longnhan\"} [1m]))",
+          "legendFormat": "{{level}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "lineWidth": 1, "fillOpacity": 30, "drawStyle": "bars" }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Log Stream",
+      "type": "logs",
+      "gridPos": { "h": 16, "w": 24, "x": 0, "y": 8 },
+      "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+      "targets": [
+        {
+          "expr": "{project=\"longnhan\", service=~\"$service\"} |= \"$search\"",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending"
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["longnhan", "logs"],
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "type": "query",
+        "datasource": { "type": "loki", "uid": "grafanacloud-logs" },
+        "query": "label_values({project=\"longnhan\"}, service)",
+        "includeAll": true,
+        "current": { "text": "All", "value": "$__all" },
+        "multi": false
+      },
+      {
+        "name": "search",
+        "type": "textbox",
+        "current": { "text": "", "value": "" }
+      }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Logs Explorer",
+  "uid": "longnhan-logs-explorer"
+}
+</file>
+
+<file path="monitoring/dashboards/nodejs-runtime.json">
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "title": "Heap Used vs Total",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "targets": [
+        {
+          "expr": "nodejs_heap_size_used_bytes",
+          "legendFormat": "Used",
+          "refId": "A"
+        },
+        {
+          "expr": "nodejs_heap_size_total_bytes",
+          "legendFormat": "Total",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Event Loop Lag",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "targets": [
+        {
+          "expr": "nodejs_eventloop_lag_seconds",
+          "legendFormat": "lag",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "Active Handles",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "targets": [
+        {
+          "expr": "nodejs_active_handles_total",
+          "legendFormat": "handles",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "GC Duration",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "targets": [
+        {
+          "expr": "rate(nodejs_gc_duration_seconds_sum[5m])",
+          "legendFormat": "gc/s",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "CPU Usage",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "targets": [
+        {
+          "expr": "rate(process_cpu_seconds_total[5m])",
+          "legendFormat": "cpu",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "title": "RSS Memory",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "grafanacloud-prom" },
+      "targets": [
+        {
+          "expr": "process_resident_memory_bytes",
+          "legendFormat": "RSS",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "bytes" },
+        "overrides": []
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["longnhan", "nodejs"],
+  "templating": { "list": [] },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Node.js Runtime",
+  "uid": "longnhan-nodejs-runtime"
+}
+</file>
+
 <file path="packages/types/src/auth.ts">
 export interface AdminUser {
   id: number;
@@ -27275,6 +27174,40 @@ The border system is particularly distinctive -- Cursor uses `oklab()` color spa
 6. Hover states use `#cf2d56` text color -- the warm crimson shift is a signature interaction
 7. Shadows use large blur values (28px, 70px) for diffused atmospheric depth
 8. The sub-8px spacing scale (1.5, 2, 2.5, 3, 4, 5, 6px) is critical for icon/text micro-alignment
+</file>
+
+<file path="docker-compose.monitoring.yml">
+services:
+  alloy:
+    image: grafana/alloy:v1.9.0
+    container_name: longnhan_alloy
+    env_file:
+      - apps/api/.env.production
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --storage.path=/var/lib/alloy/data
+      - --server.http.listen-addr=0.0.0.0:12345
+    volumes:
+      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - alloy_data:/var/lib/alloy/data
+    environment:
+      DB_USERNAME: ${DATABASE_USERNAME:-longnhan}
+      DB_PASSWORD: ${DATABASE_PASSWORD:-longnhan}
+      DB_DATABASE: ${DATABASE_NAME:-longnhan}
+    ports:
+      - '127.0.0.1:12345:12345'
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    networks:
+      - longnhan-prod
+
+volumes:
+  alloy_data:
 </file>
 
 <file path="docker-compose.prod.cloudflared-config.yml">
@@ -43173,6 +43106,18 @@ export type SepayVerifiedPayment = {
 };
 </file>
 
+<file path="apps/api/src/libs/libs.module.ts">
+import { Module } from '@nestjs/common';
+import { AwsModule } from './aws/aws.module';
+import { GcpModule } from './gcp/gcp.module';
+import { MetricsModule } from './metrics/metrics.module';
+
+@Module({
+  imports: [AwsModule, GcpModule, MetricsModule],
+})
+export class LibsModule {}
+</file>
+
 <file path="apps/api/src/mail/config/mail-config.spec.ts">
 import mailConfig from './mail.config';
 
@@ -43835,6 +43780,101 @@ describe('validateConfig', () => {
     );
   });
 });
+</file>
+
+<file path="apps/api/src/main.ts">
+import {
+  ClassSerializerInterceptor,
+  HttpStatus,
+  RequestMethod,
+  UnprocessableEntityException,
+  ValidationError,
+  ValidationPipe,
+  VersioningType,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { NestFactory, Reflector } from '@nestjs/core';
+import compression from 'compression';
+import helmet from 'helmet';
+import { Logger } from 'nestjs-pino';
+import { AuthService } from './api/auth/auth.service';
+import { AppModule } from './app.module';
+import { type AllConfigType } from './config/config.type';
+import { GlobalExceptionFilter } from './filters/global-exception.filter';
+import { AuthGuard } from './guards/auth.guard';
+import setupSwagger from './utils/setup-swagger';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule, {
+    bufferLogs: true,
+  });
+
+  app.useLogger(app.get(Logger));
+
+  // Setup security headers
+  app.use(helmet());
+
+  // For high-traffic websites in production, it is strongly recommended to offload compression from the application server - typically in a reverse proxy (e.g., Nginx). In that case, you should not use compression middleware.
+  app.use(compression());
+
+  const configService = app.get(ConfigService<AllConfigType>);
+  const reflector = app.get(Reflector);
+  const isDevelopment =
+    configService.getOrThrow('app.nodeEnv', { infer: true }) === 'development';
+  const corsOrigin = configService.getOrThrow('app.corsOrigin', {
+    infer: true,
+  });
+
+  app.enableCors({
+    origin: corsOrigin,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    allowedHeaders: 'Content-Type, Accept',
+    credentials: true,
+  });
+  console.info('CORS Origin:', corsOrigin);
+
+  // Use global prefix if you don't have subdomain
+  app.setGlobalPrefix(
+    configService.getOrThrow('app.apiPrefix', { infer: true }),
+    {
+      exclude: [
+        { method: RequestMethod.GET, path: '/' },
+        { method: RequestMethod.GET, path: 'health' },
+        { method: RequestMethod.GET, path: 'metrics' },
+      ],
+    },
+  );
+
+  app.enableVersioning({
+    type: VersioningType.URI,
+  });
+
+  app.useGlobalGuards(new AuthGuard(reflector, app.get(AuthService)));
+  app.useGlobalFilters(new GlobalExceptionFilter(configService));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+      exceptionFactory: (errors: ValidationError[]) => {
+        return new UnprocessableEntityException(errors);
+      },
+    }),
+  );
+  app.useGlobalInterceptors(new ClassSerializerInterceptor(reflector));
+
+  if (isDevelopment) {
+    setupSwagger(app);
+  }
+
+  await app.listen(configService.getOrThrow('app.port', { infer: true }));
+
+  console.info(`Server running on ${await app.getUrl()}`);
+
+  return app;
+}
+
+void bootstrap();
 </file>
 
 <file path="apps/api/test/app.e2e-spec.ts">
@@ -53163,8 +53203,9 @@ export enum JobName {
                 style="border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;">
                 <tr>
                   <td valign="middle" style="padding:0;">
-                    <img src="https://longnhanhungyen.shop/logo.png" width="44" height="44"
-                      alt="Logo Long Nhãn Tống Trân — Đặc sản Hưng Yên"
+                    <img
+                      src="data:image/png;base64,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"
+                      width="44" height="44" alt="Logo Long Nhãn Tống Trân — Đặc sản Hưng Yên"
                       style="display:block; border:0; outline:none; text-decoration:none; width:44px; height:44px; border-radius:10px; background-color:#FDFDF9; -ms-interpolation-mode:bicubic;" />
                   </td>
                   <td valign="middle" style="padding:0 0 0 12px;">
@@ -53216,24 +53257,6 @@ export enum JobName {
                     <a href="{{url}}" target="_blank" rel="noopener noreferrer"
                       style="display:block; font-family:Arial, Helvetica, sans-serif; font-size:14px; font-weight:700; line-height:1; color:#201D18; text-decoration:none;">
                       Theo dõi đơn hàng
-                    </a>
-                  </td>
-                </tr>
-              </table>
-
-              <div
-                style="font-family:Arial, Helvetica, sans-serif; color:#877928; font-size:12px; line-height:1.6; margin:0 0 10px 0;">
-                Nếu nút không hoạt động, bạn có thể mở link bên dưới:
-              </div>
-
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0"
-                style="margin:0 0 2px 0; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;">
-                <tr>
-                  <td align="center" bgcolor="#FFFFFF"
-                    style="border-radius:12px; border:1px solid #166534; padding:12px 16px; mso-padding-alt:12px 16px;">
-                    <a href="{{url}}" target="_blank" rel="noopener noreferrer"
-                      style="display:block; font-family:Arial, Helvetica, sans-serif; font-size:13px; font-weight:700; line-height:1; color:#166534; text-decoration:none;">
-                      Mở link theo dõi
                     </a>
                   </td>
                 </tr>
@@ -59199,6 +59222,10 @@ NEXT_PUBLIC_ENABLE_SW=false
 # NEXT_PUBLIC_SITE_URL=https://www.example.com
 # NEXT_PUBLIC_CLOUDINARY_CLOUD=
 NEXT_PUBLIC_DEPLOYMENT_ID=production-deployment-id-1
+
+## Cloudflare Turnstile (CAPTCHA for COD orders)
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
 </file>
 
 <file path="apps/web/sentry.edge.config.ts">
@@ -59845,197 +59872,6 @@ volumes:
 networks:
   longnhan-network:
     driver: bridge
-</file>
-
-<file path="Makefile">
-.PHONY: help install dev dev-api dev-web dev-admin \
-        build build-api build-web build-admin \
-        lint format type-check \
-        up down logs reset up-local \
-        deploy deploy-clean deploy-down prod-preflight \
-        migration-up migration-up-prod migration-down migration-show migration-generate \
-        seed test test-cov test-e2e
-
-# Default target
-help:
-	@echo ""
-	@echo "Long Nhan Hung Yen — available commands:"
-	@echo ""
-	@echo "  Setup"
-	@echo "    make install          Install all dependencies"
-	@echo ""
-	@echo "  Development"
-	@echo "    make dev              Infra (db, redis, pgadmin) + all apps in watch mode"
-	@echo "    make dev-api          Start API only (http://localhost:3001)"
-	@echo "    make dev-web          Start storefront only (http://localhost:3000)"
-	@echo "    make dev-admin        Start admin only (http://localhost:3002)"
-	@echo ""
-	@echo "  Build"
-	@echo "    make build            Build all apps"
-	@echo "    make build-api        Build API only"
-	@echo ""
-	@echo "  Code Quality"
-	@echo "    make lint             Lint all apps"
-	@echo "    make format           Format all apps"
-	@echo "    make type-check       Type-check all apps"
-	@echo ""
-	@echo "  Docker (infra)"
-	@echo "    make up               Start infra services (db, redis, pgadmin)"
-	@echo "    make down             Stop all services"
-	@echo "    make logs             Tail service logs"
-	@echo "    make reset            Reset volumes & restart services"
-	@echo "    make up-local         Start full local stack with API hot-reload"
-	@echo ""
-	@echo "  Production (Docker + Cloudflare Tunnel)"
-	@echo "    make deploy           Build & run api, web, admin, db, redis, cloudflared + monitoring (ports 13100–13102)"
-	@echo "    make deploy-clean     Same as deploy but with --no-cache (full rebuild, ignores all Docker cache)"
-	@echo "    make deploy-down      Stop production stack"
-	@echo "                          See deploy/README.md (token or config.yml + credentials JSON)"
-	@echo ""
-	@echo "  Database"
-	@echo "    make migration-up     Run pending migrations (local .env)"
-	@echo "    make migration-up-prod Run pending migrations using apps/api/.env.production"
-	@echo "    make migration-down   Revert last migration"
-	@echo "    make migration-show   Show migration status"
-	@echo "    make seed             Run database seeders"
-	@echo ""
-	@echo "  Testing"
-	@echo "    make test             Run unit tests"
-	@echo "    make test-cov         Run tests with coverage"
-	@echo "    make test-e2e         Run e2e tests"
-	@echo ""
-
-# ── Setup ─────────────────────────────────────────────────────────────────────
-
-install:
-	pnpm install
-
-# ── Development ───────────────────────────────────────────────────────────────
-
-dev: up
-	pnpm dev
-
-dev-api:
-	pnpm dev:api
-
-dev-web:
-	pnpm dev:web
-
-dev-admin:
-	pnpm dev:admin
-
-# ── Build ─────────────────────────────────────────────────────────────────────
-
-build:
-	pnpm build
-
-build-api:
-	pnpm build:api
-
-build-web:
-	pnpm build:web
-
-build-admin:
-	pnpm build:admin
-
-# ── Code Quality ──────────────────────────────────────────────────────────────
-
-lint:
-	pnpm lint
-
-format:
-	pnpm format
-
-type-check:
-	pnpm type-check
-
-# ── Docker ────────────────────────────────────────────────────────────────────
-
-up:
-	docker compose up -d db redis pgadmin
-
-down:
-	docker compose down
-
-logs:
-	docker compose logs -f
-
-reset:
-	docker compose down -v && docker compose up -d db redis pgadmin
-
-up-local:
-	docker compose -f docker-compose.local.yml up --build -d
-
-# ── Production deploy ─────────────────────────────────────────────────────────
-
-prod-preflight:
-	@test -f apps/api/.env.production || (echo "Missing apps/api/.env.production (see apps/api/.env.example)."; exit 1)
-	@grep -qE '^DATABASE_PASSWORD=.+' apps/api/.env.production 2>/dev/null || (echo "apps/api/.env.production: set DATABASE_PASSWORD= to a non-empty value (required for the Postgres service and compose interpolation)."; exit 1)
-	@test -f apps/web/.env.production || (echo "Missing apps/web/.env.production (see apps/web/.env.example)."; exit 1)
-	@test -f apps/admin/.env.production || (echo "Missing apps/admin/.env.production (see apps/admin/.env.example)."; exit 1)
-	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
-	  : ; \
-	elif [ -f deploy/cloudflare/config.yml ] && ls deploy/cloudflare/*.json >/dev/null 2>&1; then \
-	  : ; \
-	else \
-	  echo "Cloudflare: set CLOUDFLARED_TUNNEL_TOKEN in apps/api/.env.production, OR add deploy/cloudflare/config.yml plus a credentials *.json (see deploy/cloudflare/config.yml.example)."; exit 1; \
-	fi
-
-deploy: prod-preflight
-	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build --force-recreate; \
-	else \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build --force-recreate; \
-	fi
-
-deploy-clean: prod-preflight
-	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env-file apps/api/.env.production -p longnhan-prod build --no-cache && \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env-file apps/api/.env.production -p longnhan-prod up -d --force-recreate; \
-	else \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod build --no-cache && \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --force-recreate; \
-	fi
-
-deploy-down:
-	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env-file apps/api/.env.production -p longnhan-prod down; \
-	else \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod down; \
-	fi
-
-# ── Database ──────────────────────────────────────────────────────────────────
-
-migration-up:
-	pnpm --filter @longnhan/api migration:up
-
-# Uses production DB credentials/host from apps/api/.env.production (e.g. DATABASE_HOST=127.0.0.1, DATABASE_PORT=5436 when stack exposes Postgres on the host).
-migration-up-prod:
-	@test -f apps/api/.env.production || (echo "Missing apps/api/.env.production (see apps/api/.env.example)."; exit 1)
-	cd apps/api && pnpm exec env-cmd -f .env.production pnpm exec typeorm-ts-node-commonjs -d src/database/data-source.ts migration:run
-
-migration-down:
-	pnpm --filter @longnhan/api migration:down
-
-migration-show:
-	pnpm --filter @longnhan/api migration:show
-
-migration-generate:
-	pnpm --filter @longnhan/api migration:generate
-
-seed:
-	pnpm --filter @longnhan/api seed:run
-
-# ── Testing ───────────────────────────────────────────────────────────────────
-
-test:
-	pnpm --filter @longnhan/api test
-
-test-cov:
-	pnpm --filter @longnhan/api test:cov
-
-test-e2e:
-	pnpm --filter @longnhan/api test:e2e
 </file>
 
 <file path="README.md">
@@ -60877,6 +60713,7 @@ type CheckoutCustomerFormProps = {
   submitError: string | null;
   onPhoneChange?: (phone: string) => void;
   voucherSlot?: React.ReactNode;
+  turnstileSlot?: React.ReactNode;
 };
 
 export function CheckoutCustomerForm({
@@ -60885,6 +60722,7 @@ export function CheckoutCustomerForm({
   submitError,
   onPhoneChange,
   voucherSlot,
+  turnstileSlot,
 }: CheckoutCustomerFormProps) {
   const form = useForm<OrderFormValues>({
     resolver: zodResolver(orderFormSchema),
@@ -61106,6 +60944,8 @@ export function CheckoutCustomerForm({
             </p>
           ) : null}
 
+          {paymentMethod === 'cod' && turnstileSlot ? turnstileSlot : null}
+
           {voucherSlot}
 
           <FormField
@@ -61157,11 +60997,15 @@ export function CheckoutCustomerForm({
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState, useTransition } from 'react';
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 
 import { submitOrder } from '@/actions/order-actions';
 import { CheckoutCustomerForm } from '@/components/checkout/checkout-customer-form';
 import { CheckoutOrderSummary } from '@/components/checkout/checkout-order-summary';
+import {
+  CheckoutTurnstile,
+  type CheckoutTurnstileRef,
+} from '@/components/checkout/checkout-turnstile';
 import { CheckoutVoucherInput } from '@/components/checkout/checkout-voucher-input';
 import { SepayRedirectForm } from '@/components/checkout/sepay-redirect-form';
 import { SHIPPING_FLAT_VND } from '@/lib/constants';
@@ -61193,6 +61037,8 @@ export function CheckoutPageContent() {
     url: string;
     fields: Record<string, string>;
   } | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<CheckoutTurnstileRef>(null);
 
   const subtotalVnd = cartSubtotal(lines);
   const shippingVnd = lines.length > 0 ? SHIPPING_FLAT_VND : 0;
@@ -61266,6 +61112,14 @@ export function CheckoutPageContent() {
     fd.set('items', JSON.stringify(parsedItems.data));
     if (appliedVoucher) fd.set('voucherCode', appliedVoucher.code);
 
+    if (values.paymentMethod === 'cod') {
+      if (!turnstileToken) {
+        setSubmitError('Vui lòng chờ xác minh bảo mật hoàn tất.');
+        return;
+      }
+      fd.set('cf-turnstile-response', turnstileToken);
+    }
+
     startTransition(async () => {
       try {
         const res = await submitOrder(fd);
@@ -61280,6 +61134,10 @@ export function CheckoutPageContent() {
             ? err.message
             : 'Đặt hàng thất bại, vui lòng thử lại.',
         );
+        if (values.paymentMethod === 'cod') {
+          setTurnstileToken(null);
+          turnstileRef.current?.reset();
+        }
       }
     });
   };
@@ -61305,6 +61163,13 @@ export function CheckoutPageContent() {
               appliedVoucher={appliedVoucher}
               onVoucherApplied={handleVoucherApplied}
               onVoucherRemoved={handleVoucherRemoved}
+            />
+          }
+          turnstileSlot={
+            <CheckoutTurnstile
+              ref={turnstileRef}
+              onToken={setTurnstileToken}
+              onExpire={() => setTurnstileToken(null)}
             />
           }
         />
@@ -62390,6 +62255,197 @@ volumes:
 networks:
   longnhan-network:
     driver: bridge
+</file>
+
+<file path="Makefile">
+.PHONY: help install dev dev-api dev-web dev-admin \
+        build build-api build-web build-admin \
+        lint format type-check \
+        up down logs reset up-local \
+        deploy deploy-clean deploy-down prod-preflight \
+        migration-up migration-up-prod migration-down migration-show migration-generate \
+        seed test test-cov test-e2e
+
+# Default target
+help:
+	@echo ""
+	@echo "Long Nhan Hung Yen — available commands:"
+	@echo ""
+	@echo "  Setup"
+	@echo "    make install          Install all dependencies"
+	@echo ""
+	@echo "  Development"
+	@echo "    make dev              Infra (db, redis, pgadmin) + all apps in watch mode"
+	@echo "    make dev-api          Start API only (http://localhost:3001)"
+	@echo "    make dev-web          Start storefront only (http://localhost:3000)"
+	@echo "    make dev-admin        Start admin only (http://localhost:3002)"
+	@echo ""
+	@echo "  Build"
+	@echo "    make build            Build all apps"
+	@echo "    make build-api        Build API only"
+	@echo ""
+	@echo "  Code Quality"
+	@echo "    make lint             Lint all apps"
+	@echo "    make format           Format all apps"
+	@echo "    make type-check       Type-check all apps"
+	@echo ""
+	@echo "  Docker (infra)"
+	@echo "    make up               Start infra services (db, redis, pgadmin)"
+	@echo "    make down             Stop all services"
+	@echo "    make logs             Tail service logs"
+	@echo "    make reset            Reset volumes & restart services"
+	@echo "    make up-local         Start full local stack with API hot-reload"
+	@echo ""
+	@echo "  Production (Docker + Cloudflare Tunnel)"
+	@echo "    make deploy           Build & run api, web, admin, db, redis, cloudflared + monitoring (ports 13100–13102)"
+	@echo "    make deploy-clean     Same as deploy but with --no-cache (full rebuild, ignores all Docker cache)"
+	@echo "    make deploy-down      Stop production stack"
+	@echo "                          See deploy/README.md (token or config.yml + credentials JSON)"
+	@echo ""
+	@echo "  Database"
+	@echo "    make migration-up     Run pending migrations (local .env)"
+	@echo "    make migration-up-prod Run pending migrations using apps/api/.env.production"
+	@echo "    make migration-down   Revert last migration"
+	@echo "    make migration-show   Show migration status"
+	@echo "    make seed             Run database seeders"
+	@echo ""
+	@echo "  Testing"
+	@echo "    make test             Run unit tests"
+	@echo "    make test-cov         Run tests with coverage"
+	@echo "    make test-e2e         Run e2e tests"
+	@echo ""
+
+# ── Setup ─────────────────────────────────────────────────────────────────────
+
+install:
+	pnpm install
+
+# ── Development ───────────────────────────────────────────────────────────────
+
+dev: up
+	pnpm dev
+
+dev-api:
+	pnpm dev:api
+
+dev-web:
+	pnpm dev:web
+
+dev-admin:
+	pnpm dev:admin
+
+# ── Build ─────────────────────────────────────────────────────────────────────
+
+build:
+	pnpm build
+
+build-api:
+	pnpm build:api
+
+build-web:
+	pnpm build:web
+
+build-admin:
+	pnpm build:admin
+
+# ── Code Quality ──────────────────────────────────────────────────────────────
+
+lint:
+	pnpm lint
+
+format:
+	pnpm format
+
+type-check:
+	pnpm type-check
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+
+up:
+	docker compose up -d db redis pgadmin
+
+down:
+	docker compose down
+
+logs:
+	docker compose logs -f
+
+reset:
+	docker compose down -v && docker compose up -d db redis pgadmin
+
+up-local:
+	docker compose -f docker-compose.local.yml up --build -d
+
+# ── Production deploy ─────────────────────────────────────────────────────────
+
+prod-preflight:
+	@test -f apps/api/.env.production || (echo "Missing apps/api/.env.production (see apps/api/.env.example)."; exit 1)
+	@grep -qE '^DATABASE_PASSWORD=.+' apps/api/.env.production 2>/dev/null || (echo "apps/api/.env.production: set DATABASE_PASSWORD= to a non-empty value (required for the Postgres service and compose interpolation)."; exit 1)
+	@test -f apps/web/.env.production || (echo "Missing apps/web/.env.production (see apps/web/.env.example)."; exit 1)
+	@test -f apps/admin/.env.production || (echo "Missing apps/admin/.env.production (see apps/admin/.env.example)."; exit 1)
+	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
+	  : ; \
+	elif [ -f deploy/cloudflare/config.yml ] && ls deploy/cloudflare/*.json >/dev/null 2>&1; then \
+	  : ; \
+	else \
+	  echo "Cloudflare: set CLOUDFLARED_TUNNEL_TOKEN in apps/api/.env.production, OR add deploy/cloudflare/config.yml plus a credentials *.json (see deploy/cloudflare/config.yml.example)."; exit 1; \
+	fi
+
+deploy: prod-preflight
+	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build --force-recreate; \
+	else \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build --force-recreate; \
+	fi
+
+deploy-clean: prod-preflight
+	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env-file apps/api/.env.production -p longnhan-prod build --no-cache && \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env-file apps/api/.env.production -p longnhan-prod up -d --force-recreate; \
+	else \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod build --no-cache && \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --force-recreate; \
+	fi
+
+deploy-down:
+	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env-file apps/api/.env.production -p longnhan-prod down; \
+	else \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod down; \
+	fi
+
+# ── Database ──────────────────────────────────────────────────────────────────
+
+migration-up:
+	pnpm --filter @longnhan/api migration:up
+
+# Uses production DB credentials/host from apps/api/.env.production (e.g. DATABASE_HOST=127.0.0.1, DATABASE_PORT=5436 when stack exposes Postgres on the host).
+migration-up-prod:
+	@test -f apps/api/.env.production || (echo "Missing apps/api/.env.production (see apps/api/.env.example)."; exit 1)
+	cd apps/api && pnpm exec env-cmd -f .env.production pnpm exec typeorm-ts-node-commonjs -d src/database/data-source.ts migration:run
+
+migration-down:
+	pnpm --filter @longnhan/api migration:down
+
+migration-show:
+	pnpm --filter @longnhan/api migration:show
+
+migration-generate:
+	pnpm --filter @longnhan/api migration:generate
+
+seed:
+	pnpm --filter @longnhan/api seed:run
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+
+test:
+	pnpm --filter @longnhan/api test
+
+test-cov:
+	pnpm --filter @longnhan/api test:cov
+
+test-e2e:
+	pnpm --filter @longnhan/api test:e2e
 </file>
 
 <file path="package.json">
@@ -63897,130 +63953,6 @@ import { OrdersService } from './orders.service';
 export class OrdersModule {}
 </file>
 
-<file path="apps/api/package.json">
-{
-  "name": "@longnhan/api",
-  "version": "0.0.1",
-  "description": "Long Nhan Hung Yen - NestJS API backend",
-  "author": "longnhantongtran",
-  "private": true,
-  "license": "MIT",
-  "scripts": {
-    "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
-    "lint:fix": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
-    "typeorm": "env-cmd typeorm-ts-node-commonjs -d src/database/data-source.ts",
-    "migration:up": "pnpm typeorm migration:run",
-    "migration:down": "pnpm typeorm migration:revert",
-    "migration:show": "pnpm typeorm migration:show",
-    "migration:create": "typeorm migration:create",
-    "migration:generate": "pnpm typeorm migration:generate --pretty",
-    "db:create": "env-cmd ts-node ./node_modules/typeorm-extension/bin/cli.cjs db:create",
-    "db:drop": "env-cmd ts-node ./node_modules/typeorm-extension/bin/cli.cjs db:drop",
-    "seed:run": "env-cmd ts-node ./node_modules/typeorm-extension/bin/cli.cjs seed:run",
-    "seed:create": "env-cmd ts-node ./node_modules/typeorm-extension/bin/cli.cjs seed:create",
-    "dev": "nest start --watch",
-    "type-check": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@getbrevo/brevo": "^5.0.4",
-    "@longnhan/types": "workspace:*",
-    "@nestjs/axios": "^3.1.2",
-    "@nestjs/bullmq": "^10.2.2",
-    "@nestjs/cache-manager": "^2.3.0",
-    "@nestjs/common": "^10.4.7",
-    "@nestjs/config": "^3.3.0",
-    "@nestjs/core": "^10.4.7",
-    "@nestjs/jwt": "^10.2.0",
-    "@nestjs/mapped-types": "^2.0.6",
-    "@nestjs/platform-express": "^10.4.7",
-    "@nestjs/swagger": "^8.0.5",
-    "@nestjs/terminus": "^10.2.3",
-    "@nestjs/throttler": "^6.5.0",
-    "@nestjs/typeorm": "^10.0.2",
-    "argon2": "^0.41.1",
-    "axios": "^1.7.7",
-    "bullmq": "^5.23.0",
-    "cache-manager": "^5.7.6",
-    "cache-manager-ioredis-yet": "^2.1.2",
-    "class-transformer": "^0.5.1",
-    "class-validator": "^0.14.1",
-    "cloudinary": "^2.5.1",
-    "compression": "^1.7.5",
-    "handlebars": "^4.7.8",
-    "helmet": "^8.0.0",
-    "ms": "^2.1.3",
-    "nestjs-i18n": "^10.5.0",
-    "nestjs-pino": "^4.1.0",
-    "pg": "^8.13.1",
-    "pino-http": "^10.3.0",
-    "pino-pretty": "^11.3.0",
-    "prom-client": "^15.1.3",
-    "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1",
-    "sepay-pg-node": "^1.0.0",
-    "slugify": "^1.6.8",
-    "streamifier": "^0.1.1",
-    "tslib": "^2.8.1",
-    "typeorm": "^0.3.20",
-    "typeorm-extension": "^3.6.3",
-    "uuid": "^11.0.3"
-  },
-  "files": [
-    "dist"
-  ],
-  "devDependencies": {
-    "@commitlint/cli": "^19.5.0",
-    "@commitlint/config-conventional": "^19.5.0",
-    "@eslint/js": "^9.14.0",
-    "@nestjs/cli": "^10.4.5",
-    "@nestjs/schematics": "^10.2.3",
-    "@nestjs/testing": "^10.4.6",
-    "@swc/cli": "^0.5.0",
-    "@swc/core": "^1.7.42",
-    "@types/compression": "^1.7.5",
-    "@types/eslint__js": "^8.42.3",
-    "@types/express": "^5.0.0",
-    "@types/jest": "^29.5.14",
-    "@types/ms": "^0.7.34",
-    "@types/multer": "^1.4.12",
-    "@types/node": "^22.8.7",
-    "@types/streamifier": "^0.1.2",
-    "@types/supertest": "^6.0.2",
-    "@types/uuid": "^10.0.0",
-    "env-cmd": "^10.1.0",
-    "eslint": "^9.14.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-prettier": "^5.2.1",
-    "husky": "^9.1.6",
-    "jest": "^29.7.0",
-    "lint-staged": "^15.2.10",
-    "multer": "^1.4.5-lts.1",
-    "prettier": "^3.3.3",
-    "prettier-plugin-organize-imports": "^4.1.0",
-    "source-map-support": "^0.5.21",
-    "supertest": "^7.0.0",
-    "ts-jest": "^29.2.4",
-    "ts-loader": "^9.5.1",
-    "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.6.3",
-    "typescript-eslint": "^8.12.2"
-  },
-  "packageManager": "pnpm@10.32.1"
-}
-</file>
-
 <file path="apps/web/src/app/globals.css">
 @import 'tailwindcss';
 @import '../components/articles/article-tiptap-content.css';
@@ -64840,6 +64772,11 @@ AUTH_REFRESH_SECRET=dev-refresh-secret-change-in-prod
 BREVO_API_KEY=<your-brevo-api-key>
 MAIL_DEFAULT_EMAIL=noreply@localhost
 MAIL_DEFAULT_NAME=No Reply
+
+# Cloudflare Turnstile (CAPTCHA for COD orders)
+# Use test keys for local dev: https://developers.cloudflare.com/turnstile/get-started/
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
 ```
 
 ### 3. Start Infrastructure
@@ -64927,6 +64864,10 @@ MAIL_DEFAULT_NAME=No Reply
 # CLOUDINARY_CLOUD_NAME=xxx
 # CLOUDINARY_API_KEY=xxx
 # CLOUDINARY_API_SECRET=xxx
+
+# Cloudflare Turnstile (COD bot protection)
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=<staging-site-key>
+TURNSTILE_SECRET_KEY=<staging-secret-key>
 EOF
 
 # 4. Start infrastructure
@@ -65020,6 +64961,10 @@ MAIL_DEFAULT_NAME=Long Nhan Hung Yen
 CLOUDINARY_CLOUD_NAME=<your-cloud-name>
 CLOUDINARY_API_KEY=<your-api-key>
 CLOUDINARY_API_SECRET=<your-api-secret>
+
+# Cloudflare Turnstile (COD bot protection) — https://dash.cloudflare.com/
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=<production-site-key>
+TURNSTILE_SECRET_KEY=<production-secret-key>
 ```
 
 **Secure Storage:**
@@ -67572,98 +67517,128 @@ export class ProductsService {
 }
 </file>
 
-<file path="apps/api/.env.example">
-##== Environment
-NODE_ENV=development
-MODULES_SET=monolith
-
-##== Application
-APP_NAME="NestJS API"
-APP_URL=http://localhost:3001
-WEB_PUBLIC_URL=http://localhost:3000
-APP_PORT=3001
-APP_DEBUG=false
-API_PREFIX=api
-APP_FALLBACK_LANGUAGE=en
-APP_LOG_LEVEL=debug
-APP_LOG_SERVICE=console
-APP_CORS_ORIGIN=http://localhost:3000,http://example.com
-
-##== Database
-DATABASE_TYPE=postgres
-DATABASE_HOST=localhost
-DATABASE_PORT=5435
-DATABASE_USERNAME=postgres
-DATABASE_PASSWORD=postgres
-DATABASE_NAME=nestjs_api
-DATABASE_LOGGING=true
-DATABASE_SYNCHRONIZE=false
-DATABASE_MAX_CONNECTIONS=100
-DATABASE_SSL_ENABLED=false
-DATABASE_REJECT_UNAUTHORIZED=false
-DATABASE_CA=
-DATABASE_KEY=
-DATABASE_CERT=
-
-##== Redis
-REDIS_HOST=localhost
-REDIS_PORT=6380
-REDIS_PASSWORD=redispass
-REDIS_TLS_ENABLED=false
-
-##== Mailer (Brevo transactional email — https://app.brevo.com/settings/keys/api)
-BREVO_API_KEY=
-MAIL_DEFAULT_EMAIL=noreply@example.com
-MAIL_DEFAULT_NAME=No Reply
-
-##== Authentication
-AUTH_JWT_SECRET=secret
-AUTH_JWT_TOKEN_EXPIRES_IN=1d
-AUTH_REFRESH_SECRET=secret_for_refresh
-AUTH_REFRESH_TOKEN_EXPIRES_IN=365d
-AUTH_FORGOT_SECRET=secret_for_forgot
-AUTH_FORGOT_TOKEN_EXPIRES_IN=7d
-AUTH_CONFIRM_EMAIL_SECRET=secret_for_confirm_email
-AUTH_CONFIRM_EMAIL_TOKEN_EXPIRES_IN=1d
-
-##== SePay Payment Gateway
-# sandbox | production
-SEPAY_ENV=sandbox
-SEPAY_MERCHANT_ID=
-SEPAY_SECRET_KEY=
-# Optional override (default: /payments/sepay/ipn)
-SEPAY_IPN_PATH=/payments/sepay/ipn
-# Hourly reconcile sweep — set to "false" to disable
-SEPAY_RECONCILE_ENABLED=true
-
-#== Docker production (copy to apps/api/.env.production)
-# docker-compose.prod.yml overrides DATABASE_HOST=db and REDIS_HOST=redis inside the stack.
-# PROD_* are host port bindings (run prod beside local dev on 3000–3002 / 5435 / 6380).
-NODE_ENV=production
-APP_URL=https://api.example.com
-WEB_PUBLIC_URL=https://www.example.com
-APP_CORS_ORIGIN=https://www.example.com,https://example.com,https://admin.example.com
-DATABASE_NAME=longnhan
-DATABASE_USERNAME=longnhan
-DATABASE_PASSWORD=
-DATABASE_PORT=5436
-REDIS_PORT=6381
-APP_PORT=13101
-
-#== Cloudflare Tunnel (production)
-# Prefer token: Zero Trust → Networks → Tunnels → your tunnel → copy token for `cloudflared`.
-# Routes (api / www / admin) are configured in the tunnel’s Public hostnames (not local config).
-CLOUDFLARED_TUNNEL_TOKEN=
-
-#== Grafana Cloud Monitoring (production)
-# URLs: portal → Connections → Add new connection → Hosted Prometheus / Loki (copy push URL).
-# Each service has its own numeric instance ID (My Account → stack details).
-# API key = Cloud Access Policy token with metrics:write + logs:write (glc_…).
-GRAFANA_CLOUD_PROMETHEUS_URL=
-GRAFANA_CLOUD_PROMETHEUS_USER=
-GRAFANA_CLOUD_LOKI_URL=
-GRAFANA_CLOUD_LOKI_USER=
-GRAFANA_CLOUD_API_KEY=
+<file path="apps/api/package.json">
+{
+  "name": "@longnhan/api",
+  "version": "0.0.1",
+  "description": "Long Nhan Hung Yen - NestJS API backend",
+  "author": "longnhantongtran",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
+    "lint:fix": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "typeorm": "env-cmd typeorm-ts-node-commonjs -d src/database/data-source.ts",
+    "migration:up": "pnpm typeorm migration:run",
+    "migration:down": "pnpm typeorm migration:revert",
+    "migration:show": "pnpm typeorm migration:show",
+    "migration:create": "typeorm migration:create",
+    "migration:generate": "pnpm typeorm migration:generate --pretty",
+    "db:create": "env-cmd ts-node ./node_modules/typeorm-extension/bin/cli.cjs db:create",
+    "db:drop": "env-cmd ts-node ./node_modules/typeorm-extension/bin/cli.cjs db:drop",
+    "seed:run": "env-cmd ts-node ./node_modules/typeorm-extension/bin/cli.cjs seed:run",
+    "seed:create": "env-cmd ts-node ./node_modules/typeorm-extension/bin/cli.cjs seed:create",
+    "dev": "nest start --watch",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@getbrevo/brevo": "^5.0.4",
+    "@longnhan/types": "workspace:*",
+    "@nestjs/axios": "^3.1.2",
+    "@nestjs/bullmq": "^10.2.2",
+    "@nestjs/cache-manager": "^2.3.0",
+    "@nestjs/common": "^10.4.7",
+    "@nestjs/config": "^3.3.0",
+    "@nestjs/core": "^10.4.7",
+    "@nestjs/jwt": "^10.2.0",
+    "@nestjs/mapped-types": "^2.0.6",
+    "@nestjs/platform-express": "^10.4.7",
+    "@nestjs/swagger": "^8.0.5",
+    "@nestjs/terminus": "^10.2.3",
+    "@nestjs/throttler": "^6.5.0",
+    "@nestjs/typeorm": "^10.0.2",
+    "argon2": "^0.41.1",
+    "axios": "^1.7.7",
+    "bullmq": "^5.23.0",
+    "cache-manager": "^5.7.6",
+    "cache-manager-ioredis-yet": "^2.1.2",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "cloudinary": "^2.5.1",
+    "compression": "^1.7.5",
+    "handlebars": "^4.7.8",
+    "helmet": "^8.0.0",
+    "ms": "^2.1.3",
+    "nestjs-i18n": "^10.5.0",
+    "nestjs-pino": "^4.1.0",
+    "pg": "^8.13.1",
+    "pino-http": "^10.3.0",
+    "pino-pretty": "^11.3.0",
+    "prom-client": "^15.1.3",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "sepay-pg-node": "^1.0.0",
+    "slugify": "^1.6.8",
+    "streamifier": "^0.1.1",
+    "tslib": "^2.8.1",
+    "typeorm": "^0.3.20",
+    "typeorm-extension": "^3.6.3",
+    "uuid": "^11.0.3"
+  },
+  "files": [
+    "dist"
+  ],
+  "devDependencies": {
+    "@commitlint/cli": "^19.5.0",
+    "@commitlint/config-conventional": "^19.5.0",
+    "@eslint/js": "^9.14.0",
+    "@nestjs/cli": "^10.4.5",
+    "@nestjs/schematics": "^10.2.3",
+    "@nestjs/testing": "^10.4.6",
+    "@swc/cli": "^0.5.0",
+    "@swc/core": "^1.7.42",
+    "@types/compression": "^1.7.5",
+    "@types/eslint__js": "^8.42.3",
+    "@types/express": "^5.0.0",
+    "@types/jest": "^29.5.14",
+    "@types/ms": "^0.7.34",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^22.8.7",
+    "@types/streamifier": "^0.1.2",
+    "@types/supertest": "^6.0.2",
+    "@types/uuid": "^10.0.0",
+    "env-cmd": "^10.1.0",
+    "eslint": "^9.14.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "husky": "^9.1.6",
+    "jest": "^29.7.0",
+    "lint-staged": "^15.2.10",
+    "multer": "^1.4.5-lts.1",
+    "prettier": "^3.3.3",
+    "prettier-plugin-organize-imports": "^4.1.0",
+    "source-map-support": "^0.5.21",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.2.4",
+    "ts-loader": "^9.5.1",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.12.2"
+  },
+  "packageManager": "pnpm@10.32.1"
+}
 </file>
 
 <file path="apps/web/src/actions/order-actions.ts">
@@ -67703,6 +67678,40 @@ export async function submitOrder(
   }
 
   const rawPaymentMethod = requireNonEmptyString(formData, 'paymentMethod');
+  if (rawPaymentMethod === 'cod') {
+    const turnstileToken = formData.get('cf-turnstile-response');
+    if (!turnstileToken || typeof turnstileToken !== 'string') {
+      throw new Error('Thiếu mã xác minh bảo mật.');
+    }
+
+    const secretKey = process.env.TURNSTILE_SECRET_KEY;
+    if (!secretKey) {
+      console.error('[Turnstile] TURNSTILE_SECRET_KEY not configured');
+      throw new Error('Lỗi cấu hình hệ thống. Vui lòng liên hệ hỗ trợ.');
+    }
+
+    const verifyRes = await fetch(
+      'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          secret: secretKey,
+          response: turnstileToken,
+        }),
+      },
+    );
+
+    const verifyData: unknown = await verifyRes.json();
+    if (
+      !verifyData ||
+      typeof verifyData !== 'object' ||
+      !('success' in verifyData) ||
+      (verifyData as { success?: boolean }).success !== true
+    ) {
+      throw new Error('Xác minh thất bại. Vui lòng tải lại trang và thử lại.');
+    }
+  }
   const customerParse = orderCustomerSchema.safeParse({
     customerName: requireNonEmptyString(formData, 'customerName'),
     phone: requireNonEmptyString(formData, 'phone'),
@@ -68633,6 +68642,100 @@ export default function RootLayout({
     "typescript": "^5"
   }
 }
+</file>
+
+<file path="apps/api/.env.example">
+##== Environment
+NODE_ENV=development
+MODULES_SET=monolith
+
+##== Application
+APP_NAME="NestJS API"
+APP_URL=http://localhost:3001
+WEB_PUBLIC_URL=http://localhost:3000
+APP_PORT=3001
+APP_DEBUG=false
+API_PREFIX=api
+APP_FALLBACK_LANGUAGE=en
+APP_LOG_LEVEL=debug
+APP_LOG_SERVICE=console
+APP_CORS_ORIGIN=http://localhost:3000,http://example.com
+
+##== Database
+DATABASE_TYPE=postgres
+DATABASE_HOST=localhost
+DATABASE_PORT=5435
+DATABASE_USERNAME=postgres
+DATABASE_PASSWORD=postgres
+DATABASE_NAME=nestjs_api
+DATABASE_LOGGING=true
+DATABASE_SYNCHRONIZE=false
+DATABASE_MAX_CONNECTIONS=100
+DATABASE_SSL_ENABLED=false
+DATABASE_REJECT_UNAUTHORIZED=false
+DATABASE_CA=
+DATABASE_KEY=
+DATABASE_CERT=
+
+##== Redis
+REDIS_HOST=localhost
+REDIS_PORT=6380
+REDIS_PASSWORD=redispass
+REDIS_TLS_ENABLED=false
+
+##== Mailer (Brevo transactional email — https://app.brevo.com/settings/keys/api)
+BREVO_API_KEY=
+MAIL_DEFAULT_EMAIL=noreply@example.com
+MAIL_DEFAULT_NAME=No Reply
+
+##== Authentication
+AUTH_JWT_SECRET=secret
+AUTH_JWT_TOKEN_EXPIRES_IN=1d
+AUTH_REFRESH_SECRET=secret_for_refresh
+AUTH_REFRESH_TOKEN_EXPIRES_IN=365d
+AUTH_FORGOT_SECRET=secret_for_forgot
+AUTH_FORGOT_TOKEN_EXPIRES_IN=7d
+AUTH_CONFIRM_EMAIL_SECRET=secret_for_confirm_email
+AUTH_CONFIRM_EMAIL_TOKEN_EXPIRES_IN=1d
+
+##== SePay Payment Gateway
+# sandbox | production
+SEPAY_ENV=sandbox
+SEPAY_MERCHANT_ID=
+SEPAY_SECRET_KEY=
+# Optional override (default: /payments/sepay/ipn)
+SEPAY_IPN_PATH=/payments/sepay/ipn
+# Hourly reconcile sweep — set to "false" to disable
+SEPAY_RECONCILE_ENABLED=true
+
+#== Docker production (copy to apps/api/.env.production)
+# docker-compose.prod.yml overrides DATABASE_HOST=db and REDIS_HOST=redis inside the stack.
+# PROD_* are host port bindings (run prod beside local dev on 3000–3002 / 5435 / 6380).
+NODE_ENV=production
+APP_URL=https://api.example.com
+WEB_PUBLIC_URL=https://www.example.com
+APP_CORS_ORIGIN=https://www.example.com,https://example.com,https://admin.example.com
+DATABASE_NAME=longnhan
+DATABASE_USERNAME=longnhan
+DATABASE_PASSWORD=
+DATABASE_PORT=5436
+REDIS_PORT=6381
+APP_PORT=13101
+
+#== Cloudflare Tunnel (production)
+# Prefer token: Zero Trust → Networks → Tunnels → your tunnel → copy token for `cloudflared`.
+# Routes (api / www / admin) are configured in the tunnel’s Public hostnames (not local config).
+CLOUDFLARED_TUNNEL_TOKEN=
+
+#== Grafana Cloud Monitoring (production)
+# URLs: portal → Connections → Add new connection → Hosted Prometheus / Loki (copy push URL).
+# Each service has its own numeric instance ID (My Account → stack details).
+# API key = Cloud Access Policy token with metrics:write + logs:write (glc_…).
+GRAFANA_CLOUD_PROMETHEUS_URL=
+GRAFANA_CLOUD_PROMETHEUS_USER=
+GRAFANA_CLOUD_LOKI_URL=
+GRAFANA_CLOUD_LOKI_USER=
+GRAFANA_CLOUD_API_KEY=
 </file>
 
 <file path="apps/web/src/app/articles/[slug]/page.tsx">
@@ -72319,6 +72422,70 @@ export default sentryEnabled && sentryAuthToken && sentryOrg && sentryProject
   : nextConfig;
 </file>
 
+<file path="apps/web/package.json">
+{
+  "name": "@longnhan/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@longnhan/types": "workspace:*",
+    "@marsidev/react-turnstile": "^1.5.1",
+    "@radix-ui/react-accordion": "^1.2.12",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-icons": "^1.3.2",
+    "@radix-ui/react-popover": "^1.1.15",
+    "@radix-ui/react-radio-group": "^1.3.8",
+    "@radix-ui/react-select": "^2.2.6",
+    "@sentry/nextjs": "^10",
+    "@tanstack/react-query": "^5.95.2",
+    "@tanstack/react-query-devtools": "^5.95.2",
+    "axios": "^1.14.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "js-cookie": "^3.0.5",
+    "lucide-react": "^0.487.0",
+    "motion": "^12.38.0",
+    "next": "16.2.1",
+    "nuqs": "^2.8.9",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-hook-form": "^7.72.0",
+    "server-only": "^0.0.1",
+    "sonner": "^1.7.4",
+    "swiper": "^12.1.3",
+    "tailwind-merge": "^3.5.0",
+    "yup": "^1.7.1",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
+    "@eslint/js": "^9.39.4",
+    "@opennextjs/cloudflare": "^1.19.1",
+    "@tailwindcss/postcss": "^4",
+    "@types/js-cookie": "^3.0.6",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.1",
+    "prettier": "^3",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "wrangler": "^4.82.2"
+  }
+}
+</file>
+
 <file path="docs/system-architecture.md">
 # System Architecture
 
@@ -73096,69 +73263,6 @@ pnpm seed:run
 - **Interceptor** — Middleware for request/response transformation
 - **Filter** — Exception handler
 - **Decorator** — Function annotation (e.g., @Post, @UseGuards)
-</file>
-
-<file path="apps/web/package.json">
-{
-  "name": "@longnhan/web",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev --port 3000",
-    "build": "next build",
-    "start": "next start --port 3000",
-    "lint": "eslint \"src/**/*.{ts,tsx}\"",
-    "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
-    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
-    "type-check": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@hookform/resolvers": "^5.2.2",
-    "@longnhan/types": "workspace:*",
-    "@radix-ui/react-accordion": "^1.2.12",
-    "@radix-ui/react-dialog": "^1.1.15",
-    "@radix-ui/react-icons": "^1.3.2",
-    "@radix-ui/react-popover": "^1.1.15",
-    "@radix-ui/react-radio-group": "^1.3.8",
-    "@radix-ui/react-select": "^2.2.6",
-    "@sentry/nextjs": "^10",
-    "@tanstack/react-query": "^5.95.2",
-    "@tanstack/react-query-devtools": "^5.95.2",
-    "axios": "^1.14.0",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "js-cookie": "^3.0.5",
-    "lucide-react": "^0.487.0",
-    "motion": "^12.38.0",
-    "next": "16.2.1",
-    "nuqs": "^2.8.9",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "react-hook-form": "^7.72.0",
-    "server-only": "^0.0.1",
-    "sonner": "^1.7.4",
-    "swiper": "^12.1.3",
-    "tailwind-merge": "^3.5.0",
-    "yup": "^1.7.1",
-    "zustand": "^5.0.12"
-  },
-  "devDependencies": {
-    "@eslint/eslintrc": "^3.3.5",
-    "@eslint/js": "^9.39.4",
-    "@opennextjs/cloudflare": "^1.19.1",
-    "@tailwindcss/postcss": "^4",
-    "@types/js-cookie": "^3.0.6",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.1",
-    "prettier": "^3",
-    "tailwindcss": "^4",
-    "typescript": "^5",
-    "wrangler": "^4.82.2"
-  }
-}
 </file>
 
 <file path="apps/web/src/app/page.tsx">

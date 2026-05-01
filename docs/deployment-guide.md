@@ -73,6 +73,11 @@ AUTH_REFRESH_SECRET=dev-refresh-secret-change-in-prod
 BREVO_API_KEY=<your-brevo-api-key>
 MAIL_DEFAULT_EMAIL=noreply@localhost
 MAIL_DEFAULT_NAME=No Reply
+
+# Cloudflare Turnstile (CAPTCHA for COD orders)
+# Use test keys for local dev: https://developers.cloudflare.com/turnstile/get-started/
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
 ```
 
 ### 3. Start Infrastructure
@@ -160,6 +165,10 @@ MAIL_DEFAULT_NAME=No Reply
 # CLOUDINARY_CLOUD_NAME=xxx
 # CLOUDINARY_API_KEY=xxx
 # CLOUDINARY_API_SECRET=xxx
+
+# Cloudflare Turnstile (COD bot protection)
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=<staging-site-key>
+TURNSTILE_SECRET_KEY=<staging-secret-key>
 EOF
 
 # 4. Start infrastructure
@@ -253,6 +262,10 @@ MAIL_DEFAULT_NAME=Long Nhan Hung Yen
 CLOUDINARY_CLOUD_NAME=<your-cloud-name>
 CLOUDINARY_API_KEY=<your-api-key>
 CLOUDINARY_API_SECRET=<your-api-secret>
+
+# Cloudflare Turnstile (COD bot protection) — https://dash.cloudflare.com/
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=<production-site-key>
+TURNSTILE_SECRET_KEY=<production-secret-key>
 ```
 
 **Secure Storage:**
