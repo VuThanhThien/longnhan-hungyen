@@ -20,6 +20,7 @@ coverage/
 .claude/
 .cursor/
 plan/
+plans/
 
 # Environment & secrets
 .env

@@ -924,6 +924,7 @@ apps/
       btn47-bg-right-hover-solid.png
       btn47-bg-right-hover.png
       cate-icon-2.webp
+      cover.jpg
       icon-menu-pho-hien-36x36.webp
       logo-da-thong-bao-bo-cong-thuong-mau-xanh-1.png
       logo-zalo-vector.png
@@ -1231,43 +1232,6 @@ This section contains the contents of the repository's files.
 
 <file path="apps/admin/.git/gk/config">
 
-</file>
-
-<file path="apps/web/src/components/checkout/checkout-turnstile.tsx">
-'use client';
-
-import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
-import { forwardRef, useImperativeHandle, useRef } from 'react';
-
-export type CheckoutTurnstileRef = {
-  reset: () => void;
-};
-
-type CheckoutTurnstileProps = {
-  onToken: (token: string) => void;
-  onExpire?: () => void;
-};
-
-export const CheckoutTurnstile = forwardRef<
-  CheckoutTurnstileRef,
-  CheckoutTurnstileProps
->(function CheckoutTurnstile({ onToken, onExpire }, ref) {
-  const turnstileRef = useRef<TurnstileInstance>(null);
-
-  useImperativeHandle(ref, () => ({
-    reset: () => turnstileRef.current?.reset(),
-  }));
-
-  return (
-    <Turnstile
-      ref={turnstileRef}
-      siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
-      onSuccess={onToken}
-      onExpire={onExpire}
-      options={{ theme: 'light', size: 'flexible' }}
-    />
-  );
-});
 </file>
 
 <file path="apps/admin/public/file.svg">
@@ -19064,6 +19028,43 @@ export function CartLineItem({ line }: CartLineItemProps) {
     </div>
   );
 }
+</file>
+
+<file path="apps/web/src/components/checkout/checkout-turnstile.tsx">
+'use client';
+
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
+import { forwardRef, useImperativeHandle, useRef } from 'react';
+
+export type CheckoutTurnstileRef = {
+  reset: () => void;
+};
+
+type CheckoutTurnstileProps = {
+  onToken: (token: string) => void;
+  onExpire?: () => void;
+};
+
+export const CheckoutTurnstile = forwardRef<
+  CheckoutTurnstileRef,
+  CheckoutTurnstileProps
+>(function CheckoutTurnstile({ onToken, onExpire }, ref) {
+  const turnstileRef = useRef<TurnstileInstance>(null);
+
+  useImperativeHandle(ref, () => ({
+    reset: () => turnstileRef.current?.reset(),
+  }));
+
+  return (
+    <Turnstile
+      ref={turnstileRef}
+      siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!}
+      onSuccess={onToken}
+      onExpire={onExpire}
+      options={{ theme: 'light', size: 'flexible' }}
+    />
+  );
+});
 </file>
 
 <file path="apps/web/src/components/checkout/checkout-voucher-input.tsx">
@@ -46685,7 +46686,7 @@ export const PWA_CONFIG = {
 
   /** Hero / marketing image for Open Graph, Twitter, manifest screenshots */
   heroImage: {
-    path: '/banner-web2.png',
+    path: '/cover.jpg',
     width: 1200,
     height: 630,
     alt: LANDING_SEO.ogImageAlt,
@@ -46700,7 +46701,7 @@ export const PWA_MANIFEST_SCREENSHOTS = [
   {
     src: PWA_CONFIG.heroImage.path,
     sizes: `${PWA_CONFIG.heroImage.width}x${PWA_CONFIG.heroImage.height}`,
-    type: 'image/png',
+    type: 'image/jpeg',
     form_factor: 'wide' as const,
     label: `${SITE_NAME} — trang chủ`,
   },
@@ -52827,469 +52828,6 @@ export enum JobName {
 }
 </file>
 
-<file path="apps/api/src/mail/templates/order-tracking-link.hbs">
-<!doctype html>
-<html>
-
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width" />
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-  <meta http-equiv="x-ua-compatible" content="ie=edge" />
-  <title>Order Tracking Link</title>
-  <style>
-    /* -------------------------------------
-          GLOBAL RESETS
-      ------------------------------------- */
-
-    /*All the styling goes here*/
-
-    img {
-      border: none;
-      -ms-interpolation-mode: bicubic;
-      max-width: 100%;
-    }
-
-    body {
-      background-color: #f6f6f6;
-      font-family: sans-serif;
-      -webkit-font-smoothing: antialiased;
-      font-size: 14px;
-      line-height: 1.4;
-      margin: 0;
-      padding: 0;
-      -ms-text-size-adjust: 100%;
-      -webkit-text-size-adjust: 100%;
-    }
-
-    table {
-      border-collapse: separate;
-      mso-table-lspace: 0pt;
-      mso-table-rspace: 0pt;
-      width: 100%;
-    }
-
-    table td {
-      font-family: sans-serif;
-      font-size: 14px;
-      vertical-align: top;
-    }
-
-    /* -------------------------------------
-          BODY & CONTAINER
-      ------------------------------------- */
-
-    .body {
-      background-color: #f6f6f6;
-      width: 100%;
-    }
-
-    /* Set a max-width, and make it display as block so it will automatically stretch to that width, but will also shrink down on a phone or something */
-    .container {
-      display: block;
-      margin: 0 auto !important;
-      /* makes it centered */
-      max-width: 580px;
-      padding: 10px;
-      width: 580px;
-    }
-
-    /* This should also be a block element, so that it will fill 100% of the .container */
-    .content {
-      box-sizing: border-box;
-      display: block;
-      margin: 0 auto;
-      max-width: 580px;
-      padding: 10px;
-    }
-
-    /* -------------------------------------
-          HEADER, FOOTER, MAIN
-      ------------------------------------- */
-    .main {
-      background: #ffffff;
-      border-radius: 3px;
-      width: 100%;
-    }
-
-    .wrapper {
-      box-sizing: border-box;
-      padding: 20px;
-    }
-
-    .content-block {
-      padding-bottom: 10px;
-      padding-top: 10px;
-    }
-
-    .footer {
-      clear: both;
-      margin-top: 10px;
-      text-align: center;
-      width: 100%;
-    }
-
-    .footer td,
-    .footer p,
-    .footer span,
-    .footer a {
-      color: #999999;
-      font-size: 12px;
-      text-align: center;
-    }
-
-    /* -------------------------------------
-          TYPOGRAPHY
-      ------------------------------------- */
-    h1,
-    h2,
-    h3,
-    h4 {
-      color: #000000;
-      font-family: sans-serif;
-      font-weight: 400;
-      line-height: 1.4;
-      margin: 0;
-      margin-bottom: 30px;
-    }
-
-    h1 {
-      font-size: 35px;
-      font-weight: 300;
-      text-align: center;
-      text-transform: capitalize;
-    }
-
-    p,
-    ul,
-    ol {
-      font-family: sans-serif;
-      font-size: 14px;
-      font-weight: normal;
-      margin: 0;
-      margin-bottom: 15px;
-    }
-
-    p li,
-    ul li,
-    ol li {
-      list-style-position: inside;
-      margin-left: 5px;
-    }
-
-    a {
-      color: #3498db;
-      text-decoration: underline;
-    }
-
-    /* -------------------------------------
-          BUTTONS
-      ------------------------------------- */
-    .btn {
-      box-sizing: border-box;
-      width: 100%;
-    }
-
-    .btn>tbody>tr>td {
-      padding-bottom: 15px;
-    }
-
-    .btn table {
-      width: auto;
-    }
-
-    .btn table td {
-      background-color: #ffffff;
-      border-radius: 5px;
-      text-align: center;
-    }
-
-    .btn a {
-      background-color: #ffffff;
-      border: solid 1px #3498db;
-      border-radius: 5px;
-      box-sizing: border-box;
-      color: #3498db;
-      cursor: pointer;
-      display: inline-block;
-      font-size: 14px;
-      font-weight: bold;
-      margin: 0;
-      padding: 12px 25px;
-      text-decoration: none;
-      text-transform: capitalize;
-    }
-
-    .btn-primary table td {
-      background-color: #3498db;
-    }
-
-    .btn-primary a {
-      background-color: #3498db;
-      border-color: #3498db;
-      color: #ffffff;
-    }
-
-    /* -------------------------------------
-          OTHER STYLES THAT MIGHT BE USEFUL
-      ------------------------------------- */
-    .last {
-      margin-bottom: 0;
-    }
-
-    .first {
-      margin-top: 0;
-    }
-
-    .align-center {
-      text-align: center;
-    }
-
-    .align-right {
-      text-align: right;
-    }
-
-    .align-left {
-      text-align: left;
-    }
-
-    .clear {
-      clear: both;
-    }
-
-    .mt0 {
-      margin-top: 0;
-    }
-
-    .mb0 {
-      margin-bottom: 0;
-    }
-
-    .preheader {
-      color: transparent;
-      display: none;
-      height: 0;
-      max-height: 0;
-      max-width: 0;
-      opacity: 0;
-      overflow: hidden;
-      mso-hide: all;
-      visibility: hidden;
-      width: 0;
-    }
-
-    .powered-by a {
-      text-decoration: none;
-    }
-
-    hr {
-      border: 0;
-      border-bottom: 1px solid #f6f6f6;
-      margin: 20px 0;
-    }
-
-    /* -------------------------------------
-          RESPONSIVE AND MOBILE FRIENDLY STYLES
-      ------------------------------------- */
-    @media only screen and (max-width: 620px) {
-      table[class=body] h1 {
-        font-size: 28px !important;
-        margin-bottom: 10px !important;
-      }
-
-      table[class=body] p,
-      table[class=body] ul,
-      table[class=body] ol,
-      table[class=body] td,
-      table[class=body] span,
-      table[class=body] a {
-        font-size: 16px !important;
-      }
-
-      table[class=body] .wrapper,
-      table[class=body] .article {
-        padding: 10px !important;
-      }
-
-      table[class=body] .content {
-        padding: 0 !important;
-      }
-
-      table[class=body] .container {
-        padding: 0 !important;
-        width: 100% !important;
-      }
-
-      table[class=body] .main {
-        border-left-width: 0 !important;
-        border-radius: 0 !important;
-        border-right-width: 0 !important;
-      }
-
-      table[class=body] .btn table {
-        width: 100% !important;
-      }
-
-      table[class=body] .btn a {
-        width: 100% !important;
-      }
-
-      table[class=body] .img-responsive {
-        height: auto !important;
-        max-width: 100% !important;
-        width: auto !important;
-      }
-    }
-
-    /* -------------------------------------
-          PRESERVE THESE STYLES IN THE HEAD
-      ------------------------------------- */
-    @media all {
-      .ExternalClass {
-        width: 100%;
-      }
-
-      .ExternalClass,
-      .ExternalClass p,
-      .ExternalClass span,
-      .ExternalClass font,
-      .ExternalClass td,
-      .ExternalClass div {
-        line-height: 100%;
-      }
-
-      .apple-link a {
-        color: inherit !important;
-        font-family: inherit !important;
-        font-size: inherit !important;
-        font-weight: inherit !important;
-        line-height: inherit !important;
-        text-decoration: none !important;
-      }
-
-      #MessageViewBody a {
-        color: inherit;
-        text-decoration: none;
-        font-size: inherit;
-        font-family: inherit;
-        font-weight: inherit;
-        line-height: inherit;
-      }
-
-      .btn-primary table td:hover {
-        background-color: #34495e !important;
-      }
-
-      .btn-primary a:hover {
-        background-color: #34495e !important;
-        border-color: #34495e !important;
-      }
-    }
-  </style>
-</head>
-
-<body style="margin:0; padding:0; background-color:#FDFDF9;">
-  <!-- Email wrapper (table-based, 600px) -->
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-    style="margin:0; padding:0; width:100%; background-color:#FDFDF9; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;">
-    <tr>
-      <td align="center" style="padding:24px 12px;">
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" align="center"
-          style="width:600px; max-width:600px; background-color:#FDFDF9; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;">
-          <!-- Header -->
-          <tr>
-            <td style="background-color:#166534; padding:18px 20px; border-radius:16px 16px 0 0;">
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
-                style="border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;">
-                <tr>
-                  <td valign="middle" style="padding:0;">
-                    <img
-                      src="data:image/png;base64,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"
-                      width="44" height="44" alt="Logo Long Nhãn Tống Trân — Đặc sản Hưng Yên"
-                      style="display:block; border:0; outline:none; text-decoration:none; width:44px; height:44px; border-radius:10px; background-color:#FDFDF9; -ms-interpolation-mode:bicubic;" />
-                  </td>
-                  <td valign="middle" style="padding:0 0 0 12px;">
-                    <div
-                      style="font-family:Arial, Helvetica, sans-serif; color:#FDFDF9; font-size:16px; font-weight:700; line-height:1.2;">
-                      Long Nhãn Tống Trân
-                    </div>
-                    <div
-                      style="font-family:Arial, Helvetica, sans-serif; color:#DCFCE7; font-size:12px; line-height:1.4;">
-                      Đặc sản Hưng Yên • Ngọt lành từng hạt
-                    </div>
-                  </td>
-                  <td align="right" valign="middle" style="padding:0;">
-                    <div
-                      style="font-family:Arial, Helvetica, sans-serif; color:#DCFCE7; font-size:12px; line-height:1.4;">
-                      Mã đơn:
-                      <span style="color:#FEE32B; font-weight:700;">{{orderCode}}</span>
-                    </div>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <!-- Body card -->
-          <tr>
-            <td
-              style="background-color:#FFFFFF; padding:22px 20px; border-left:1px solid #FBEF9C; border-right:1px solid #FBEF9C;">
-              <div
-                style="font-family:Arial, Helvetica, sans-serif; color:#201D18; font-size:18px; font-weight:700; line-height:1.3; margin:0 0 10px 0;">
-                Link theo dõi đơn hàng của bạn
-              </div>
-
-              <div
-                style="font-family:Arial, Helvetica, sans-serif; color:#201D18; font-size:14px; line-height:1.65; margin:0 0 14px 0;">
-                Xin chào, <br />
-                Bạn vừa yêu cầu link theo dõi cho đơn hàng
-                <strong>{{orderCode}}</strong>. Link này
-                <strong>chỉ dùng 1 lần</strong> và sẽ <strong>hết hạn</strong> sau
-                một thời gian để đảm bảo an toàn.
-              </div>
-
-              <!-- CTA button -->
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0"
-                style="margin:16px 0 10px 0; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;">
-                <tr>
-                  <td align="center" bgcolor="#FEE32B"
-                    style="border-radius:12px; padding:14px 18px; mso-padding-alt:14px 18px;">
-                    <a href="{{url}}" target="_blank" rel="noopener noreferrer"
-                      style="display:block; font-family:Arial, Helvetica, sans-serif; font-size:14px; font-weight:700; line-height:1; color:#201D18; text-decoration:none;">
-                      Theo dõi đơn hàng
-                    </a>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td
-              style="background-color:#FDFDF9; padding:16px 20px; border-left:1px solid #FBEF9C; border-right:1px solid #FBEF9C; border-bottom:1px solid #FBEF9C; border-radius:0 0 16px 16px;">
-              <div
-                style="font-family:Arial, Helvetica, sans-serif; color:#877928; font-size:12px; line-height:1.6; margin:0;">
-                Nếu bạn không yêu cầu email này, vui lòng bỏ qua. <br />
-                Cảm ơn bạn đã tin chọn
-                <strong style="color:#201D18;">Long Nhãn Tống Trân</strong>.
-              </div>
-            </td>
-          </tr>
-
-          <!-- Spacer -->
-          <tr>
-            <td style="height:10px; line-height:10px; font-size:0;">&nbsp;</td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-
-</html>
-</file>
-
 <file path="apps/api/src/mail/mail.service.ts">
 import { AllConfigType } from '@/config/config.type';
 import { BrevoClient } from '@getbrevo/brevo';
@@ -55580,6 +55118,7 @@ coverage/
 .claude/
 .cursor/
 plan/
+plans/
 
 # Environment & secrets
 .env
@@ -58031,6 +57570,469 @@ export class UpdateProductReqDto {
 }
 </file>
 
+<file path="apps/api/src/mail/templates/order-tracking-link.hbs">
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width" />
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta http-equiv="x-ua-compatible" content="ie=edge" />
+  <title>Order Tracking Link</title>
+  <style>
+    /* -------------------------------------
+          GLOBAL RESETS
+      ------------------------------------- */
+
+    /*All the styling goes here*/
+
+    img {
+      border: none;
+      -ms-interpolation-mode: bicubic;
+      max-width: 100%;
+    }
+
+    body {
+      background-color: #f6f6f6;
+      font-family: sans-serif;
+      -webkit-font-smoothing: antialiased;
+      font-size: 14px;
+      line-height: 1.4;
+      margin: 0;
+      padding: 0;
+      -ms-text-size-adjust: 100%;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    table {
+      border-collapse: separate;
+      mso-table-lspace: 0pt;
+      mso-table-rspace: 0pt;
+      width: 100%;
+    }
+
+    table td {
+      font-family: sans-serif;
+      font-size: 14px;
+      vertical-align: top;
+    }
+
+    /* -------------------------------------
+          BODY & CONTAINER
+      ------------------------------------- */
+
+    .body {
+      background-color: #f6f6f6;
+      width: 100%;
+    }
+
+    /* Set a max-width, and make it display as block so it will automatically stretch to that width, but will also shrink down on a phone or something */
+    .container {
+      display: block;
+      margin: 0 auto !important;
+      /* makes it centered */
+      max-width: 580px;
+      padding: 10px;
+      width: 580px;
+    }
+
+    /* This should also be a block element, so that it will fill 100% of the .container */
+    .content {
+      box-sizing: border-box;
+      display: block;
+      margin: 0 auto;
+      max-width: 580px;
+      padding: 10px;
+    }
+
+    /* -------------------------------------
+          HEADER, FOOTER, MAIN
+      ------------------------------------- */
+    .main {
+      background: #ffffff;
+      border-radius: 3px;
+      width: 100%;
+    }
+
+    .wrapper {
+      box-sizing: border-box;
+      padding: 20px;
+    }
+
+    .content-block {
+      padding-bottom: 10px;
+      padding-top: 10px;
+    }
+
+    .footer {
+      clear: both;
+      margin-top: 10px;
+      text-align: center;
+      width: 100%;
+    }
+
+    .footer td,
+    .footer p,
+    .footer span,
+    .footer a {
+      color: #999999;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    /* -------------------------------------
+          TYPOGRAPHY
+      ------------------------------------- */
+    h1,
+    h2,
+    h3,
+    h4 {
+      color: #000000;
+      font-family: sans-serif;
+      font-weight: 400;
+      line-height: 1.4;
+      margin: 0;
+      margin-bottom: 30px;
+    }
+
+    h1 {
+      font-size: 35px;
+      font-weight: 300;
+      text-align: center;
+      text-transform: capitalize;
+    }
+
+    p,
+    ul,
+    ol {
+      font-family: sans-serif;
+      font-size: 14px;
+      font-weight: normal;
+      margin: 0;
+      margin-bottom: 15px;
+    }
+
+    p li,
+    ul li,
+    ol li {
+      list-style-position: inside;
+      margin-left: 5px;
+    }
+
+    a {
+      color: #3498db;
+      text-decoration: underline;
+    }
+
+    /* -------------------------------------
+          BUTTONS
+      ------------------------------------- */
+    .btn {
+      box-sizing: border-box;
+      width: 100%;
+    }
+
+    .btn>tbody>tr>td {
+      padding-bottom: 15px;
+    }
+
+    .btn table {
+      width: auto;
+    }
+
+    .btn table td {
+      background-color: #ffffff;
+      border-radius: 5px;
+      text-align: center;
+    }
+
+    .btn a {
+      background-color: #ffffff;
+      border: solid 1px #3498db;
+      border-radius: 5px;
+      box-sizing: border-box;
+      color: #3498db;
+      cursor: pointer;
+      display: inline-block;
+      font-size: 14px;
+      font-weight: bold;
+      margin: 0;
+      padding: 12px 25px;
+      text-decoration: none;
+      text-transform: capitalize;
+    }
+
+    .btn-primary table td {
+      background-color: #3498db;
+    }
+
+    .btn-primary a {
+      background-color: #3498db;
+      border-color: #3498db;
+      color: #ffffff;
+    }
+
+    /* -------------------------------------
+          OTHER STYLES THAT MIGHT BE USEFUL
+      ------------------------------------- */
+    .last {
+      margin-bottom: 0;
+    }
+
+    .first {
+      margin-top: 0;
+    }
+
+    .align-center {
+      text-align: center;
+    }
+
+    .align-right {
+      text-align: right;
+    }
+
+    .align-left {
+      text-align: left;
+    }
+
+    .clear {
+      clear: both;
+    }
+
+    .mt0 {
+      margin-top: 0;
+    }
+
+    .mb0 {
+      margin-bottom: 0;
+    }
+
+    .preheader {
+      color: transparent;
+      display: none;
+      height: 0;
+      max-height: 0;
+      max-width: 0;
+      opacity: 0;
+      overflow: hidden;
+      mso-hide: all;
+      visibility: hidden;
+      width: 0;
+    }
+
+    .powered-by a {
+      text-decoration: none;
+    }
+
+    hr {
+      border: 0;
+      border-bottom: 1px solid #f6f6f6;
+      margin: 20px 0;
+    }
+
+    /* -------------------------------------
+          RESPONSIVE AND MOBILE FRIENDLY STYLES
+      ------------------------------------- */
+    @media only screen and (max-width: 620px) {
+      table[class=body] h1 {
+        font-size: 28px !important;
+        margin-bottom: 10px !important;
+      }
+
+      table[class=body] p,
+      table[class=body] ul,
+      table[class=body] ol,
+      table[class=body] td,
+      table[class=body] span,
+      table[class=body] a {
+        font-size: 16px !important;
+      }
+
+      table[class=body] .wrapper,
+      table[class=body] .article {
+        padding: 10px !important;
+      }
+
+      table[class=body] .content {
+        padding: 0 !important;
+      }
+
+      table[class=body] .container {
+        padding: 0 !important;
+        width: 100% !important;
+      }
+
+      table[class=body] .main {
+        border-left-width: 0 !important;
+        border-radius: 0 !important;
+        border-right-width: 0 !important;
+      }
+
+      table[class=body] .btn table {
+        width: 100% !important;
+      }
+
+      table[class=body] .btn a {
+        width: 100% !important;
+      }
+
+      table[class=body] .img-responsive {
+        height: auto !important;
+        max-width: 100% !important;
+        width: auto !important;
+      }
+    }
+
+    /* -------------------------------------
+          PRESERVE THESE STYLES IN THE HEAD
+      ------------------------------------- */
+    @media all {
+      .ExternalClass {
+        width: 100%;
+      }
+
+      .ExternalClass,
+      .ExternalClass p,
+      .ExternalClass span,
+      .ExternalClass font,
+      .ExternalClass td,
+      .ExternalClass div {
+        line-height: 100%;
+      }
+
+      .apple-link a {
+        color: inherit !important;
+        font-family: inherit !important;
+        font-size: inherit !important;
+        font-weight: inherit !important;
+        line-height: inherit !important;
+        text-decoration: none !important;
+      }
+
+      #MessageViewBody a {
+        color: inherit;
+        text-decoration: none;
+        font-size: inherit;
+        font-family: inherit;
+        font-weight: inherit;
+        line-height: inherit;
+      }
+
+      .btn-primary table td:hover {
+        background-color: #34495e !important;
+      }
+
+      .btn-primary a:hover {
+        background-color: #34495e !important;
+        border-color: #34495e !important;
+      }
+    }
+  </style>
+</head>
+
+<body style="margin:0; padding:0; background-color:#FDFDF9;">
+  <!-- Email wrapper (table-based, 600px) -->
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+    style="margin:0; padding:0; width:100%; background-color:#FDFDF9; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;">
+    <tr>
+      <td align="center" style="padding:24px 12px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" align="center"
+          style="width:600px; max-width:600px; background-color:#FDFDF9; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;">
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#166534; padding:18px 20px; border-radius:16px 16px 0 0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+                style="border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;">
+                <tr>
+                  <td valign="middle" style="padding:0;">
+                    <img
+                      src="data:image/png;base64,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"
+                      width="44" height="44" alt="Logo Long Nhãn Tống Trân — Đặc sản Hưng Yên"
+                      style="display:block; border:0; outline:none; text-decoration:none; width:44px; height:44px; border-radius:10px; background-color:#FDFDF9; -ms-interpolation-mode:bicubic;" />
+                  </td>
+                  <td valign="middle" style="padding:0 0 0 12px;">
+                    <div
+                      style="font-family:Arial, Helvetica, sans-serif; color:#FDFDF9; font-size:16px; font-weight:700; line-height:1.2;">
+                      Long Nhãn Tống Trân
+                    </div>
+                    <div
+                      style="font-family:Arial, Helvetica, sans-serif; color:#DCFCE7; font-size:12px; line-height:1.4;">
+                      Đặc sản Hưng Yên • Ngọt lành từng hạt
+                    </div>
+                  </td>
+                  <td align="right" valign="middle" style="padding:0;">
+                    <div
+                      style="font-family:Arial, Helvetica, sans-serif; color:#DCFCE7; font-size:12px; line-height:1.4;">
+                      Mã đơn:
+                      <span style="color:#FEE32B; font-weight:700;">{{orderCode}}</span>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Body card -->
+          <tr>
+            <td
+              style="background-color:#FFFFFF; padding:22px 20px; border-left:1px solid #FBEF9C; border-right:1px solid #FBEF9C;">
+              <div
+                style="font-family:Arial, Helvetica, sans-serif; color:#201D18; font-size:18px; font-weight:700; line-height:1.3; margin:0 0 10px 0;">
+                Link theo dõi đơn hàng của bạn
+              </div>
+
+              <div
+                style="font-family:Arial, Helvetica, sans-serif; color:#201D18; font-size:14px; line-height:1.65; margin:0 0 14px 0;">
+                Xin chào, <br />
+                Bạn vừa yêu cầu link theo dõi cho đơn hàng
+                <strong>{{orderCode}}</strong>. Link này
+                <strong>chỉ dùng 1 lần</strong> và sẽ <strong>hết hạn</strong> sau
+                một thời gian để đảm bảo an toàn.
+              </div>
+
+              <!-- CTA button -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0"
+                style="margin:16px 0 10px 0; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;">
+                <tr>
+                  <td align="center" bgcolor="#FEE32B"
+                    style="border-radius:12px; padding:14px 18px; mso-padding-alt:14px 18px;">
+                    <a href="{{url}}" target="_blank" rel="noopener noreferrer"
+                      style="display:block; font-family:Arial, Helvetica, sans-serif; font-size:14px; font-weight:700; line-height:1; color:#201D18; text-decoration:none;">
+                      Theo dõi đơn hàng
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td
+              style="background-color:#FDFDF9; padding:16px 20px; border-left:1px solid #FBEF9C; border-right:1px solid #FBEF9C; border-bottom:1px solid #FBEF9C; border-radius:0 0 16px 16px;">
+              <div
+                style="font-family:Arial, Helvetica, sans-serif; color:#877928; font-size:12px; line-height:1.6; margin:0;">
+                Nếu bạn không yêu cầu email này, vui lòng bỏ qua. <br />
+                Cảm ơn bạn đã tin chọn
+                <strong style="color:#201D18;">Long Nhãn Tống Trân</strong>.
+              </div>
+            </td>
+          </tr>
+
+          <!-- Spacer -->
+          <tr>
+            <td style="height:10px; line-height:10px; font-size:0;">&nbsp;</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+
+</html>
+</file>
+
 <file path="apps/web/src/actions/order-tracking-actions.ts">
 'use server';
 
@@ -59194,38 +59196,6 @@ export const queryKeys = {
       [...queryKeys.articles.all, contentSegment.detail, slug] as const,
   },
 } as const;
-</file>
-
-<file path="apps/web/.env.example">
-## ============================================
-## Web app environment variables
-## Copy this file to .env and fill real values
-## ============================================
-
-## API base URLs
-API_URL=http://localhost:3001/api/v1
-NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
-
-## Public site URL (metadata, sitemap, canonical)
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
-
-## Cloudinary (public cloud name for image loader)
-NEXT_PUBLIC_CLOUDINARY_CLOUD=your-cloud-name
-
-## Optional: only needed if web app uploads to Cloudinary directly
-# CLOUDINARY_API_KEY=your-cloudinary-api-key
-# CLOUDINARY_API_SECRET=your-cloudinary-api-secret
-NEXT_PUBLIC_ENABLE_SW=false
-
-## Production Docker / make deploy — copy to apps/web/.env.production (Next loads at image build)
-# NEXT_PUBLIC_API_URL=https://api.example.com/api/v1
-# NEXT_PUBLIC_SITE_URL=https://www.example.com
-# NEXT_PUBLIC_CLOUDINARY_CLOUD=
-NEXT_PUBLIC_DEPLOYMENT_ID=production-deployment-id-1
-
-## Cloudflare Turnstile (CAPTCHA for COD orders)
-NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA
-TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
 </file>
 
 <file path="apps/web/sentry.edge.config.ts">
@@ -60670,519 +60640,6 @@ import { VouchersModule } from './vouchers/vouchers.module';
 export class ApiModule {}
 </file>
 
-<file path="apps/web/src/components/checkout/checkout-customer-form.tsx">
-'use client';
-
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect } from 'react';
-import { useForm, useWatch } from 'react-hook-form';
-
-import { Button } from '@/components/ui/button';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { PAYMENT_METHODS, PROVINCES } from '@/lib/constants';
-import { cn } from '@/lib/utils';
-import {
-  orderCustomerSchema as orderFormSchema,
-  type OrderFormValues,
-} from '@/lib/validation/order/order-schemas';
-
-const checkoutFieldClass =
-  'border-(--brand-forest)/15 bg-(--brand-cream) text-(--brand-forest) placeholder:text-(--brand-forest)/50 focus-visible:ring-(--brand-gold) focus-visible:ring-offset-(--brand-cream)';
-
-type CheckoutCustomerFormProps = {
-  onSubmit: (values: OrderFormValues) => void;
-  isPending: boolean;
-  submitError: string | null;
-  onPhoneChange?: (phone: string) => void;
-  voucherSlot?: React.ReactNode;
-  turnstileSlot?: React.ReactNode;
-};
-
-export function CheckoutCustomerForm({
-  onSubmit,
-  isPending,
-  submitError,
-  onPhoneChange,
-  voucherSlot,
-  turnstileSlot,
-}: CheckoutCustomerFormProps) {
-  const form = useForm<OrderFormValues>({
-    resolver: zodResolver(orderFormSchema),
-    defaultValues: {
-      customerName: '',
-      phone: '',
-      email: '',
-      address: '',
-      province: '',
-      paymentMethod: 'cod',
-      notes: '',
-    },
-  });
-
-  const paymentMethod = useWatch({
-    control: form.control,
-    name: 'paymentMethod',
-  });
-
-  const phoneValue = useWatch({
-    control: form.control,
-    name: 'phone',
-  });
-
-  useEffect(() => {
-    onPhoneChange?.(phoneValue ?? '');
-  }, [phoneValue, onPhoneChange]);
-
-  return (
-    <section className="rounded-2xl border border-(--brand-forest)/10 bg-(--brand-cream) p-4 shadow-sm md:p-6">
-      <h1 className="text-2xl font-semibold md:text-3xl">Thanh toán</h1>
-
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="mt-6 flex flex-col gap-4"
-        >
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="customerName"
-              render={({ field, fieldState }) => (
-                <FormItem>
-                  <FormLabel>
-                    Họ tên <span className="text-red-500">*</span>
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      autoComplete="name"
-                      placeholder="Nguyễn Văn A"
-                      className={cn(
-                        checkoutFieldClass,
-                        fieldState.error &&
-                          'border-red-500 bg-red-50/40 focus-visible:ring-red-300',
-                      )}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="phone"
-              render={({ field, fieldState }) => (
-                <FormItem>
-                  <FormLabel>
-                    Số điện thoại <span className="text-red-500">*</span>
-                  </FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      type="tel"
-                      autoComplete="tel"
-                      placeholder="0987 654 321"
-                      className={cn(
-                        checkoutFieldClass,
-                        fieldState.error &&
-                          'border-red-500 bg-red-50/40 focus-visible:ring-red-300',
-                      )}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field, fieldState }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    type="email"
-                    autoComplete="email"
-                    placeholder="example@email.com"
-                    className={cn(
-                      checkoutFieldClass,
-                      fieldState.error &&
-                        'border-red-500 bg-red-50/40 focus-visible:ring-red-300',
-                    )}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="address"
-            render={({ field, fieldState }) => (
-              <FormItem>
-                <FormLabel>
-                  Địa chỉ giao hàng <span className="text-red-500">*</span>
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    autoComplete="street-address"
-                    placeholder="Số nhà, đường, phường/xã, quận/huyện"
-                    className={cn(
-                      checkoutFieldClass,
-                      fieldState.error &&
-                        'border-red-500 bg-red-50/40 focus-visible:ring-red-300',
-                    )}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="province"
-            render={({ field, fieldState }) => (
-              <FormItem>
-                <FormLabel>
-                  Tỉnh/Thành phố <span className="text-red-500">*</span>
-                </FormLabel>
-                <Select
-                  value={field.value || undefined}
-                  onValueChange={field.onChange}
-                >
-                  <FormControl>
-                    <SelectTrigger
-                      className={cn(
-                        checkoutFieldClass,
-                        fieldState.error &&
-                          'border-red-500 bg-red-50/40 focus-visible:ring-red-300',
-                      )}
-                    >
-                      <SelectValue placeholder="Chọn tỉnh/thành" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent className="border-(--brand-forest)/15 bg-(--brand-cream)">
-                    {PROVINCES.map((p) => (
-                      <SelectItem key={p} value={p}>
-                        {p}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="paymentMethod"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>
-                  Phương thức thanh toán <span className="text-red-500">*</span>
-                </FormLabel>
-                <FormControl>
-                  <RadioGroup
-                    className="flex flex-col gap-2"
-                    value={field.value}
-                    onValueChange={field.onChange}
-                  >
-                    {PAYMENT_METHODS.map((method) => (
-                      <div
-                        key={method.value}
-                        className="flex cursor-pointer items-center gap-2 rounded-xl border border-(--brand-forest)/15 bg-(--brand-cream) px-3 py-2 shadow-sm"
-                      >
-                        <RadioGroupItem
-                          value={method.value}
-                          id={`checkout-pay-${method.value}`}
-                          className="border-(--brand-forest)/25 text-(--brand-leaf)"
-                        />
-                        <Label
-                          htmlFor={`checkout-pay-${method.value}`}
-                          className="flex-1 cursor-pointer text-sm font-normal text-(--brand-forest)"
-                        >
-                          {method.label}
-                        </Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {paymentMethod === 'bank_transfer' ? (
-            <p className="rounded-xl border border-(--brand-forest)/15 bg-(--brand-cream) px-3 py-2 text-sm text-(--brand-forest-muted)">
-              Sau khi bạn đặt hàng, hệ thống sẽ chuyển bạn đến trang thanh toán
-              SePay để quét mã QR hoặc chuyển khoản với đúng số tiền và nội dung
-              đơn hàng.
-            </p>
-          ) : null}
-
-          {paymentMethod === 'cod' && turnstileSlot ? turnstileSlot : null}
-
-          {voucherSlot}
-
-          <FormField
-            control={form.control}
-            name="notes"
-            render={({ field, fieldState }) => (
-              <FormItem>
-                <FormLabel>Ghi chú</FormLabel>
-                <FormControl>
-                  <Textarea
-                    {...field}
-                    rows={3}
-                    placeholder="Ghi chú đơn hàng (tuỳ chọn)"
-                    className={cn(
-                      checkoutFieldClass,
-                      'h-auto min-h-20 resize-none py-2',
-                      fieldState.error &&
-                        'border-red-500 bg-red-50/40 focus-visible:ring-red-300',
-                    )}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {submitError ? (
-            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {submitError}
-            </p>
-          ) : null}
-
-          <Button
-            type="submit"
-            loading={isPending}
-            className="h-12 w-full rounded-xl bg-(--brand-forest) text-(--brand-cream) hover:bg-(--brand-forest)/90"
-          >
-            Đặt hàng
-          </Button>
-        </form>
-      </Form>
-    </section>
-  );
-}
-</file>
-
-<file path="apps/web/src/components/checkout/checkout-page-content.tsx">
-'use client';
-
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
-
-import { submitOrder } from '@/actions/order-actions';
-import { CheckoutCustomerForm } from '@/components/checkout/checkout-customer-form';
-import { CheckoutOrderSummary } from '@/components/checkout/checkout-order-summary';
-import {
-  CheckoutTurnstile,
-  type CheckoutTurnstileRef,
-} from '@/components/checkout/checkout-turnstile';
-import { CheckoutVoucherInput } from '@/components/checkout/checkout-voucher-input';
-import { SepayRedirectForm } from '@/components/checkout/sepay-redirect-form';
-import { SHIPPING_FLAT_VND } from '@/lib/constants';
-import {
-  orderItemsSchema,
-  type OrderFormValues,
-} from '@/lib/validation/order/order-schemas';
-import { useCartStore } from '@/services/cart/cart-store';
-
-function cartSubtotal(lines: { quantity: number; unitPriceVnd: number }[]) {
-  return lines.reduce((sum, l) => sum + l.quantity * l.unitPriceVnd, 0);
-}
-
-type AppliedVoucher = {
-  code: string;
-  discountAmount: number;
-};
-
-export function CheckoutPageContent() {
-  const lines = useCartStore((s) => s.lines);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-  const router = useRouter();
-  const [phone, setPhone] = useState('');
-  const [appliedVoucher, setAppliedVoucher] = useState<AppliedVoucher | null>(
-    null,
-  );
-  const [sepayRedirect, setSepayRedirect] = useState<{
-    url: string;
-    fields: Record<string, string>;
-  } | null>(null);
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
-  const turnstileRef = useRef<CheckoutTurnstileRef>(null);
-
-  const subtotalVnd = cartSubtotal(lines);
-  const shippingVnd = lines.length > 0 ? SHIPPING_FLAT_VND : 0;
-  const orderTotalBeforeDiscount = subtotalVnd + shippingVnd;
-  const discountVnd = appliedVoucher?.discountAmount ?? 0;
-
-  // Clear voucher when cart changes — discount may no longer be valid.
-  useEffect(() => {
-    queueMicrotask(() => setAppliedVoucher(null));
-  }, [subtotalVnd]);
-
-  const handlePhoneChange = useCallback((next: string) => {
-    setPhone((prev) => {
-      if (prev === next) return prev;
-      // Phone changed — drop applied voucher (per-phone rules may differ).
-      setAppliedVoucher(null);
-      return next;
-    });
-  }, []);
-
-  const handleVoucherApplied = useCallback(
-    (discountAmount: number, code: string) => {
-      setAppliedVoucher({ code, discountAmount });
-    },
-    [],
-  );
-
-  const handleVoucherRemoved = useCallback(() => {
-    setAppliedVoucher(null);
-  }, []);
-
-  if (lines.length === 0) {
-    return (
-      <section className="mx-auto max-w-6xl px-4 py-8 text-(--brand-forest) md:py-12">
-        <h1 className="text-2xl font-semibold md:text-3xl">Thanh toán</h1>
-        <p className="mt-4 text-(--brand-forest-muted)">
-          Giỏ hàng đang trống.{' '}
-          <Link
-            href="/products"
-            className="font-medium text-(--brand-leaf) underline underline-offset-2 hover:text-(--brand-forest)"
-          >
-            Xem sản phẩm
-          </Link>
-        </p>
-      </section>
-    );
-  }
-
-  const onSubmit = (values: OrderFormValues) => {
-    setSubmitError(null);
-    setSepayRedirect(null);
-
-    const items = lines.map((l) => ({
-      variantId: l.variantId,
-      qty: l.quantity,
-    }));
-    const parsedItems = orderItemsSchema.safeParse(items);
-    if (!parsedItems.success) {
-      setSubmitError('Giỏ hàng không hợp lệ, vui lòng kiểm tra lại.');
-      return;
-    }
-
-    const fd = new FormData();
-    fd.set('customerName', values.customerName);
-    fd.set('phone', values.phone);
-    if (values.email) fd.set('email', values.email);
-    fd.set('address', values.address);
-    fd.set('province', values.province);
-    fd.set('paymentMethod', values.paymentMethod);
-    if (values.notes) fd.set('notes', values.notes);
-    fd.set('items', JSON.stringify(parsedItems.data));
-    if (appliedVoucher) fd.set('voucherCode', appliedVoucher.code);
-
-    if (values.paymentMethod === 'cod') {
-      if (!turnstileToken) {
-        setSubmitError('Vui lòng chờ xác minh bảo mật hoàn tất.');
-        return;
-      }
-      fd.set('cf-turnstile-response', turnstileToken);
-    }
-
-    startTransition(async () => {
-      try {
-        const res = await submitOrder(fd);
-        if (res.kind === 'sepay') {
-          setSepayRedirect(res.sepay);
-          return;
-        }
-        router.push(`/order-success?code=${encodeURIComponent(res.code)}`);
-      } catch (err) {
-        setSubmitError(
-          err instanceof Error
-            ? err.message
-            : 'Đặt hàng thất bại, vui lòng thử lại.',
-        );
-        if (values.paymentMethod === 'cod') {
-          setTurnstileToken(null);
-          turnstileRef.current?.reset();
-        }
-      }
-    });
-  };
-
-  return (
-    <section className="mx-auto max-w-6xl px-4 py-8 text-(--brand-forest) md:py-12">
-      {sepayRedirect ? (
-        <SepayRedirectForm
-          url={sepayRedirect.url}
-          fields={sepayRedirect.fields}
-        />
-      ) : null}
-      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        <CheckoutCustomerForm
-          onSubmit={onSubmit}
-          isPending={isPending}
-          submitError={submitError}
-          onPhoneChange={handlePhoneChange}
-          voucherSlot={
-            <CheckoutVoucherInput
-              orderTotal={orderTotalBeforeDiscount}
-              phone={phone}
-              appliedVoucher={appliedVoucher}
-              onVoucherApplied={handleVoucherApplied}
-              onVoucherRemoved={handleVoucherRemoved}
-            />
-          }
-          turnstileSlot={
-            <CheckoutTurnstile
-              ref={turnstileRef}
-              onToken={setTurnstileToken}
-              onExpire={() => setTurnstileToken(null)}
-            />
-          }
-        />
-        <CheckoutOrderSummary
-          discountAmount={discountVnd}
-          voucherCode={appliedVoucher?.code ?? null}
-        />
-      </div>
-    </section>
-  );
-}
-</file>
-
 <file path="apps/web/src/components/landing/landing-hero.tsx">
 import Image from 'next/image';
 import {
@@ -61421,6 +60878,38 @@ export function AppProviders({ children }: { children: ReactNode }) {
     </QueryClientProvider>
   );
 }
+</file>
+
+<file path="apps/web/.env.example">
+## ============================================
+## Web app environment variables
+## Copy this file to .env and fill real values
+## ============================================
+
+## API base URLs
+API_URL=http://localhost:3001/api/v1
+NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
+
+## Public site URL (metadata, sitemap, canonical)
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+## Cloudinary (public cloud name for image loader)
+NEXT_PUBLIC_CLOUDINARY_CLOUD=your-cloud-name
+
+## Optional: only needed if web app uploads to Cloudinary directly
+# CLOUDINARY_API_KEY=your-cloudinary-api-key
+# CLOUDINARY_API_SECRET=your-cloudinary-api-secret
+NEXT_PUBLIC_ENABLE_SW=false
+
+## Production Docker / make deploy — copy to apps/web/.env.production (Next loads at image build)
+# NEXT_PUBLIC_API_URL=https://api.example.com/api/v1
+# NEXT_PUBLIC_SITE_URL=https://www.example.com
+# NEXT_PUBLIC_CLOUDINARY_CLOUD=
+NEXT_PUBLIC_DEPLOYMENT_ID=production-deployment-id-1
+
+## Cloudflare Turnstile (CAPTCHA for COD orders)
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
 </file>
 
 <file path="docs/code-standards.md">
@@ -64202,6 +63691,519 @@ export default function RootLayout({
 }
 </file>
 
+<file path="apps/web/src/components/checkout/checkout-customer-form.tsx">
+'use client';
+
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useEffect } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
+
+import { Button } from '@/components/ui/button';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { PAYMENT_METHODS, PROVINCES } from '@/lib/constants';
+import { cn } from '@/lib/utils';
+import {
+  orderCustomerSchema as orderFormSchema,
+  type OrderFormValues,
+} from '@/lib/validation/order/order-schemas';
+
+const checkoutFieldClass =
+  'border-(--brand-forest)/15 bg-(--brand-cream) text-(--brand-forest) placeholder:text-(--brand-forest)/50 focus-visible:ring-(--brand-gold) focus-visible:ring-offset-(--brand-cream)';
+
+type CheckoutCustomerFormProps = {
+  onSubmit: (values: OrderFormValues) => void;
+  isPending: boolean;
+  submitError: string | null;
+  onPhoneChange?: (phone: string) => void;
+  voucherSlot?: React.ReactNode;
+  turnstileSlot?: React.ReactNode;
+};
+
+export function CheckoutCustomerForm({
+  onSubmit,
+  isPending,
+  submitError,
+  onPhoneChange,
+  voucherSlot,
+  turnstileSlot,
+}: CheckoutCustomerFormProps) {
+  const form = useForm<OrderFormValues>({
+    resolver: zodResolver(orderFormSchema),
+    defaultValues: {
+      customerName: '',
+      phone: '',
+      email: '',
+      address: '',
+      province: '',
+      paymentMethod: 'cod',
+      notes: '',
+    },
+  });
+
+  const paymentMethod = useWatch({
+    control: form.control,
+    name: 'paymentMethod',
+  });
+
+  const phoneValue = useWatch({
+    control: form.control,
+    name: 'phone',
+  });
+
+  useEffect(() => {
+    onPhoneChange?.(phoneValue ?? '');
+  }, [phoneValue, onPhoneChange]);
+
+  return (
+    <section className="rounded-2xl border border-(--brand-forest)/10 bg-(--brand-cream) p-4 shadow-sm md:p-6">
+      <h1 className="text-2xl font-semibold md:text-3xl">Thanh toán</h1>
+
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="mt-6 flex flex-col gap-4"
+        >
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="customerName"
+              render={({ field, fieldState }) => (
+                <FormItem>
+                  <FormLabel>
+                    Họ tên <span className="text-red-500">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      autoComplete="name"
+                      placeholder="Nguyễn Văn A"
+                      className={cn(
+                        checkoutFieldClass,
+                        fieldState.error &&
+                          'border-red-500 bg-red-50/40 focus-visible:ring-red-300',
+                      )}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field, fieldState }) => (
+                <FormItem>
+                  <FormLabel>
+                    Số điện thoại <span className="text-red-500">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="tel"
+                      autoComplete="tel"
+                      placeholder="0987 654 321"
+                      className={cn(
+                        checkoutFieldClass,
+                        fieldState.error &&
+                          'border-red-500 bg-red-50/40 focus-visible:ring-red-300',
+                      )}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field, fieldState }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    type="email"
+                    autoComplete="email"
+                    placeholder="example@email.com"
+                    className={cn(
+                      checkoutFieldClass,
+                      fieldState.error &&
+                        'border-red-500 bg-red-50/40 focus-visible:ring-red-300',
+                    )}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="address"
+            render={({ field, fieldState }) => (
+              <FormItem>
+                <FormLabel>
+                  Địa chỉ giao hàng <span className="text-red-500">*</span>
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    autoComplete="street-address"
+                    placeholder="Số nhà, đường, phường/xã, quận/huyện"
+                    className={cn(
+                      checkoutFieldClass,
+                      fieldState.error &&
+                        'border-red-500 bg-red-50/40 focus-visible:ring-red-300',
+                    )}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="province"
+            render={({ field, fieldState }) => (
+              <FormItem>
+                <FormLabel>
+                  Tỉnh/Thành phố <span className="text-red-500">*</span>
+                </FormLabel>
+                <Select
+                  value={field.value || undefined}
+                  onValueChange={field.onChange}
+                >
+                  <FormControl>
+                    <SelectTrigger
+                      className={cn(
+                        checkoutFieldClass,
+                        fieldState.error &&
+                          'border-red-500 bg-red-50/40 focus-visible:ring-red-300',
+                      )}
+                    >
+                      <SelectValue placeholder="Chọn tỉnh/thành" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent className="border-(--brand-forest)/15 bg-(--brand-cream)">
+                    {PROVINCES.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {p}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="paymentMethod"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>
+                  Phương thức thanh toán <span className="text-red-500">*</span>
+                </FormLabel>
+                <FormControl>
+                  <RadioGroup
+                    className="flex flex-col gap-2"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                  >
+                    {PAYMENT_METHODS.map((method) => (
+                      <div
+                        key={method.value}
+                        className="flex cursor-pointer items-center gap-2 rounded-xl border border-(--brand-forest)/15 bg-(--brand-cream) px-3 py-2 shadow-sm"
+                      >
+                        <RadioGroupItem
+                          value={method.value}
+                          id={`checkout-pay-${method.value}`}
+                          className="border-(--brand-forest)/25 text-(--brand-leaf)"
+                        />
+                        <Label
+                          htmlFor={`checkout-pay-${method.value}`}
+                          className="flex-1 cursor-pointer text-sm font-normal text-(--brand-forest)"
+                        >
+                          {method.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {paymentMethod === 'bank_transfer' ? (
+            <p className="rounded-xl border border-(--brand-forest)/15 bg-(--brand-cream) px-3 py-2 text-sm text-(--brand-forest-muted)">
+              Sau khi bạn đặt hàng, hệ thống sẽ chuyển bạn đến trang thanh toán
+              SePay để quét mã QR hoặc chuyển khoản với đúng số tiền và nội dung
+              đơn hàng.
+            </p>
+          ) : null}
+
+          {paymentMethod === 'cod' && turnstileSlot ? turnstileSlot : null}
+
+          {voucherSlot}
+
+          <FormField
+            control={form.control}
+            name="notes"
+            render={({ field, fieldState }) => (
+              <FormItem>
+                <FormLabel>Ghi chú</FormLabel>
+                <FormControl>
+                  <Textarea
+                    {...field}
+                    rows={3}
+                    placeholder="Ghi chú đơn hàng (tuỳ chọn)"
+                    className={cn(
+                      checkoutFieldClass,
+                      'h-auto min-h-20 resize-none py-2',
+                      fieldState.error &&
+                        'border-red-500 bg-red-50/40 focus-visible:ring-red-300',
+                    )}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {submitError ? (
+            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {submitError}
+            </p>
+          ) : null}
+
+          <Button
+            type="submit"
+            loading={isPending}
+            className="h-12 w-full rounded-xl bg-(--brand-forest) text-(--brand-cream) hover:bg-(--brand-forest)/90"
+          >
+            Đặt hàng
+          </Button>
+        </form>
+      </Form>
+    </section>
+  );
+}
+</file>
+
+<file path="apps/web/src/components/checkout/checkout-page-content.tsx">
+'use client';
+
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
+
+import { submitOrder } from '@/actions/order-actions';
+import { CheckoutCustomerForm } from '@/components/checkout/checkout-customer-form';
+import { CheckoutOrderSummary } from '@/components/checkout/checkout-order-summary';
+import {
+  CheckoutTurnstile,
+  type CheckoutTurnstileRef,
+} from '@/components/checkout/checkout-turnstile';
+import { CheckoutVoucherInput } from '@/components/checkout/checkout-voucher-input';
+import { SepayRedirectForm } from '@/components/checkout/sepay-redirect-form';
+import { SHIPPING_FLAT_VND } from '@/lib/constants';
+import {
+  orderItemsSchema,
+  type OrderFormValues,
+} from '@/lib/validation/order/order-schemas';
+import { useCartStore } from '@/services/cart/cart-store';
+
+function cartSubtotal(lines: { quantity: number; unitPriceVnd: number }[]) {
+  return lines.reduce((sum, l) => sum + l.quantity * l.unitPriceVnd, 0);
+}
+
+type AppliedVoucher = {
+  code: string;
+  discountAmount: number;
+};
+
+export function CheckoutPageContent() {
+  const lines = useCartStore((s) => s.lines);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
+  const [phone, setPhone] = useState('');
+  const [appliedVoucher, setAppliedVoucher] = useState<AppliedVoucher | null>(
+    null,
+  );
+  const [sepayRedirect, setSepayRedirect] = useState<{
+    url: string;
+    fields: Record<string, string>;
+  } | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<CheckoutTurnstileRef>(null);
+
+  const subtotalVnd = cartSubtotal(lines);
+  const shippingVnd = lines.length > 0 ? SHIPPING_FLAT_VND : 0;
+  const orderTotalBeforeDiscount = subtotalVnd + shippingVnd;
+  const discountVnd = appliedVoucher?.discountAmount ?? 0;
+
+  // Clear voucher when cart changes — discount may no longer be valid.
+  useEffect(() => {
+    queueMicrotask(() => setAppliedVoucher(null));
+  }, [subtotalVnd]);
+
+  const handlePhoneChange = useCallback((next: string) => {
+    setPhone((prev) => {
+      if (prev === next) return prev;
+      // Phone changed — drop applied voucher (per-phone rules may differ).
+      setAppliedVoucher(null);
+      return next;
+    });
+  }, []);
+
+  const handleVoucherApplied = useCallback(
+    (discountAmount: number, code: string) => {
+      setAppliedVoucher({ code, discountAmount });
+    },
+    [],
+  );
+
+  const handleVoucherRemoved = useCallback(() => {
+    setAppliedVoucher(null);
+  }, []);
+
+  if (lines.length === 0) {
+    return (
+      <section className="mx-auto max-w-6xl px-4 py-8 text-(--brand-forest) md:py-12">
+        <h1 className="text-2xl font-semibold md:text-3xl">Thanh toán</h1>
+        <p className="mt-4 text-(--brand-forest-muted)">
+          Giỏ hàng đang trống.{' '}
+          <Link
+            href="/products"
+            className="font-medium text-(--brand-leaf) underline underline-offset-2 hover:text-(--brand-forest)"
+          >
+            Xem sản phẩm
+          </Link>
+        </p>
+      </section>
+    );
+  }
+
+  const onSubmit = (values: OrderFormValues) => {
+    setSubmitError(null);
+    setSepayRedirect(null);
+
+    const items = lines.map((l) => ({
+      variantId: l.variantId,
+      qty: l.quantity,
+    }));
+    const parsedItems = orderItemsSchema.safeParse(items);
+    if (!parsedItems.success) {
+      setSubmitError('Giỏ hàng không hợp lệ, vui lòng kiểm tra lại.');
+      return;
+    }
+
+    const fd = new FormData();
+    fd.set('customerName', values.customerName);
+    fd.set('phone', values.phone);
+    if (values.email) fd.set('email', values.email);
+    fd.set('address', values.address);
+    fd.set('province', values.province);
+    fd.set('paymentMethod', values.paymentMethod);
+    if (values.notes) fd.set('notes', values.notes);
+    fd.set('items', JSON.stringify(parsedItems.data));
+    if (appliedVoucher) fd.set('voucherCode', appliedVoucher.code);
+
+    if (values.paymentMethod === 'cod') {
+      if (!turnstileToken) {
+        setSubmitError('Vui lòng chờ xác minh bảo mật hoàn tất.');
+        return;
+      }
+      fd.set('cf-turnstile-response', turnstileToken);
+    }
+
+    startTransition(async () => {
+      try {
+        const res = await submitOrder(fd);
+        if (res.kind === 'sepay') {
+          setSepayRedirect(res.sepay);
+          return;
+        }
+        router.push(`/order-success?code=${encodeURIComponent(res.code)}`);
+      } catch (err) {
+        setSubmitError(
+          err instanceof Error
+            ? err.message
+            : 'Đặt hàng thất bại, vui lòng thử lại.',
+        );
+        if (values.paymentMethod === 'cod') {
+          setTurnstileToken(null);
+          turnstileRef.current?.reset();
+        }
+      }
+    });
+  };
+
+  return (
+    <section className="mx-auto max-w-6xl px-4 py-8 text-(--brand-forest) md:py-12">
+      {sepayRedirect ? (
+        <SepayRedirectForm
+          url={sepayRedirect.url}
+          fields={sepayRedirect.fields}
+        />
+      ) : null}
+      <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+        <CheckoutCustomerForm
+          onSubmit={onSubmit}
+          isPending={isPending}
+          submitError={submitError}
+          onPhoneChange={handlePhoneChange}
+          voucherSlot={
+            <CheckoutVoucherInput
+              orderTotal={orderTotalBeforeDiscount}
+              phone={phone}
+              appliedVoucher={appliedVoucher}
+              onVoucherApplied={handleVoucherApplied}
+              onVoucherRemoved={handleVoucherRemoved}
+            />
+          }
+          turnstileSlot={
+            <CheckoutTurnstile
+              ref={turnstileRef}
+              onToken={setTurnstileToken}
+              onExpire={() => setTurnstileToken(null)}
+            />
+          }
+        />
+        <CheckoutOrderSummary
+          discountAmount={discountVnd}
+          voucherCode={appliedVoucher?.code ?? null}
+        />
+      </div>
+    </section>
+  );
+}
+</file>
+
 <file path="apps/web/src/components/landing/landing-articles-preview.tsx">
 // Articles preview section — up to 3 latest articles on landing page
 import Link from 'next/link';
@@ -64367,7 +64369,7 @@ export default function ProductPdpHero({ product }: ProductPdpHeroProps) {
 import { SOCIAL_LINKS } from '@/lib/constants';
 
 export const LANDING_SEO = {
-  title: 'Long Nhãn Tống Trân — Đặc Sản Hưng Yên | Quà Tặng Cao Cấp',
+  title: 'Long Nhãn Hưng Yên — Đặc Sản Tống Trân | Quà Tặng Cao Cấp',
   description:
     'Long nhãn Hưng Yên ngọt lành từng hạt, sấy khép kín theo công thức cổ truyền. Quà biếu sang trọng, giao COD toàn quốc. Liên hệ Zalo, Shopee, TikTok.',
   keywords: [
@@ -64694,641 +64696,6 @@ export const LANDING_BANNER_SLIDES = [
     href: '/products',
   },
 ] as const;
-</file>
-
-<file path="docs/deployment-guide.md">
-# Deployment Guide
-
-**Last Updated:** 2026-04-01
-**Production Targets:** Railway (API), Vercel (web + admin)
-
----
-
-## Overview
-
-This guide covers setting up, deploying, and maintaining the Long Nhan Hung Yen API in development, staging, and production environments.
-
----
-
-## Prerequisites
-
-### Required Software
-
-- Docker & Docker Compose
-- Node.js >= 20.10.0
-- pnpm >= 9.5.0
-- PostgreSQL 13+ (can use Docker)
-- Redis (can use Docker)
-
-### Required Credentials
-
-- Cloudinary account (production media uploads)
-- Brevo API key (https://app.brevo.com/settings/keys/api)
-- PostgreSQL database credentials
-- JWT secret key (generate securely)
-
----
-
-## Local Development Setup
-
-### 1. Clone & Install
-
-```bash
-# Clone repository
-git clone <repo-url> longnhantongtran
-cd longnhantongtran
-
-# Install dependencies
-pnpm install
-
-# Copy environment template
-cp .env.example .env
-```
-
-### 2. Configure Environment
-
-Edit `.env` for local development:
-
-```env
-# Application
-NODE_ENV=development
-APP_PORT=3000
-APP_DEBUG=true
-APP_CORS_ORIGIN=http://localhost:3000
-
-# Database
-DATABASE_HOST=localhost
-DATABASE_PORT=5435
-DATABASE_NAME=nestjs_api
-DATABASE_USERNAME=postgres
-DATABASE_PASSWORD=postgres
-
-# Authentication
-AUTH_JWT_SECRET=dev-secret-key-change-in-prod
-AUTH_JWT_TOKEN_EXPIRES_IN=1d
-AUTH_REFRESH_SECRET=dev-refresh-secret-change-in-prod
-
-# Email (Brevo SDK — get key at https://app.brevo.com/settings/keys/api)
-BREVO_API_KEY=<your-brevo-api-key>
-MAIL_DEFAULT_EMAIL=noreply@localhost
-MAIL_DEFAULT_NAME=No Reply
-
-# Cloudflare Turnstile (CAPTCHA for COD orders)
-# Use test keys for local dev: https://developers.cloudflare.com/turnstile/get-started/
-NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA
-TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
-```
-
-### 3. Start Infrastructure
-
-```bash
-# Option A: Start only database/cache services
-docker compose up -d db redis pgadmin
-
-# Option B: Full local dev stack with API container (hot-reload)
-docker compose -f docker-compose.local.yml up --build -d
-```
-
-**Services:**
-
-- PostgreSQL: localhost:5435
-- Redis: localhost:6380
-- PgAdmin: http://localhost:5050
-- API (if using `docker-compose.local.yml`): http://localhost:3001 (host mapping in compose)
-
-### 4. Initialize Database
-
-```bash
-# Create database (if not using docker compose)
-pnpm db:create
-
-# Run migrations
-pnpm migration:up
-
-# Seed sample data
-pnpm seed:run
-```
-
-### 5. Start Development Server
-
-```bash
-# Terminal method
-pnpm dev
-
-# Or via Docker (if using docker-compose.local.yml)
-# Already running, check logs with:
-docker compose -f docker-compose.local.yml logs -f api
-```
-
-API available at: http://localhost:3001 (see root `README.md` for all local ports)
-Swagger docs: http://localhost:3001/api-docs
-
----
-
-## Staging Deployment
-
-### Setup
-
-Staging uses the production Docker Compose stack without the API container (deploy separately).
-
-```bash
-# 1. SSH into staging server
-ssh user@staging-server
-
-# 2. Clone repository
-git clone <repo-url> longnhantongtran
-cd longnhantongtran
-
-# 3. Create staging .env file
-cat > .env << EOF
-NODE_ENV=staging
-APP_PORT=3000
-APP_DEBUG=false
-APP_CORS_ORIGIN=https://staging.example.com
-
-DATABASE_HOST=db
-DATABASE_PORT=5432
-DATABASE_NAME=nestjs_api
-DATABASE_USERNAME=postgres
-DATABASE_PASSWORD=$(openssl rand -base64 32)
-
-AUTH_JWT_SECRET=$(openssl rand -hex 32)
-AUTH_JWT_TOKEN_EXPIRES_IN=1d
-AUTH_REFRESH_SECRET=$(openssl rand -hex 32)
-
-BREVO_API_KEY=<staging-brevo-api-key>
-MAIL_DEFAULT_EMAIL=noreply@staging.example.com
-MAIL_DEFAULT_NAME=No Reply
-
-# Cloudinary (if available in staging)
-# CLOUDINARY_CLOUD_NAME=xxx
-# CLOUDINARY_API_KEY=xxx
-# CLOUDINARY_API_SECRET=xxx
-
-# Cloudflare Turnstile (COD bot protection)
-NEXT_PUBLIC_TURNSTILE_SITE_KEY=<staging-site-key>
-TURNSTILE_SECRET_KEY=<staging-secret-key>
-EOF
-
-# 4. Start infrastructure
-docker compose up -d db redis pgadmin
-```
-
-### Deploy API
-
-```bash
-# 1. Build production image
-docker build -t api:staging -f apps/api/Dockerfile .
-
-# 2. Run API container
-docker run -d \
-  --name api \
-  --network longnhan-network \
-  -p 3000:3000 \
-  --env-file .env \
-  api:staging
-
-# 3. Verify
-curl http://localhost:3000/health
-```
-
-### Initialize Database
-
-```bash
-# Run migrations inside container
-docker exec api pnpm migration:up
-
-# Seed data
-docker exec api pnpm seed:run
-```
-
-### Verification Checklist
-
-- [ ] API responds on port 3000
-- [ ] Swagger docs accessible at `/api-docs`
-- [ ] Database migrations applied
-- [ ] Sample data seeded
-- [ ] SMTP configured (provider sandbox for staging)
-- [ ] PostgreSQL accessible via PgAdmin
-- [ ] Redis available for caching
-
----
-
-## Production Deployment
-
-### Pre-Deployment Checklist
-
-- [ ] All tests passing (`pnpm test`)
-- [ ] Code reviewed and merged to main
-- [ ] Environment variables configured
-- [ ] Database backups enabled
-- [ ] SSL/TLS certificates obtained
-- [ ] CDN/reverse proxy configured
-- [ ] Monitoring & alerting setup
-- [ ] Rollback plan documented
-
-### Production Environment Variables
-
-Create secure `.env.production`:
-
-```env
-# Application
-NODE_ENV=production
-APP_PORT=3000
-APP_DEBUG=false
-APP_CORS_ORIGIN=https://api.example.com
-
-# Database
-DATABASE_HOST=prod-db.example.com
-DATABASE_PORT=5432
-DATABASE_NAME=longnhan_prod
-DATABASE_USERNAME=app_user
-DATABASE_PASSWORD=<secure-password>
-DATABASE_SSL_ENABLED=true
-DATABASE_REJECT_UNAUTHORIZED=true
-
-# Authentication
-AUTH_JWT_SECRET=<secure-random-hex-32>
-AUTH_JWT_TOKEN_EXPIRES_IN=1d
-AUTH_REFRESH_SECRET=<secure-random-hex-32>
-
-# Email (Brevo SDK)
-BREVO_API_KEY=<production-brevo-api-key>
-MAIL_DEFAULT_EMAIL=noreply@longnhan.vn
-MAIL_DEFAULT_NAME=Long Nhan Hung Yen
-
-# Cloudinary (Required)
-CLOUDINARY_CLOUD_NAME=<your-cloud-name>
-CLOUDINARY_API_KEY=<your-api-key>
-CLOUDINARY_API_SECRET=<your-api-secret>
-
-# Cloudflare Turnstile (COD bot protection) — https://dash.cloudflare.com/
-NEXT_PUBLIC_TURNSTILE_SITE_KEY=<production-site-key>
-TURNSTILE_SECRET_KEY=<production-secret-key>
-```
-
-**Secure Storage:**
-
-- Use environment management: AWS Secrets Manager, HashiCorp Vault, or similar
-- Never commit `.env.production` to git
-- Rotate secrets regularly
-- Use HTTPS only
-
-### Docker Build & Push
-
-```bash
-# 1. Build image with version tag
-VERSION=1.0.0
-docker build -t api:$VERSION -f apps/api/Dockerfile .
-
-# 2. Tag for registry
-docker tag api:$VERSION your-registry.com/longnhan/api:$VERSION
-docker tag api:$VERSION your-registry.com/longnhan/api:latest
-
-# 3. Push to registry
-docker push your-registry.com/longnhan/api:$VERSION
-docker push your-registry.com/longnhan/api:latest
-```
-
-### Deploy to Production
-
-#### Option A: Docker Swarm
-
-```bash
-# 1. Create docker-compose.production.yml
-cat > docker-compose.production.yml << 'EOF'
-version: '3.8'
-
-services:
-  db:
-    image: postgres:13
-    environment:
-      POSTGRES_DB: longnhan_prod
-      POSTGRES_USER: app_user
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - longnhan-network
-    deploy:
-      replicas: 1
-
-  redis:
-    image: redis:7-alpine
-    networks:
-      - longnhan-network
-    deploy:
-      replicas: 1
-
-  api:
-    image: your-registry.com/longnhan/api:latest
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - DATABASE_HOST=db
-      - REDIS_URL=redis://redis:6379
-    env_file:
-      - .env.production
-    networks:
-      - longnhan-network
-    depends_on:
-      - db
-      - redis
-    deploy:
-      replicas: 3
-      update_config:
-        parallelism: 1
-        delay: 10s
-
-volumes:
-  postgres_data:
-
-networks:
-  longnhan-network:
-    driver: overlay
-EOF
-
-# 2. Deploy stack
-docker stack deploy -c docker-compose.production.yml longnhan
-```
-
-#### Option B: Kubernetes
-
-```yaml
-# k8s/deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: api
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: api
-  template:
-    metadata:
-      labels:
-        app: api
-    spec:
-      containers:
-        - name: api
-          image: your-registry.com/longnhan/api:latest
-          ports:
-            - containerPort: 3000
-          env:
-            - name: NODE_ENV
-              value: 'production'
-            - name: DATABASE_HOST
-              valueFrom:
-                configMapKeyRef:
-                  name: app-config
-                  key: db-host
-          envFrom:
-            - secretRef:
-                name: app-secrets
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 3000
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: 3000
-            initialDelaySeconds: 5
-            periodSeconds: 5
-```
-
-Deploy:
-
-```bash
-kubectl apply -f k8s/deployment.yaml
-kubectl apply -f k8s/service.yaml
-kubectl apply -f k8s/ingress.yaml
-```
-
-#### Option C: Manual Server Deployment
-
-```bash
-# 1. SSH into production server
-ssh deploy@prod-server
-
-# 2. Clone repo
-cd /var/www
-git clone <repo-url> longnhan
-cd longnhan
-
-# 3. Copy production .env (securely obtained)
-# scp .env.production deploy@prod-server:/var/www/longnhan/.env
-
-# 4. Build locally or pull pre-built image
-docker pull your-registry.com/longnhan/api:latest
-
-# 5. Start production stack
-docker compose -f docker-compose.yml up -d
-
-# 6. Run migrations
-docker compose exec api pnpm migration:up
-
-# 7. Verify health
-curl http://localhost:3000/health
-```
-
-### Post-Deployment Verification
-
-```bash
-# 1. Check API health
-curl https://api.example.com/health
-
-# 2. Verify Swagger docs
-curl https://api.example.com/api-docs
-
-# 3. Test authentication
-curl -X POST https://api.example.com/api/v1/auth/sign-in \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"password"}'
-
-# 4. Check logs
-docker logs api  # or kubectl logs deployment/api
-
-# 5. Monitor metrics
-# Check memory, CPU, disk usage, response times
-```
-
----
-
-## Database Management
-
-### Migrations
-
-Migrations are **auto-generated** from entities. Never write manually.
-
-```bash
-# Create migration from entity changes
-pnpm migration:generate src/database/migrations/AddProductTable
-
-# List migrations
-pnpm migration:show
-
-# Run pending migrations
-pnpm migration:up
-
-# Rollback last migration
-pnpm migration:down
-```
-
-### Backup & Restore
-
-#### PostgreSQL Backup
-
-```bash
-# Full database dump
-docker exec db pg_dump -U postgres nestjs_api > backup.sql
-
-# Restore from backup
-cat backup.sql | docker exec -i db psql -U postgres -d nestjs_api
-```
-
-#### Automated Backups (Production)
-
-```bash
-# Daily backup script (cron job)
-cat > /usr/local/bin/backup-db.sh << 'EOF'
-#!/bin/bash
-DB_HOST="prod-db.example.com"
-DB_USER="app_user"
-DB_NAME="longnhan_prod"
-BACKUP_DIR="/backups"
-DATE=$(date +%Y%m%d_%H%M%S)
-
-pg_dump -h $DB_HOST -U $DB_USER $DB_NAME | gzip > $BACKUP_DIR/backup_$DATE.sql.gz
-
-# Keep only last 30 days
-find $BACKUP_DIR -name "backup_*.sql.gz" -mtime +30 -delete
-EOF
-
-chmod +x /usr/local/bin/backup-db.sh
-
-# Add to crontab
-crontab -e
-# Add: 0 2 * * * /usr/local/bin/backup-db.sh
-```
-
----
-
-## Database Management
-
-### Migrations
-
-Migrations are **auto-generated** from entities. Never write manually.
-
-```bash
-# Create migration from entity changes
-pnpm migration:generate src/database/migrations/AddProductTable
-
-# List migrations
-pnpm migration:show
-
-# Run pending migrations
-pnpm migration:up
-
-# Rollback last migration
-pnpm migration:down
-```
-
-### Backup & Restore
-
-#### PostgreSQL Backup
-
-```bash
-# Full database dump
-docker exec db pg_dump -U postgres nestjs_api > backup.sql
-
-# Restore from backup
-cat backup.sql | docker exec -i db psql -U postgres -d nestjs_api
-```
-
----
-
-## Post-Deployment Verification
-
-```bash
-# 1. Check API health
-curl https://api.example.com/health
-
-# 2. Verify Swagger docs
-curl https://api.example.com/api-docs
-
-# 3. Test authentication
-curl -X POST https://api.example.com/api/v1/auth/sign-in \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"password"}'
-
-# 4. Check logs
-docker logs api
-
-# 5. Monitor metrics
-# Check memory, CPU, disk usage
-```
-
----
-
-## Troubleshooting
-
-### API Container Won't Start
-
-```bash
-# Check logs
-docker logs api
-
-# Common causes: Database not accessible, missing ENV vars, port in use
-docker ps -a
-docker logs api
-```
-
-### Database Migrations Failed
-
-```bash
-pnpm migration:show
-pnpm migration:down
-pnpm migration:up
-```
-
-### Memory Issues
-
-```bash
-docker stats api
-docker run -e "NODE_OPTIONS=--max-old-space-size=2048" api:latest
-```
-
----
-
-## Rollback Procedure
-
-#### Docker Swarm
-
-```bash
-docker service update --image your-registry.com/longnhan/api:previous longnhan_api
-curl http://localhost:3000/health
-```
-
-#### Kubernetes
-
-```bash
-kubectl rollout undo deployment/api
-kubectl rollout status deployment/api
-```
-
----
-
-## References
-
-- [API App README](../apps/api/README.md)
-- [Docker Documentation](https://docs.docker.com/)
-- [NestJS Deployment](https://docs.nestjs.com/deployment)
-- [PostgreSQL Backup](https://www.postgresql.org/docs/13/backup.html)
 </file>
 
 <file path="docs/project-overview-pdr.md">
@@ -67641,134 +67008,6 @@ export class ProductsService {
 }
 </file>
 
-<file path="apps/web/src/actions/order-actions.ts">
-'use server';
-
-import { apiServer } from '@/lib/api-server';
-import {
-  orderCustomerSchema,
-  orderItemsSchema,
-} from '@/lib/validation/order/order-schemas';
-import {
-  optionalString,
-  requireJsonString,
-  requireNonEmptyString,
-} from '@/lib/formdata/formdata-utils';
-import {
-  captureOrderSubmitFailure,
-  captureOrderSubmitSuccess,
-} from '@/lib/observability/order-submit-sentry';
-
-export type SubmitOrderResult =
-  | { kind: 'success'; code: string }
-  | {
-      kind: 'sepay';
-      code: string;
-      sepay: { url: string; fields: Record<string, string> };
-    };
-
-export async function submitOrder(
-  formData: FormData,
-): Promise<SubmitOrderResult> {
-  let itemsJson: unknown;
-  try {
-    itemsJson = requireJsonString(formData, 'items');
-  } catch {
-    throw new Error('Dữ liệu sản phẩm không hợp lệ');
-  }
-
-  const rawPaymentMethod = requireNonEmptyString(formData, 'paymentMethod');
-  if (rawPaymentMethod === 'cod') {
-    const turnstileToken = formData.get('cf-turnstile-response');
-    if (!turnstileToken || typeof turnstileToken !== 'string') {
-      throw new Error('Thiếu mã xác minh bảo mật.');
-    }
-
-    const secretKey = process.env.TURNSTILE_SECRET_KEY;
-    if (!secretKey) {
-      console.error('[Turnstile] TURNSTILE_SECRET_KEY not configured');
-      throw new Error('Lỗi cấu hình hệ thống. Vui lòng liên hệ hỗ trợ.');
-    }
-
-    const verifyRes = await fetch(
-      'https://challenges.cloudflare.com/turnstile/v0/siteverify',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          secret: secretKey,
-          response: turnstileToken,
-        }),
-      },
-    );
-
-    const verifyData: unknown = await verifyRes.json();
-    if (
-      !verifyData ||
-      typeof verifyData !== 'object' ||
-      !('success' in verifyData) ||
-      (verifyData as { success?: boolean }).success !== true
-    ) {
-      throw new Error('Xác minh thất bại. Vui lòng tải lại trang và thử lại.');
-    }
-  }
-  const customerParse = orderCustomerSchema.safeParse({
-    customerName: requireNonEmptyString(formData, 'customerName'),
-    phone: requireNonEmptyString(formData, 'phone'),
-    email: optionalString(formData, 'email') ?? '',
-    address: requireNonEmptyString(formData, 'address'),
-    province: requireNonEmptyString(formData, 'province'),
-    paymentMethod: rawPaymentMethod,
-    notes: optionalString(formData, 'notes'),
-  });
-  if (!customerParse.success) {
-    throw new Error(
-      customerParse.error.issues[0]?.message ?? 'Dữ liệu đơn hàng không hợp lệ',
-    );
-  }
-
-  const itemsParse = orderItemsSchema.safeParse(itemsJson);
-  if (!itemsParse.success) {
-    throw new Error('Dữ liệu sản phẩm không hợp lệ');
-  }
-
-  const body: Record<string, unknown> = {
-    ...customerParse.data,
-    email: customerParse.data.email ? customerParse.data.email : undefined,
-    items: itemsParse.data,
-  };
-
-  const voucherCode = optionalString(formData, 'voucherCode');
-  if (voucherCode) {
-    body.voucherCode = voucherCode.trim().toUpperCase();
-  }
-
-  try {
-    const { data } = await apiServer.post<{
-      code: string;
-      total: number;
-      paymentMethod: string;
-      sepay?: { url: string; fields: Record<string, string> };
-    }>('/orders', body);
-
-    if (!data?.code) {
-      throw new Error('Thiếu mã đơn hàng từ hệ thống');
-    }
-
-    captureOrderSubmitSuccess(data.code);
-
-    if (data.sepay) {
-      return { kind: 'sepay', code: data.code, sepay: data.sepay };
-    }
-
-    return { kind: 'success', code: data.code };
-  } catch (err) {
-    captureOrderSubmitFailure(err);
-    throw new Error('Đặt hàng thất bại, vui lòng thử lại.');
-  }
-}
-</file>
-
 <file path="apps/web/src/app/order-success/page.tsx">
 import Link from 'next/link';
 import type { Metadata } from 'next';
@@ -68392,6 +67631,641 @@ export default function ProductCard({
 }
 </file>
 
+<file path="docs/deployment-guide.md">
+# Deployment Guide
+
+**Last Updated:** 2026-04-01
+**Production Targets:** Railway (API), Vercel (web + admin)
+
+---
+
+## Overview
+
+This guide covers setting up, deploying, and maintaining the Long Nhan Hung Yen API in development, staging, and production environments.
+
+---
+
+## Prerequisites
+
+### Required Software
+
+- Docker & Docker Compose
+- Node.js >= 20.10.0
+- pnpm >= 9.5.0
+- PostgreSQL 13+ (can use Docker)
+- Redis (can use Docker)
+
+### Required Credentials
+
+- Cloudinary account (production media uploads)
+- Brevo API key (https://app.brevo.com/settings/keys/api)
+- PostgreSQL database credentials
+- JWT secret key (generate securely)
+
+---
+
+## Local Development Setup
+
+### 1. Clone & Install
+
+```bash
+# Clone repository
+git clone <repo-url> longnhantongtran
+cd longnhantongtran
+
+# Install dependencies
+pnpm install
+
+# Copy environment template
+cp .env.example .env
+```
+
+### 2. Configure Environment
+
+Edit `.env` for local development:
+
+```env
+# Application
+NODE_ENV=development
+APP_PORT=3000
+APP_DEBUG=true
+APP_CORS_ORIGIN=http://localhost:3000
+
+# Database
+DATABASE_HOST=localhost
+DATABASE_PORT=5435
+DATABASE_NAME=nestjs_api
+DATABASE_USERNAME=postgres
+DATABASE_PASSWORD=postgres
+
+# Authentication
+AUTH_JWT_SECRET=dev-secret-key-change-in-prod
+AUTH_JWT_TOKEN_EXPIRES_IN=1d
+AUTH_REFRESH_SECRET=dev-refresh-secret-change-in-prod
+
+# Email (Brevo SDK — get key at https://app.brevo.com/settings/keys/api)
+BREVO_API_KEY=<your-brevo-api-key>
+MAIL_DEFAULT_EMAIL=noreply@localhost
+MAIL_DEFAULT_NAME=No Reply
+
+# Cloudflare Turnstile (CAPTCHA for COD orders)
+# Use test keys for local dev: https://developers.cloudflare.com/turnstile/get-started/
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
+```
+
+### 3. Start Infrastructure
+
+```bash
+# Option A: Start only database/cache services
+docker compose up -d db redis pgadmin
+
+# Option B: Full local dev stack with API container (hot-reload)
+docker compose -f docker-compose.local.yml up --build -d
+```
+
+**Services:**
+
+- PostgreSQL: localhost:5435
+- Redis: localhost:6380
+- PgAdmin: http://localhost:5050
+- API (if using `docker-compose.local.yml`): http://localhost:3001 (host mapping in compose)
+
+### 4. Initialize Database
+
+```bash
+# Create database (if not using docker compose)
+pnpm db:create
+
+# Run migrations
+pnpm migration:up
+
+# Seed sample data
+pnpm seed:run
+```
+
+### 5. Start Development Server
+
+```bash
+# Terminal method
+pnpm dev
+
+# Or via Docker (if using docker-compose.local.yml)
+# Already running, check logs with:
+docker compose -f docker-compose.local.yml logs -f api
+```
+
+API available at: http://localhost:3001 (see root `README.md` for all local ports)
+Swagger docs: http://localhost:3001/api-docs
+
+---
+
+## Staging Deployment
+
+### Setup
+
+Staging uses the production Docker Compose stack without the API container (deploy separately).
+
+```bash
+# 1. SSH into staging server
+ssh user@staging-server
+
+# 2. Clone repository
+git clone <repo-url> longnhantongtran
+cd longnhantongtran
+
+# 3. Create staging .env file
+cat > .env << EOF
+NODE_ENV=staging
+APP_PORT=3000
+APP_DEBUG=false
+APP_CORS_ORIGIN=https://staging.example.com
+
+DATABASE_HOST=db
+DATABASE_PORT=5432
+DATABASE_NAME=nestjs_api
+DATABASE_USERNAME=postgres
+DATABASE_PASSWORD=$(openssl rand -base64 32)
+
+AUTH_JWT_SECRET=$(openssl rand -hex 32)
+AUTH_JWT_TOKEN_EXPIRES_IN=1d
+AUTH_REFRESH_SECRET=$(openssl rand -hex 32)
+
+BREVO_API_KEY=<staging-brevo-api-key>
+MAIL_DEFAULT_EMAIL=noreply@staging.example.com
+MAIL_DEFAULT_NAME=No Reply
+
+# Cloudinary (if available in staging)
+# CLOUDINARY_CLOUD_NAME=xxx
+# CLOUDINARY_API_KEY=xxx
+# CLOUDINARY_API_SECRET=xxx
+
+# Cloudflare Turnstile (COD bot protection)
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=<staging-site-key>
+TURNSTILE_SECRET_KEY=<staging-secret-key>
+EOF
+
+# 4. Start infrastructure
+docker compose up -d db redis pgadmin
+```
+
+### Deploy API
+
+```bash
+# 1. Build production image
+docker build -t api:staging -f apps/api/Dockerfile .
+
+# 2. Run API container
+docker run -d \
+  --name api \
+  --network longnhan-network \
+  -p 3000:3000 \
+  --env-file .env \
+  api:staging
+
+# 3. Verify
+curl http://localhost:3000/health
+```
+
+### Initialize Database
+
+```bash
+# Run migrations inside container
+docker exec api pnpm migration:up
+
+# Seed data
+docker exec api pnpm seed:run
+```
+
+### Verification Checklist
+
+- [ ] API responds on port 3000
+- [ ] Swagger docs accessible at `/api-docs`
+- [ ] Database migrations applied
+- [ ] Sample data seeded
+- [ ] SMTP configured (provider sandbox for staging)
+- [ ] PostgreSQL accessible via PgAdmin
+- [ ] Redis available for caching
+
+---
+
+## Production Deployment
+
+### Pre-Deployment Checklist
+
+- [ ] All tests passing (`pnpm test`)
+- [ ] Code reviewed and merged to main
+- [ ] Environment variables configured
+- [ ] Database backups enabled
+- [ ] SSL/TLS certificates obtained
+- [ ] CDN/reverse proxy configured
+- [ ] Monitoring & alerting setup
+- [ ] Rollback plan documented
+
+### Production Environment Variables
+
+Create secure `.env.production`:
+
+```env
+# Application
+NODE_ENV=production
+APP_PORT=3000
+APP_DEBUG=false
+APP_CORS_ORIGIN=https://api.example.com
+
+# Database
+DATABASE_HOST=prod-db.example.com
+DATABASE_PORT=5432
+DATABASE_NAME=longnhan_prod
+DATABASE_USERNAME=app_user
+DATABASE_PASSWORD=<secure-password>
+DATABASE_SSL_ENABLED=true
+DATABASE_REJECT_UNAUTHORIZED=true
+
+# Authentication
+AUTH_JWT_SECRET=<secure-random-hex-32>
+AUTH_JWT_TOKEN_EXPIRES_IN=1d
+AUTH_REFRESH_SECRET=<secure-random-hex-32>
+
+# Email (Brevo SDK)
+BREVO_API_KEY=<production-brevo-api-key>
+MAIL_DEFAULT_EMAIL=noreply@longnhan.vn
+MAIL_DEFAULT_NAME=Long Nhan Hung Yen
+
+# Cloudinary (Required)
+CLOUDINARY_CLOUD_NAME=<your-cloud-name>
+CLOUDINARY_API_KEY=<your-api-key>
+CLOUDINARY_API_SECRET=<your-api-secret>
+
+# Cloudflare Turnstile (COD bot protection) — https://dash.cloudflare.com/
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=<production-site-key>
+TURNSTILE_SECRET_KEY=<production-secret-key>
+```
+
+**Secure Storage:**
+
+- Use environment management: AWS Secrets Manager, HashiCorp Vault, or similar
+- Never commit `.env.production` to git
+- Rotate secrets regularly
+- Use HTTPS only
+
+### Docker Build & Push
+
+```bash
+# 1. Build image with version tag
+VERSION=1.0.0
+docker build -t api:$VERSION -f apps/api/Dockerfile .
+
+# 2. Tag for registry
+docker tag api:$VERSION your-registry.com/longnhan/api:$VERSION
+docker tag api:$VERSION your-registry.com/longnhan/api:latest
+
+# 3. Push to registry
+docker push your-registry.com/longnhan/api:$VERSION
+docker push your-registry.com/longnhan/api:latest
+```
+
+### Deploy to Production
+
+#### Option A: Docker Swarm
+
+```bash
+# 1. Create docker-compose.production.yml
+cat > docker-compose.production.yml << 'EOF'
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: longnhan_prod
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - longnhan-network
+    deploy:
+      replicas: 1
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - longnhan-network
+    deploy:
+      replicas: 1
+
+  api:
+    image: your-registry.com/longnhan/api:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_HOST=db
+      - REDIS_URL=redis://redis:6379
+    env_file:
+      - .env.production
+    networks:
+      - longnhan-network
+    depends_on:
+      - db
+      - redis
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+
+volumes:
+  postgres_data:
+
+networks:
+  longnhan-network:
+    driver: overlay
+EOF
+
+# 2. Deploy stack
+docker stack deploy -c docker-compose.production.yml longnhan
+```
+
+#### Option B: Kubernetes
+
+```yaml
+# k8s/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: api
+          image: your-registry.com/longnhan/api:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: 'production'
+            - name: DATABASE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: db-host
+          envFrom:
+            - secretRef:
+                name: app-secrets
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+```
+
+Deploy:
+
+```bash
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+kubectl apply -f k8s/ingress.yaml
+```
+
+#### Option C: Manual Server Deployment
+
+```bash
+# 1. SSH into production server
+ssh deploy@prod-server
+
+# 2. Clone repo
+cd /var/www
+git clone <repo-url> longnhan
+cd longnhan
+
+# 3. Copy production .env (securely obtained)
+# scp .env.production deploy@prod-server:/var/www/longnhan/.env
+
+# 4. Build locally or pull pre-built image
+docker pull your-registry.com/longnhan/api:latest
+
+# 5. Start production stack
+docker compose -f docker-compose.yml up -d
+
+# 6. Run migrations
+docker compose exec api pnpm migration:up
+
+# 7. Verify health
+curl http://localhost:3000/health
+```
+
+### Post-Deployment Verification
+
+```bash
+# 1. Check API health
+curl https://api.example.com/health
+
+# 2. Verify Swagger docs
+curl https://api.example.com/api-docs
+
+# 3. Test authentication
+curl -X POST https://api.example.com/api/v1/auth/sign-in \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password"}'
+
+# 4. Check logs
+docker logs api  # or kubectl logs deployment/api
+
+# 5. Monitor metrics
+# Check memory, CPU, disk usage, response times
+```
+
+---
+
+## Database Management
+
+### Migrations
+
+Migrations are **auto-generated** from entities. Never write manually.
+
+```bash
+# Create migration from entity changes
+pnpm migration:generate src/database/migrations/AddProductTable
+
+# List migrations
+pnpm migration:show
+
+# Run pending migrations
+pnpm migration:up
+
+# Rollback last migration
+pnpm migration:down
+```
+
+### Backup & Restore
+
+#### PostgreSQL Backup
+
+```bash
+# Full database dump
+docker exec db pg_dump -U postgres nestjs_api > backup.sql
+
+# Restore from backup
+cat backup.sql | docker exec -i db psql -U postgres -d nestjs_api
+```
+
+#### Automated Backups (Production)
+
+```bash
+# Daily backup script (cron job)
+cat > /usr/local/bin/backup-db.sh << 'EOF'
+#!/bin/bash
+DB_HOST="prod-db.example.com"
+DB_USER="app_user"
+DB_NAME="longnhan_prod"
+BACKUP_DIR="/backups"
+DATE=$(date +%Y%m%d_%H%M%S)
+
+pg_dump -h $DB_HOST -U $DB_USER $DB_NAME | gzip > $BACKUP_DIR/backup_$DATE.sql.gz
+
+# Keep only last 30 days
+find $BACKUP_DIR -name "backup_*.sql.gz" -mtime +30 -delete
+EOF
+
+chmod +x /usr/local/bin/backup-db.sh
+
+# Add to crontab
+crontab -e
+# Add: 0 2 * * * /usr/local/bin/backup-db.sh
+```
+
+---
+
+## Database Management
+
+### Migrations
+
+Migrations are **auto-generated** from entities. Never write manually.
+
+```bash
+# Create migration from entity changes
+pnpm migration:generate src/database/migrations/AddProductTable
+
+# List migrations
+pnpm migration:show
+
+# Run pending migrations
+pnpm migration:up
+
+# Rollback last migration
+pnpm migration:down
+```
+
+### Backup & Restore
+
+#### PostgreSQL Backup
+
+```bash
+# Full database dump
+docker exec db pg_dump -U postgres nestjs_api > backup.sql
+
+# Restore from backup
+cat backup.sql | docker exec -i db psql -U postgres -d nestjs_api
+```
+
+---
+
+## Post-Deployment Verification
+
+```bash
+# 1. Check API health
+curl https://api.example.com/health
+
+# 2. Verify Swagger docs
+curl https://api.example.com/api-docs
+
+# 3. Test authentication
+curl -X POST https://api.example.com/api/v1/auth/sign-in \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password"}'
+
+# 4. Check logs
+docker logs api
+
+# 5. Monitor metrics
+# Check memory, CPU, disk usage
+```
+
+---
+
+## Troubleshooting
+
+### API Container Won't Start
+
+```bash
+# Check logs
+docker logs api
+
+# Common causes: Database not accessible, missing ENV vars, port in use
+docker ps -a
+docker logs api
+```
+
+### Database Migrations Failed
+
+```bash
+pnpm migration:show
+pnpm migration:down
+pnpm migration:up
+```
+
+### Memory Issues
+
+```bash
+docker stats api
+docker run -e "NODE_OPTIONS=--max-old-space-size=2048" api:latest
+```
+
+---
+
+## Rollback Procedure
+
+#### Docker Swarm
+
+```bash
+docker service update --image your-registry.com/longnhan/api:previous longnhan_api
+curl http://localhost:3000/health
+```
+
+#### Kubernetes
+
+```bash
+kubectl rollout undo deployment/api
+kubectl rollout status deployment/api
+```
+
+---
+
+## References
+
+- [API App README](../apps/api/README.md)
+- [Docker Documentation](https://docs.docker.com/)
+- [NestJS Deployment](https://docs.nestjs.com/deployment)
+- [PostgreSQL Backup](https://www.postgresql.org/docs/13/backup.html)
+</file>
+
 <file path="apps/admin/src/app/(dashboard)/products/[id]/edit/page.tsx">
 'use client';
 
@@ -68736,6 +68610,134 @@ GRAFANA_CLOUD_PROMETHEUS_USER=
 GRAFANA_CLOUD_LOKI_URL=
 GRAFANA_CLOUD_LOKI_USER=
 GRAFANA_CLOUD_API_KEY=
+</file>
+
+<file path="apps/web/src/actions/order-actions.ts">
+'use server';
+
+import { apiServer } from '@/lib/api-server';
+import {
+  orderCustomerSchema,
+  orderItemsSchema,
+} from '@/lib/validation/order/order-schemas';
+import {
+  optionalString,
+  requireJsonString,
+  requireNonEmptyString,
+} from '@/lib/formdata/formdata-utils';
+import {
+  captureOrderSubmitFailure,
+  captureOrderSubmitSuccess,
+} from '@/lib/observability/order-submit-sentry';
+
+export type SubmitOrderResult =
+  | { kind: 'success'; code: string }
+  | {
+      kind: 'sepay';
+      code: string;
+      sepay: { url: string; fields: Record<string, string> };
+    };
+
+export async function submitOrder(
+  formData: FormData,
+): Promise<SubmitOrderResult> {
+  let itemsJson: unknown;
+  try {
+    itemsJson = requireJsonString(formData, 'items');
+  } catch {
+    throw new Error('Dữ liệu sản phẩm không hợp lệ');
+  }
+
+  const rawPaymentMethod = requireNonEmptyString(formData, 'paymentMethod');
+  if (rawPaymentMethod === 'cod') {
+    const turnstileToken = formData.get('cf-turnstile-response');
+    if (!turnstileToken || typeof turnstileToken !== 'string') {
+      throw new Error('Thiếu mã xác minh bảo mật.');
+    }
+
+    const secretKey = process.env.TURNSTILE_SECRET_KEY;
+    if (!secretKey) {
+      console.error('[Turnstile] TURNSTILE_SECRET_KEY not configured');
+      throw new Error('Lỗi cấu hình hệ thống. Vui lòng liên hệ hỗ trợ.');
+    }
+
+    const verifyRes = await fetch(
+      'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          secret: secretKey,
+          response: turnstileToken,
+        }),
+      },
+    );
+
+    const verifyData: unknown = await verifyRes.json();
+    if (
+      !verifyData ||
+      typeof verifyData !== 'object' ||
+      !('success' in verifyData) ||
+      (verifyData as { success?: boolean }).success !== true
+    ) {
+      throw new Error('Xác minh thất bại. Vui lòng tải lại trang và thử lại.');
+    }
+  }
+  const customerParse = orderCustomerSchema.safeParse({
+    customerName: requireNonEmptyString(formData, 'customerName'),
+    phone: requireNonEmptyString(formData, 'phone'),
+    email: optionalString(formData, 'email') ?? '',
+    address: requireNonEmptyString(formData, 'address'),
+    province: requireNonEmptyString(formData, 'province'),
+    paymentMethod: rawPaymentMethod,
+    notes: optionalString(formData, 'notes'),
+  });
+  if (!customerParse.success) {
+    throw new Error(
+      customerParse.error.issues[0]?.message ?? 'Dữ liệu đơn hàng không hợp lệ',
+    );
+  }
+
+  const itemsParse = orderItemsSchema.safeParse(itemsJson);
+  if (!itemsParse.success) {
+    throw new Error('Dữ liệu sản phẩm không hợp lệ');
+  }
+
+  const body: Record<string, unknown> = {
+    ...customerParse.data,
+    email: customerParse.data.email ? customerParse.data.email : undefined,
+    items: itemsParse.data,
+  };
+
+  const voucherCode = optionalString(formData, 'voucherCode');
+  if (voucherCode) {
+    body.voucherCode = voucherCode.trim().toUpperCase();
+  }
+
+  try {
+    const { data } = await apiServer.post<{
+      code: string;
+      total: number;
+      paymentMethod: string;
+      sepay?: { url: string; fields: Record<string, string> };
+    }>('/orders', body);
+
+    if (!data?.code) {
+      throw new Error('Thiếu mã đơn hàng từ hệ thống');
+    }
+
+    captureOrderSubmitSuccess(data.code);
+
+    if (data.sepay) {
+      return { kind: 'sepay', code: data.code, sepay: data.sepay };
+    }
+
+    return { kind: 'success', code: data.code };
+  } catch (err) {
+    captureOrderSubmitFailure(err);
+    throw new Error('Đặt hàng thất bại, vui lòng thử lại.');
+  }
+}
 </file>
 
 <file path="apps/web/src/app/articles/[slug]/page.tsx">
@@ -72422,70 +72424,6 @@ export default sentryEnabled && sentryAuthToken && sentryOrg && sentryProject
   : nextConfig;
 </file>
 
-<file path="apps/web/package.json">
-{
-  "name": "@longnhan/web",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev --port 3000",
-    "build": "next build",
-    "start": "next start --port 3000",
-    "lint": "eslint \"src/**/*.{ts,tsx}\"",
-    "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
-    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
-    "type-check": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@hookform/resolvers": "^5.2.2",
-    "@longnhan/types": "workspace:*",
-    "@marsidev/react-turnstile": "^1.5.1",
-    "@radix-ui/react-accordion": "^1.2.12",
-    "@radix-ui/react-dialog": "^1.1.15",
-    "@radix-ui/react-icons": "^1.3.2",
-    "@radix-ui/react-popover": "^1.1.15",
-    "@radix-ui/react-radio-group": "^1.3.8",
-    "@radix-ui/react-select": "^2.2.6",
-    "@sentry/nextjs": "^10",
-    "@tanstack/react-query": "^5.95.2",
-    "@tanstack/react-query-devtools": "^5.95.2",
-    "axios": "^1.14.0",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "js-cookie": "^3.0.5",
-    "lucide-react": "^0.487.0",
-    "motion": "^12.38.0",
-    "next": "16.2.1",
-    "nuqs": "^2.8.9",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "react-hook-form": "^7.72.0",
-    "server-only": "^0.0.1",
-    "sonner": "^1.7.4",
-    "swiper": "^12.1.3",
-    "tailwind-merge": "^3.5.0",
-    "yup": "^1.7.1",
-    "zustand": "^5.0.12"
-  },
-  "devDependencies": {
-    "@eslint/eslintrc": "^3.3.5",
-    "@eslint/js": "^9.39.4",
-    "@opennextjs/cloudflare": "^1.19.1",
-    "@tailwindcss/postcss": "^4",
-    "@types/js-cookie": "^3.0.6",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.1",
-    "prettier": "^3",
-    "tailwindcss": "^4",
-    "typescript": "^5",
-    "wrangler": "^4.82.2"
-  }
-}
-</file>
-
 <file path="docs/system-architecture.md">
 # System Architecture
 
@@ -73392,7 +73330,7 @@ export default async function Home() {
 
 <file path="apps/web/src/lib/constants.ts">
 export const SITE_URL = 'https://longnhanhungyen.shop';
-export const SITE_NAME = 'Long Nhãn Tống Trân';
+export const SITE_NAME = 'Long Nhãn Hưng Yên — Đặc Sản Tống Trân';
 export const SITE_DESCRIPTION =
   'Long nhãn Hưng Yên — đặc sản chọn lọc, quà biếu sang trọng. Giao COD toàn quốc, Shopee, TikTok, Zalo.';
 
@@ -73451,6 +73389,70 @@ export const PROVINCES = [
   'TP. Cần Thơ',
   'Cà Mau',
 ];
+</file>
+
+<file path="apps/web/package.json">
+{
+  "name": "@longnhan/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@longnhan/types": "workspace:*",
+    "@marsidev/react-turnstile": "^1.5.1",
+    "@radix-ui/react-accordion": "^1.2.12",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-icons": "^1.3.2",
+    "@radix-ui/react-popover": "^1.1.15",
+    "@radix-ui/react-radio-group": "^1.3.8",
+    "@radix-ui/react-select": "^2.2.6",
+    "@sentry/nextjs": "^10",
+    "@tanstack/react-query": "^5.95.2",
+    "@tanstack/react-query-devtools": "^5.95.2",
+    "axios": "^1.14.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "js-cookie": "^3.0.5",
+    "lucide-react": "^0.487.0",
+    "motion": "^12.38.0",
+    "next": "16.2.1",
+    "nuqs": "^2.8.9",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-hook-form": "^7.72.0",
+    "server-only": "^0.0.1",
+    "sonner": "^1.7.4",
+    "swiper": "^12.1.3",
+    "tailwind-merge": "^3.5.0",
+    "yup": "^1.7.1",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
+    "@eslint/js": "^9.39.4",
+    "@opennextjs/cloudflare": "^1.19.1",
+    "@tailwindcss/postcss": "^4",
+    "@types/js-cookie": "^3.0.6",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.1",
+    "prettier": "^3",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "wrangler": "^4.82.2"
+  }
+}
 </file>
 
 <file path="docs/codebase-summary.md">

@@ -1,7 +1,7 @@
 import { SOCIAL_LINKS } from '@/lib/constants';
 
 export const LANDING_SEO = {
-  title: 'Long Nhãn Tống Trân — Đặc Sản Hưng Yên | Quà Tặng Cao Cấp',
+  title: 'Long Nhãn Hưng Yên — Đặc Sản Tống Trân | Quà Tặng Cao Cấp',
   description:
     'Long nhãn Hưng Yên ngọt lành từng hạt, sấy khép kín theo công thức cổ truyền. Quà biếu sang trọng, giao COD toàn quốc. Liên hệ Zalo, Shopee, TikTok.',
   keywords: [

@@ -48,7 +48,7 @@ export const PWA_CONFIG = {
 
   /** Hero / marketing image for Open Graph, Twitter, manifest screenshots */
   heroImage: {
-    path: '/banner-web2.png',
+    path: '/cover.jpg',
     width: 1200,
     height: 630,
     alt: LANDING_SEO.ogImageAlt,
@@ -63,7 +63,7 @@ export const PWA_MANIFEST_SCREENSHOTS = [
   {
     src: PWA_CONFIG.heroImage.path,
     sizes: `${PWA_CONFIG.heroImage.width}x${PWA_CONFIG.heroImage.height}`,
-    type: 'image/png',
+    type: 'image/jpeg',
     form_factor: 'wide' as const,
     label: `${SITE_NAME} — trang chủ`,
   },

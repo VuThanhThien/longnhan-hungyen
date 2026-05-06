@@ -1,5 +1,5 @@
 export const SITE_URL = 'https://longnhanhungyen.shop';
-export const SITE_NAME = 'Long Nhãn Tống Trân';
+export const SITE_NAME = 'Long Nhãn Hưng Yên — Đặc Sản Tống Trân';
 export const SITE_DESCRIPTION =
   'Long nhãn Hưng Yên — đặc sản chọn lọc, quà biếu sang trọng. Giao COD toàn quốc, Shopee, TikTok, Zalo.';
 
