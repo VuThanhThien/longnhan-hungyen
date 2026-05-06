@@ -10,6 +10,7 @@ import { extractErrorMessage } from '@/lib/http/extract-error-message';
 export function createLongnhanApi(baseURL: string): AxiosInstance {
   const instance = axios.create({
     baseURL,
+    timeout: typeof window === 'undefined' ? 20_000 : 0,
     headers: { 'Content-Type': 'application/json' },
     validateStatus: (status) => status >= 200 && status < 300,
   });

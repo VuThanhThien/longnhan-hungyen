@@ -7,6 +7,7 @@ import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
 import { articlesListCacheTags } from '@/lib/content-cache-tags';
 import { buildSeoMetadata } from '@/lib/seo';
 import { cacheLife, cacheTag } from 'next/cache';
+import { connection } from 'next/server';
 
 async function getArticles(): Promise<Article[]> {
   'use cache';
@@ -33,6 +34,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ArticlesPage() {
+  await connection();
   const articles = await getArticles();
 
   return (
