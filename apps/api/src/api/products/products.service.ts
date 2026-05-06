@@ -226,6 +226,34 @@ export class ProductsService {
     return this.toProductResDto(product);
   }
 
+  /** Admin: lightweight product lookup (for order list rendering) */
+  async findManyBriefByIds(
+    ids: Uuid[],
+  ): Promise<Array<{ id: string; name: string }>> {
+    const uniq = Array.from(
+      new Set(
+        (ids ?? [])
+          .map((x) => String(x).trim())
+          .filter(Boolean)
+          .filter((x) =>
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+              x,
+            ),
+          ),
+      ),
+    ) as Uuid[];
+
+    if (uniq.length === 0) return [];
+
+    const products = await this.productRepo
+      .createQueryBuilder('product')
+      .select(['product.id', 'product.name'])
+      .where('product.id IN (:...ids)', { ids: uniq })
+      .getMany();
+
+    return products.map((p) => ({ id: String(p.id), name: p.name }));
+  }
+
   /** Admin: create product with variants */
   async create(dto: CreateProductReqDto): Promise<ProductResDto> {
     if (

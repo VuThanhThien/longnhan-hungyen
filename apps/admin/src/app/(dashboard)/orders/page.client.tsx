@@ -56,6 +56,23 @@ import type { Order } from '@longnhan/types';
 
 const PAGE_LIMIT = 30;
 
+function orderItemSnapshot(item: Order['items'][number]): Partial<{
+  productId: string;
+  label: string;
+  skuCode: string;
+}> {
+  const snap = item.variantSnapshot as Record<string, unknown> | undefined;
+  return {
+    productId: typeof snap?.productId === 'string' ? snap.productId : undefined,
+    label: typeof snap?.label === 'string' ? snap.label : undefined,
+    skuCode: typeof snap?.skuCode === 'string' ? snap.skuCode : undefined,
+  };
+}
+
+function orderItemQty(item: Order['items'][number]): number {
+  return item.qty ?? item.quantity ?? 0;
+}
+
 const orderStatuses = [
   'pending',
   'confirmed',
@@ -188,6 +205,34 @@ export default function OrdersPageClient() {
   });
 
   const { data: orders, pagination } = toPaginated<Order>(raw ?? null);
+
+  const productIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const o of orders) {
+      for (const item of o.items ?? []) {
+        const snap = orderItemSnapshot(item);
+        if (snap.productId) set.add(snap.productId);
+      }
+    }
+    return Array.from(set);
+  }, [orders]);
+
+  const productIdsKey = productIds.join(',');
+
+  const { data: productsBrief = [] } = useQuery({
+    queryKey: adminQueryKeys.products.brief(productIdsKey),
+    enabled: productIds.length > 0,
+    queryFn: () =>
+      adminClientGet<Array<{ id: string; name: string }>>(
+        `/products/admin/brief?ids=${encodeURIComponent(productIdsKey)}`,
+      ),
+  });
+
+  const productNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const p of productsBrief) map[p.id] = p.name;
+    return map;
+  }, [productsBrief]);
 
   const filterFields = {
     orderStatus: params.orderStatus,
@@ -382,6 +427,7 @@ export default function OrdersPageClient() {
                 <TableRow>
                   <TableHead>Mã đơn</TableHead>
                   <TableHead>Khách hàng</TableHead>
+                  <TableHead>Sản phẩm</TableHead>
                   <TableHead>Tổng tiền</TableHead>
                   <TableHead>Trạng thái</TableHead>
                   <TableHead>Thanh toán</TableHead>
@@ -396,6 +442,52 @@ export default function OrdersPageClient() {
                   <TableRow key={order.id}>
                     <TableCell className="font-medium">{order.code}</TableCell>
                     <TableCell>{order.customerName}</TableCell>
+                    <TableCell className="max-w-[340px]">
+                      {order.items?.length ? (
+                        <div className="flex flex-col gap-1">
+                          {order.items.slice(0, 2).map((item) =>
+                            (() => {
+                              const snap = orderItemSnapshot(item);
+                              const productName = snap.productId
+                                ? productNameById[snap.productId]
+                                : undefined;
+                              const line = [
+                                productName ?? 'Sản phẩm',
+                                snap.label ? `(${snap.label})` : null,
+                              ]
+                                .filter(Boolean)
+                                .join(' ');
+                              const rightMeta = [
+                                snap.skuCode ? snap.skuCode : null,
+                                `x${orderItemQty(item)}`,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ');
+                              return (
+                                <div
+                                  key={item.id}
+                                  className="flex items-baseline justify-between gap-3"
+                                >
+                                  <span className="truncate text-sm">
+                                    {line}
+                                  </span>
+                                  <span className="shrink-0 text-xs text-muted-foreground">
+                                    {rightMeta}
+                                  </span>
+                                </div>
+                              );
+                            })(),
+                          )}
+                          {order.items.length > 2 ? (
+                            <div className="text-xs text-muted-foreground">
+                              +{order.items.length - 2} sản phẩm khác
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell>{formatCurrency(order.total)}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">
@@ -427,7 +519,7 @@ export default function OrdersPageClient() {
                 {orders.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="py-8 text-center text-muted-foreground"
                     >
                       Không có đơn hàng phù hợp

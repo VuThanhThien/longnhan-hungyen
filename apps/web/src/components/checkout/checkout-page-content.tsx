@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
+import { toast } from 'sonner';
 
-import { submitOrder } from '@/actions/order-actions';
+import { submitOrder, validateCart } from '@/actions/order-actions';
 import { CheckoutCustomerForm } from '@/components/checkout/checkout-customer-form';
 import { CheckoutOrderSummary } from '@/components/checkout/checkout-order-summary';
 import {
@@ -49,6 +50,21 @@ export function CheckoutPageContent() {
   const shippingVnd = lines.length > 0 ? SHIPPING_FLAT_VND : 0;
   const orderTotalBeforeDiscount = subtotalVnd + shippingVnd;
   const discountVnd = appliedVoucher?.discountAmount ?? 0;
+
+  // Validate cart items on mount - remove invalid items
+  useEffect(() => {
+    const validateAndClean = async () => {
+      if (lines.length === 0) return;
+      const result = await validateCart(lines);
+      if (!result.valid && result.invalidItems.length > 0) {
+        for (const item of result.invalidItems) {
+          useCartStore.getState().removeLine(item.variantId);
+          toast.error(`Đã xóa "${item.variantId}": ${item.reason}`);
+        }
+      }
+    };
+    validateAndClean();
+  }, []); // Run once on mount
 
   // Clear voucher when cart changes — discount may no longer be valid.
   useEffect(() => {

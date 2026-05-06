@@ -164,6 +164,8 @@ apps/
             admin/
               [id]/
                 route.ts
+              brief/
+                route.ts
               route.ts
             route.ts
           reviews/
@@ -611,6 +613,7 @@ apps/
             order.res.dto.ts
             public-order-summary.res.dto.ts
             update-order-status.req.dto.ts
+            validate-cart.req.dto.ts
           entities/
             order-item.entity.ts
             order-status-history.entity.ts
@@ -1232,6 +1235,67 @@ This section contains the contents of the repository's files.
 
 <file path="apps/admin/.git/gk/config">
 
+</file>
+
+<file path="apps/admin/src/app/api/products/admin/brief/route.ts">
+import { NextResponse } from 'next/server';
+import { forwardAdminApi } from '@/lib/admin-api-proxy';
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const upstream = await forwardAdminApi(
+    `/products/admin/brief?${url.searchParams.toString()}`,
+  );
+  const text = await upstream.text();
+  if (!text) return new NextResponse(null, { status: upstream.status });
+
+  const contentType =
+    upstream.headers.get('content-type') || 'application/json';
+  return new NextResponse(text, {
+    status: upstream.status,
+    headers: { 'content-type': contentType },
+  });
+}
+</file>
+
+<file path="apps/api/src/api/orders/dto/validate-cart.req.dto.ts">
+import { NumberField } from '@/decorators/field.decorators';
+import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsArray, IsUUID, ValidateNested } from 'class-validator';
+
+export class ValidateCartItemDto {
+  @ApiProperty()
+  @IsUUID()
+  variantId!: string;
+
+  @NumberField({ int: true, min: 1 })
+  qty!: number;
+}
+
+export class ValidateCartReqDto {
+  @ApiProperty({ type: [ValidateCartItemDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ValidateCartItemDto)
+  items!: ValidateCartItemDto[];
+}
+
+export class InvalidCartItemDto {
+  @ApiProperty()
+  variantId!: string;
+
+  @ApiProperty()
+  reason!: string;
+}
+
+export class ValidateCartResDto {
+  @ApiProperty()
+  valid!: boolean;
+
+  @ApiProperty({ type: [InvalidCartItemDto] })
+  invalidItems!: InvalidCartItemDto[];
+}
 </file>
 
 <file path="apps/admin/public/file.svg">
@@ -20187,6 +20251,9 @@ export default function ProductReviewsSection({
   });
 
   const submitting = submitMutation.isPending;
+  const ratingAvg = data?.ratingAvg ?? 0;
+  const ratingCount = data?.ratingCount ?? 0;
+  const ratingStars = Math.round(ratingAvg);
 
   function onReviewSubmit(values: ProductReviewFormValues) {
     setSubmitMessage(null);
@@ -20200,14 +20267,14 @@ export default function ProductReviewsSection({
       aria-labelledby="reviews-heading"
     >
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-gray-100 pb-4">
-        <div>
+        <div className="min-w-[220px]">
           <h2
             id="reviews-heading"
             className="text-lg font-semibold text-gray-900"
           >
-            Đánh giá từ khách hàng
+            Đánh giá {productName ? `về ${productName}` : 'từ khách hàng'}
           </h2>
-          <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
             {reviewsLoading ? (
               <>
                 <Loader2
@@ -20220,15 +20287,18 @@ export default function ProductReviewsSection({
               reviewsError
             ) : (
               <>
-                <span className="font-semibold text-gray-900">
-                  {(data?.ratingAvg ?? 0).toFixed(1)}
+                <ReviewStarsRow rating={ratingStars} />
+                <span className="font-semibold tabular-nums text-gray-900">
+                  {ratingAvg.toFixed(1)}
                 </span>
-                <span className="text-gray-600"> / 5</span>
-                <span className="mx-1.5 text-gray-300">·</span>
-                <span className="font-semibold text-gray-900">
-                  {data?.ratingCount ?? 0}
-                </span>{' '}
-                <span className="text-gray-600">đánh giá</span>
+                <span className="text-gray-600">/ 5</span>
+                <span className="text-gray-300">•</span>
+                <span className="tabular-nums font-semibold text-gray-900">
+                  {ratingCount}
+                </span>
+                <span className="text-gray-600">
+                  {ratingCount === 1 ? 'đánh giá' : 'đánh giá'}
+                </span>
                 {reviewsFetching ? (
                   <Loader2
                     className="size-3.5 shrink-0 animate-spin text-gray-400"
@@ -20237,7 +20307,7 @@ export default function ProductReviewsSection({
                 ) : null}
               </>
             )}
-          </p>
+          </div>
         </div>
         <Button
           type="button"
@@ -20245,6 +20315,7 @@ export default function ProductReviewsSection({
           size="sm"
           disabled={reviewsFetching}
           onClick={() => void refetch()}
+          className="gap-2"
         >
           {reviewsFetching ? (
             <>
@@ -20252,7 +20323,10 @@ export default function ProductReviewsSection({
               Đang tải…
             </>
           ) : (
-            'Làm mới'
+            <>
+              <span className="hidden sm:inline">Làm mới</span>
+              <span className="sm:hidden">Tải lại</span>
+            </>
           )}
         </Button>
       </div>
@@ -42917,6 +42991,7 @@ export const AppDataSource = new DataSource({
 <file path="apps/api/src/generated/i18n.generated.ts">
 /* DO NOT EDIT, file generated by nestjs-i18n */
 
+/* eslint-disable */
 /* prettier-ignore */
 import type { Path } from "nestjs-i18n";
 /* prettier-ignore */
@@ -57035,6 +57110,7 @@ export const adminQueryKeys = {
   products: {
     root: ['products', 'admin'] as const,
     list: (queryString: string) => ['products', 'admin', queryString] as const,
+    brief: (idsKey: string) => ['products', 'admin', 'brief', idsKey] as const,
   },
   orders: {
     /** Invalidates order lists (`['orders', query]`) and detail (`['orders', id]`) */
@@ -57278,6 +57354,10 @@ import {
 import { OrderResDto } from './dto/order.res.dto';
 import { PublicOrderSummaryResDto } from './dto/public-order-summary.res.dto';
 import { UpdateOrderStatusReqDto } from './dto/update-order-status.req.dto';
+import {
+  ValidateCartReqDto,
+  ValidateCartResDto,
+} from './dto/validate-cart.req.dto';
 import { OrdersService } from './orders.service';
 
 @ApiTags('orders')
@@ -57294,6 +57374,19 @@ export class OrdersController {
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() dto: CreateOrderReqDto): Promise<OrderResDto> {
     return this.ordersService.create(dto);
+  }
+
+  @ApiPublic({
+    type: ValidateCartResDto,
+    summary: 'Validate cart items (public)',
+    statusCode: 200,
+  })
+  @Post('validate-cart')
+  @HttpCode(HttpStatus.OK)
+  async validateCart(
+    @Body() dto: ValidateCartReqDto,
+  ): Promise<ValidateCartResDto> {
+    return this.ordersService.validateCartItems(dto.items);
   }
 
   @ApiPublic({
@@ -58953,118 +59046,6 @@ export default function Breadcrumb({ items }: BreadcrumbProps) {
 }
 </file>
 
-<file path="apps/web/src/lib/http/create-longnhan-api.ts">
-import axios, { type AxiosInstance } from 'axios';
-import Cookies from 'js-cookie';
-import {
-  AUTH_TOKEN_KEY,
-  parseAuthTokens,
-  type AuthTokens,
-} from '@/lib/auth-token';
-import { extractErrorMessage } from '@/lib/http/extract-error-message';
-
-export function createLongnhanApi(baseURL: string): AxiosInstance {
-  const instance = axios.create({
-    baseURL,
-    timeout: typeof window === 'undefined' ? 20_000 : 0,
-    headers: { 'Content-Type': 'application/json' },
-    validateStatus: (status) => status >= 200 && status < 300,
-  });
-
-  let refreshPromise: Promise<void> | null = null;
-
-  const refreshTokens = async () => {
-    if (refreshPromise) return refreshPromise;
-
-    refreshPromise = (async () => {
-      try {
-        const tokens = parseAuthTokens(Cookies.get(AUTH_TOKEN_KEY));
-        if (!tokens?.refreshToken) return;
-
-        const response = await fetch(`${baseURL}/auth/refresh`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken: tokens.refreshToken }),
-        });
-
-        if (!response.ok) {
-          Cookies.remove(AUTH_TOKEN_KEY);
-          return;
-        }
-
-        const json = await response.json();
-        const data = (json?.data ?? json) as Partial<AuthTokens>;
-        if (
-          typeof data.accessToken === 'string' &&
-          typeof data.refreshToken === 'string' &&
-          typeof data.tokenExpires === 'number'
-        ) {
-          Cookies.set(
-            AUTH_TOKEN_KEY,
-            JSON.stringify({
-              accessToken: data.accessToken,
-              refreshToken: data.refreshToken,
-              tokenExpires: data.tokenExpires,
-            }),
-            { sameSite: 'lax' },
-          );
-          return;
-        }
-
-        Cookies.remove(AUTH_TOKEN_KEY);
-      } catch {
-        Cookies.remove(AUTH_TOKEN_KEY);
-      }
-    })().finally(() => {
-      refreshPromise = null;
-    });
-
-    return refreshPromise;
-  };
-
-  instance.interceptors.request.use(async (config) => {
-    if (typeof window === 'undefined') return config;
-
-    const tokens = parseAuthTokens(Cookies.get(AUTH_TOKEN_KEY));
-    if (tokens?.tokenExpires && tokens.tokenExpires - 60_000 <= Date.now()) {
-      await refreshTokens();
-    }
-
-    const refreshed = parseAuthTokens(Cookies.get(AUTH_TOKEN_KEY));
-    if (refreshed?.accessToken) {
-      config.headers = config.headers ?? {};
-      config.headers.Authorization = `Bearer ${refreshed.accessToken}`;
-    }
-
-    return config;
-  });
-
-  instance.interceptors.response.use(
-    (response) => {
-      const body = response.data;
-      const isPaginatedEnvelope =
-        body !== null &&
-        typeof body === 'object' &&
-        'data' in body &&
-        'pagination' in body;
-
-      if (
-        !isPaginatedEnvelope &&
-        body !== null &&
-        typeof body === 'object' &&
-        'data' in body
-      ) {
-        response.data = (body as { data: unknown }).data;
-      }
-      return response;
-    },
-    (error) => Promise.reject(new Error(extractErrorMessage(error))),
-  );
-
-  return instance;
-}
-</file>
-
 <file path="apps/web/src/lib/product-description.ts">
 import type { Product } from '@longnhan/types';
 
@@ -60507,6 +60488,18 @@ export class ProductsController {
     return this.productsService.findMany(dto, { includeInactive: true });
   }
 
+  @ApiAuth({
+    summary: 'Get product name map by ids (admin)',
+  })
+  @Get('admin/brief')
+  async findManyBriefAdmin(
+    @Query('ids') ids: string | undefined,
+  ): Promise<Array<{ id: string; name: string }>> {
+    const raw = (ids ?? '').trim();
+    const parts = raw ? raw.split(',') : [];
+    return this.productsService.findManyBriefByIds(parts as Uuid[]);
+  }
+
   @ApiPublic({
     type: ProductSuggestionsResDto,
     summary: 'Search suggestions (categories + products)',
@@ -60878,6 +60871,118 @@ export function AppProviders({ children }: { children: ReactNode }) {
       </AuthProvider>
     </QueryClientProvider>
   );
+}
+</file>
+
+<file path="apps/web/src/lib/http/create-longnhan-api.ts">
+import axios, { type AxiosInstance } from 'axios';
+import Cookies from 'js-cookie';
+import {
+  AUTH_TOKEN_KEY,
+  parseAuthTokens,
+  type AuthTokens,
+} from '@/lib/auth-token';
+import { extractErrorMessage } from '@/lib/http/extract-error-message';
+
+export function createLongnhanApi(baseURL: string): AxiosInstance {
+  const instance = axios.create({
+    baseURL,
+    timeout: typeof window === 'undefined' ? 20_000 : 0,
+    headers: { 'Content-Type': 'application/json' },
+    validateStatus: (status) => status >= 200 && status < 300,
+  });
+
+  let refreshPromise: Promise<void> | null = null;
+
+  const refreshTokens = async () => {
+    if (refreshPromise) return refreshPromise;
+
+    refreshPromise = (async () => {
+      try {
+        const tokens = parseAuthTokens(Cookies.get(AUTH_TOKEN_KEY));
+        if (!tokens?.refreshToken) return;
+
+        const response = await fetch(`${baseURL}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken: tokens.refreshToken }),
+        });
+
+        if (!response.ok) {
+          Cookies.remove(AUTH_TOKEN_KEY);
+          return;
+        }
+
+        const json = await response.json();
+        const data = (json?.data ?? json) as Partial<AuthTokens>;
+        if (
+          typeof data.accessToken === 'string' &&
+          typeof data.refreshToken === 'string' &&
+          typeof data.tokenExpires === 'number'
+        ) {
+          Cookies.set(
+            AUTH_TOKEN_KEY,
+            JSON.stringify({
+              accessToken: data.accessToken,
+              refreshToken: data.refreshToken,
+              tokenExpires: data.tokenExpires,
+            }),
+            { sameSite: 'lax' },
+          );
+          return;
+        }
+
+        Cookies.remove(AUTH_TOKEN_KEY);
+      } catch {
+        Cookies.remove(AUTH_TOKEN_KEY);
+      }
+    })().finally(() => {
+      refreshPromise = null;
+    });
+
+    return refreshPromise;
+  };
+
+  instance.interceptors.request.use(async (config) => {
+    if (typeof window === 'undefined') return config;
+
+    const tokens = parseAuthTokens(Cookies.get(AUTH_TOKEN_KEY));
+    if (tokens?.tokenExpires && tokens.tokenExpires - 60_000 <= Date.now()) {
+      await refreshTokens();
+    }
+
+    const refreshed = parseAuthTokens(Cookies.get(AUTH_TOKEN_KEY));
+    if (refreshed?.accessToken) {
+      config.headers = config.headers ?? {};
+      config.headers.Authorization = `Bearer ${refreshed.accessToken}`;
+    }
+
+    return config;
+  });
+
+  instance.interceptors.response.use(
+    (response) => {
+      const body = response.data;
+      const isPaginatedEnvelope =
+        body !== null &&
+        typeof body === 'object' &&
+        'data' in body &&
+        'pagination' in body;
+
+      if (
+        !isPaginatedEnvelope &&
+        body !== null &&
+        typeof body === 'object' &&
+        'data' in body
+      ) {
+        response.data = (body as { data: unknown }).data;
+      }
+      return response;
+    },
+    (error) => Promise.reject(new Error(extractErrorMessage(error))),
+  );
+
+  return instance;
 }
 </file>
 
@@ -62373,6 +62478,19 @@ import { adminClientGet } from '@/lib/admin-client';
 import { ordersApi } from '@/features/orders/api/orders-api';
 import { adminQueryKeys } from '@/lib/query-keys';
 
+function orderItemSnapshot(item: Order['items'][number]): Partial<{
+  productId: string;
+  label: string;
+  skuCode: string;
+}> {
+  const snap = item.variantSnapshot as Record<string, unknown> | undefined;
+  return {
+    productId: typeof snap?.productId === 'string' ? snap.productId : undefined,
+    label: typeof snap?.label === 'string' ? snap.label : undefined,
+    skuCode: typeof snap?.skuCode === 'string' ? snap.skuCode : undefined,
+  };
+}
+
 export default function OrderDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
@@ -62389,6 +62507,32 @@ export default function OrderDetailPage() {
     enabled: Boolean(id),
     queryFn: () => adminClientGet<Order>(`/orders/${id}`),
   });
+
+  const productIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const item of order?.items ?? []) {
+      const snap = orderItemSnapshot(item);
+      if (snap.productId) set.add(snap.productId);
+    }
+    return Array.from(set);
+  }, [order]);
+
+  const productIdsKey = productIds.join(',');
+
+  const { data: productsBrief = [] } = useQuery({
+    queryKey: adminQueryKeys.products.brief(productIdsKey),
+    enabled: productIds.length > 0,
+    queryFn: () =>
+      adminClientGet<Array<{ id: string; name: string }>>(
+        `/products/admin/brief?ids=${encodeURIComponent(productIdsKey)}`,
+      ),
+  });
+
+  const productNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const p of productsBrief) map[p.id] = p.name;
+    return map;
+  }, [productsBrief]);
 
   const { data: history = [] } = useQuery({
     queryKey: adminQueryKeys.orders.statusHistory(id ?? ''),
@@ -62518,23 +62662,39 @@ export default function OrderDetailPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Sản phẩm</TableHead>
                       <TableHead>Biến thể</TableHead>
+                      <TableHead>SKU</TableHead>
                       <TableHead>SL</TableHead>
                       <TableHead>Đơn giá</TableHead>
                       <TableHead>Thành tiền</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {order.items.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>
-                          {String(item.variantSnapshot?.['label'] || '-')}
-                        </TableCell>
-                        <TableCell>{item.qty}</TableCell>
-                        <TableCell>{formatCurrency(item.unitPrice)}</TableCell>
-                        <TableCell>{formatCurrency(item.subtotal)}</TableCell>
-                      </TableRow>
-                    ))}
+                    {order.items.map((item) =>
+                      (() => {
+                        const snap = orderItemSnapshot(item);
+                        const productName = snap.productId
+                          ? productNameById[snap.productId]
+                          : undefined;
+                        return (
+                          <TableRow key={item.id}>
+                            <TableCell>{productName ?? 'Sản phẩm'}</TableCell>
+                            <TableCell>{snap.label ?? '-'}</TableCell>
+                            <TableCell className="whitespace-nowrap">
+                              {snap.skuCode ?? '-'}
+                            </TableCell>
+                            <TableCell>{item.qty}</TableCell>
+                            <TableCell>
+                              {formatCurrency(item.unitPrice)}
+                            </TableCell>
+                            <TableCell>
+                              {formatCurrency(item.subtotal)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })(),
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -62613,6 +62773,23 @@ import { adminClientGet } from '@/lib/admin-client';
 import type { Order } from '@longnhan/types';
 
 const PAGE_LIMIT = 30;
+
+function orderItemSnapshot(item: Order['items'][number]): Partial<{
+  productId: string;
+  label: string;
+  skuCode: string;
+}> {
+  const snap = item.variantSnapshot as Record<string, unknown> | undefined;
+  return {
+    productId: typeof snap?.productId === 'string' ? snap.productId : undefined,
+    label: typeof snap?.label === 'string' ? snap.label : undefined,
+    skuCode: typeof snap?.skuCode === 'string' ? snap.skuCode : undefined,
+  };
+}
+
+function orderItemQty(item: Order['items'][number]): number {
+  return item.qty ?? item.quantity ?? 0;
+}
 
 const orderStatuses = [
   'pending',
@@ -62746,6 +62923,34 @@ export default function OrdersPageClient() {
   });
 
   const { data: orders, pagination } = toPaginated<Order>(raw ?? null);
+
+  const productIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const o of orders) {
+      for (const item of o.items ?? []) {
+        const snap = orderItemSnapshot(item);
+        if (snap.productId) set.add(snap.productId);
+      }
+    }
+    return Array.from(set);
+  }, [orders]);
+
+  const productIdsKey = productIds.join(',');
+
+  const { data: productsBrief = [] } = useQuery({
+    queryKey: adminQueryKeys.products.brief(productIdsKey),
+    enabled: productIds.length > 0,
+    queryFn: () =>
+      adminClientGet<Array<{ id: string; name: string }>>(
+        `/products/admin/brief?ids=${encodeURIComponent(productIdsKey)}`,
+      ),
+  });
+
+  const productNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const p of productsBrief) map[p.id] = p.name;
+    return map;
+  }, [productsBrief]);
 
   const filterFields = {
     orderStatus: params.orderStatus,
@@ -62940,6 +63145,7 @@ export default function OrdersPageClient() {
                 <TableRow>
                   <TableHead>Mã đơn</TableHead>
                   <TableHead>Khách hàng</TableHead>
+                  <TableHead>Sản phẩm</TableHead>
                   <TableHead>Tổng tiền</TableHead>
                   <TableHead>Trạng thái</TableHead>
                   <TableHead>Thanh toán</TableHead>
@@ -62954,6 +63160,52 @@ export default function OrdersPageClient() {
                   <TableRow key={order.id}>
                     <TableCell className="font-medium">{order.code}</TableCell>
                     <TableCell>{order.customerName}</TableCell>
+                    <TableCell className="max-w-[340px]">
+                      {order.items?.length ? (
+                        <div className="flex flex-col gap-1">
+                          {order.items.slice(0, 2).map((item) =>
+                            (() => {
+                              const snap = orderItemSnapshot(item);
+                              const productName = snap.productId
+                                ? productNameById[snap.productId]
+                                : undefined;
+                              const line = [
+                                productName ?? 'Sản phẩm',
+                                snap.label ? `(${snap.label})` : null,
+                              ]
+                                .filter(Boolean)
+                                .join(' ');
+                              const rightMeta = [
+                                snap.skuCode ? snap.skuCode : null,
+                                `x${orderItemQty(item)}`,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ');
+                              return (
+                                <div
+                                  key={item.id}
+                                  className="flex items-baseline justify-between gap-3"
+                                >
+                                  <span className="truncate text-sm">
+                                    {line}
+                                  </span>
+                                  <span className="shrink-0 text-xs text-muted-foreground">
+                                    {rightMeta}
+                                  </span>
+                                </div>
+                              );
+                            })(),
+                          )}
+                          {order.items.length > 2 ? (
+                            <div className="text-xs text-muted-foreground">
+                              +{order.items.length - 2} sản phẩm khác
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell>{formatCurrency(order.total)}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">
@@ -62985,7 +63237,7 @@ export default function OrdersPageClient() {
                 {orders.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="py-8 text-center text-muted-foreground"
                     >
                       Không có đơn hàng phù hợp
@@ -64020,8 +64272,9 @@ export function CheckoutCustomerForm({
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
+import { toast } from 'sonner';
 
-import { submitOrder } from '@/actions/order-actions';
+import { submitOrder, validateCart } from '@/actions/order-actions';
 import { CheckoutCustomerForm } from '@/components/checkout/checkout-customer-form';
 import { CheckoutOrderSummary } from '@/components/checkout/checkout-order-summary';
 import {
@@ -64066,6 +64319,21 @@ export function CheckoutPageContent() {
   const shippingVnd = lines.length > 0 ? SHIPPING_FLAT_VND : 0;
   const orderTotalBeforeDiscount = subtotalVnd + shippingVnd;
   const discountVnd = appliedVoucher?.discountAmount ?? 0;
+
+  // Validate cart items on mount - remove invalid items
+  useEffect(() => {
+    const validateAndClean = async () => {
+      if (lines.length === 0) return;
+      const result = await validateCart(lines);
+      if (!result.valid && result.invalidItems.length > 0) {
+        for (const item of result.invalidItems) {
+          useCartStore.getState().removeLine(item.variantId);
+          toast.error(`Đã xóa "${item.variantId}": ${item.reason}`);
+        }
+      }
+    };
+    validateAndClean();
+  }, []); // Run once on mount
 
   // Clear voucher when cart changes — discount may no longer be valid.
   useEffect(() => {
@@ -65599,6 +65867,10 @@ import {
 import { OrderResDto } from './dto/order.res.dto';
 import { PublicOrderSummaryResDto } from './dto/public-order-summary.res.dto';
 import { UpdateOrderStatusReqDto } from './dto/update-order-status.req.dto';
+import {
+  ValidateCartItemDto,
+  ValidateCartResDto,
+} from './dto/validate-cart.req.dto';
 import { OrderItemEntity } from './entities/order-item.entity';
 import {
   OrderStatusHistoryActor,
@@ -65788,6 +66060,39 @@ export class OrdersService {
     });
 
     return result;
+  }
+
+  /** Public: validate cart items (check existence, active status, stock) */
+  async validateCartItems(
+    items: ValidateCartItemDto[],
+  ): Promise<ValidateCartResDto> {
+    const variantIds = items.map((i) => i.variantId);
+    const variants = await this.variantRepo.findByIds(variantIds);
+
+    const variantMap = new Map(variants.map((v) => [v.id, v]));
+    const invalidItems: { variantId: string; reason: string }[] = [];
+
+    for (const item of items) {
+      const variant = variantMap.get(item.variantId as Uuid);
+      if (!variant) {
+        invalidItems.push({
+          variantId: item.variantId,
+          reason: 'Sản phẩm không tồn tại',
+        });
+      } else if (!variant.active) {
+        invalidItems.push({
+          variantId: item.variantId,
+          reason: 'Sản phẩm đã ngưng bán',
+        });
+      } else if (variant.stock < item.qty) {
+        invalidItems.push({
+          variantId: item.variantId,
+          reason: `Chỉ còn ${variant.stock} sản phẩm`,
+        });
+      }
+    }
+
+    return { valid: invalidItems.length === 0, invalidItems };
   }
 
   /** Admin: list orders with filters */
@@ -66321,6 +66626,34 @@ export class ProductsService {
 
     if (!product) throw new NotFoundException('Product not found');
     return this.toProductResDto(product);
+  }
+
+  /** Admin: lightweight product lookup (for order list rendering) */
+  async findManyBriefByIds(
+    ids: Uuid[],
+  ): Promise<Array<{ id: string; name: string }>> {
+    const uniq = Array.from(
+      new Set(
+        (ids ?? [])
+          .map((x) => String(x).trim())
+          .filter(Boolean)
+          .filter((x) =>
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+              x,
+            ),
+          ),
+      ),
+    ) as Uuid[];
+
+    if (uniq.length === 0) return [];
+
+    const products = await this.productRepo
+      .createQueryBuilder('product')
+      .select(['product.id', 'product.name'])
+      .where('product.id IN (:...ids)', { ids: uniq })
+      .getMany();
+
+    return products.map((p) => ({ id: String(p.id), name: p.name }));
   }
 
   /** Admin: create product with variants */
@@ -68617,6 +68950,7 @@ GRAFANA_CLOUD_API_KEY=
 'use server';
 
 import { apiServer } from '@/lib/api-server';
+import { CartLine } from '@/services/cart/cart-store';
 import {
   orderCustomerSchema,
   orderItemsSchema,
@@ -68739,6 +69073,30 @@ export async function submitOrder(
     throw new Error('Đặt hàng thất bại, vui lòng thử lại.');
   }
 }
+
+export type ValidateCartResult = {
+  valid: boolean;
+  invalidItems: { variantId: string; reason: string }[];
+};
+
+export async function validateCart(
+  items: CartLine[],
+): Promise<ValidateCartResult> {
+  try {
+    const { data } = await apiServer.post<ValidateCartResult>(
+      '/orders/validate-cart',
+      {
+        items: items.map((item) => ({
+          variantId: item.variantId,
+          qty: item.quantity,
+        })),
+      },
+    );
+    return data!;
+  } catch {
+    return { valid: true, invalidItems: [] };
+  }
+}
 </file>
 
 <file path="apps/web/src/app/articles/[slug]/page.tsx">
@@ -68834,70 +69192,6 @@ export default async function ArticleDetailPage({
 
       <Breadcrumb items={breadcrumbItems} />
       <ArticleContent article={article} />
-    </section>
-  );
-}
-</file>
-
-<file path="apps/web/src/app/articles/page.tsx">
-import type { Metadata } from 'next';
-import type { Article } from '@longnhan/types';
-import ArticleCard from '@/components/articles/article-card';
-import Breadcrumb from '@/components/ui/breadcrumb';
-import { fetchPaginated } from '@/lib/api-client';
-import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
-import { articlesListCacheTags } from '@/lib/content-cache-tags';
-import { buildSeoMetadata } from '@/lib/seo';
-import { cacheLife, cacheTag } from 'next/cache';
-import { connection } from 'next/server';
-
-async function getArticles(): Promise<Article[]> {
-  'use cache';
-  cacheLife({ revalidate: 3600 });
-  cacheTag(...articlesListCacheTags());
-  try {
-    const response = await fetchPaginated<Article>('/articles', { limit: 24 });
-    return response.data;
-  } catch (error) {
-    captureApiFetchError(error, {
-      route: '/articles',
-      section: 'listing',
-    });
-    return [];
-  }
-}
-
-export async function generateMetadata(): Promise<Metadata> {
-  return buildSeoMetadata({
-    title: 'Bài viết về Long nhãn Hưng Yên',
-    description: 'Kiến thức, kinh nghiệm và câu chuyện về Long nhãn Hưng Yên.',
-    canonicalPath: '/articles',
-  });
-}
-
-export default async function ArticlesPage() {
-  await connection();
-  const articles = await getArticles();
-
-  return (
-    <section className="mx-auto max-w-6xl px-4 py-8">
-      <Breadcrumb
-        items={[{ label: 'Trang chủ', url: '/' }, { label: 'Bài viết' }]}
-      />
-      <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-6">
-        Bài viết
-      </h1>
-      {articles.length === 0 ? (
-        <p className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-600">
-          Chưa có bài viết nào.
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {articles.map((article) => (
-            <ArticleCard key={article.id} article={article} />
-          ))}
-        </div>
-      )}
     </section>
   );
 }
@@ -71939,6 +72233,70 @@ export function ProductForm({
 }
 </file>
 
+<file path="apps/web/src/app/articles/page.tsx">
+import type { Metadata } from 'next';
+import type { Article } from '@longnhan/types';
+import ArticleCard from '@/components/articles/article-card';
+import Breadcrumb from '@/components/ui/breadcrumb';
+import { fetchPaginated } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
+import { articlesListCacheTags } from '@/lib/content-cache-tags';
+import { buildSeoMetadata } from '@/lib/seo';
+import { cacheLife, cacheTag } from 'next/cache';
+import { connection } from 'next/server';
+
+async function getArticles(): Promise<Article[]> {
+  'use cache';
+  cacheLife({ revalidate: 3600 });
+  cacheTag(...articlesListCacheTags());
+  try {
+    const response = await fetchPaginated<Article>('/articles', { limit: 24 });
+    return response.data;
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/articles',
+      section: 'listing',
+    });
+    return [];
+  }
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  return buildSeoMetadata({
+    title: 'Bài viết về Long nhãn Hưng Yên',
+    description: 'Kiến thức, kinh nghiệm và câu chuyện về Long nhãn Hưng Yên.',
+    canonicalPath: '/articles',
+  });
+}
+
+export default async function ArticlesPage() {
+  await connection();
+  const articles = await getArticles();
+
+  return (
+    <section className="mx-auto max-w-6xl px-4 py-8">
+      <Breadcrumb
+        items={[{ label: 'Trang chủ', url: '/' }, { label: 'Bài viết' }]}
+      />
+      <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-6">
+        Bài viết
+      </h1>
+      {articles.length === 0 ? (
+        <p className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-600">
+          Chưa có bài viết nào.
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {articles.map((article) => (
+            <ArticleCard key={article.id} article={article} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+</file>
+
 <file path="apps/web/src/app/products/[slug]/page.tsx">
 import ProductImages from '@/components/products/product-images';
 import { ProductAddToCart } from '@/components/products/product-add-to-cart';
@@ -71964,6 +72322,22 @@ import { cacheLife, cacheTag } from 'next/cache';
 interface ProductDetailPageProps {
   params: Promise<{ slug: string }>;
 }
+
+type ProductReviewItem = {
+  id: string;
+  productId: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  reviewerLabel: string;
+  variantLabel: string;
+};
+
+type ProductReviewsList = {
+  ratingAvg: number;
+  ratingCount: number;
+  items: ProductReviewItem[];
+};
 
 async function getProduct(slug: string): Promise<Product | null> {
   'use cache';
@@ -72003,6 +72377,26 @@ async function getRelatedProducts(
       extra: { category: category ?? null, excludeSlug },
     });
     return [];
+  }
+}
+
+async function getProductReviews(
+  productId: string,
+): Promise<ProductReviewsList | null> {
+  'use cache';
+  cacheLife({ revalidate: 60 });
+  cacheTag('products', 'reviews', productId);
+  try {
+    return await fetchApi<ProductReviewsList>(
+      `/products/${encodeURIComponent(productId)}/reviews`,
+    );
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/products/[slug]',
+      section: 'product_reviews_schema',
+      extra: { productId },
+    });
+    return null;
   }
 }
 
@@ -72069,7 +72463,41 @@ export default async function ProductDetailPage({
     currentUrl: `/products/${product.slug}`,
   });
 
-  const productSchema = buildProductSchema(product);
+  const reviews = await getProductReviews(product.id as string);
+  const baseProductSchema = buildProductSchema(product);
+  const productSchema = {
+    ...baseProductSchema,
+    ...(reviews?.ratingCount && reviews.ratingCount > 0
+      ? {
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: Number(reviews.ratingAvg.toFixed(1)),
+            reviewCount: reviews.ratingCount,
+            bestRating: 5,
+            worstRating: 1,
+          },
+        }
+      : null),
+    ...(reviews?.items?.length
+      ? {
+          review: reviews.items.slice(0, 5).map((r) => ({
+            '@type': 'Review',
+            author: {
+              '@type': 'Person',
+              name: r.reviewerLabel,
+            },
+            datePublished: r.createdAt,
+            reviewRating: {
+              '@type': 'Rating',
+              ratingValue: r.rating,
+              bestRating: 5,
+              worstRating: 1,
+            },
+            ...(r.comment ? { reviewBody: r.comment } : null),
+          })),
+        }
+      : null),
+  };
   const images = product.images ?? [];
   const imageList =
     images.length > 0

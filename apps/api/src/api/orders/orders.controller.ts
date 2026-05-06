@@ -27,6 +27,10 @@ import {
 import { OrderResDto } from './dto/order.res.dto';
 import { PublicOrderSummaryResDto } from './dto/public-order-summary.res.dto';
 import { UpdateOrderStatusReqDto } from './dto/update-order-status.req.dto';
+import {
+  ValidateCartReqDto,
+  ValidateCartResDto,
+} from './dto/validate-cart.req.dto';
 import { OrdersService } from './orders.service';
 
 @ApiTags('orders')
@@ -43,6 +47,19 @@ export class OrdersController {
   @HttpCode(HttpStatus.CREATED)
   async create(@Body() dto: CreateOrderReqDto): Promise<OrderResDto> {
     return this.ordersService.create(dto);
+  }
+
+  @ApiPublic({
+    type: ValidateCartResDto,
+    summary: 'Validate cart items (public)',
+    statusCode: 200,
+  })
+  @Post('validate-cart')
+  @HttpCode(HttpStatus.OK)
+  async validateCart(
+    @Body() dto: ValidateCartReqDto,
+  ): Promise<ValidateCartResDto> {
+    return this.ordersService.validateCartItems(dto.items);
   }
 
   @ApiPublic({

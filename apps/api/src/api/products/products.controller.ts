@@ -54,6 +54,18 @@ export class ProductsController {
     return this.productsService.findMany(dto, { includeInactive: true });
   }
 
+  @ApiAuth({
+    summary: 'Get product name map by ids (admin)',
+  })
+  @Get('admin/brief')
+  async findManyBriefAdmin(
+    @Query('ids') ids: string | undefined,
+  ): Promise<Array<{ id: string; name: string }>> {
+    const raw = (ids ?? '').trim();
+    const parts = raw ? raw.split(',') : [];
+    return this.productsService.findManyBriefByIds(parts as Uuid[]);
+  }
+
   @ApiPublic({
     type: ProductSuggestionsResDto,
     summary: 'Search suggestions (categories + products)',

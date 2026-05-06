@@ -32,6 +32,10 @@ import {
 import { OrderResDto } from './dto/order.res.dto';
 import { PublicOrderSummaryResDto } from './dto/public-order-summary.res.dto';
 import { UpdateOrderStatusReqDto } from './dto/update-order-status.req.dto';
+import {
+  ValidateCartItemDto,
+  ValidateCartResDto,
+} from './dto/validate-cart.req.dto';
 import { OrderItemEntity } from './entities/order-item.entity';
 import {
   OrderStatusHistoryActor,
@@ -221,6 +225,39 @@ export class OrdersService {
     });
 
     return result;
+  }
+
+  /** Public: validate cart items (check existence, active status, stock) */
+  async validateCartItems(
+    items: ValidateCartItemDto[],
+  ): Promise<ValidateCartResDto> {
+    const variantIds = items.map((i) => i.variantId);
+    const variants = await this.variantRepo.findByIds(variantIds);
+
+    const variantMap = new Map(variants.map((v) => [v.id, v]));
+    const invalidItems: { variantId: string; reason: string }[] = [];
+
+    for (const item of items) {
+      const variant = variantMap.get(item.variantId as Uuid);
+      if (!variant) {
+        invalidItems.push({
+          variantId: item.variantId,
+          reason: 'Sản phẩm không tồn tại',
+        });
+      } else if (!variant.active) {
+        invalidItems.push({
+          variantId: item.variantId,
+          reason: 'Sản phẩm đã ngưng bán',
+        });
+      } else if (variant.stock < item.qty) {
+        invalidItems.push({
+          variantId: item.variantId,
+          reason: `Chỉ còn ${variant.stock} sản phẩm`,
+        });
+      }
+    }
+
+    return { valid: invalidItems.length === 0, invalidItems };
   }
 
   /** Admin: list orders with filters */

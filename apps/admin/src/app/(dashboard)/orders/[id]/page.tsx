@@ -28,6 +28,19 @@ import { adminClientGet } from '@/lib/admin-client';
 import { ordersApi } from '@/features/orders/api/orders-api';
 import { adminQueryKeys } from '@/lib/query-keys';
 
+function orderItemSnapshot(item: Order['items'][number]): Partial<{
+  productId: string;
+  label: string;
+  skuCode: string;
+}> {
+  const snap = item.variantSnapshot as Record<string, unknown> | undefined;
+  return {
+    productId: typeof snap?.productId === 'string' ? snap.productId : undefined,
+    label: typeof snap?.label === 'string' ? snap.label : undefined,
+    skuCode: typeof snap?.skuCode === 'string' ? snap.skuCode : undefined,
+  };
+}
+
 export default function OrderDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
@@ -44,6 +57,32 @@ export default function OrderDetailPage() {
     enabled: Boolean(id),
     queryFn: () => adminClientGet<Order>(`/orders/${id}`),
   });
+
+  const productIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const item of order?.items ?? []) {
+      const snap = orderItemSnapshot(item);
+      if (snap.productId) set.add(snap.productId);
+    }
+    return Array.from(set);
+  }, [order]);
+
+  const productIdsKey = productIds.join(',');
+
+  const { data: productsBrief = [] } = useQuery({
+    queryKey: adminQueryKeys.products.brief(productIdsKey),
+    enabled: productIds.length > 0,
+    queryFn: () =>
+      adminClientGet<Array<{ id: string; name: string }>>(
+        `/products/admin/brief?ids=${encodeURIComponent(productIdsKey)}`,
+      ),
+  });
+
+  const productNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const p of productsBrief) map[p.id] = p.name;
+    return map;
+  }, [productsBrief]);
 
   const { data: history = [] } = useQuery({
     queryKey: adminQueryKeys.orders.statusHistory(id ?? ''),
@@ -173,23 +212,39 @@ export default function OrderDetailPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Sản phẩm</TableHead>
                       <TableHead>Biến thể</TableHead>
+                      <TableHead>SKU</TableHead>
                       <TableHead>SL</TableHead>
                       <TableHead>Đơn giá</TableHead>
                       <TableHead>Thành tiền</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {order.items.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>
-                          {String(item.variantSnapshot?.['label'] || '-')}
-                        </TableCell>
-                        <TableCell>{item.qty}</TableCell>
-                        <TableCell>{formatCurrency(item.unitPrice)}</TableCell>
-                        <TableCell>{formatCurrency(item.subtotal)}</TableCell>
-                      </TableRow>
-                    ))}
+                    {order.items.map((item) =>
+                      (() => {
+                        const snap = orderItemSnapshot(item);
+                        const productName = snap.productId
+                          ? productNameById[snap.productId]
+                          : undefined;
+                        return (
+                          <TableRow key={item.id}>
+                            <TableCell>{productName ?? 'Sản phẩm'}</TableCell>
+                            <TableCell>{snap.label ?? '-'}</TableCell>
+                            <TableCell className="whitespace-nowrap">
+                              {snap.skuCode ?? '-'}
+                            </TableCell>
+                            <TableCell>{item.qty}</TableCell>
+                            <TableCell>
+                              {formatCurrency(item.unitPrice)}
+                            </TableCell>
+                            <TableCell>
+                              {formatCurrency(item.subtotal)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })(),
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>

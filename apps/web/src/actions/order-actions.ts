@@ -1,6 +1,7 @@
 'use server';
 
 import { apiServer } from '@/lib/api-server';
+import { CartLine } from '@/services/cart/cart-store';
 import {
   orderCustomerSchema,
   orderItemsSchema,
@@ -121,5 +122,29 @@ export async function submitOrder(
   } catch (err) {
     captureOrderSubmitFailure(err);
     throw new Error('Đặt hàng thất bại, vui lòng thử lại.');
+  }
+}
+
+export type ValidateCartResult = {
+  valid: boolean;
+  invalidItems: { variantId: string; reason: string }[];
+};
+
+export async function validateCart(
+  items: CartLine[],
+): Promise<ValidateCartResult> {
+  try {
+    const { data } = await apiServer.post<ValidateCartResult>(
+      '/orders/validate-cart',
+      {
+        items: items.map((item) => ({
+          variantId: item.variantId,
+          qty: item.quantity,
+        })),
+      },
+    );
+    return data!;
+  } catch {
+    return { valid: true, invalidItems: [] };
   }
 }

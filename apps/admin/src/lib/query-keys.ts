@@ -19,6 +19,7 @@ export const adminQueryKeys = {
   products: {
     root: ['products', 'admin'] as const,
     list: (queryString: string) => ['products', 'admin', queryString] as const,
+    brief: (idsKey: string) => ['products', 'admin', 'brief', idsKey] as const,
   },
   orders: {
     /** Invalidates order lists (`['orders', query]`) and detail (`['orders', id]`) */

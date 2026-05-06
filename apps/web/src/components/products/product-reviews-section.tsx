@@ -187,6 +187,9 @@ export default function ProductReviewsSection({
   });
 
   const submitting = submitMutation.isPending;
+  const ratingAvg = data?.ratingAvg ?? 0;
+  const ratingCount = data?.ratingCount ?? 0;
+  const ratingStars = Math.round(ratingAvg);
 
   function onReviewSubmit(values: ProductReviewFormValues) {
     setSubmitMessage(null);
@@ -200,14 +203,14 @@ export default function ProductReviewsSection({
       aria-labelledby="reviews-heading"
     >
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-gray-100 pb-4">
-        <div>
+        <div className="min-w-[220px]">
           <h2
             id="reviews-heading"
             className="text-lg font-semibold text-gray-900"
           >
-            Đánh giá từ khách hàng
+            Đánh giá {productName ? `về ${productName}` : 'từ khách hàng'}
           </h2>
-          <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
             {reviewsLoading ? (
               <>
                 <Loader2
@@ -220,15 +223,18 @@ export default function ProductReviewsSection({
               reviewsError
             ) : (
               <>
-                <span className="font-semibold text-gray-900">
-                  {(data?.ratingAvg ?? 0).toFixed(1)}
+                <ReviewStarsRow rating={ratingStars} />
+                <span className="font-semibold tabular-nums text-gray-900">
+                  {ratingAvg.toFixed(1)}
                 </span>
-                <span className="text-gray-600"> / 5</span>
-                <span className="mx-1.5 text-gray-300">·</span>
-                <span className="font-semibold text-gray-900">
-                  {data?.ratingCount ?? 0}
-                </span>{' '}
-                <span className="text-gray-600">đánh giá</span>
+                <span className="text-gray-600">/ 5</span>
+                <span className="text-gray-300">•</span>
+                <span className="tabular-nums font-semibold text-gray-900">
+                  {ratingCount}
+                </span>
+                <span className="text-gray-600">
+                  {ratingCount === 1 ? 'đánh giá' : 'đánh giá'}
+                </span>
                 {reviewsFetching ? (
                   <Loader2
                     className="size-3.5 shrink-0 animate-spin text-gray-400"
@@ -237,7 +243,7 @@ export default function ProductReviewsSection({
                 ) : null}
               </>
             )}
-          </p>
+          </div>
         </div>
         <Button
           type="button"
@@ -245,6 +251,7 @@ export default function ProductReviewsSection({
           size="sm"
           disabled={reviewsFetching}
           onClick={() => void refetch()}
+          className="gap-2"
         >
           {reviewsFetching ? (
             <>
@@ -252,7 +259,10 @@ export default function ProductReviewsSection({
               Đang tải…
             </>
           ) : (
-            'Làm mới'
+            <>
+              <span className="hidden sm:inline">Làm mới</span>
+              <span className="sm:hidden">Tải lại</span>
+            </>
           )}
         </Button>
       </div>
