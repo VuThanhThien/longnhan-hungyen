@@ -35,6 +35,11 @@ export enum OrderStatus {
 
 @Entity('order')
 @Index('IDX_order_created_at', ['createdAt'])
+@Index('IDX_order_status_created_at', ['orderStatus', 'createdAt'])
+@Index('IDX_order_payment_status_created_at', ['paymentStatus', 'createdAt'])
+@Index('IDX_order_sepay_sweep', ['createdAt'], {
+  where: `"sepay_transaction_id" IS NULL AND "paymentMethod" = 'bank_transfer' AND "paymentStatus" = 'pending' AND "orderStatus" = 'pending'`,
+})
 export class OrderEntity {
   constructor(data?: Partial<OrderEntity>) {
     Object.assign(this, data);

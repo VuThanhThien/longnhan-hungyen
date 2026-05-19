@@ -10,7 +10,6 @@ import { HomeModule } from './home/home.module';
 import { MediaModule } from './media/media.module';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
-import { PostModule } from './post/post.module';
 import { ProductsModule } from './products/products.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { TransactionsModule } from './transactions/transactions.module';
@@ -29,7 +28,6 @@ import { VouchersModule } from './vouchers/vouchers.module';
     HealthModule,
     AuthModule,
     HomeModule,
-    PostModule,
     ProductsModule,
     CategoriesModule,
     ReviewsModule,

@@ -14,6 +14,7 @@ export enum ArticleStatus {
 }
 
 @Entity('article')
+@Index('IDX_article_status_published_at', ['status', 'publishedAt'])
 export class ArticleEntity {
   constructor(data?: Partial<ArticleEntity>) {
     Object.assign(this, data);

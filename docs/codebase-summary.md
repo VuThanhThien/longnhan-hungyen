@@ -263,10 +263,6 @@ longnhantongtran/
 - **Purpose:** Minimal public root controller (API welcome)
 - **Endpoints:** `GET /` — Plain-text welcome (see `home.controller.ts`)
 
-#### PostModule
-
-- **Purpose:** Posts resource (admin-auth CRUD + pagination; see `post.controller.ts` / `post.service.ts`)
-
 #### CategoriesModule
 
 - **Purpose:** Product categories (public list + admin CRUD, soft delete)

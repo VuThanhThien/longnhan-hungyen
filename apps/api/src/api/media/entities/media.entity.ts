@@ -3,6 +3,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
@@ -13,6 +14,7 @@ export enum MediaResourceType {
 }
 
 @Entity('media')
+@Index('IDX_media_folder_created_at', ['folder', 'createdAt'])
 export class MediaEntity {
   constructor(data?: Partial<MediaEntity>) {
     Object.assign(this, data);

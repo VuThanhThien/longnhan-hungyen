@@ -3,6 +3,7 @@ import { AbstractEntity } from '@/database/entities/abstract.entity';
 import {
   Column,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -10,6 +11,7 @@ import {
 import { UserEntity } from './user.entity';
 
 @Entity('session')
+@Index('IDX_session_user_id', ['userId'])
 export class SessionEntity extends AbstractEntity {
   constructor(data?: Partial<SessionEntity>) {
     super();

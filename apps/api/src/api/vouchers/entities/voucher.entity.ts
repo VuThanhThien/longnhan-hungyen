@@ -17,6 +17,7 @@ export enum DiscountType {
 }
 
 @Entity('voucher')
+@Index('IDX_voucher_created_at', ['createdAt'])
 export class VoucherEntity {
   @PrimaryGeneratedColumn('uuid', { primaryKeyConstraintName: 'PK_voucher_id' })
   id!: Uuid;

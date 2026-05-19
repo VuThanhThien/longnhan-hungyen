@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 
 @Entity('category')
+@Index('IDX_category_active_sort_order', ['active', 'sortOrder'])
 export class CategoryEntity {
   constructor(data?: Partial<CategoryEntity>) {
     Object.assign(this, data);

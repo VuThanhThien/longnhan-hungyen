@@ -41,6 +41,7 @@ export enum TransactionDirection {
 
 @Entity('transaction')
 @Index('IDX_transaction_order_occurred', ['orderId', 'occurredAt'])
+@Index('IDX_transaction_order_type_status', ['orderId', 'type', 'status'])
 @Index('IDX_transaction_type', ['type'])
 @Index('IDX_transaction_status', ['status'])
 @Index('IDX_transaction_method', ['method'])

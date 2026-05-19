@@ -59,7 +59,6 @@ describe('UserController', () => {
       userResDto.email = 'mail@example.com';
       userResDto.bio = 'bio';
       userResDto.image = 'image';
-      userResDto.posts = [];
       userResDto.createdAt = new Date();
       userResDto.updatedAt = new Date();
 
@@ -196,7 +195,6 @@ describe('UserController', () => {
       userResDto.email = 'mail@example.com';
       userResDto.bio = 'bio';
       userResDto.image = 'image';
-      userResDto.posts = [];
       userResDto.createdAt = new Date();
       userResDto.updatedAt = new Date();
 

@@ -27,6 +27,7 @@ export enum ProductReviewStatus {
   'status',
   'createdAt',
 ])
+@Index('IDX_product_review_status_created_at', ['status', 'createdAt'])
 export class ProductReviewEntity {
   @PrimaryGeneratedColumn('uuid', {
     primaryKeyConstraintName: 'PK_product_review_id',
@@ -69,7 +70,6 @@ export class ProductReviewEntity {
     enum: ProductReviewStatus,
     default: ProductReviewStatus.PENDING,
   })
-  @Index('IDX_product_review_status')
   status!: ProductReviewStatus;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })

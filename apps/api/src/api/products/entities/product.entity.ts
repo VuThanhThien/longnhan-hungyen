@@ -15,6 +15,12 @@ import {
 import { ProductVariantEntity } from './product-variant.entity';
 
 @Entity('product')
+@Index('IDX_product_active_created_at', ['active', 'createdAt'])
+@Index('IDX_product_active_category_created_at', [
+  'active',
+  'categoryId',
+  'createdAt',
+])
 export class ProductEntity {
   constructor(data?: Partial<ProductEntity>) {
     Object.assign(this, data);

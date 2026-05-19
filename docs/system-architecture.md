@@ -1,6 +1,6 @@
 # System Architecture
 
-**Last Updated:** 2026-04-15
+**Last Updated:** 2026-05-09
 
 ---
 
@@ -174,9 +174,149 @@ Each module follows standard NestJS structure:
 
 #### Background Jobs (src/background/)
 
-- **BullMQ** — Queue processor for async tasks
-- Email delivery, bulk operations, async reporting
-- Configurable retries and failure handling
+This project uses a **Queue + Worker** model based on **BullMQ (Redis backend)** to run tasks that **should not execute inside HTTP requests** (email delivery, reconciliation, batch processing).
+
+##### Goals
+
+- **Reduce HTTP latency**: return responses quickly while heavy work runs asynchronously.
+- **Reliability**: jobs support retry/backoff; job lifecycle is decoupled from requests.
+- **Rate-limit / concurrency control**: prevent spam (especially email) and protect downstreams (Brevo/SePay).
+
+##### Building blocks (code map)
+
+- **Background entrypoint**: `apps/api/src/background/background.module.ts`
+  - Imports queue modules (currently: `EmailQueueModule`, `SepayReconcileQueueModule`)
+- **Queue names / job names**: `apps/api/src/constants/job.constant.ts`
+  - `QueueName`: `email`, `sepay-reconcile`
+  - `JobName`: `email-verification`, `order-tracking-link`, `sepay-pg-sweep`
+- **Job payload types**: `apps/api/src/common/interfaces/job.interface.ts`
+  - `IVerifyEmailJob`, `IOrderTrackingLinkJob`, …
+- **Redis config**: `apps/api/src/redis/config/redis.config.ts` (host/port/password/TLS)
+
+##### Producer / Consumer model
+
+**Producer** (enqueue job):
+
+- In feature service layers, inject the queue via `@InjectQueue(QueueName.…)`.
+- Enqueue with `queue.add(jobName, data, opts)`; HTTP flows do not wait for job completion.
+
+**Consumer/Worker** (process job):
+
+- Each queue has a `@Processor(QueueName.…)` that implements `WorkerHost.process(job)`.
+- Workers run **in the same process as the NestJS API** (there is no separate worker service).
+
+##### Queue: `email` (async email delivery)
+
+- **Registration**: `apps/api/src/background/queues/email-queue/email-queue.module.ts`
+  - Configures BullMQ streams events (`maxLen: 1000`)
+- **Processor**: `apps/api/src/background/queues/email-queue/email.processor.ts`
+  - `concurrency: 1` (ensures sequential delivery)
+  - `limiter: { max: 1, duration: 150 }` (rate limit ~ 1 job/150ms)
+  - `removeOnComplete`: garbage-collect completed jobs by `age` + `count` to keep Redis bounded
+  - Dispatch by `job.name`:
+    - `email-verification` → `EmailQueueService.sendEmailVerification(...)`
+    - `order-tracking-link` → `EmailQueueService.sendOrderTrackingLink(...)`
+- **Queue events listener**: `apps/api/src/background/queues/email-queue/email-queue.events.ts`
+  - Logs job lifecycle at the queue level (`added/waiting/active/completed/failed`)
+- **Business email send**: `apps/api/src/background/queues/email-queue/email-queue.service.ts`
+  - Calls `MailService` (Brevo integration)
+
+##### Queue: `sepay-reconcile` (scheduled reconciliation / long-running batch)
+
+- **Registration**: `apps/api/src/background/queues/sepay-reconcile-queue/sepay-reconcile-queue.module.ts`
+- **Scheduler** (cron): `apps/api/src/background/queues/sepay-reconcile-queue/sepay-reconcile.scheduler.ts`
+  - On module init, if `SEPAY_RECONCILE_ENABLED=true`:
+    - `upsertJobScheduler(..., { pattern: '0 * * * *' }, { name: sepay-pg-sweep })`
+  - Goal: a **fallback** when IPN is missed (or webhook delivery is delayed) by reconciling pending orders.
+- **Processor**: `apps/api/src/background/queues/sepay-reconcile-queue/sepay-reconcile.processor.ts`
+  - `concurrency: 1`
+  - Batch:
+    - **WINDOW**: last 24 hours
+    - **LIMIT**: 200 orders / run
+  - For each order, calls `PaymentsService.reconcileSepayOrder(orderId)` and logs outcomes
+
+##### Retry / backoff policy (examples)
+
+- Email jobs are enqueued in:
+  - `apps/api/src/api/auth/auth.service.ts` (register → enqueue `email-verification`)
+  - `apps/api/src/api/payments/payments.service.ts` (payment success → enqueue `order-tracking-link`)
+- Common pattern:
+  - `attempts: 3`
+  - `backoff: { type: 'exponential', delay: 60000 }`
+
+##### Observability
+
+- **Worker events** (processor-level): log `active/progress/completed/failed/stalled/error`
+- **Queue events** (queue-level stream): log `added/waiting/active/completed/failed`
+- Overall monitoring stack: Grafana Cloud + Loki/Mimir (see Monitoring Stack section)
+
+##### Execution flows (sequence diagrams)
+
+**A) Sign-up → enqueue email verification**
+
+```mermaid
+sequenceDiagram
+  participant Web as Web/Admin client
+  participant API as NestJS API
+  participant Redis as Redis (BullMQ)
+  participant Worker as EmailProcessor
+  participant Brevo as Brevo API
+
+  Web->>API: POST /auth/sign-up
+  API->>API: create user + create token + cache token
+  API->>Redis: queue.add(email-verification, payload, attempts/backoff)
+  API-->>Web: 201 Created (does not wait for email)
+  Worker->>Redis: fetch job (email-verification)
+  Worker->>Brevo: send email verification
+  Brevo-->>Worker: accepted/response
+  Worker->>Redis: mark completed (or retry on failure)
+```
+
+**B) Payment confirmed → enqueue order tracking email**
+
+```mermaid
+sequenceDiagram
+  participant SePay as SePay IPN
+  participant API as NestJS API
+  participant DB as Postgres
+  participant Redis as Redis (BullMQ)
+  participant Worker as EmailProcessor
+  participant Brevo as Brevo API
+
+  SePay->>API: POST /payments/sepay/ipn
+  API->>API: verify payment with SePay gateway
+  API->>DB: transaction: mark order PAID+CONFIRMED + transaction updates
+  API->>Redis: queue.add(order-tracking-link, payload, attempts/backoff)
+  API-->>SePay: { success: true }
+  Worker->>Redis: fetch job (order-tracking-link)
+  Worker->>Brevo: send tracking link email
+  Worker->>Redis: completed / failed (retry)
+```
+
+**C) Hourly SePay reconcile sweep (missed IPN fallback)**
+
+```mermaid
+flowchart TD
+  S[API startup] --> E{SEPAY_RECONCILE_ENABLED?}
+  E -- no --> X[Skip scheduler]
+  E -- yes --> R[Register cron: 0 * * * *]
+  R --> J[Enqueue job: sepay-pg-sweep]
+  J --> P[SepayReconcileProcessor.sweep()]
+  P --> Q[Query pending bank-transfer orders\n(last 24h, take 200)]
+  Q --> L{For each order}
+  L --> V[Verify via SePay gateway API]
+  V -->|paid & matches| A[Apply capture path\n(PAID+CONFIRMED, idempotent)]
+  V -->|not paid/mismatch| N[Skip]
+  A --> K[Optionally enqueue tracking email]
+  K --> L
+  N --> L
+```
+
+##### Scaling & pitfalls (important)
+
+- **In-process workers**: because processors share the API process, heavy jobs or slow I/O can affect API throughput. If background volume grows, consider moving workers to a separate service/process to scale independently.
+- **Scheduler & multi-replica**: the scheduler runs on module init. With multiple API replicas sharing the same Redis, make sure you do not accidentally “double schedule”. The code uses `upsertJobScheduler` with a stable `SCHEDULER_ID` to reduce risk, but it should still be validated in HA setups.
+- **DLQ/alerts**: today this is mostly log-driven. For higher operational maturity, add dashboards/alerts for failed jobs (Bull Board + alert rules on Loki/Mimir/Sentry).
 
 #### Global Error Handling (src/exceptions/, src/filters/)
 

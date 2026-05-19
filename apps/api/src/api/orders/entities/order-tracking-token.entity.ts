@@ -15,6 +15,9 @@ import { OrderEntity } from './order.entity';
 @Entity('order_tracking_token')
 @Index('IDX_order_tracking_token_hash', ['tokenHash'])
 @Index('IDX_order_tracking_token_order_id', ['orderId'])
+@Index('IDX_order_tracking_token_hash_unused', ['tokenHash'], {
+  where: '"usedAt" IS NULL',
+})
 export class OrderTrackingTokenEntity {
   @PrimaryGeneratedColumn('uuid', {
     primaryKeyConstraintName: 'PK_order_tracking_token_id',

@@ -11,6 +11,11 @@ import {
 import { ProductEntity } from './product.entity';
 
 @Entity('product_variant')
+@Index('IDX_product_variant_product_active_sort', [
+  'productId',
+  'active',
+  'sortOrder',
+])
 export class ProductVariantEntity {
   constructor(data?: Partial<ProductVariantEntity>) {
     Object.assign(this, data);

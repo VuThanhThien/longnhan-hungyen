@@ -16,6 +16,7 @@ import { VoucherEntity } from './voucher.entity';
 @Index('UQ_voucher_usage_voucher_phone', ['voucherId', 'phone'], {
   unique: true,
 })
+@Index('IDX_voucher_usage_voucher_used_at', ['voucherId', 'usedAt'])
 export class VoucherUsageEntity {
   @PrimaryGeneratedColumn('uuid', {
     primaryKeyConstraintName: 'PK_voucher_usage_id',
