@@ -1,10 +1,10 @@
-export const SITE_URL = 'https://longnhanhungyen.shop';
+export const SITE_URL = 'https://nhanhungyen.com';
 export const SITE_NAME = 'Long Nhãn Hưng Yên — Đặc Sản Tống Trân';
 export const SITE_DESCRIPTION =
   'Long nhãn Hưng Yên — đặc sản chọn lọc, quà biếu sang trọng. Giao COD toàn quốc, Shopee, TikTok, Zalo.';
 
 export const CONTACT_PHONE = '0922919456';
-export const CONTACT_EMAIL = 'thudan.td@gmail.com';
+export const CONTACT_EMAIL = 'noreply@nhanhungyen.com';
 export const CONTACT_ADDRESS = 'Tống Trân, Hưng Yên, Việt Nam';
 
 export const SOCIAL_LINKS = {
@@ -58,3 +58,6 @@ export const PROVINCES = [
   'TP. Cần Thơ',
   'Cà Mau',
 ];
+
+export const GOOGLE_VERIFICATION =
+  'pOGGbAnqliIaDiOAoY0ak4OVsKdUzk4UlfGMeOEx2AU';

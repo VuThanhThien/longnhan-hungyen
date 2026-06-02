@@ -1223,148 +1223,6 @@ This section contains the contents of the repository's files.
 
 </file>
 
-<file path="apps/api/src/database/migrations/1779183308427-AddQueryPerformanceIndexes.ts">
-import { MigrationInterface, QueryRunner } from "typeorm";
-
-export class AddQueryPerformanceIndexes1779183308427 implements MigrationInterface {
-    name = 'AddQueryPerformanceIndexes1779183308427'
-
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
-            DROP INDEX "public"."IDX_product_review_status"
-        `);
-        await queryRunner.query(`
-            CREATE INDEX "IDX_category_active_sort_order" ON "category" ("active", "sort_order")
-        `);
-        await queryRunner.query(`
-            CREATE INDEX "IDX_product_active_category_created_at" ON "product" ("active", "category_id", "created_at")
-        `);
-        await queryRunner.query(`
-            CREATE INDEX "IDX_product_active_created_at" ON "product" ("active", "created_at")
-        `);
-        await queryRunner.query(`
-            CREATE INDEX "IDX_product_variant_product_active_sort" ON "product_variant" ("product_id", "active", "sortOrder")
-        `);
-        await queryRunner.query(`
-            CREATE INDEX "IDX_order_sepay_sweep" ON "order" ("created_at")
-            WHERE "sepay_transaction_id" IS NULL
-                AND "paymentMethod" = 'bank_transfer'
-                AND "paymentStatus" = 'pending'
-                AND "orderStatus" = 'pending'
-        `);
-        await queryRunner.query(`
-            CREATE INDEX "IDX_order_payment_status_created_at" ON "order" ("paymentStatus", "created_at")
-        `);
-        await queryRunner.query(`
-            CREATE INDEX "IDX_order_status_created_at" ON "order" ("orderStatus", "created_at")
-        `);
-        await queryRunner.query(`
-            CREATE INDEX "IDX_voucher_usage_voucher_used_at" ON "voucher_usage" ("voucherId", "used_at")
-        `);
-        await queryRunner.query(`
-            CREATE INDEX "IDX_voucher_created_at" ON "voucher" ("created_at")
-        `);
-        await queryRunner.query(`
-            CREATE INDEX "IDX_session_user_id" ON "session" ("user_id")
-        `);
-        await queryRunner.query(`
-            CREATE INDEX "IDX_transaction_order_type_status" ON "transaction" ("order_id", "type", "status")
-        `);
-        await queryRunner.query(`
-            CREATE INDEX "IDX_product_review_status_created_at" ON "product_review" ("status", "created_at")
-        `);
-        await queryRunner.query(`
-            CREATE INDEX "IDX_order_tracking_token_hash_unused" ON "order_tracking_token" ("tokenHash")
-            WHERE "usedAt" IS NULL
-        `);
-        await queryRunner.query(`
-            CREATE INDEX "IDX_media_folder_created_at" ON "media" ("folder", "created_at")
-        `);
-        await queryRunner.query(`
-            CREATE INDEX "IDX_article_status_published_at" ON "article" ("status", "published_at")
-        `);
-        await queryRunner.query(`
-            ALTER TABLE "post" DROP CONSTRAINT "FK_post_user_id"
-        `);
-        await queryRunner.query(`
-            DROP TABLE "post"
-        `);
-    }
-
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
-            CREATE TABLE "post" (
-                "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
-                "title" character varying NOT NULL,
-                "slug" character varying NOT NULL,
-                "description" character varying,
-                "content" character varying,
-                "user_id" uuid NOT NULL,
-                "deleted_at" TIMESTAMP WITH TIME ZONE,
-                "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-                "created_by" character varying NOT NULL,
-                "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
-                "updated_by" character varying NOT NULL,
-                CONSTRAINT "PK_post_id" PRIMARY KEY ("id")
-            )
-        `);
-        await queryRunner.query(`
-            ALTER TABLE "post"
-            ADD CONSTRAINT "FK_post_user_id" FOREIGN KEY ("user_id") REFERENCES "user"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
-        `);
-        await queryRunner.query(`
-            DROP INDEX "public"."IDX_article_status_published_at"
-        `);
-        await queryRunner.query(`
-            DROP INDEX "public"."IDX_media_folder_created_at"
-        `);
-        await queryRunner.query(`
-            DROP INDEX "public"."IDX_order_tracking_token_hash_unused"
-        `);
-        await queryRunner.query(`
-            DROP INDEX "public"."IDX_product_review_status_created_at"
-        `);
-        await queryRunner.query(`
-            DROP INDEX "public"."IDX_transaction_order_type_status"
-        `);
-        await queryRunner.query(`
-            DROP INDEX "public"."IDX_session_user_id"
-        `);
-        await queryRunner.query(`
-            DROP INDEX "public"."IDX_voucher_created_at"
-        `);
-        await queryRunner.query(`
-            DROP INDEX "public"."IDX_voucher_usage_voucher_used_at"
-        `);
-        await queryRunner.query(`
-            DROP INDEX "public"."IDX_order_status_created_at"
-        `);
-        await queryRunner.query(`
-            DROP INDEX "public"."IDX_order_payment_status_created_at"
-        `);
-        await queryRunner.query(`
-            DROP INDEX "public"."IDX_order_sepay_sweep"
-        `);
-        await queryRunner.query(`
-            DROP INDEX "public"."IDX_product_variant_product_active_sort"
-        `);
-        await queryRunner.query(`
-            DROP INDEX "public"."IDX_product_active_created_at"
-        `);
-        await queryRunner.query(`
-            DROP INDEX "public"."IDX_product_active_category_created_at"
-        `);
-        await queryRunner.query(`
-            DROP INDEX "public"."IDX_category_active_sort_order"
-        `);
-        await queryRunner.query(`
-            CREATE INDEX "IDX_product_review_status" ON "product_review" ("status")
-        `);
-    }
-
-}
-</file>
-
 <file path="apps/admin/public/file.svg">
 <svg fill="none" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 13.5V5.41a1 1 0 0 0-.3-.7L9.8.29A1 1 0 0 0 9.08 0H1.5v13.5A2.5 2.5 0 0 0 4 16h8a2.5 2.5 0 0 0 2.5-2.5m-1.5 0v-7H8v-5H3v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1M9.5 5V2.12L12.38 5zM5.13 5h-.62v1.25h2.12V5zm-.62 3h7.12v1.25H4.5zm.62 3h-.62v1.25h7.12V11z" clip-rule="evenodd" fill="#666" fill-rule="evenodd"/></svg>
 </file>
@@ -7432,72 +7290,6 @@ export class ArticleResDto {
 }
 </file>
 
-<file path="apps/api/src/api/articles/entities/article.entity.ts">
-import { Uuid } from '@/common/types/common.type';
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  Index,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
-
-export enum ArticleStatus {
-  DRAFT = 'draft',
-  PUBLISHED = 'published',
-}
-
-@Entity('article')
-@Index('IDX_article_status_published_at', ['status', 'publishedAt'])
-export class ArticleEntity {
-  constructor(data?: Partial<ArticleEntity>) {
-    Object.assign(this, data);
-  }
-
-  @PrimaryGeneratedColumn('uuid', { primaryKeyConstraintName: 'PK_article_id' })
-  id!: Uuid;
-
-  @Column({ length: 255 })
-  title!: string;
-
-  @Column({ length: 255, unique: true })
-  @Index('UQ_article_slug', { unique: true })
-  slug!: string;
-
-  @Column({ type: 'text', nullable: true })
-  excerpt: string | null; // Short summary for SEO / article cards
-
-  @Column({ type: 'text' })
-  contentHtml!: string; // Tiptap-generated HTML
-
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  featuredImageUrl: string | null;
-
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  metaTitle: string | null;
-
-  @Column({ type: 'text', nullable: true })
-  metaDescription: string | null;
-
-  @Column({ type: 'simple-array', nullable: true })
-  tags: string[];
-
-  @Column({ type: 'enum', enum: ArticleStatus, default: ArticleStatus.DRAFT })
-  @Index('IDX_article_status')
-  status!: ArticleStatus;
-
-  @Column({ name: 'published_at', type: 'timestamptz', nullable: true })
-  publishedAt: Date | null;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt!: Date;
-
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt!: Date;
-}
-</file>
-
 <file path="apps/api/src/api/articles/articles.module.ts">
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -8474,51 +8266,6 @@ export class UpdateCategoryReqDto {
 }
 </file>
 
-<file path="apps/api/src/api/categories/entities/category.entity.ts">
-import { Uuid } from '@/common/types/common.type';
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  Index,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
-
-@Entity('category')
-@Index('IDX_category_active_sort_order', ['active', 'sortOrder'])
-export class CategoryEntity {
-  constructor(data?: Partial<CategoryEntity>) {
-    Object.assign(this, data);
-  }
-
-  @PrimaryGeneratedColumn('uuid', {
-    primaryKeyConstraintName: 'PK_category_id',
-  })
-  id!: Uuid;
-
-  @Column({ length: 255 })
-  @Index('UQ_category_slug', { unique: true })
-  slug!: string;
-
-  @Column({ length: 255 })
-  name!: string;
-
-  @Column({ name: 'sort_order', type: 'int', default: 0 })
-  sortOrder!: number;
-
-  @Column({ default: true })
-  @Index('IDX_category_active')
-  active!: boolean;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt!: Date;
-
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt!: Date;
-}
-</file>
-
 <file path="apps/api/src/api/categories/categories.controller.ts">
 import { Uuid } from '@/common/types/common.type';
 import { ApiAuth, ApiPublic } from '@/decorators/http.decorators';
@@ -9283,57 +9030,6 @@ export class OrderStatusHistoryEntity {
 }
 </file>
 
-<file path="apps/api/src/api/orders/entities/order-tracking-token.entity.ts">
-import { Uuid } from '@/common/types/common.type';
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  Index,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-  Relation,
-  UpdateDateColumn,
-} from 'typeorm';
-import { OrderEntity } from './order.entity';
-
-@Entity('order_tracking_token')
-@Index('IDX_order_tracking_token_hash', ['tokenHash'])
-@Index('IDX_order_tracking_token_order_id', ['orderId'])
-@Index('IDX_order_tracking_token_hash_unused', ['tokenHash'], {
-  where: '"usedAt" IS NULL',
-})
-export class OrderTrackingTokenEntity {
-  @PrimaryGeneratedColumn('uuid', {
-    primaryKeyConstraintName: 'PK_order_tracking_token_id',
-  })
-  id!: Uuid;
-
-  @Column({ type: 'uuid' })
-  orderId!: Uuid;
-
-  @Column({ type: 'varchar', length: 64, unique: true })
-  tokenHash!: string; // sha256 hex
-
-  @Column({ type: 'timestamptz' })
-  expiresAt!: Date;
-
-  @Column({ type: 'timestamptz', nullable: true })
-  usedAt: Date | null;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt!: Date;
-
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt!: Date;
-
-  @ManyToOne(() => OrderEntity, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'orderId' })
-  order!: Relation<OrderEntity>;
-}
-</file>
-
 <file path="apps/api/src/api/orders/orders.service.spec.ts">
 import { getQueueToken } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
@@ -9959,67 +9655,6 @@ export class UpdateProductVariantReqDto {
 }
 </file>
 
-<file path="apps/api/src/api/products/entities/product-variant.entity.ts">
-import { Uuid } from '@/common/types/common.type';
-import {
-  Column,
-  Entity,
-  Index,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-  Relation,
-} from 'typeorm';
-import { ProductEntity } from './product.entity';
-
-@Entity('product_variant')
-@Index('IDX_product_variant_product_active_sort', [
-  'productId',
-  'active',
-  'sortOrder',
-])
-export class ProductVariantEntity {
-  constructor(data?: Partial<ProductVariantEntity>) {
-    Object.assign(this, data);
-  }
-
-  @PrimaryGeneratedColumn('uuid', {
-    primaryKeyConstraintName: 'PK_product_variant_id',
-  })
-  id!: Uuid;
-
-  @Column({ length: 100 })
-  label!: string; // e.g. "500g", "1kg", "Hộp 1kg"
-
-  @Column({ type: 'int', nullable: true })
-  weightG: number | null; // grams
-
-  @Column({ type: 'int' })
-  price!: number; // VND integer
-
-  @Column({ type: 'int', default: 0 })
-  stock!: number;
-
-  @Column({ type: 'varchar', length: 50, nullable: true })
-  skuCode: string | null;
-
-  @Column({ default: true })
-  active!: boolean;
-
-  @Column({ type: 'int', default: 0 })
-  sortOrder!: number;
-
-  // FK column — also serves as the join column for the relation
-  @Column({ type: 'uuid', name: 'product_id' })
-  @Index('IDX_product_variant_product_id')
-  productId!: Uuid;
-
-  @ManyToOne(() => ProductEntity, (p) => p.variants, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'product_id' })
-  product: Relation<ProductEntity>;
-}
-</file>
-
 <file path="apps/api/src/api/reviews/dto/product-review-query.req.dto.ts">
 import {
   NumberFieldOptional,
@@ -10355,120 +9990,6 @@ export class UpdateTransactionReqDto {
   @IsOptional()
   @IsDateString()
   occurredAt?: string;
-}
-</file>
-
-<file path="apps/api/src/api/transactions/entities/transaction.entity.ts">
-import { Uuid } from '@/common/types/common.type';
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  Index,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-  Relation,
-  UpdateDateColumn,
-} from 'typeorm';
-import { OrderEntity } from '../../orders/entities/order.entity';
-import { UserEntity } from '../../user/entities/user.entity';
-
-export enum TransactionType {
-  PAYMENT = 'payment',
-  REFUND = 'refund',
-  ADJUSTMENT = 'adjustment',
-  FEE = 'fee',
-}
-
-export enum TransactionMethod {
-  COD = 'cod',
-  BANK_TRANSFER = 'bank_transfer',
-  CASH = 'cash',
-  OTHER = 'other',
-}
-
-export enum TransactionStatus {
-  PENDING = 'pending',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-  VOIDED = 'voided',
-}
-
-export enum TransactionDirection {
-  IN = 'in',
-  OUT = 'out',
-}
-
-@Entity('transaction')
-@Index('IDX_transaction_order_occurred', ['orderId', 'occurredAt'])
-@Index('IDX_transaction_order_type_status', ['orderId', 'type', 'status'])
-@Index('IDX_transaction_type', ['type'])
-@Index('IDX_transaction_status', ['status'])
-@Index('IDX_transaction_method', ['method'])
-@Index('IDX_transaction_occurred', ['occurredAt'])
-export class TransactionEntity {
-  constructor(data?: Partial<TransactionEntity>) {
-    Object.assign(this, data);
-  }
-
-  @PrimaryGeneratedColumn('uuid', {
-    primaryKeyConstraintName: 'PK_transaction_id',
-  })
-  id!: Uuid;
-
-  @Column({ name: 'order_id', type: 'uuid' })
-  orderId!: Uuid;
-
-  @ManyToOne(() => OrderEntity, { onDelete: 'RESTRICT' })
-  @JoinColumn({ name: 'order_id' })
-  order!: Relation<OrderEntity>;
-
-  @Column({ type: 'enum', enum: TransactionType })
-  type!: TransactionType;
-
-  @Column({ type: 'enum', enum: TransactionMethod, nullable: true })
-  method: TransactionMethod | null;
-
-  @Column({ type: 'int' })
-  amount!: number;
-
-  @Column({ type: 'enum', enum: TransactionDirection })
-  direction!: TransactionDirection;
-
-  @Column({
-    type: 'enum',
-    enum: TransactionStatus,
-    default: TransactionStatus.COMPLETED,
-  })
-  status!: TransactionStatus;
-
-  @Column({
-    name: 'reference_no',
-    type: 'varchar',
-    length: 100,
-    nullable: true,
-  })
-  referenceNo: string | null;
-
-  @Column({ name: 'reference_note', type: 'text', nullable: true })
-  referenceNote: string | null;
-
-  @Column({ name: 'occurred_at', type: 'timestamptz' })
-  occurredAt!: Date;
-
-  @Column({ name: 'created_by_admin_id', type: 'uuid', nullable: true })
-  createdByAdminId: Uuid | null;
-
-  @ManyToOne(() => UserEntity, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'created_by_admin_id' })
-  createdByAdmin: Relation<UserEntity> | null;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt!: Date;
-
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt!: Date;
 }
 </file>
 
@@ -11028,389 +10549,6 @@ export class UpdateUserReqDto extends OmitType(CreateUserReqDto, [
 ] as const) {}
 </file>
 
-<file path="apps/api/src/api/user/dto/user.res.dto.ts">
-import {
-  ClassField,
-  StringField,
-  StringFieldOptional,
-} from '@/decorators/field.decorators';
-import { Exclude, Expose } from 'class-transformer';
-
-@Exclude()
-export class UserResDto {
-  @StringField()
-  @Expose()
-  id: string;
-
-  @StringField()
-  @Expose()
-  username: string;
-
-  @StringField()
-  @Expose()
-  email: string;
-
-  @StringFieldOptional()
-  @Expose()
-  bio?: string;
-
-  @StringField()
-  @Expose()
-  image: string;
-
-  @ClassField(() => Date)
-  @Expose()
-  createdAt: Date;
-
-  @ClassField(() => Date)
-  @Expose()
-  updatedAt: Date;
-}
-</file>
-
-<file path="apps/api/src/api/user/entities/session.entity.ts">
-import { Uuid } from '@/common/types/common.type';
-import { AbstractEntity } from '@/database/entities/abstract.entity';
-import {
-  Column,
-  Entity,
-  Index,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
-import { UserEntity } from './user.entity';
-
-@Entity('session')
-@Index('IDX_session_user_id', ['userId'])
-export class SessionEntity extends AbstractEntity {
-  constructor(data?: Partial<SessionEntity>) {
-    super();
-    Object.assign(this, data);
-  }
-
-  @PrimaryGeneratedColumn('uuid', {
-    primaryKeyConstraintName: 'PK_session_id',
-  })
-  id!: Uuid;
-
-  @Column({
-    name: 'hash',
-    type: 'varchar',
-    length: 255,
-  })
-  hash!: string;
-
-  @Column({
-    name: 'user_id',
-    type: 'uuid',
-  })
-  userId: Uuid;
-
-  @JoinColumn({
-    name: 'user_id',
-    referencedColumnName: 'id',
-    foreignKeyConstraintName: 'FK_session_user',
-  })
-  @ManyToOne(() => UserEntity, (user) => user.sessions)
-  user!: UserEntity;
-}
-</file>
-
-<file path="apps/api/src/api/user/entities/user.entity.ts">
-import { Uuid } from '@/common/types/common.type';
-import { AbstractEntity } from '@/database/entities/abstract.entity';
-import { hashPassword as hashPass } from '@/utils/password.util';
-import {
-  BeforeInsert,
-  BeforeUpdate,
-  Column,
-  DeleteDateColumn,
-  Entity,
-  Index,
-  OneToMany,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
-import { SessionEntity } from './session.entity';
-
-@Entity('user')
-export class UserEntity extends AbstractEntity {
-  constructor(data?: Partial<UserEntity>) {
-    super();
-    Object.assign(this, data);
-  }
-
-  @PrimaryGeneratedColumn('uuid', { primaryKeyConstraintName: 'PK_user_id' })
-  id!: Uuid;
-
-  @Column({
-    length: 50,
-    nullable: true,
-  })
-  @Index('UQ_user_username', {
-    where: '"deleted_at" IS NULL',
-    unique: true,
-  })
-  username: string;
-
-  @Column()
-  @Index('UQ_user_email', { where: '"deleted_at" IS NULL', unique: true })
-  email!: string;
-
-  @Column()
-  password!: string;
-
-  @Column({ default: '' })
-  bio?: string;
-
-  @Column({ default: '' })
-  image?: string;
-
-  @DeleteDateColumn({
-    name: 'deleted_at',
-    type: 'timestamptz',
-    default: null,
-  })
-  deletedAt: Date;
-
-  @OneToMany(() => SessionEntity, (session) => session.user)
-  sessions?: SessionEntity[];
-
-  @BeforeInsert()
-  @BeforeUpdate()
-  async hashPassword() {
-    if (this.password) {
-      this.password = await hashPass(this.password);
-    }
-  }
-}
-</file>
-
-<file path="apps/api/src/api/user/user.controller.spec.ts">
-import { Uuid } from '@/common/types/common.type';
-import { Test, TestingModule } from '@nestjs/testing';
-import { plainToInstance } from 'class-transformer';
-import { validate } from 'class-validator';
-import { CreateUserReqDto } from './dto/create-user.req.dto';
-import { UserResDto } from './dto/user.res.dto';
-import { UserController } from './user.controller';
-import { UserService } from './user.service';
-
-describe('UserController', () => {
-  let controller: UserController;
-  let service: UserService;
-  let userServiceValue: Partial<Record<keyof UserService, jest.Mock>>;
-
-  beforeAll(async () => {
-    userServiceValue = {
-      findOne: jest.fn(),
-      create: jest.fn(),
-    };
-
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [UserController],
-      providers: [
-        {
-          provide: UserService,
-          useValue: userServiceValue,
-        },
-      ],
-    }).compile();
-
-    controller = module.get<UserController>(UserController);
-    service = module.get<UserService>(UserService);
-  });
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
-    expect(service).toBeDefined();
-  });
-
-  // TODO: write unit tests for getCurrentUser method
-
-  describe('createUser', () => {
-    it('should return a user', async () => {
-      const createUserReqDto = {
-        username: 'john',
-        email: 'mail@example.com',
-        password: 'password',
-        bio: 'bio',
-        image: 'image',
-      } as CreateUserReqDto;
-
-      const userResDto = new UserResDto();
-      userResDto.id = '1';
-      userResDto.username = 'john';
-      userResDto.email = 'mail@example.com';
-      userResDto.bio = 'bio';
-      userResDto.image = 'image';
-      userResDto.createdAt = new Date();
-      userResDto.updatedAt = new Date();
-
-      userServiceValue.create.mockReturnValue(userResDto);
-      const user = await controller.createUser(createUserReqDto);
-
-      expect(user).toBe(userResDto);
-      expect(userServiceValue.create).toHaveBeenCalledWith(createUserReqDto);
-      expect(userServiceValue.create).toHaveBeenCalledTimes(1);
-    });
-
-    it('should return null', async () => {
-      userServiceValue.create.mockReturnValue(null);
-      const user = await controller.createUser({} as CreateUserReqDto);
-
-      expect(user).toBeNull();
-      expect(userServiceValue.create).toHaveBeenCalledWith({});
-      expect(userServiceValue.create).toHaveBeenCalledTimes(1);
-    });
-
-    describe('CreateUserReqDto', () => {
-      let createUserReqDto: CreateUserReqDto;
-
-      beforeEach(() => {
-        createUserReqDto = plainToInstance(CreateUserReqDto, {
-          username: 'john',
-          email: 'mail@example.com',
-          password: 'password',
-          bio: 'bio',
-          image: 'image',
-        });
-      });
-
-      it('should success with correctly data', async () => {
-        const errors = await validate(createUserReqDto);
-        expect(errors.length).toEqual(0);
-      });
-
-      it('should fail with empty username', async () => {
-        createUserReqDto.username = '';
-        const errors = await validate(createUserReqDto);
-        expect(errors.length).toEqual(1);
-        expect(errors[0].constraints).toEqual({
-          minLength: 'username must be longer than or equal to 1 characters',
-        });
-      });
-
-      it('should fail with empty email', async () => {
-        createUserReqDto.email = '';
-        const errors = await validate(createUserReqDto);
-        expect(errors.length).toEqual(1);
-        expect(errors[0].property).toBe('email');
-      });
-
-      it('should fail with invalid email', async () => {
-        createUserReqDto.email = 'invalid-email';
-        const errors = await validate(createUserReqDto);
-        expect(errors.length).toEqual(1);
-        expect(errors[0].constraints).toEqual({
-          isEmail: 'email must be an email',
-        });
-      });
-
-      it('should fail with empty password', async () => {
-        createUserReqDto.password = '';
-        const errors = await validate(createUserReqDto);
-        expect(errors.length).toEqual(1);
-        expect(errors[0].constraints).toEqual({
-          minLength: 'password must be longer than or equal to 6 characters',
-        });
-      });
-
-      it('should fail with invalid password', async () => {
-        createUserReqDto.password = 'invalid-password';
-        const errors = await validate(createUserReqDto);
-        expect(errors.length).toEqual(1);
-        expect(errors[0].constraints).toEqual({
-          isPassword: 'password is invalid',
-        });
-      });
-
-      it('should fail with empty bio', async () => {
-        createUserReqDto.bio = '';
-        const errors = await validate(createUserReqDto);
-        expect(errors.length).toEqual(1);
-        expect(errors[0].constraints).toEqual({
-          minLength: 'bio must be longer than or equal to 1 characters',
-        });
-      });
-
-      it('should success with bio is null', async () => {
-        createUserReqDto.bio = null;
-        const errors = await validate(createUserReqDto);
-        expect(errors.length).toEqual(0);
-      });
-
-      it('should success with bio is undefined', async () => {
-        createUserReqDto.bio = undefined;
-        const errors = await validate(createUserReqDto);
-        expect(errors.length).toEqual(0);
-      });
-
-      it('should fail with empty image', async () => {
-        createUserReqDto.image = '';
-        const errors = await validate(createUserReqDto);
-        expect(errors.length).toEqual(1);
-        expect(errors[0].constraints).toEqual({
-          minLength: 'image must be longer than or equal to 1 characters',
-        });
-      });
-
-      it('should success with image is null', async () => {
-        createUserReqDto.image = null;
-        const errors = await validate(createUserReqDto);
-        expect(errors.length).toEqual(0);
-      });
-
-      it('should success with image is undefined', async () => {
-        createUserReqDto.image = undefined;
-        const errors = await validate(createUserReqDto);
-        expect(errors.length).toEqual(0);
-      });
-    });
-  });
-
-  // TODO: write unit tests for findAllUsers method
-  // TODO: write unit tests for loadMoreUsers method
-
-  describe('findUser', () => {
-    it('should return a user', async () => {
-      const userResDto = new UserResDto();
-      userResDto.id = '1';
-      userResDto.username = 'john';
-      userResDto.email = 'mail@example.com';
-      userResDto.bio = 'bio';
-      userResDto.image = 'image';
-      userResDto.createdAt = new Date();
-      userResDto.updatedAt = new Date();
-
-      userServiceValue.findOne.mockReturnValue(userResDto);
-      const user = await controller.findUser('1' as Uuid);
-
-      expect(user).toBe(userResDto);
-      expect(userServiceValue.findOne).toHaveBeenCalledWith('1');
-      expect(userServiceValue.findOne).toHaveBeenCalledTimes(1);
-    });
-
-    it('should return null', async () => {
-      userServiceValue.findOne.mockReturnValue(null);
-      const user = await controller.findUser('1' as Uuid);
-
-      expect(user).toBeNull();
-      expect(userServiceValue.findOne).toHaveBeenCalledWith('1');
-      expect(userServiceValue.findOne).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  // TODO: write unit tests for updateUser method
-  // TODO: write unit tests for removeUser method
-  // TODO: write unit tests for changePassword method
-});
-</file>
-
 <file path="apps/api/src/api/user/user.controller.ts">
 import { CursorPaginatedDto } from '@/common/dto/cursor-pagination/paginated.dto';
 import { OffsetPaginatedDto } from '@/common/dto/offset-pagination/paginated.dto';
@@ -11945,124 +11083,6 @@ export class VoucherResDto {
   @ApiProperty()
   @Expose()
   updatedAt!: Date;
-}
-</file>
-
-<file path="apps/api/src/api/vouchers/entities/voucher-usage.entity.ts">
-import { Uuid } from '@/common/types/common.type';
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  Index,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-  Relation,
-} from 'typeorm';
-import { OrderEntity } from '../../orders/entities/order.entity';
-import { VoucherEntity } from './voucher.entity';
-
-@Entity('voucher_usage')
-@Index('UQ_voucher_usage_voucher_phone', ['voucherId', 'phone'], {
-  unique: true,
-})
-@Index('IDX_voucher_usage_voucher_used_at', ['voucherId', 'usedAt'])
-export class VoucherUsageEntity {
-  @PrimaryGeneratedColumn('uuid', {
-    primaryKeyConstraintName: 'PK_voucher_usage_id',
-  })
-  id!: Uuid;
-
-  @Column({ type: 'uuid' })
-  voucherId!: Uuid;
-
-  @Column({ type: 'uuid' })
-  orderId!: Uuid;
-
-  @Column({ length: 20 })
-  phone!: string;
-
-  /** VND amount actually deducted */
-  @Column({ type: 'int' })
-  discountAmount!: number;
-
-  @CreateDateColumn({ name: 'used_at', type: 'timestamptz' })
-  usedAt!: Date;
-
-  @ManyToOne(() => VoucherEntity, (v) => v.usages)
-  @JoinColumn({ name: 'voucherId' })
-  voucher: Relation<VoucherEntity>;
-
-  @ManyToOne(() => OrderEntity)
-  @JoinColumn({ name: 'orderId' })
-  order: Relation<OrderEntity>;
-}
-</file>
-
-<file path="apps/api/src/api/vouchers/entities/voucher.entity.ts">
-import { Uuid } from '@/common/types/common.type';
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  Index,
-  OneToMany,
-  PrimaryGeneratedColumn,
-  Relation,
-  UpdateDateColumn,
-} from 'typeorm';
-import { VoucherUsageEntity } from './voucher-usage.entity';
-
-export enum DiscountType {
-  PERCENTAGE = 'percentage',
-  FIXED = 'fixed',
-}
-
-@Entity('voucher')
-@Index('IDX_voucher_created_at', ['createdAt'])
-export class VoucherEntity {
-  @PrimaryGeneratedColumn('uuid', { primaryKeyConstraintName: 'PK_voucher_id' })
-  id!: Uuid;
-
-  @Column({ length: 50 })
-  @Index('UQ_voucher_code', { unique: true })
-  code!: string; // always stored uppercase
-
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  description: string | null;
-
-  @Column({ type: 'enum', enum: DiscountType })
-  discountType!: DiscountType;
-
-  /** Percent (1-100) or VND amount */
-  @Column({ type: 'int' })
-  discountValue!: number;
-
-  @Column({ type: 'int', nullable: true })
-  minOrderAmount: number | null;
-
-  /** null = unlimited */
-  @Column({ type: 'int', nullable: true })
-  maxUses: number | null;
-
-  @Column({ type: 'int', default: 0 })
-  usedCount!: number;
-
-  @Column({ type: 'boolean', default: true })
-  isActive!: boolean;
-
-  @Column({ type: 'timestamptz', nullable: true })
-  expiresAt: Date | null;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt!: Date;
-
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt!: Date;
-
-  @OneToMany(() => VoucherUsageEntity, (u) => u.voucher)
-  usages: Relation<VoucherUsageEntity[]>;
 }
 </file>
 
@@ -14603,6 +13623,148 @@ export class AddSepayPaymentSupport1776929364845 implements MigrationInterface {
         `);
         await queryRunner.query(`
             ALTER TABLE "order" DROP COLUMN "sepay_transaction_id"
+        `);
+    }
+
+}
+</file>
+
+<file path="apps/api/src/database/migrations/1779183308427-AddQueryPerformanceIndexes.ts">
+import { MigrationInterface, QueryRunner } from "typeorm";
+
+export class AddQueryPerformanceIndexes1779183308427 implements MigrationInterface {
+    name = 'AddQueryPerformanceIndexes1779183308427'
+
+    public async up(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.query(`
+            DROP INDEX "public"."IDX_product_review_status"
+        `);
+        await queryRunner.query(`
+            CREATE INDEX "IDX_category_active_sort_order" ON "category" ("active", "sort_order")
+        `);
+        await queryRunner.query(`
+            CREATE INDEX "IDX_product_active_category_created_at" ON "product" ("active", "category_id", "created_at")
+        `);
+        await queryRunner.query(`
+            CREATE INDEX "IDX_product_active_created_at" ON "product" ("active", "created_at")
+        `);
+        await queryRunner.query(`
+            CREATE INDEX "IDX_product_variant_product_active_sort" ON "product_variant" ("product_id", "active", "sortOrder")
+        `);
+        await queryRunner.query(`
+            CREATE INDEX "IDX_order_sepay_sweep" ON "order" ("created_at")
+            WHERE "sepay_transaction_id" IS NULL
+                AND "paymentMethod" = 'bank_transfer'
+                AND "paymentStatus" = 'pending'
+                AND "orderStatus" = 'pending'
+        `);
+        await queryRunner.query(`
+            CREATE INDEX "IDX_order_payment_status_created_at" ON "order" ("paymentStatus", "created_at")
+        `);
+        await queryRunner.query(`
+            CREATE INDEX "IDX_order_status_created_at" ON "order" ("orderStatus", "created_at")
+        `);
+        await queryRunner.query(`
+            CREATE INDEX "IDX_voucher_usage_voucher_used_at" ON "voucher_usage" ("voucherId", "used_at")
+        `);
+        await queryRunner.query(`
+            CREATE INDEX "IDX_voucher_created_at" ON "voucher" ("created_at")
+        `);
+        await queryRunner.query(`
+            CREATE INDEX "IDX_session_user_id" ON "session" ("user_id")
+        `);
+        await queryRunner.query(`
+            CREATE INDEX "IDX_transaction_order_type_status" ON "transaction" ("order_id", "type", "status")
+        `);
+        await queryRunner.query(`
+            CREATE INDEX "IDX_product_review_status_created_at" ON "product_review" ("status", "created_at")
+        `);
+        await queryRunner.query(`
+            CREATE INDEX "IDX_order_tracking_token_hash_unused" ON "order_tracking_token" ("tokenHash")
+            WHERE "usedAt" IS NULL
+        `);
+        await queryRunner.query(`
+            CREATE INDEX "IDX_media_folder_created_at" ON "media" ("folder", "created_at")
+        `);
+        await queryRunner.query(`
+            CREATE INDEX "IDX_article_status_published_at" ON "article" ("status", "published_at")
+        `);
+        await queryRunner.query(`
+            ALTER TABLE "post" DROP CONSTRAINT "FK_post_user_id"
+        `);
+        await queryRunner.query(`
+            DROP TABLE "post"
+        `);
+    }
+
+    public async down(queryRunner: QueryRunner): Promise<void> {
+        await queryRunner.query(`
+            CREATE TABLE "post" (
+                "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+                "title" character varying NOT NULL,
+                "slug" character varying NOT NULL,
+                "description" character varying,
+                "content" character varying,
+                "user_id" uuid NOT NULL,
+                "deleted_at" TIMESTAMP WITH TIME ZONE,
+                "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+                "created_by" character varying NOT NULL,
+                "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+                "updated_by" character varying NOT NULL,
+                CONSTRAINT "PK_post_id" PRIMARY KEY ("id")
+            )
+        `);
+        await queryRunner.query(`
+            ALTER TABLE "post"
+            ADD CONSTRAINT "FK_post_user_id" FOREIGN KEY ("user_id") REFERENCES "user"("id") ON DELETE NO ACTION ON UPDATE NO ACTION
+        `);
+        await queryRunner.query(`
+            DROP INDEX "public"."IDX_article_status_published_at"
+        `);
+        await queryRunner.query(`
+            DROP INDEX "public"."IDX_media_folder_created_at"
+        `);
+        await queryRunner.query(`
+            DROP INDEX "public"."IDX_order_tracking_token_hash_unused"
+        `);
+        await queryRunner.query(`
+            DROP INDEX "public"."IDX_product_review_status_created_at"
+        `);
+        await queryRunner.query(`
+            DROP INDEX "public"."IDX_transaction_order_type_status"
+        `);
+        await queryRunner.query(`
+            DROP INDEX "public"."IDX_session_user_id"
+        `);
+        await queryRunner.query(`
+            DROP INDEX "public"."IDX_voucher_created_at"
+        `);
+        await queryRunner.query(`
+            DROP INDEX "public"."IDX_voucher_usage_voucher_used_at"
+        `);
+        await queryRunner.query(`
+            DROP INDEX "public"."IDX_order_status_created_at"
+        `);
+        await queryRunner.query(`
+            DROP INDEX "public"."IDX_order_payment_status_created_at"
+        `);
+        await queryRunner.query(`
+            DROP INDEX "public"."IDX_order_sepay_sweep"
+        `);
+        await queryRunner.query(`
+            DROP INDEX "public"."IDX_product_variant_product_active_sort"
+        `);
+        await queryRunner.query(`
+            DROP INDEX "public"."IDX_product_active_created_at"
+        `);
+        await queryRunner.query(`
+            DROP INDEX "public"."IDX_product_active_category_created_at"
+        `);
+        await queryRunner.query(`
+            DROP INDEX "public"."IDX_category_active_sort_order"
+        `);
+        await queryRunner.query(`
+            CREATE INDEX "IDX_product_review_status" ON "product_review" ("status")
         `);
     }
 
@@ -22724,13 +21886,13 @@ tunnel: TUNNEL_ID_REPLACE_ME
 credentials-file: /etc/cloudflared/TUNNEL_ID_REPLACE_ME.json
 
 ingress:
-  - hostname: api.longnhanhungyen.shop
+  - hostname: api.nhanhungyen.com
     service: http://api:3001
-  - hostname: www.longnhanhungyen.shop
+  - hostname: www.nhanhungyen.com
     service: http://web:3000
-  - hostname: longnhanhungyen.shop
+  - hostname: nhanhungyen.com
     service: http://web:3000
-  - hostname: admin.longnhanhungyen.shop
+  - hostname: admin.nhanhungyen.com
     service: http://admin:3002
   - service: http_status:404
 </file>
@@ -40159,6 +39321,72 @@ export class UpdateArticleReqDto {
 }
 </file>
 
+<file path="apps/api/src/api/articles/entities/article.entity.ts">
+import { Uuid } from '@/common/types/common.type';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+
+export enum ArticleStatus {
+  DRAFT = 'draft',
+  PUBLISHED = 'published',
+}
+
+@Entity('article')
+@Index('IDX_article_status_published_at', ['status', 'publishedAt'])
+export class ArticleEntity {
+  constructor(data?: Partial<ArticleEntity>) {
+    Object.assign(this, data);
+  }
+
+  @PrimaryGeneratedColumn('uuid', { primaryKeyConstraintName: 'PK_article_id' })
+  id!: Uuid;
+
+  @Column({ length: 255 })
+  title!: string;
+
+  @Column({ length: 255, unique: true })
+  @Index('UQ_article_slug', { unique: true })
+  slug!: string;
+
+  @Column({ type: 'text', nullable: true })
+  excerpt: string | null; // Short summary for SEO / article cards
+
+  @Column({ type: 'text' })
+  contentHtml!: string; // Tiptap-generated HTML
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  featuredImageUrl: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  metaTitle: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  metaDescription: string | null;
+
+  @Column({ type: 'simple-array', nullable: true })
+  tags: string[];
+
+  @Column({ type: 'enum', enum: ArticleStatus, default: ArticleStatus.DRAFT })
+  @Index('IDX_article_status')
+  status!: ArticleStatus;
+
+  @Column({ name: 'published_at', type: 'timestamptz', nullable: true })
+  publishedAt: Date | null;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
+}
+</file>
+
 <file path="apps/api/src/api/articles/articles.controller.ts">
 import { OffsetPaginatedDto } from '@/common/dto/offset-pagination/paginated.dto';
 import { Uuid } from '@/common/types/common.type';
@@ -40253,6 +39481,51 @@ export class ArticlesController {
   async remove(@Param('id', ParseUUIDPipe) id: Uuid): Promise<void> {
     return this.articlesService.remove(id);
   }
+}
+</file>
+
+<file path="apps/api/src/api/categories/entities/category.entity.ts">
+import { Uuid } from '@/common/types/common.type';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+
+@Entity('category')
+@Index('IDX_category_active_sort_order', ['active', 'sortOrder'])
+export class CategoryEntity {
+  constructor(data?: Partial<CategoryEntity>) {
+    Object.assign(this, data);
+  }
+
+  @PrimaryGeneratedColumn('uuid', {
+    primaryKeyConstraintName: 'PK_category_id',
+  })
+  id!: Uuid;
+
+  @Column({ length: 255 })
+  @Index('UQ_category_slug', { unique: true })
+  slug!: string;
+
+  @Column({ length: 255 })
+  name!: string;
+
+  @Column({ name: 'sort_order', type: 'int', default: 0 })
+  sortOrder!: number;
+
+  @Column({ default: true })
+  @Index('IDX_category_active')
+  active!: boolean;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
 }
 </file>
 
@@ -40459,56 +39732,6 @@ export class DashboardService {
         return null;
     }
   }
-}
-</file>
-
-<file path="apps/api/src/api/media/entities/media.entity.ts">
-import { Uuid } from '@/common/types/common.type';
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  Index,
-  PrimaryGeneratedColumn,
-} from 'typeorm';
-
-export enum MediaResourceType {
-  IMAGE = 'image',
-  VIDEO = 'video',
-  RAW = 'raw',
-}
-
-@Entity('media')
-@Index('IDX_media_folder_created_at', ['folder', 'createdAt'])
-export class MediaEntity {
-  constructor(data?: Partial<MediaEntity>) {
-    Object.assign(this, data);
-  }
-
-  @PrimaryGeneratedColumn('uuid', { primaryKeyConstraintName: 'PK_media_id' })
-  id!: Uuid;
-
-  @Column({ length: 255 })
-  cloudinaryPublicId!: string; // Cloudinary public_id for deletion/transforms
-
-  @Column({ length: 1000 })
-  url!: string; // Cloudinary delivery URL
-
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  filename: string | null;
-
-  @Column({
-    type: 'enum',
-    enum: MediaResourceType,
-    default: MediaResourceType.IMAGE,
-  })
-  resourceType!: MediaResourceType;
-
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  folder: string | null; // Cloudinary folder (products, articles, etc.)
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt!: Date;
 }
 </file>
 
@@ -40745,6 +39968,57 @@ export class OrderQueryReqDto extends PageOptionsDto {
 }
 </file>
 
+<file path="apps/api/src/api/orders/entities/order-tracking-token.entity.ts">
+import { Uuid } from '@/common/types/common.type';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  Relation,
+  UpdateDateColumn,
+} from 'typeorm';
+import { OrderEntity } from './order.entity';
+
+@Entity('order_tracking_token')
+@Index('IDX_order_tracking_token_hash', ['tokenHash'])
+@Index('IDX_order_tracking_token_order_id', ['orderId'])
+@Index('IDX_order_tracking_token_hash_unused', ['tokenHash'], {
+  where: '"usedAt" IS NULL',
+})
+export class OrderTrackingTokenEntity {
+  @PrimaryGeneratedColumn('uuid', {
+    primaryKeyConstraintName: 'PK_order_tracking_token_id',
+  })
+  id!: Uuid;
+
+  @Column({ type: 'uuid' })
+  orderId!: Uuid;
+
+  @Column({ type: 'varchar', length: 64, unique: true })
+  tokenHash!: string; // sha256 hex
+
+  @Column({ type: 'timestamptz' })
+  expiresAt!: Date;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  usedAt: Date | null;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
+
+  @ManyToOne(() => OrderEntity, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'orderId' })
+  order!: Relation<OrderEntity>;
+}
+</file>
+
 <file path="apps/api/src/api/products/dto/create-product-variant.req.dto.ts">
 import {
   BooleanFieldOptional,
@@ -40775,6 +40049,67 @@ export class CreateProductVariantReqDto {
 
   @BooleanFieldOptional()
   active?: boolean;
+}
+</file>
+
+<file path="apps/api/src/api/products/entities/product-variant.entity.ts">
+import { Uuid } from '@/common/types/common.type';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  Relation,
+} from 'typeorm';
+import { ProductEntity } from './product.entity';
+
+@Entity('product_variant')
+@Index('IDX_product_variant_product_active_sort', [
+  'productId',
+  'active',
+  'sortOrder',
+])
+export class ProductVariantEntity {
+  constructor(data?: Partial<ProductVariantEntity>) {
+    Object.assign(this, data);
+  }
+
+  @PrimaryGeneratedColumn('uuid', {
+    primaryKeyConstraintName: 'PK_product_variant_id',
+  })
+  id!: Uuid;
+
+  @Column({ length: 100 })
+  label!: string; // e.g. "500g", "1kg", "Hộp 1kg"
+
+  @Column({ type: 'int', nullable: true })
+  weightG: number | null; // grams
+
+  @Column({ type: 'int' })
+  price!: number; // VND integer
+
+  @Column({ type: 'int', default: 0 })
+  stock!: number;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  skuCode: string | null;
+
+  @Column({ default: true })
+  active!: boolean;
+
+  @Column({ type: 'int', default: 0 })
+  sortOrder!: number;
+
+  // FK column — also serves as the join column for the relation
+  @Column({ type: 'uuid', name: 'product_id' })
+  @Index('IDX_product_variant_product_id')
+  productId!: Uuid;
+
+  @ManyToOne(() => ProductEntity, (p) => p.variants, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'product_id' })
+  product: Relation<ProductEntity>;
 }
 </file>
 
@@ -40953,97 +40288,6 @@ export class PublicProductReviewsListResDto {
   @ApiProperty({ type: [PublicProductReviewResDto] })
   @Expose()
   items!: PublicProductReviewResDto[];
-}
-</file>
-
-<file path="apps/api/src/api/reviews/entities/product-review.entity.ts">
-import { OrderEntity } from '@/api/orders/entities/order.entity';
-import { ProductEntity } from '@/api/products/entities/product.entity';
-import { Uuid } from '@/common/types/common.type';
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  Index,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-  Relation,
-  Unique,
-  UpdateDateColumn,
-} from 'typeorm';
-
-export enum ProductReviewStatus {
-  PENDING = 'pending',
-  PUBLISHED = 'published',
-  REJECTED = 'rejected',
-}
-
-@Entity('product_review')
-@Unique('UQ_product_review_order_product', ['orderId', 'productId'])
-@Index('IDX_product_review_product_status_created_at', [
-  'productId',
-  'status',
-  'createdAt',
-])
-@Index('IDX_product_review_status_created_at', ['status', 'createdAt'])
-export class ProductReviewEntity {
-  @PrimaryGeneratedColumn('uuid', {
-    primaryKeyConstraintName: 'PK_product_review_id',
-  })
-  id!: Uuid;
-
-  @Column({ type: 'uuid', name: 'product_id' })
-  productId!: Uuid;
-
-  @Column({ type: 'uuid', name: 'order_id' })
-  orderId!: Uuid;
-
-  @Column({ type: 'smallint' })
-  rating!: number; // 1..5
-
-  @Column({ type: 'text', nullable: true })
-  comment: string | null;
-
-  @Column({ name: 'is_anonymous', type: 'boolean', default: false })
-  isAnonymous!: boolean;
-
-  @Column({
-    name: 'variant_label_snapshot',
-    type: 'varchar',
-    length: 255,
-    nullable: true,
-  })
-  variantLabelSnapshot: string | null;
-
-  @Column({
-    name: 'public_reviewer_label',
-    type: 'varchar',
-    length: 120,
-    nullable: true,
-  })
-  publicReviewerLabel: string | null;
-
-  @Column({
-    type: 'enum',
-    enum: ProductReviewStatus,
-    default: ProductReviewStatus.PENDING,
-  })
-  status!: ProductReviewStatus;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt!: Date;
-
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt!: Date;
-
-  @ManyToOne(() => ProductEntity, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'product_id' })
-  product!: Relation<ProductEntity>;
-
-  @ManyToOne(() => OrderEntity, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'order_id' })
-  order!: Relation<OrderEntity>;
 }
 </file>
 
@@ -41351,6 +40595,621 @@ export class ReviewsService {
     if (!review) throw new NotFoundException('Review not found');
     await this.reviewRepo.delete({ id });
   }
+}
+</file>
+
+<file path="apps/api/src/api/transactions/entities/transaction.entity.ts">
+import { Uuid } from '@/common/types/common.type';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  Relation,
+  UpdateDateColumn,
+} from 'typeorm';
+import { OrderEntity } from '../../orders/entities/order.entity';
+import { UserEntity } from '../../user/entities/user.entity';
+
+export enum TransactionType {
+  PAYMENT = 'payment',
+  REFUND = 'refund',
+  ADJUSTMENT = 'adjustment',
+  FEE = 'fee',
+}
+
+export enum TransactionMethod {
+  COD = 'cod',
+  BANK_TRANSFER = 'bank_transfer',
+  CASH = 'cash',
+  OTHER = 'other',
+}
+
+export enum TransactionStatus {
+  PENDING = 'pending',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+  VOIDED = 'voided',
+}
+
+export enum TransactionDirection {
+  IN = 'in',
+  OUT = 'out',
+}
+
+@Entity('transaction')
+@Index('IDX_transaction_order_occurred', ['orderId', 'occurredAt'])
+@Index('IDX_transaction_order_type_status', ['orderId', 'type', 'status'])
+@Index('IDX_transaction_type', ['type'])
+@Index('IDX_transaction_status', ['status'])
+@Index('IDX_transaction_method', ['method'])
+@Index('IDX_transaction_occurred', ['occurredAt'])
+export class TransactionEntity {
+  constructor(data?: Partial<TransactionEntity>) {
+    Object.assign(this, data);
+  }
+
+  @PrimaryGeneratedColumn('uuid', {
+    primaryKeyConstraintName: 'PK_transaction_id',
+  })
+  id!: Uuid;
+
+  @Column({ name: 'order_id', type: 'uuid' })
+  orderId!: Uuid;
+
+  @ManyToOne(() => OrderEntity, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'order_id' })
+  order!: Relation<OrderEntity>;
+
+  @Column({ type: 'enum', enum: TransactionType })
+  type!: TransactionType;
+
+  @Column({ type: 'enum', enum: TransactionMethod, nullable: true })
+  method: TransactionMethod | null;
+
+  @Column({ type: 'int' })
+  amount!: number;
+
+  @Column({ type: 'enum', enum: TransactionDirection })
+  direction!: TransactionDirection;
+
+  @Column({
+    type: 'enum',
+    enum: TransactionStatus,
+    default: TransactionStatus.COMPLETED,
+  })
+  status!: TransactionStatus;
+
+  @Column({
+    name: 'reference_no',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
+  referenceNo: string | null;
+
+  @Column({ name: 'reference_note', type: 'text', nullable: true })
+  referenceNote: string | null;
+
+  @Column({ name: 'occurred_at', type: 'timestamptz' })
+  occurredAt!: Date;
+
+  @Column({ name: 'created_by_admin_id', type: 'uuid', nullable: true })
+  createdByAdminId: Uuid | null;
+
+  @ManyToOne(() => UserEntity, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'created_by_admin_id' })
+  createdByAdmin: Relation<UserEntity> | null;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
+}
+</file>
+
+<file path="apps/api/src/api/user/dto/user.res.dto.ts">
+import {
+  ClassField,
+  StringField,
+  StringFieldOptional,
+} from '@/decorators/field.decorators';
+import { Exclude, Expose } from 'class-transformer';
+
+@Exclude()
+export class UserResDto {
+  @StringField()
+  @Expose()
+  id: string;
+
+  @StringField()
+  @Expose()
+  username: string;
+
+  @StringField()
+  @Expose()
+  email: string;
+
+  @StringFieldOptional()
+  @Expose()
+  bio?: string;
+
+  @StringField()
+  @Expose()
+  image: string;
+
+  @ClassField(() => Date)
+  @Expose()
+  createdAt: Date;
+
+  @ClassField(() => Date)
+  @Expose()
+  updatedAt: Date;
+}
+</file>
+
+<file path="apps/api/src/api/user/entities/session.entity.ts">
+import { Uuid } from '@/common/types/common.type';
+import { AbstractEntity } from '@/database/entities/abstract.entity';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { UserEntity } from './user.entity';
+
+@Entity('session')
+@Index('IDX_session_user_id', ['userId'])
+export class SessionEntity extends AbstractEntity {
+  constructor(data?: Partial<SessionEntity>) {
+    super();
+    Object.assign(this, data);
+  }
+
+  @PrimaryGeneratedColumn('uuid', {
+    primaryKeyConstraintName: 'PK_session_id',
+  })
+  id!: Uuid;
+
+  @Column({
+    name: 'hash',
+    type: 'varchar',
+    length: 255,
+  })
+  hash!: string;
+
+  @Column({
+    name: 'user_id',
+    type: 'uuid',
+  })
+  userId: Uuid;
+
+  @JoinColumn({
+    name: 'user_id',
+    referencedColumnName: 'id',
+    foreignKeyConstraintName: 'FK_session_user',
+  })
+  @ManyToOne(() => UserEntity, (user) => user.sessions)
+  user!: UserEntity;
+}
+</file>
+
+<file path="apps/api/src/api/user/entities/user.entity.ts">
+import { Uuid } from '@/common/types/common.type';
+import { AbstractEntity } from '@/database/entities/abstract.entity';
+import { hashPassword as hashPass } from '@/utils/password.util';
+import {
+  BeforeInsert,
+  BeforeUpdate,
+  Column,
+  DeleteDateColumn,
+  Entity,
+  Index,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { SessionEntity } from './session.entity';
+
+@Entity('user')
+export class UserEntity extends AbstractEntity {
+  constructor(data?: Partial<UserEntity>) {
+    super();
+    Object.assign(this, data);
+  }
+
+  @PrimaryGeneratedColumn('uuid', { primaryKeyConstraintName: 'PK_user_id' })
+  id!: Uuid;
+
+  @Column({
+    length: 50,
+    nullable: true,
+  })
+  @Index('UQ_user_username', {
+    where: '"deleted_at" IS NULL',
+    unique: true,
+  })
+  username: string;
+
+  @Column()
+  @Index('UQ_user_email', { where: '"deleted_at" IS NULL', unique: true })
+  email!: string;
+
+  @Column()
+  password!: string;
+
+  @Column({ default: '' })
+  bio?: string;
+
+  @Column({ default: '' })
+  image?: string;
+
+  @DeleteDateColumn({
+    name: 'deleted_at',
+    type: 'timestamptz',
+    default: null,
+  })
+  deletedAt: Date;
+
+  @OneToMany(() => SessionEntity, (session) => session.user)
+  sessions?: SessionEntity[];
+
+  @BeforeInsert()
+  @BeforeUpdate()
+  async hashPassword() {
+    if (this.password) {
+      this.password = await hashPass(this.password);
+    }
+  }
+}
+</file>
+
+<file path="apps/api/src/api/user/user.controller.spec.ts">
+import { Uuid } from '@/common/types/common.type';
+import { Test, TestingModule } from '@nestjs/testing';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
+import { CreateUserReqDto } from './dto/create-user.req.dto';
+import { UserResDto } from './dto/user.res.dto';
+import { UserController } from './user.controller';
+import { UserService } from './user.service';
+
+describe('UserController', () => {
+  let controller: UserController;
+  let service: UserService;
+  let userServiceValue: Partial<Record<keyof UserService, jest.Mock>>;
+
+  beforeAll(async () => {
+    userServiceValue = {
+      findOne: jest.fn(),
+      create: jest.fn(),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [UserController],
+      providers: [
+        {
+          provide: UserService,
+          useValue: userServiceValue,
+        },
+      ],
+    }).compile();
+
+    controller = module.get<UserController>(UserController);
+    service = module.get<UserService>(UserService);
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+    expect(service).toBeDefined();
+  });
+
+  // TODO: write unit tests for getCurrentUser method
+
+  describe('createUser', () => {
+    it('should return a user', async () => {
+      const createUserReqDto = {
+        username: 'john',
+        email: 'mail@example.com',
+        password: 'password',
+        bio: 'bio',
+        image: 'image',
+      } as CreateUserReqDto;
+
+      const userResDto = new UserResDto();
+      userResDto.id = '1';
+      userResDto.username = 'john';
+      userResDto.email = 'mail@example.com';
+      userResDto.bio = 'bio';
+      userResDto.image = 'image';
+      userResDto.createdAt = new Date();
+      userResDto.updatedAt = new Date();
+
+      userServiceValue.create.mockReturnValue(userResDto);
+      const user = await controller.createUser(createUserReqDto);
+
+      expect(user).toBe(userResDto);
+      expect(userServiceValue.create).toHaveBeenCalledWith(createUserReqDto);
+      expect(userServiceValue.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return null', async () => {
+      userServiceValue.create.mockReturnValue(null);
+      const user = await controller.createUser({} as CreateUserReqDto);
+
+      expect(user).toBeNull();
+      expect(userServiceValue.create).toHaveBeenCalledWith({});
+      expect(userServiceValue.create).toHaveBeenCalledTimes(1);
+    });
+
+    describe('CreateUserReqDto', () => {
+      let createUserReqDto: CreateUserReqDto;
+
+      beforeEach(() => {
+        createUserReqDto = plainToInstance(CreateUserReqDto, {
+          username: 'john',
+          email: 'mail@example.com',
+          password: 'password',
+          bio: 'bio',
+          image: 'image',
+        });
+      });
+
+      it('should success with correctly data', async () => {
+        const errors = await validate(createUserReqDto);
+        expect(errors.length).toEqual(0);
+      });
+
+      it('should fail with empty username', async () => {
+        createUserReqDto.username = '';
+        const errors = await validate(createUserReqDto);
+        expect(errors.length).toEqual(1);
+        expect(errors[0].constraints).toEqual({
+          minLength: 'username must be longer than or equal to 1 characters',
+        });
+      });
+
+      it('should fail with empty email', async () => {
+        createUserReqDto.email = '';
+        const errors = await validate(createUserReqDto);
+        expect(errors.length).toEqual(1);
+        expect(errors[0].property).toBe('email');
+      });
+
+      it('should fail with invalid email', async () => {
+        createUserReqDto.email = 'invalid-email';
+        const errors = await validate(createUserReqDto);
+        expect(errors.length).toEqual(1);
+        expect(errors[0].constraints).toEqual({
+          isEmail: 'email must be an email',
+        });
+      });
+
+      it('should fail with empty password', async () => {
+        createUserReqDto.password = '';
+        const errors = await validate(createUserReqDto);
+        expect(errors.length).toEqual(1);
+        expect(errors[0].constraints).toEqual({
+          minLength: 'password must be longer than or equal to 6 characters',
+        });
+      });
+
+      it('should fail with invalid password', async () => {
+        createUserReqDto.password = 'invalid-password';
+        const errors = await validate(createUserReqDto);
+        expect(errors.length).toEqual(1);
+        expect(errors[0].constraints).toEqual({
+          isPassword: 'password is invalid',
+        });
+      });
+
+      it('should fail with empty bio', async () => {
+        createUserReqDto.bio = '';
+        const errors = await validate(createUserReqDto);
+        expect(errors.length).toEqual(1);
+        expect(errors[0].constraints).toEqual({
+          minLength: 'bio must be longer than or equal to 1 characters',
+        });
+      });
+
+      it('should success with bio is null', async () => {
+        createUserReqDto.bio = null;
+        const errors = await validate(createUserReqDto);
+        expect(errors.length).toEqual(0);
+      });
+
+      it('should success with bio is undefined', async () => {
+        createUserReqDto.bio = undefined;
+        const errors = await validate(createUserReqDto);
+        expect(errors.length).toEqual(0);
+      });
+
+      it('should fail with empty image', async () => {
+        createUserReqDto.image = '';
+        const errors = await validate(createUserReqDto);
+        expect(errors.length).toEqual(1);
+        expect(errors[0].constraints).toEqual({
+          minLength: 'image must be longer than or equal to 1 characters',
+        });
+      });
+
+      it('should success with image is null', async () => {
+        createUserReqDto.image = null;
+        const errors = await validate(createUserReqDto);
+        expect(errors.length).toEqual(0);
+      });
+
+      it('should success with image is undefined', async () => {
+        createUserReqDto.image = undefined;
+        const errors = await validate(createUserReqDto);
+        expect(errors.length).toEqual(0);
+      });
+    });
+  });
+
+  // TODO: write unit tests for findAllUsers method
+  // TODO: write unit tests for loadMoreUsers method
+
+  describe('findUser', () => {
+    it('should return a user', async () => {
+      const userResDto = new UserResDto();
+      userResDto.id = '1';
+      userResDto.username = 'john';
+      userResDto.email = 'mail@example.com';
+      userResDto.bio = 'bio';
+      userResDto.image = 'image';
+      userResDto.createdAt = new Date();
+      userResDto.updatedAt = new Date();
+
+      userServiceValue.findOne.mockReturnValue(userResDto);
+      const user = await controller.findUser('1' as Uuid);
+
+      expect(user).toBe(userResDto);
+      expect(userServiceValue.findOne).toHaveBeenCalledWith('1');
+      expect(userServiceValue.findOne).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return null', async () => {
+      userServiceValue.findOne.mockReturnValue(null);
+      const user = await controller.findUser('1' as Uuid);
+
+      expect(user).toBeNull();
+      expect(userServiceValue.findOne).toHaveBeenCalledWith('1');
+      expect(userServiceValue.findOne).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // TODO: write unit tests for updateUser method
+  // TODO: write unit tests for removeUser method
+  // TODO: write unit tests for changePassword method
+});
+</file>
+
+<file path="apps/api/src/api/vouchers/entities/voucher-usage.entity.ts">
+import { Uuid } from '@/common/types/common.type';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  Relation,
+} from 'typeorm';
+import { OrderEntity } from '../../orders/entities/order.entity';
+import { VoucherEntity } from './voucher.entity';
+
+@Entity('voucher_usage')
+@Index('UQ_voucher_usage_voucher_phone', ['voucherId', 'phone'], {
+  unique: true,
+})
+@Index('IDX_voucher_usage_voucher_used_at', ['voucherId', 'usedAt'])
+export class VoucherUsageEntity {
+  @PrimaryGeneratedColumn('uuid', {
+    primaryKeyConstraintName: 'PK_voucher_usage_id',
+  })
+  id!: Uuid;
+
+  @Column({ type: 'uuid' })
+  voucherId!: Uuid;
+
+  @Column({ type: 'uuid' })
+  orderId!: Uuid;
+
+  @Column({ length: 20 })
+  phone!: string;
+
+  /** VND amount actually deducted */
+  @Column({ type: 'int' })
+  discountAmount!: number;
+
+  @CreateDateColumn({ name: 'used_at', type: 'timestamptz' })
+  usedAt!: Date;
+
+  @ManyToOne(() => VoucherEntity, (v) => v.usages)
+  @JoinColumn({ name: 'voucherId' })
+  voucher: Relation<VoucherEntity>;
+
+  @ManyToOne(() => OrderEntity)
+  @JoinColumn({ name: 'orderId' })
+  order: Relation<OrderEntity>;
+}
+</file>
+
+<file path="apps/api/src/api/vouchers/entities/voucher.entity.ts">
+import { Uuid } from '@/common/types/common.type';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  Relation,
+  UpdateDateColumn,
+} from 'typeorm';
+import { VoucherUsageEntity } from './voucher-usage.entity';
+
+export enum DiscountType {
+  PERCENTAGE = 'percentage',
+  FIXED = 'fixed',
+}
+
+@Entity('voucher')
+@Index('IDX_voucher_created_at', ['createdAt'])
+export class VoucherEntity {
+  @PrimaryGeneratedColumn('uuid', { primaryKeyConstraintName: 'PK_voucher_id' })
+  id!: Uuid;
+
+  @Column({ length: 50 })
+  @Index('UQ_voucher_code', { unique: true })
+  code!: string; // always stored uppercase
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  description: string | null;
+
+  @Column({ type: 'enum', enum: DiscountType })
+  discountType!: DiscountType;
+
+  /** Percent (1-100) or VND amount */
+  @Column({ type: 'int' })
+  discountValue!: number;
+
+  @Column({ type: 'int', nullable: true })
+  minOrderAmount: number | null;
+
+  /** null = unlimited */
+  @Column({ type: 'int', nullable: true })
+  maxUses: number | null;
+
+  @Column({ type: 'int', default: 0 })
+  usedCount!: number;
+
+  @Column({ type: 'boolean', default: true })
+  isActive!: boolean;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  expiresAt: Date | null;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
+
+  @OneToMany(() => VoucherUsageEntity, (u) => u.voucher)
+  usages: Relation<VoucherUsageEntity[]>;
 }
 </file>
 
@@ -51690,6 +51549,56 @@ export class ArticlesService {
 }
 </file>
 
+<file path="apps/api/src/api/media/entities/media.entity.ts">
+import { Uuid } from '@/common/types/common.type';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+
+export enum MediaResourceType {
+  IMAGE = 'image',
+  VIDEO = 'video',
+  RAW = 'raw',
+}
+
+@Entity('media')
+@Index('IDX_media_folder_created_at', ['folder', 'createdAt'])
+export class MediaEntity {
+  constructor(data?: Partial<MediaEntity>) {
+    Object.assign(this, data);
+  }
+
+  @PrimaryGeneratedColumn('uuid', { primaryKeyConstraintName: 'PK_media_id' })
+  id!: Uuid;
+
+  @Column({ length: 255 })
+  cloudinaryPublicId!: string; // Cloudinary public_id for deletion/transforms
+
+  @Column({ length: 1000 })
+  url!: string; // Cloudinary delivery URL
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  filename: string | null;
+
+  @Column({
+    type: 'enum',
+    enum: MediaResourceType,
+    default: MediaResourceType.IMAGE,
+  })
+  resourceType!: MediaResourceType;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  folder: string | null; // Cloudinary folder (products, articles, etc.)
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+}
+</file>
+
 <file path="apps/api/src/api/media/media.controller.ts">
 import { OffsetPaginatedDto } from '@/common/dto/offset-pagination/paginated.dto';
 import { Uuid } from '@/common/types/common.type';
@@ -51910,130 +51819,6 @@ export class PublicOrderSummaryResDto {
   @Expose()
   @Type(() => PublicOrderStatusHistoryResDto)
   statusHistory!: PublicOrderStatusHistoryResDto[];
-}
-</file>
-
-<file path="apps/api/src/api/orders/entities/order.entity.ts">
-import { Uuid } from '@/common/types/common.type';
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  Index,
-  JoinColumn,
-  ManyToOne,
-  OneToMany,
-  PrimaryGeneratedColumn,
-  Relation,
-  UpdateDateColumn,
-} from 'typeorm';
-import { VoucherEntity } from '../../vouchers/entities/voucher.entity';
-import { OrderItemEntity } from './order-item.entity';
-
-export enum PaymentMethod {
-  COD = 'cod',
-  BANK_TRANSFER = 'bank_transfer',
-}
-
-export enum PaymentStatus {
-  PENDING = 'pending',
-  PAID = 'paid',
-  FAILED = 'failed',
-}
-
-export enum OrderStatus {
-  PENDING = 'pending',
-  CONFIRMED = 'confirmed',
-  SHIPPING = 'shipping',
-  DELIVERED = 'delivered',
-  CANCELLED = 'cancelled',
-}
-
-@Entity('order')
-@Index('IDX_order_created_at', ['createdAt'])
-@Index('IDX_order_status_created_at', ['orderStatus', 'createdAt'])
-@Index('IDX_order_payment_status_created_at', ['paymentStatus', 'createdAt'])
-@Index('IDX_order_sepay_sweep', ['createdAt'], {
-  where: `"sepay_transaction_id" IS NULL AND "paymentMethod" = 'bank_transfer' AND "paymentStatus" = 'pending' AND "orderStatus" = 'pending'`,
-})
-export class OrderEntity {
-  constructor(data?: Partial<OrderEntity>) {
-    Object.assign(this, data);
-  }
-
-  @PrimaryGeneratedColumn('uuid', { primaryKeyConstraintName: 'PK_order_id' })
-  id!: Uuid;
-
-  @Column({ length: 20, unique: true })
-  @Index('UQ_order_code', { unique: true })
-  code!: string; // e.g. LN-260329-1234
-
-  @Column({ length: 100 })
-  customerName!: string;
-
-  @Column({ length: 20 })
-  phone!: string;
-
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  email: string | null;
-
-  @Column({ type: 'text' })
-  address!: string;
-
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  province: string | null;
-
-  @Column({ type: 'int' })
-  total!: number; // VND integer
-
-  @Column({ type: 'int', default: 0 })
-  discountAmount!: number; // VND deducted; 0 if no voucher
-
-  @Column({ type: 'varchar', length: 50, nullable: true })
-  voucherCode: string | null; // snapshot of code used
-
-  @Column({ name: 'voucher_id', type: 'uuid', nullable: true })
-  @Index('IDX_order_voucher_id')
-  voucherId: Uuid | null;
-
-  @ManyToOne(() => VoucherEntity, { nullable: true, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'voucher_id' })
-  voucher: Relation<VoucherEntity> | null;
-
-  @Column({ type: 'enum', enum: PaymentMethod, default: PaymentMethod.COD })
-  paymentMethod!: PaymentMethod;
-
-  @Column({
-    name: 'sepay_transaction_id',
-    type: 'varchar',
-    length: 100,
-    nullable: true,
-  })
-  @Index('UQ_order_sepay_transaction_id', { unique: true })
-  sepayTransactionId: string | null;
-
-  @Column({ name: 'sepay_paid_at', type: 'timestamptz', nullable: true })
-  sepayPaidAt: Date | null;
-
-  @Column({ type: 'enum', enum: PaymentStatus, default: PaymentStatus.PENDING })
-  @Index('IDX_order_payment_status')
-  paymentStatus!: PaymentStatus;
-
-  @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING })
-  @Index('IDX_order_status')
-  orderStatus!: OrderStatus;
-
-  @Column({ type: 'text', nullable: true })
-  notes: string | null;
-
-  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
-  createdAt!: Date;
-
-  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
-  updatedAt!: Date;
-
-  @OneToMany(() => OrderItemEntity, (i) => i.order, { cascade: true })
-  items: Relation<OrderItemEntity[]>;
 }
 </file>
 
@@ -52451,8 +52236,9 @@ export class ProductResDto {
 }
 </file>
 
-<file path="apps/api/src/api/products/entities/product.entity.ts">
-import { CategoryEntity } from '@/api/categories/entities/category.entity';
+<file path="apps/api/src/api/reviews/entities/product-review.entity.ts">
+import { OrderEntity } from '@/api/orders/entities/order.entity';
+import { ProductEntity } from '@/api/products/entities/product.entity';
 import { Uuid } from '@/common/types/common.type';
 import {
   Column,
@@ -52461,70 +52247,69 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
-  OneToMany,
   PrimaryGeneratedColumn,
   Relation,
+  Unique,
   UpdateDateColumn,
 } from 'typeorm';
-import { ProductVariantEntity } from './product-variant.entity';
 
-@Entity('product')
-@Index('IDX_product_active_created_at', ['active', 'createdAt'])
-@Index('IDX_product_active_category_created_at', [
-  'active',
-  'categoryId',
+export enum ProductReviewStatus {
+  PENDING = 'pending',
+  PUBLISHED = 'published',
+  REJECTED = 'rejected',
+}
+
+@Entity('product_review')
+@Unique('UQ_product_review_order_product', ['orderId', 'productId'])
+@Index('IDX_product_review_product_status_created_at', [
+  'productId',
+  'status',
   'createdAt',
 ])
-export class ProductEntity {
-  constructor(data?: Partial<ProductEntity>) {
-    Object.assign(this, data);
-  }
-
-  @PrimaryGeneratedColumn('uuid', { primaryKeyConstraintName: 'PK_product_id' })
+@Index('IDX_product_review_status_created_at', ['status', 'createdAt'])
+export class ProductReviewEntity {
+  @PrimaryGeneratedColumn('uuid', {
+    primaryKeyConstraintName: 'PK_product_review_id',
+  })
   id!: Uuid;
 
-  @Column({ length: 255 })
-  name!: string;
+  @Column({ type: 'uuid', name: 'product_id' })
+  productId!: Uuid;
 
-  @Column({ length: 255, unique: true })
-  @Index('UQ_product_slug', { unique: true })
-  slug!: string;
+  @Column({ type: 'uuid', name: 'order_id' })
+  orderId!: Uuid;
 
-  @Column({ type: 'text', nullable: true })
-  description: string | null;
-
-  @Column({ type: 'text', nullable: true })
-  summary: string | null;
+  @Column({ type: 'smallint' })
+  rating!: number; // 1..5
 
   @Column({ type: 'text', nullable: true })
-  descriptionHtml: string | null;
+  comment: string | null;
 
-  @Column({ type: 'int', default: 0 })
-  basePrice!: number; // VND integer
+  @Column({ name: 'is_anonymous', type: 'boolean', default: false })
+  isAnonymous!: boolean;
 
-  @Column({ type: 'simple-array', nullable: true })
-  images: string[];
+  @Column({
+    name: 'variant_label_snapshot',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  variantLabelSnapshot: string | null;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  featuredImageUrl: string | null;
+  @Column({
+    name: 'public_reviewer_label',
+    type: 'varchar',
+    length: 120,
+    nullable: true,
+  })
+  publicReviewerLabel: string | null;
 
-  @Column({ length: 50, default: 'other' })
-  category!: string;
-
-  @Column({ name: 'category_id', type: 'uuid', nullable: true })
-  @Index('IDX_product_category_id')
-  categoryId!: string | null;
-
-  @ManyToOne(() => CategoryEntity, { nullable: true, onDelete: 'RESTRICT' })
-  @JoinColumn({ name: 'category_id' })
-  categoryRef?: Relation<CategoryEntity>;
-
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  videoUrl: string | null;
-
-  @Column({ default: true })
-  @Index('IDX_product_active')
-  active!: boolean;
+  @Column({
+    type: 'enum',
+    enum: ProductReviewStatus,
+    default: ProductReviewStatus.PENDING,
+  })
+  status!: ProductReviewStatus;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
@@ -52532,8 +52317,13 @@ export class ProductEntity {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
 
-  @OneToMany(() => ProductVariantEntity, (v) => v.product, { cascade: true })
-  variants: Relation<ProductVariantEntity[]>;
+  @ManyToOne(() => ProductEntity, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'product_id' })
+  product!: Relation<ProductEntity>;
+
+  @ManyToOne(() => OrderEntity, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'order_id' })
+  order!: Relation<OrderEntity>;
 }
 </file>
 
@@ -57038,6 +56828,130 @@ export class OrderResDto {
 }
 </file>
 
+<file path="apps/api/src/api/orders/entities/order.entity.ts">
+import { Uuid } from '@/common/types/common.type';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  Relation,
+  UpdateDateColumn,
+} from 'typeorm';
+import { VoucherEntity } from '../../vouchers/entities/voucher.entity';
+import { OrderItemEntity } from './order-item.entity';
+
+export enum PaymentMethod {
+  COD = 'cod',
+  BANK_TRANSFER = 'bank_transfer',
+}
+
+export enum PaymentStatus {
+  PENDING = 'pending',
+  PAID = 'paid',
+  FAILED = 'failed',
+}
+
+export enum OrderStatus {
+  PENDING = 'pending',
+  CONFIRMED = 'confirmed',
+  SHIPPING = 'shipping',
+  DELIVERED = 'delivered',
+  CANCELLED = 'cancelled',
+}
+
+@Entity('order')
+@Index('IDX_order_created_at', ['createdAt'])
+@Index('IDX_order_status_created_at', ['orderStatus', 'createdAt'])
+@Index('IDX_order_payment_status_created_at', ['paymentStatus', 'createdAt'])
+@Index('IDX_order_sepay_sweep', ['createdAt'], {
+  where: `"sepay_transaction_id" IS NULL AND "paymentMethod" = 'bank_transfer' AND "paymentStatus" = 'pending' AND "orderStatus" = 'pending'`,
+})
+export class OrderEntity {
+  constructor(data?: Partial<OrderEntity>) {
+    Object.assign(this, data);
+  }
+
+  @PrimaryGeneratedColumn('uuid', { primaryKeyConstraintName: 'PK_order_id' })
+  id!: Uuid;
+
+  @Column({ length: 20, unique: true })
+  @Index('UQ_order_code', { unique: true })
+  code!: string; // e.g. LN-260329-1234
+
+  @Column({ length: 100 })
+  customerName!: string;
+
+  @Column({ length: 20 })
+  phone!: string;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  email: string | null;
+
+  @Column({ type: 'text' })
+  address!: string;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  province: string | null;
+
+  @Column({ type: 'int' })
+  total!: number; // VND integer
+
+  @Column({ type: 'int', default: 0 })
+  discountAmount!: number; // VND deducted; 0 if no voucher
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  voucherCode: string | null; // snapshot of code used
+
+  @Column({ name: 'voucher_id', type: 'uuid', nullable: true })
+  @Index('IDX_order_voucher_id')
+  voucherId: Uuid | null;
+
+  @ManyToOne(() => VoucherEntity, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'voucher_id' })
+  voucher: Relation<VoucherEntity> | null;
+
+  @Column({ type: 'enum', enum: PaymentMethod, default: PaymentMethod.COD })
+  paymentMethod!: PaymentMethod;
+
+  @Column({
+    name: 'sepay_transaction_id',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
+  @Index('UQ_order_sepay_transaction_id', { unique: true })
+  sepayTransactionId: string | null;
+
+  @Column({ name: 'sepay_paid_at', type: 'timestamptz', nullable: true })
+  sepayPaidAt: Date | null;
+
+  @Column({ type: 'enum', enum: PaymentStatus, default: PaymentStatus.PENDING })
+  @Index('IDX_order_payment_status')
+  paymentStatus!: PaymentStatus;
+
+  @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING })
+  @Index('IDX_order_status')
+  orderStatus!: OrderStatus;
+
+  @Column({ type: 'text', nullable: true })
+  notes: string | null;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
+
+  @OneToMany(() => OrderItemEntity, (i) => i.order, { cascade: true })
+  items: Relation<OrderItemEntity[]>;
+}
+</file>
+
 <file path="apps/api/src/api/products/dto/create-product.req.dto.ts">
 import {
   BooleanFieldOptional,
@@ -57175,6 +57089,92 @@ export class UpdateProductReqDto {
   @ValidateNested({ each: true })
   @Type(() => CreateProductVariantDto)
   variants?: CreateProductVariantDto[];
+}
+</file>
+
+<file path="apps/api/src/api/products/entities/product.entity.ts">
+import { CategoryEntity } from '@/api/categories/entities/category.entity';
+import { Uuid } from '@/common/types/common.type';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  Relation,
+  UpdateDateColumn,
+} from 'typeorm';
+import { ProductVariantEntity } from './product-variant.entity';
+
+@Entity('product')
+@Index('IDX_product_active_created_at', ['active', 'createdAt'])
+@Index('IDX_product_active_category_created_at', [
+  'active',
+  'categoryId',
+  'createdAt',
+])
+export class ProductEntity {
+  constructor(data?: Partial<ProductEntity>) {
+    Object.assign(this, data);
+  }
+
+  @PrimaryGeneratedColumn('uuid', { primaryKeyConstraintName: 'PK_product_id' })
+  id!: Uuid;
+
+  @Column({ length: 255 })
+  name!: string;
+
+  @Column({ length: 255, unique: true })
+  @Index('UQ_product_slug', { unique: true })
+  slug!: string;
+
+  @Column({ type: 'text', nullable: true })
+  description: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  summary: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  descriptionHtml: string | null;
+
+  @Column({ type: 'int', default: 0 })
+  basePrice!: number; // VND integer
+
+  @Column({ type: 'simple-array', nullable: true })
+  images: string[];
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  featuredImageUrl: string | null;
+
+  @Column({ length: 50, default: 'other' })
+  category!: string;
+
+  @Column({ name: 'category_id', type: 'uuid', nullable: true })
+  @Index('IDX_product_category_id')
+  categoryId!: string | null;
+
+  @ManyToOne(() => CategoryEntity, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'category_id' })
+  categoryRef?: Relation<CategoryEntity>;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  videoUrl: string | null;
+
+  @Column({ default: true })
+  @Index('IDX_product_active')
+  active!: boolean;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt!: Date;
+
+  @OneToMany(() => ProductVariantEntity, (v) => v.product, { cascade: true })
+  variants: Relation<ProductVariantEntity[]>;
 }
 </file>
 
@@ -60193,53 +60193,6 @@ export class OrdersController {
 }
 </file>
 
-<file path="apps/api/src/api/api.module.ts">
-import { Module } from '@nestjs/common';
-import { ThrottlerModule } from '@nestjs/throttler';
-import { SepayModule } from '../integrations/sepay/sepay.module';
-import { ArticlesModule } from './articles/articles.module';
-import { AuthModule } from './auth/auth.module';
-import { CategoriesModule } from './categories/categories.module';
-import { DashboardModule } from './dashboard/dashboard.module';
-import { HealthModule } from './health/health.module';
-import { HomeModule } from './home/home.module';
-import { MediaModule } from './media/media.module';
-import { OrdersModule } from './orders/orders.module';
-import { PaymentsModule } from './payments/payments.module';
-import { ProductsModule } from './products/products.module';
-import { ReviewsModule } from './reviews/reviews.module';
-import { TransactionsModule } from './transactions/transactions.module';
-import { UserModule } from './user/user.module';
-import { VouchersModule } from './vouchers/vouchers.module';
-
-@Module({
-  imports: [
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60_000,
-        limit: 1_000,
-      },
-    ]),
-    UserModule,
-    HealthModule,
-    AuthModule,
-    HomeModule,
-    ProductsModule,
-    CategoriesModule,
-    ReviewsModule,
-    OrdersModule,
-    VouchersModule,
-    ArticlesModule,
-    MediaModule,
-    DashboardModule,
-    TransactionsModule,
-    SepayModule,
-    PaymentsModule,
-  ],
-})
-export class ApiModule {}
-</file>
-
 <file path="apps/web/src/components/landing/landing-hero.tsx">
 import Image from 'next/image';
 import {
@@ -61651,7 +61604,7 @@ test-e2e:
 
 <file path="package.json">
 {
-  "name": "longnhantongtran",
+  "name": "nhanhungyen.com",
   "private": true,
   "pnpm": {
     "ignoredBuiltDependencies": [
@@ -62638,6 +62591,53 @@ export class ProductsController {
 }
 </file>
 
+<file path="apps/api/src/api/api.module.ts">
+import { Module } from '@nestjs/common';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { SepayModule } from '../integrations/sepay/sepay.module';
+import { ArticlesModule } from './articles/articles.module';
+import { AuthModule } from './auth/auth.module';
+import { CategoriesModule } from './categories/categories.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { HealthModule } from './health/health.module';
+import { HomeModule } from './home/home.module';
+import { MediaModule } from './media/media.module';
+import { OrdersModule } from './orders/orders.module';
+import { PaymentsModule } from './payments/payments.module';
+import { ProductsModule } from './products/products.module';
+import { ReviewsModule } from './reviews/reviews.module';
+import { TransactionsModule } from './transactions/transactions.module';
+import { UserModule } from './user/user.module';
+import { VouchersModule } from './vouchers/vouchers.module';
+
+@Module({
+  imports: [
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60_000,
+        limit: 1_000,
+      },
+    ]),
+    UserModule,
+    HealthModule,
+    AuthModule,
+    HomeModule,
+    ProductsModule,
+    CategoriesModule,
+    ReviewsModule,
+    OrdersModule,
+    VouchersModule,
+    ArticlesModule,
+    MediaModule,
+    DashboardModule,
+    TransactionsModule,
+    SepayModule,
+    PaymentsModule,
+  ],
+})
+export class ApiModule {}
+</file>
+
 <file path="apps/web/src/app/globals.css">
 @import 'tailwindcss';
 @import '../components/articles/article-tiptap-content.css';
@@ -62788,7 +62788,7 @@ import Footer from '@/components/layout/footer';
 import FloatingContactWidget from '@/components/layout/floating-contact-widget';
 import BackToTopButton from '@/components/ui/back-to-top-button';
 import { LANDING_SEO } from '@/data/landing-page-content';
-import { SITE_URL } from '@/lib/constants';
+import { GOOGLE_VERIFICATION, SITE_URL } from '@/lib/constants';
 import { PWA_CONFIG } from '@/lib/pwa-config';
 import { buildSeoMetadata } from '@/lib/seo';
 import { buildOrganizationSchema } from '@/lib/structured-data';
@@ -62854,6 +62854,9 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
+  },
+  verification: {
+    google: GOOGLE_VERIFICATION,
   },
 };
 
@@ -72615,6 +72618,195 @@ export default async function ProductDetailPage({
 }
 </file>
 
+<file path="apps/web/src/app/page.tsx">
+import FeaturedProducts from '@/components/home/featured-products';
+import VideoSection from '@/components/home/video-section';
+import { LandingArticlesPreview } from '@/components/landing/landing-articles-preview';
+import { LandingCategoryCarousel } from '@/components/landing/landing-category-carousel';
+import { LandingFaq } from '@/components/landing/landing-faq';
+import { LandingHero } from '@/components/landing/landing-hero';
+import { LandingImageAlbum } from '@/components/landing/landing-image-album';
+import { LandingStory } from '@/components/landing/landing-story';
+import { LandingTestimonialsTrust } from '@/components/landing/landing-testimonials-trust';
+import ScrollReveal from '@/components/ui/scroll-reveal';
+import {
+  LANDING_IMAGE_ALBUM,
+  LANDING_VIDEO_ALBUM_URLS,
+} from '@/data/landing-page-content';
+import { fetchApi, fetchPaginated } from '@/lib/api-client';
+import { homeContentTags } from '@/lib/content-cache-tags';
+import { captureHomeContentFetchError } from '@/lib/observability/api-fetch-sentry';
+import { buildLandingCategoryNav } from '@/lib/landing-category-nav';
+import type { Article, Category, Product } from '@longnhan/types';
+import { cacheLife, cacheTag } from 'next/cache';
+import { connection } from 'next/server';
+
+async function getHomeProducts(): Promise<Product[]> {
+  'use cache';
+  cacheTag(homeContentTags.featuredProducts);
+  cacheLife({ revalidate: 300 });
+  try {
+    const response = await fetchPaginated<Product>('/products', { limit: 8 });
+    return response.data;
+  } catch (error) {
+    captureHomeContentFetchError('products', error);
+    return [];
+  }
+}
+
+async function getHomeCategories(): Promise<Category[]> {
+  'use cache';
+  cacheTag(homeContentTags.categories);
+  cacheLife({ revalidate: 300 });
+  try {
+    return await fetchApi<Category[]>('/categories');
+  } catch (error) {
+    captureHomeContentFetchError('categories', error);
+    return [];
+  }
+}
+
+async function getHomeArticles(): Promise<Article[]> {
+  'use cache';
+  cacheTag(homeContentTags.articles);
+  cacheLife({ revalidate: 300 });
+  try {
+    const response = await fetchPaginated<Article>('/articles', {
+      limit: 4,
+      page: 1,
+    });
+    return response.data;
+  } catch (error) {
+    captureHomeContentFetchError('articles', error);
+    return [];
+  }
+}
+
+export default async function Home() {
+  await connection();
+  const [categories, products, articles] = await Promise.all([
+    getHomeCategories(),
+    getHomeProducts(),
+    getHomeArticles(),
+  ]);
+  const categoryNavItems = buildLandingCategoryNav(categories);
+  const productVideos = products
+    .map((p) => p.videoUrl)
+    .filter(Boolean) as string[];
+
+  return (
+    <div className="landing-page bg-(--brand-cream) text-(--brand-forest)">
+      <ScrollReveal>
+        <LandingHero />
+      </ScrollReveal>
+      <ScrollReveal delayMs={60}>
+        <LandingCategoryCarousel navItems={categoryNavItems} />
+      </ScrollReveal>
+      <ScrollReveal delayMs={80}>
+        <FeaturedProducts products={products} />
+      </ScrollReveal>
+      <ScrollReveal delayMs={100}>
+        <LandingArticlesPreview articles={articles} />
+      </ScrollReveal>
+      <ScrollReveal delayMs={220}>
+        <LandingStory />
+      </ScrollReveal>
+      <ScrollReveal delayMs={240}>
+        <LandingFaq />
+      </ScrollReveal>
+      {LANDING_VIDEO_ALBUM_URLS.length > 0 ? (
+        <ScrollReveal delayMs={248}>
+          <VideoSection
+            videoUrls={[...LANDING_VIDEO_ALBUM_URLS]}
+            title="Video chia sẻ"
+            sectionId="video-album"
+          />
+        </ScrollReveal>
+      ) : null}
+      <ScrollReveal delayMs={252}>
+        <LandingImageAlbum
+          sectionTitle="Hình ảnh & không gian"
+          sectionSubtitle="Hình ảnh minh họa từ vườn nhãn và sản phẩm"
+          items={LANDING_IMAGE_ALBUM}
+        />
+      </ScrollReveal>
+      <ScrollReveal delayMs={260}>
+        <VideoSection videoUrls={productVideos} />
+      </ScrollReveal>
+      <ScrollReveal delayMs={280}>
+        <section className="landing-section landing-section--decor-cta">
+          <LandingTestimonialsTrust />
+        </section>
+      </ScrollReveal>
+    </div>
+  );
+}
+</file>
+
+<file path="apps/web/package.json">
+{
+  "name": "@longnhan/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@longnhan/types": "workspace:*",
+    "@marsidev/react-turnstile": "^1.5.1",
+    "@radix-ui/react-accordion": "^1.2.12",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-icons": "^1.3.2",
+    "@radix-ui/react-popover": "^1.1.15",
+    "@radix-ui/react-radio-group": "^1.3.8",
+    "@radix-ui/react-select": "^2.2.6",
+    "@sentry/nextjs": "^10",
+    "@tanstack/react-query": "^5.95.2",
+    "@tanstack/react-query-devtools": "^5.95.2",
+    "axios": "^1.14.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "js-cookie": "^3.0.5",
+    "lucide-react": "^0.487.0",
+    "motion": "^12.38.0",
+    "next": "16.2.1",
+    "nuqs": "^2.8.9",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-hook-form": "^7.72.0",
+    "server-only": "^0.0.1",
+    "sonner": "^1.7.4",
+    "swiper": "^12.1.3",
+    "tailwind-merge": "^3.5.0",
+    "yup": "^1.7.1",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
+    "@eslint/js": "^9.39.4",
+    "@opennextjs/cloudflare": "^1.19.1",
+    "@tailwindcss/postcss": "^4",
+    "@types/js-cookie": "^3.0.6",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.1",
+    "prettier": "^3",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "wrangler": "^4.82.2"
+  }
+}
+</file>
+
 <file path="docs/system-architecture.md">
 # System Architecture
 
@@ -73534,203 +73726,14 @@ pnpm seed:run
 - **Decorator** — Function annotation (e.g., @Post, @UseGuards)
 </file>
 
-<file path="apps/web/src/app/page.tsx">
-import FeaturedProducts from '@/components/home/featured-products';
-import VideoSection from '@/components/home/video-section';
-import { LandingArticlesPreview } from '@/components/landing/landing-articles-preview';
-import { LandingCategoryCarousel } from '@/components/landing/landing-category-carousel';
-import { LandingFaq } from '@/components/landing/landing-faq';
-import { LandingHero } from '@/components/landing/landing-hero';
-import { LandingImageAlbum } from '@/components/landing/landing-image-album';
-import { LandingStory } from '@/components/landing/landing-story';
-import { LandingTestimonialsTrust } from '@/components/landing/landing-testimonials-trust';
-import ScrollReveal from '@/components/ui/scroll-reveal';
-import {
-  LANDING_IMAGE_ALBUM,
-  LANDING_VIDEO_ALBUM_URLS,
-} from '@/data/landing-page-content';
-import { fetchApi, fetchPaginated } from '@/lib/api-client';
-import { homeContentTags } from '@/lib/content-cache-tags';
-import { captureHomeContentFetchError } from '@/lib/observability/api-fetch-sentry';
-import { buildLandingCategoryNav } from '@/lib/landing-category-nav';
-import type { Article, Category, Product } from '@longnhan/types';
-import { cacheLife, cacheTag } from 'next/cache';
-import { connection } from 'next/server';
-
-async function getHomeProducts(): Promise<Product[]> {
-  'use cache';
-  cacheTag(homeContentTags.featuredProducts);
-  cacheLife({ revalidate: 300 });
-  try {
-    const response = await fetchPaginated<Product>('/products', { limit: 8 });
-    return response.data;
-  } catch (error) {
-    captureHomeContentFetchError('products', error);
-    return [];
-  }
-}
-
-async function getHomeCategories(): Promise<Category[]> {
-  'use cache';
-  cacheTag(homeContentTags.categories);
-  cacheLife({ revalidate: 300 });
-  try {
-    return await fetchApi<Category[]>('/categories');
-  } catch (error) {
-    captureHomeContentFetchError('categories', error);
-    return [];
-  }
-}
-
-async function getHomeArticles(): Promise<Article[]> {
-  'use cache';
-  cacheTag(homeContentTags.articles);
-  cacheLife({ revalidate: 300 });
-  try {
-    const response = await fetchPaginated<Article>('/articles', {
-      limit: 4,
-      page: 1,
-    });
-    return response.data;
-  } catch (error) {
-    captureHomeContentFetchError('articles', error);
-    return [];
-  }
-}
-
-export default async function Home() {
-  await connection();
-  const [categories, products, articles] = await Promise.all([
-    getHomeCategories(),
-    getHomeProducts(),
-    getHomeArticles(),
-  ]);
-  const categoryNavItems = buildLandingCategoryNav(categories);
-  const productVideos = products
-    .map((p) => p.videoUrl)
-    .filter(Boolean) as string[];
-
-  return (
-    <div className="landing-page bg-(--brand-cream) text-(--brand-forest)">
-      <ScrollReveal>
-        <LandingHero />
-      </ScrollReveal>
-      <ScrollReveal delayMs={60}>
-        <LandingCategoryCarousel navItems={categoryNavItems} />
-      </ScrollReveal>
-      <ScrollReveal delayMs={80}>
-        <FeaturedProducts products={products} />
-      </ScrollReveal>
-      <ScrollReveal delayMs={100}>
-        <LandingArticlesPreview articles={articles} />
-      </ScrollReveal>
-      <ScrollReveal delayMs={220}>
-        <LandingStory />
-      </ScrollReveal>
-      <ScrollReveal delayMs={240}>
-        <LandingFaq />
-      </ScrollReveal>
-      {LANDING_VIDEO_ALBUM_URLS.length > 0 ? (
-        <ScrollReveal delayMs={248}>
-          <VideoSection
-            videoUrls={[...LANDING_VIDEO_ALBUM_URLS]}
-            title="Video chia sẻ"
-            sectionId="video-album"
-          />
-        </ScrollReveal>
-      ) : null}
-      <ScrollReveal delayMs={252}>
-        <LandingImageAlbum
-          sectionTitle="Hình ảnh & không gian"
-          sectionSubtitle="Hình ảnh minh họa từ vườn nhãn và sản phẩm"
-          items={LANDING_IMAGE_ALBUM}
-        />
-      </ScrollReveal>
-      <ScrollReveal delayMs={260}>
-        <VideoSection videoUrls={productVideos} />
-      </ScrollReveal>
-      <ScrollReveal delayMs={280}>
-        <section className="landing-section landing-section--decor-cta">
-          <LandingTestimonialsTrust />
-        </section>
-      </ScrollReveal>
-    </div>
-  );
-}
-</file>
-
-<file path="apps/web/package.json">
-{
-  "name": "@longnhan/web",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev --port 3000",
-    "build": "next build",
-    "start": "next start --port 3000",
-    "lint": "eslint \"src/**/*.{ts,tsx}\"",
-    "lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
-    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
-    "type-check": "tsc --noEmit"
-  },
-  "dependencies": {
-    "@hookform/resolvers": "^5.2.2",
-    "@longnhan/types": "workspace:*",
-    "@marsidev/react-turnstile": "^1.5.1",
-    "@radix-ui/react-accordion": "^1.2.12",
-    "@radix-ui/react-dialog": "^1.1.15",
-    "@radix-ui/react-icons": "^1.3.2",
-    "@radix-ui/react-popover": "^1.1.15",
-    "@radix-ui/react-radio-group": "^1.3.8",
-    "@radix-ui/react-select": "^2.2.6",
-    "@sentry/nextjs": "^10",
-    "@tanstack/react-query": "^5.95.2",
-    "@tanstack/react-query-devtools": "^5.95.2",
-    "axios": "^1.14.0",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "js-cookie": "^3.0.5",
-    "lucide-react": "^0.487.0",
-    "motion": "^12.38.0",
-    "next": "16.2.1",
-    "nuqs": "^2.8.9",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "react-hook-form": "^7.72.0",
-    "server-only": "^0.0.1",
-    "sonner": "^1.7.4",
-    "swiper": "^12.1.3",
-    "tailwind-merge": "^3.5.0",
-    "yup": "^1.7.1",
-    "zustand": "^5.0.12"
-  },
-  "devDependencies": {
-    "@eslint/eslintrc": "^3.3.5",
-    "@eslint/js": "^9.39.4",
-    "@opennextjs/cloudflare": "^1.19.1",
-    "@tailwindcss/postcss": "^4",
-    "@types/js-cookie": "^3.0.6",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.1",
-    "prettier": "^3",
-    "tailwindcss": "^4",
-    "typescript": "^5",
-    "wrangler": "^4.82.2"
-  }
-}
-</file>
-
 <file path="apps/web/src/lib/constants.ts">
-export const SITE_URL = 'https://longnhanhungyen.shop';
+export const SITE_URL = 'https://nhanhungyen.com';
 export const SITE_NAME = 'Long Nhãn Hưng Yên — Đặc Sản Tống Trân';
 export const SITE_DESCRIPTION =
   'Long nhãn Hưng Yên — đặc sản chọn lọc, quà biếu sang trọng. Giao COD toàn quốc, Shopee, TikTok, Zalo.';
 
 export const CONTACT_PHONE = '0922919456';
-export const CONTACT_EMAIL = 'thudan.td@gmail.com';
+export const CONTACT_EMAIL = 'noreply@nhanhungyen.com';
 export const CONTACT_ADDRESS = 'Tống Trân, Hưng Yên, Việt Nam';
 
 export const SOCIAL_LINKS = {
@@ -73784,6 +73787,9 @@ export const PROVINCES = [
   'TP. Cần Thơ',
   'Cà Mau',
 ];
+
+export const GOOGLE_VERIFICATION =
+  'pOGGbAnqliIaDiOAoY0ak4OVsKdUzk4UlfGMeOEx2AU';
 </file>
 
 <file path="docs/codebase-summary.md">

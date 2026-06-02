@@ -8,7 +8,7 @@ import Footer from '@/components/layout/footer';
 import FloatingContactWidget from '@/components/layout/floating-contact-widget';
 import BackToTopButton from '@/components/ui/back-to-top-button';
 import { LANDING_SEO } from '@/data/landing-page-content';
-import { SITE_URL } from '@/lib/constants';
+import { GOOGLE_VERIFICATION, SITE_URL } from '@/lib/constants';
 import { PWA_CONFIG } from '@/lib/pwa-config';
 import { buildSeoMetadata } from '@/lib/seo';
 import { buildOrganizationSchema } from '@/lib/structured-data';
@@ -74,6 +74,9 @@ export const metadata: Metadata = {
   robots: {
     index: true,
     follow: true,
+  },
+  verification: {
+    google: GOOGLE_VERIFICATION,
   },
 };
 

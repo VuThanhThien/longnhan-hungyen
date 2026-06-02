@@ -7,12 +7,12 @@ tunnel: TUNNEL_ID_REPLACE_ME
 credentials-file: /etc/cloudflared/TUNNEL_ID_REPLACE_ME.json
 
 ingress:
-  - hostname: api.longnhanhungyen.shop
+  - hostname: api.nhanhungyen.com
     service: http://api:3001
-  - hostname: www.longnhanhungyen.shop
+  - hostname: www.nhanhungyen.com
     service: http://web:3000
-  - hostname: longnhanhungyen.shop
+  - hostname: nhanhungyen.com
     service: http://web:3000
-  - hostname: admin.longnhanhungyen.shop
+  - hostname: admin.nhanhungyen.com
     service: http://admin:3002
   - service: http_status:404
