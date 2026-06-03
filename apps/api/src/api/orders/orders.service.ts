@@ -1,6 +1,6 @@
 import { OffsetPaginatedDto } from '@/common/dto/offset-pagination/paginated.dto';
-
 import { Uuid } from '@/common/types/common.type';
+import { SHIPPING_FLAT_VND } from '@/constants/order.constant';
 import { paginate } from '@/utils/offset-pagination';
 import {
   BadRequestException,
@@ -95,12 +95,12 @@ export class OrdersService {
         }
       }
 
-      // Build order items and calculate total
-      let total = 0;
+      // Build order items and calculate subtotal (shipping added server-side)
+      let itemsSubtotal = 0;
       const orderItems: Partial<OrderItemEntity>[] = dto.items.map((item) => {
         const variant = variantMap.get(item.variantId as Uuid)!;
         const subtotal = variant.price * item.qty;
-        total += subtotal;
+        itemsSubtotal += subtotal;
         return {
           variantId: variant.id,
           qty: item.qty,
@@ -117,6 +117,9 @@ export class OrdersService {
         };
       });
 
+      const shippingFee = dto.items.length > 0 ? SHIPPING_FLAT_VND : 0;
+      const orderTotalBeforeDiscount = itemsSubtotal + shippingFee;
+
       // Generate unique order code: LN-YYMMDD-XXXX
       const code = await this.generateOrderCode(em);
 
@@ -128,14 +131,14 @@ export class OrdersService {
         const voucherResult = await this.vouchersService.validateForOrder(
           em,
           dto.voucherCode.toUpperCase(),
-          total,
+          orderTotalBeforeDiscount,
           dto.phone,
         );
         discountAmount = voucherResult.discountAmount;
         voucherEntity = voucherResult.voucher;
       }
 
-      const finalTotal = total - discountAmount;
+      const finalTotal = orderTotalBeforeDiscount - discountAmount;
 
       // Create order
       const order = em.create(OrderEntity, {
@@ -205,7 +208,7 @@ export class OrdersService {
           voucherEntity.id,
           savedOrder.id,
           dto.phone,
-          total, // pre-discount total (service calculates discount itself)
+          orderTotalBeforeDiscount,
         );
       }
 

@@ -2,28 +2,22 @@ import type { Article } from '@longnhan/types';
 import ArticleCard from '@/components/articles/article-card';
 import { fetchPaginated } from '@/lib/api-client';
 import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
-import { articlesListCacheTags } from '@/lib/content-cache-tags';
-import { cacheLife, cacheTag } from 'next/cache';
 
 async function getArticles(): Promise<Article[]> {
-  'use cache';
-  cacheLife({ revalidate: 3600 });
-  cacheTag(...articlesListCacheTags());
-  const response = await fetchPaginated<Article>('/articles', { limit: 24 });
-  return response.data;
-}
-
-export async function ArticlesListingContent() {
-  let articles: Article[] = [];
-
   try {
-    articles = await getArticles();
+    const response = await fetchPaginated<Article>('/articles', { limit: 24 });
+    return response.data;
   } catch (error) {
     captureApiFetchError(error, {
       route: '/articles',
       section: 'listing',
     });
+    return [];
   }
+}
+
+export async function ArticlesListingContent() {
+  const articles = await getArticles();
 
   if (articles.length === 0) {
     return (

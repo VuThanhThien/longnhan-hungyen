@@ -738,6 +738,7 @@ apps/
         entity.enum.ts
         error-code.constant.ts
         job.constant.ts
+        order.constant.ts
         sort.enum.ts
       database/
         config/
@@ -1214,277 +1215,9 @@ This section contains the contents of the repository's files.
 
 </file>
 
-<file path="apps/web/src/components/analytics/google-analytics.tsx">
-import Script from 'next/script';
-import { GOOGLE_ANALYTICS_ID } from '@/lib/constants';
-
-export function GoogleAnalytics() {
-  return (
-    <>
-      <Script
-        src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ANALYTICS_ID}`}
-        strategy="afterInteractive"
-      />
-      <Script id="google-analytics" strategy="afterInteractive">
-        {`
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          gtag('config', '${GOOGLE_ANALYTICS_ID}');
-        `}
-      </Script>
-    </>
-  );
-}
-</file>
-
-<file path="apps/web/src/components/articles/articles-listing-content.tsx">
-import type { Article } from '@longnhan/types';
-import ArticleCard from '@/components/articles/article-card';
-import { fetchPaginated } from '@/lib/api-client';
-import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
-import { articlesListCacheTags } from '@/lib/content-cache-tags';
-import { cacheLife, cacheTag } from 'next/cache';
-
-async function getArticles(): Promise<Article[]> {
-  'use cache';
-  cacheLife({ revalidate: 3600 });
-  cacheTag(...articlesListCacheTags());
-  const response = await fetchPaginated<Article>('/articles', { limit: 24 });
-  return response.data;
-}
-
-export async function ArticlesListingContent() {
-  let articles: Article[] = [];
-
-  try {
-    articles = await getArticles();
-  } catch (error) {
-    captureApiFetchError(error, {
-      route: '/articles',
-      section: 'listing',
-    });
-  }
-
-  if (articles.length === 0) {
-    return (
-      <p className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-600">
-        Chưa có bài viết nào.
-      </p>
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-      {articles.map((article) => (
-        <ArticleCard key={article.id} article={article} />
-      ))}
-    </div>
-  );
-}
-</file>
-
-<file path="apps/web/src/components/landing/landing-home-below-fold-fallback.tsx">
-/** Placeholder while below-the-fold home sections stream in. */
-export function LandingHomeBelowFoldFallback() {
-  return (
-    <div
-      className="landing-below-fold-fallback"
-      aria-hidden
-      data-testid="landing-below-fold-fallback"
-    >
-      <div className="mx-auto max-w-6xl px-4 py-14">
-        <div className="h-8 w-48 animate-pulse rounded-md bg-(--brand-forest)/10" />
-        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="aspect-4/3 animate-pulse rounded-xl bg-(--brand-forest)/8"
-            />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-</file>
-
-<file path="apps/web/src/components/landing/landing-home-below-fold.tsx">
-import FeaturedProducts from '@/components/home/featured-products';
-import { LandingArticlesPreview } from '@/components/landing/landing-articles-preview';
-import { LandingStory } from '@/components/landing/landing-story';
-import { LandingTestimonialsTrust } from '@/components/landing/landing-testimonials-trust';
-import ScrollReveal from '@/components/ui/scroll-reveal';
-import {
-  LANDING_IMAGE_ALBUM,
-  LANDING_VIDEO_ALBUM_URLS,
-} from '@/data/landing-page-content';
-import { fetchPaginated } from '@/lib/api-client';
-import { homeContentTags } from '@/lib/content-cache-tags';
-import { captureHomeContentFetchError } from '@/lib/observability/api-fetch-sentry';
-import type { Article, Product } from '@longnhan/types';
-import { cacheLife, cacheTag } from 'next/cache';
-import dynamic from 'next/dynamic';
-
-const VideoSection = dynamic(() => import('@/components/home/video-section'));
-const LandingFaq = dynamic(() =>
-  import('@/components/landing/landing-faq').then((m) => ({
-    default: m.LandingFaq,
-  })),
-);
-const LandingImageAlbum = dynamic(() =>
-  import('@/components/landing/landing-image-album').then((m) => ({
-    default: m.LandingImageAlbum,
-  })),
-);
-
-async function getHomeProducts(): Promise<Product[]> {
-  'use cache';
-  cacheTag(homeContentTags.featuredProducts);
-  cacheLife({ revalidate: 300 });
-  try {
-    const response = await fetchPaginated<Product>('/products', { limit: 8 });
-    return response.data;
-  } catch (error) {
-    captureHomeContentFetchError('products', error);
-    return [];
-  }
-}
-
-async function getHomeArticles(): Promise<Article[]> {
-  'use cache';
-  cacheTag(homeContentTags.articles);
-  cacheLife({ revalidate: 300 });
-  try {
-    const response = await fetchPaginated<Article>('/articles', {
-      limit: 4,
-      page: 1,
-    });
-    return response.data;
-  } catch (error) {
-    captureHomeContentFetchError('articles', error);
-    return [];
-  }
-}
-
-export async function LandingHomeBelowFold() {
-  const [products, articles] = await Promise.all([
-    getHomeProducts(),
-    getHomeArticles(),
-  ]);
-  const productVideos = products
-    .map((p) => p.videoUrl)
-    .filter(Boolean) as string[];
-
-  return (
-    <>
-      <ScrollReveal delayMs={80}>
-        <FeaturedProducts products={products} />
-      </ScrollReveal>
-      <ScrollReveal delayMs={100}>
-        <LandingArticlesPreview articles={articles} />
-      </ScrollReveal>
-      <ScrollReveal delayMs={220}>
-        <LandingStory />
-      </ScrollReveal>
-      <ScrollReveal delayMs={240}>
-        <LandingFaq />
-      </ScrollReveal>
-      {LANDING_VIDEO_ALBUM_URLS.length > 0 ? (
-        <ScrollReveal delayMs={248}>
-          <VideoSection
-            videoUrls={[...LANDING_VIDEO_ALBUM_URLS]}
-            title="Video chia sẻ"
-            sectionId="video-album"
-          />
-        </ScrollReveal>
-      ) : null}
-      <ScrollReveal delayMs={252}>
-        <LandingImageAlbum
-          sectionTitle="Hình ảnh & không gian"
-          sectionSubtitle="Hình ảnh minh họa từ vườn nhãn và sản phẩm"
-          items={LANDING_IMAGE_ALBUM}
-        />
-      </ScrollReveal>
-      <ScrollReveal delayMs={260}>
-        <VideoSection videoUrls={productVideos} />
-      </ScrollReveal>
-      <ScrollReveal delayMs={280}>
-        <section className="landing-section landing-section--decor-cta">
-          <LandingTestimonialsTrust />
-        </section>
-      </ScrollReveal>
-    </>
-  );
-}
-</file>
-
-<file path="apps/web/src/components/products/products-listing-content.tsx">
-import type { Category, Product } from '@longnhan/types';
-import CategoryFilter from '@/components/products/category-filter';
-import ProductGrid from '@/components/products/product-grid';
-import { fetchApi, fetchPaginated } from '@/lib/api-client';
-import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
-import {
-  productListingCategoriesTag,
-  productsListCacheTags,
-} from '@/lib/content-cache-tags';
-import { cacheLife, cacheTag } from 'next/cache';
-
-async function getProductListingCategories(): Promise<Category[]> {
-  'use cache';
-  cacheTag(productListingCategoriesTag);
-  cacheLife({ revalidate: 60 });
-  return fetchApi<Category[]>('/categories');
-}
-
-async function getProductsListing(
-  category: string | undefined,
-  q: string | undefined,
-): Promise<Product[]> {
-  'use cache';
-  cacheLife({ revalidate: 60 });
-  cacheTag(...productsListCacheTags(category, q));
-  const response = await fetchPaginated<Product>('/products', {
-    category,
-    q,
-    limit: 24,
-  });
-  return response.data;
-}
-
-interface ProductsListingContentProps {
-  category?: string;
-  q?: string;
-}
-
-export async function ProductsListingContent({
-  category,
-  q,
-}: ProductsListingContentProps) {
-  let categories: Category[] = [];
-  let products: Product[] = [];
-
-  try {
-    [categories, products] = await Promise.all([
-      getProductListingCategories(),
-      getProductsListing(category, q),
-    ]);
-  } catch (error) {
-    captureApiFetchError(error, {
-      route: '/products',
-      section: 'listing',
-      extra: { category: category ?? null, q: q ?? null },
-    });
-  }
-
-  return (
-    <>
-      <CategoryFilter categories={categories} current={category} />
-      <ProductGrid products={products} />
-    </>
-  );
-}
+<file path="apps/api/src/constants/order.constant.ts">
+/** Flat shipping fee (VND) for orders with at least one line item. */
+export const SHIPPING_FLAT_VND = 30_000;
 </file>
 
 <file path="apps/admin/public/file.svg">
@@ -17137,227 +16870,6 @@ export default function CartLoading() {
 }
 </file>
 
-<file path="apps/web/src/app/checkout/cancel/page.tsx">
-import Link from 'next/link';
-import { Home, RefreshCw, Search, XCircle } from 'lucide-react';
-
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from '@/components/ui/card';
-import { buildSeoMetadata } from '@/lib/seo';
-
-export const metadata = buildSeoMetadata({
-  title: 'Đã huỷ thanh toán',
-  description:
-    'Thanh toán đã huỷ — bạn có thể quay lại giỏ hàng hoặc trang chủ nhanhunguyen.com.',
-  canonicalPath: '/checkout/cancel',
-  robots: { index: false, follow: false },
-});
-
-type SearchParams = Promise<{ orderCode?: string | string[] }>;
-
-export default async function CheckoutCancelPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
-  const params = await searchParams;
-  const orderCode =
-    typeof params.orderCode === 'string'
-      ? params.orderCode.slice(0, 64)
-      : Array.isArray(params.orderCode)
-        ? params.orderCode[0]?.slice(0, 64)
-        : null;
-
-  return (
-    <section className="mx-auto max-w-xl px-4 py-12 md:py-20">
-      <Card className="border-border/80 bg-surface text-foreground shadow-xl ring-1 ring-border/50">
-        <CardHeader className="items-center space-y-0 pb-2 pt-10 text-center">
-          <div
-            className="mb-6 flex size-20 items-center justify-center rounded-full bg-gradient-to-br from-amber-500/15 to-amber-500/5 text-amber-600 shadow-inner ring-2 ring-amber-500/20"
-            aria-hidden
-          >
-            <XCircle className="size-11" strokeWidth={2.25} />
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-            Bạn đã huỷ thanh toán
-          </h1>
-          <p className="mt-4 max-w-md text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
-            Nếu bạn muốn tiếp tục, vui lòng quay lại trang thanh toán để thử
-            lại.
-          </p>
-        </CardHeader>
-
-        {orderCode ? (
-          <CardContent className="pb-6 pt-2">
-            <p className="text-center text-sm text-muted-foreground">
-              Mã đơn hàng:{' '}
-              <span className="font-mono font-semibold text-foreground">
-                {orderCode}
-              </span>
-            </p>
-            <Button
-              asChild
-              variant="default"
-              size="lg"
-              className="mt-4 w-full shadow-md"
-            >
-              <Link href={`/track-order?code=${encodeURIComponent(orderCode)}`}>
-                <Search className="size-4 shrink-0" aria-hidden />
-                Tra cứu đơn hàng
-              </Link>
-            </Button>
-          </CardContent>
-        ) : null}
-
-        <CardFooter className="flex flex-col gap-3 border-t border-border/80 bg-muted/20 px-4 py-6 sm:flex-row sm:justify-center sm:gap-4">
-          <Button asChild size="lg" className="w-full min-w-48 sm:w-auto">
-            <Link href="/checkout">
-              <RefreshCw className="size-4 shrink-0" aria-hidden />
-              Quay lại thanh toán
-            </Link>
-          </Button>
-          <Button
-            asChild
-            variant="outline"
-            size="lg"
-            className="w-full min-w-48 border-border bg-background sm:w-auto"
-          >
-            <Link href="/">
-              <Home className="size-4 shrink-0" aria-hidden />
-              Về trang chủ
-            </Link>
-          </Button>
-        </CardFooter>
-      </Card>
-    </section>
-  );
-}
-</file>
-
-<file path="apps/web/src/app/checkout/error/page.tsx">
-import Link from 'next/link';
-import { Home, RefreshCw, Search, XCircle } from 'lucide-react';
-
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from '@/components/ui/card';
-import { buildSeoMetadata } from '@/lib/seo';
-
-export const metadata = buildSeoMetadata({
-  title: 'Thanh toán thất bại',
-  description:
-    'Thanh toán chưa hoàn tất — thử lại hoặc liên hệ hỗ trợ qua Zalo tại nhanhunguyen.com.',
-  canonicalPath: '/checkout/error',
-  robots: { index: false, follow: false },
-});
-
-type SearchParams = Promise<{ orderCode?: string | string[] }>;
-
-export default async function CheckoutErrorPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
-  const params = await searchParams;
-  const orderCode =
-    typeof params.orderCode === 'string'
-      ? params.orderCode.slice(0, 64)
-      : Array.isArray(params.orderCode)
-        ? params.orderCode[0]?.slice(0, 64)
-        : null;
-
-  return (
-    <section className="mx-auto max-w-xl px-4 py-12 md:py-20">
-      <Card className="border-border/80 bg-surface text-foreground shadow-xl ring-1 ring-border/50">
-        <CardHeader className="items-center space-y-0 pb-2 pt-10 text-center">
-          <div
-            className="mb-6 flex size-20 items-center justify-center rounded-full bg-gradient-to-br from-destructive/15 to-destructive/5 text-destructive shadow-inner ring-2 ring-destructive/20"
-            aria-hidden
-          >
-            <XCircle className="size-11" strokeWidth={2.25} />
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-            Thanh toán thất bại
-          </h1>
-          <p className="mt-4 max-w-md text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
-            Có lỗi xảy ra trong quá trình thanh toán. Bạn có thể thử lại hoặc
-            chọn phương thức khác.
-          </p>
-        </CardHeader>
-
-        {orderCode ? (
-          <CardContent className="pb-6 pt-2">
-            <p className="text-center text-sm text-muted-foreground">
-              Mã đơn hàng:{' '}
-              <span className="font-mono font-semibold text-foreground">
-                {orderCode}
-              </span>
-            </p>
-            <Button
-              asChild
-              variant="default"
-              size="lg"
-              className="mt-4 w-full shadow-md"
-            >
-              <Link href={`/track-order?code=${encodeURIComponent(orderCode)}`}>
-                <Search className="size-4 shrink-0" aria-hidden />
-                Tra cứu đơn hàng
-              </Link>
-            </Button>
-          </CardContent>
-        ) : null}
-
-        <CardFooter className="flex flex-col gap-3 border-t border-border/80 bg-muted/20 px-4 py-6 sm:flex-row sm:justify-center sm:gap-4">
-          <Button asChild size="lg" className="w-full min-w-48 sm:w-auto">
-            <Link href="/checkout">
-              <RefreshCw className="size-4 shrink-0" aria-hidden />
-              Quay lại thanh toán
-            </Link>
-          </Button>
-          <Button
-            asChild
-            variant="outline"
-            size="lg"
-            className="w-full min-w-48 border-border bg-background sm:w-auto"
-          >
-            <Link href="/">
-              <Home className="size-4 shrink-0" aria-hidden />
-              Về trang chủ
-            </Link>
-          </Button>
-        </CardFooter>
-      </Card>
-    </section>
-  );
-}
-</file>
-
-<file path="apps/web/src/app/checkout/page.tsx">
-import { CheckoutPageContent } from '@/components/checkout/checkout-page-content';
-import { buildSeoMetadata } from '@/lib/seo';
-
-export const metadata = buildSeoMetadata({
-  title: 'Thanh toán',
-  description:
-    'Hoàn tất đơn hàng long nhãn Hưng Yên — thanh toán an toàn tại nhanhunguyen.com.',
-  canonicalPath: '/checkout',
-  robots: { index: false, follow: false },
-});
-
-export default function CheckoutPage() {
-  return <CheckoutPageContent />;
-}
-</file>
-
 <file path="apps/web/src/app/order-success/loading.tsx">
 import { OrderSuccessRouteSkeleton } from '@/components/ui/route-loading-skeleton';
 
@@ -17379,23 +16891,6 @@ import { ProductsRouteSkeleton } from '@/components/ui/route-loading-skeleton';
 
 export default function ProductsLoading() {
   return <ProductsRouteSkeleton />;
-}
-</file>
-
-<file path="apps/web/src/app/service-unavailable/page.tsx">
-import { buildSeoMetadata } from '@/lib/seo';
-import { ServiceUnavailableScreen } from './service-unavailable-screen';
-
-export const metadata = buildSeoMetadata({
-  title: 'Tạm ngưng phục vụ',
-  description:
-    'Hệ thống nhanhunguyen.com tạm không phản hồi. Vui lòng thử lại sau hoặc quay về trang chủ.',
-  canonicalPath: '/service-unavailable',
-  robots: { index: false, follow: false },
-});
-
-export default function ServiceUnavailablePage() {
-  return <ServiceUnavailableScreen />;
 }
 </file>
 
@@ -17501,31 +16996,27 @@ export default function manifest(): MetadataRoute.Manifest {
 }
 </file>
 
-<file path="apps/web/src/app/robots.ts">
-import type { MetadataRoute } from 'next';
-import { SITE_URL } from '@/lib/constants';
+<file path="apps/web/src/components/analytics/google-analytics.tsx">
+import Script from 'next/script';
+import { GOOGLE_ANALYTICS_ID } from '@/lib/constants';
 
-const PRIVATE_PATHS = [
-  '/cart',
-  '/checkout',
-  '/checkout/',
-  '/order-success',
-  '/track-order',
-  '/service-unavailable',
-];
-
-export default function robots(): MetadataRoute.Robots {
-  return {
-    rules: [
-      {
-        userAgent: '*',
-        allow: '/',
-        disallow: PRIVATE_PATHS,
-      },
-    ],
-    sitemap: `${SITE_URL}/sitemap.xml`,
-    host: SITE_URL,
-  };
+export function GoogleAnalytics() {
+  return (
+    <>
+      <Script
+        src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ANALYTICS_ID}`}
+        strategy="afterInteractive"
+      />
+      <Script id="google-analytics" strategy="afterInteractive">
+        {`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', '${GOOGLE_ANALYTICS_ID}');
+        `}
+      </Script>
+    </>
+  );
 }
 </file>
 
@@ -17830,6 +17321,46 @@ export default function robots(): MetadataRoute.Robots {
 .article-body.tiptap.ProseMirror.simple-editor mark {
   border-radius: 0.125rem;
   padding: 0.05em 0;
+}
+</file>
+
+<file path="apps/web/src/components/articles/articles-listing-content.tsx">
+import type { Article } from '@longnhan/types';
+import ArticleCard from '@/components/articles/article-card';
+import { fetchPaginated } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
+
+async function getArticles(): Promise<Article[]> {
+  try {
+    const response = await fetchPaginated<Article>('/articles', { limit: 24 });
+    return response.data;
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/articles',
+      section: 'listing',
+    });
+    return [];
+  }
+}
+
+export async function ArticlesListingContent() {
+  const articles = await getArticles();
+
+  if (articles.length === 0) {
+    return (
+      <p className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-600">
+        Chưa có bài viết nào.
+      </p>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {articles.map((article) => (
+        <ArticleCard key={article.id} article={article} />
+      ))}
+    </div>
+  );
 }
 </file>
 
@@ -18336,6 +17867,141 @@ export function LandingBannerCarousel({
 
 .landing-banner-carousel .swiper-slide {
   height: 100%;
+}
+</file>
+
+<file path="apps/web/src/components/landing/landing-home-below-fold-fallback.tsx">
+/** Placeholder while below-the-fold home sections stream in. */
+export function LandingHomeBelowFoldFallback() {
+  return (
+    <div
+      className="landing-below-fold-fallback"
+      aria-hidden
+      data-testid="landing-below-fold-fallback"
+    >
+      <div className="mx-auto max-w-6xl px-4 py-14">
+        <div className="h-8 w-48 animate-pulse rounded-md bg-(--brand-forest)/10" />
+        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="aspect-4/3 animate-pulse rounded-xl bg-(--brand-forest)/8"
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="apps/web/src/components/landing/landing-home-below-fold.tsx">
+import FeaturedProducts from '@/components/home/featured-products';
+import { LandingArticlesPreview } from '@/components/landing/landing-articles-preview';
+import { LandingStory } from '@/components/landing/landing-story';
+import { LandingTestimonialsTrust } from '@/components/landing/landing-testimonials-trust';
+import ScrollReveal from '@/components/ui/scroll-reveal';
+import {
+  LANDING_IMAGE_ALBUM,
+  LANDING_VIDEO_ALBUM_URLS,
+} from '@/data/landing-page-content';
+import { fetchPaginated } from '@/lib/api-client';
+import { homeContentTags } from '@/lib/content-cache-tags';
+import { captureHomeContentFetchError } from '@/lib/observability/api-fetch-sentry';
+import type { Article, Product } from '@longnhan/types';
+import { cacheLife, cacheTag } from 'next/cache';
+import dynamic from 'next/dynamic';
+
+const VideoSection = dynamic(() => import('@/components/home/video-section'));
+const LandingFaq = dynamic(() =>
+  import('@/components/landing/landing-faq').then((m) => ({
+    default: m.LandingFaq,
+  })),
+);
+const LandingImageAlbum = dynamic(() =>
+  import('@/components/landing/landing-image-album').then((m) => ({
+    default: m.LandingImageAlbum,
+  })),
+);
+
+async function getHomeProducts(): Promise<Product[]> {
+  'use cache';
+  cacheTag(homeContentTags.featuredProducts);
+  cacheLife({ revalidate: 300 });
+  try {
+    const response = await fetchPaginated<Product>('/products', { limit: 8 });
+    return response.data;
+  } catch (error) {
+    captureHomeContentFetchError('products', error);
+    return [];
+  }
+}
+
+async function getHomeArticles(): Promise<Article[]> {
+  'use cache';
+  cacheTag(homeContentTags.articles);
+  cacheLife({ revalidate: 300 });
+  try {
+    const response = await fetchPaginated<Article>('/articles', {
+      limit: 4,
+      page: 1,
+    });
+    return response.data;
+  } catch (error) {
+    captureHomeContentFetchError('articles', error);
+    return [];
+  }
+}
+
+export async function LandingHomeBelowFold() {
+  const [products, articles] = await Promise.all([
+    getHomeProducts(),
+    getHomeArticles(),
+  ]);
+  const productVideos = products
+    .map((p) => p.videoUrl)
+    .filter(Boolean) as string[];
+
+  return (
+    <>
+      <ScrollReveal delayMs={80}>
+        <FeaturedProducts products={products} />
+      </ScrollReveal>
+      <ScrollReveal delayMs={100}>
+        <LandingArticlesPreview articles={articles} />
+      </ScrollReveal>
+      <ScrollReveal delayMs={220}>
+        <LandingStory />
+      </ScrollReveal>
+      <ScrollReveal delayMs={240}>
+        <LandingFaq />
+      </ScrollReveal>
+      {LANDING_VIDEO_ALBUM_URLS.length > 0 ? (
+        <ScrollReveal delayMs={248}>
+          <VideoSection
+            videoUrls={[...LANDING_VIDEO_ALBUM_URLS]}
+            title="Video chia sẻ"
+            sectionId="video-album"
+          />
+        </ScrollReveal>
+      ) : null}
+      <ScrollReveal delayMs={252}>
+        <LandingImageAlbum
+          sectionTitle="Hình ảnh & không gian"
+          sectionSubtitle="Hình ảnh minh họa từ vườn nhãn và sản phẩm"
+          items={LANDING_IMAGE_ALBUM}
+        />
+      </ScrollReveal>
+      <ScrollReveal delayMs={260}>
+        <VideoSection videoUrls={productVideos} />
+      </ScrollReveal>
+      <ScrollReveal delayMs={280}>
+        <section className="landing-section landing-section--decor-cta">
+          <LandingTestimonialsTrust />
+        </section>
+      </ScrollReveal>
+    </>
+  );
 }
 </file>
 
@@ -18902,6 +18568,69 @@ export function ProductAddToCart({
         </p>
       ) : null}
     </section>
+  );
+}
+</file>
+
+<file path="apps/web/src/components/products/products-listing-content.tsx">
+import type { Category, Product } from '@longnhan/types';
+import CategoryFilter from '@/components/products/category-filter';
+import ProductGrid from '@/components/products/product-grid';
+import { fetchApi, fetchPaginated } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
+
+async function getProductListingCategories(): Promise<Category[]> {
+  try {
+    return await fetchApi<Category[]>('/categories');
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/products',
+      section: 'listing_categories',
+    });
+    return [];
+  }
+}
+
+async function getProductsListing(
+  category: string | undefined,
+  q: string | undefined,
+): Promise<Product[]> {
+  try {
+    const response = await fetchPaginated<Product>('/products', {
+      category,
+      q,
+      limit: 24,
+    });
+    return response.data;
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/products',
+      section: 'listing',
+      extra: { category: category ?? null, q: q ?? null },
+    });
+    return [];
+  }
+}
+
+interface ProductsListingContentProps {
+  category?: string;
+  q?: string;
+}
+
+export async function ProductsListingContent({
+  category,
+  q,
+}: ProductsListingContentProps) {
+  const [categories, products] = await Promise.all([
+    getProductListingCategories(),
+    getProductsListing(category, q),
+  ]);
+
+  return (
+    <>
+      <CategoryFilter categories={categories} current={category} />
+      <ProductGrid products={products} />
+    </>
   );
 }
 </file>
@@ -42728,6 +42457,210 @@ export default tsEslint.config(
 }
 </file>
 
+<file path="apps/web/src/app/checkout/cancel/page.tsx">
+import Link from 'next/link';
+import { Home, RefreshCw, Search, XCircle } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from '@/components/ui/card';
+import { buildSeoMetadata } from '@/lib/seo';
+
+export const metadata = buildSeoMetadata({
+  title: 'Đã huỷ thanh toán',
+  description:
+    'Thanh toán đã huỷ — bạn có thể quay lại giỏ hàng hoặc trang chủ nhanhunguyen.com.',
+  canonicalPath: '/checkout/cancel',
+  robots: { index: false, follow: false },
+});
+
+type SearchParams = Promise<{ orderCode?: string | string[] }>;
+
+export default async function CheckoutCancelPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const params = await searchParams;
+  const orderCode =
+    typeof params.orderCode === 'string'
+      ? params.orderCode.slice(0, 64)
+      : Array.isArray(params.orderCode)
+        ? params.orderCode[0]?.slice(0, 64)
+        : null;
+
+  return (
+    <section className="mx-auto max-w-xl px-4 py-12 md:py-20">
+      <Card className="border-border/80 bg-surface text-foreground shadow-xl ring-1 ring-border/50">
+        <CardHeader className="items-center space-y-0 pb-2 pt-10 text-center">
+          <div
+            className="mb-6 flex size-20 items-center justify-center rounded-full bg-gradient-to-br from-amber-500/15 to-amber-500/5 text-amber-600 shadow-inner ring-2 ring-amber-500/20"
+            aria-hidden
+          >
+            <XCircle className="size-11" strokeWidth={2.25} />
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
+            Bạn đã huỷ thanh toán
+          </h1>
+          <p className="mt-4 max-w-md text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
+            Nếu bạn muốn tiếp tục, vui lòng quay lại trang thanh toán để thử
+            lại.
+          </p>
+        </CardHeader>
+
+        {orderCode ? (
+          <CardContent className="pb-6 pt-2">
+            <p className="text-center text-sm text-muted-foreground">
+              Mã đơn hàng:{' '}
+              <span className="font-mono font-semibold text-foreground">
+                {orderCode}
+              </span>
+            </p>
+            <Button
+              asChild
+              variant="default"
+              size="lg"
+              className="mt-4 w-full shadow-md"
+            >
+              <Link href={`/track-order?code=${encodeURIComponent(orderCode)}`}>
+                <Search className="size-4 shrink-0" aria-hidden />
+                Tra cứu đơn hàng
+              </Link>
+            </Button>
+          </CardContent>
+        ) : null}
+
+        <CardFooter className="flex flex-col gap-3 border-t border-border/80 bg-muted/20 px-4 py-6 sm:flex-row sm:justify-center sm:gap-4">
+          <Button asChild size="lg" className="w-full min-w-48 sm:w-auto">
+            <Link href="/checkout">
+              <RefreshCw className="size-4 shrink-0" aria-hidden />
+              Quay lại thanh toán
+            </Link>
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            size="lg"
+            className="w-full min-w-48 border-border bg-background sm:w-auto"
+          >
+            <Link href="/">
+              <Home className="size-4 shrink-0" aria-hidden />
+              Về trang chủ
+            </Link>
+          </Button>
+        </CardFooter>
+      </Card>
+    </section>
+  );
+}
+</file>
+
+<file path="apps/web/src/app/checkout/error/page.tsx">
+import Link from 'next/link';
+import { Home, RefreshCw, Search, XCircle } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from '@/components/ui/card';
+import { buildSeoMetadata } from '@/lib/seo';
+
+export const metadata = buildSeoMetadata({
+  title: 'Thanh toán thất bại',
+  description:
+    'Thanh toán chưa hoàn tất — thử lại hoặc liên hệ hỗ trợ qua Zalo tại nhanhunguyen.com.',
+  canonicalPath: '/checkout/error',
+  robots: { index: false, follow: false },
+});
+
+type SearchParams = Promise<{ orderCode?: string | string[] }>;
+
+export default async function CheckoutErrorPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const params = await searchParams;
+  const orderCode =
+    typeof params.orderCode === 'string'
+      ? params.orderCode.slice(0, 64)
+      : Array.isArray(params.orderCode)
+        ? params.orderCode[0]?.slice(0, 64)
+        : null;
+
+  return (
+    <section className="mx-auto max-w-xl px-4 py-12 md:py-20">
+      <Card className="border-border/80 bg-surface text-foreground shadow-xl ring-1 ring-border/50">
+        <CardHeader className="items-center space-y-0 pb-2 pt-10 text-center">
+          <div
+            className="mb-6 flex size-20 items-center justify-center rounded-full bg-gradient-to-br from-destructive/15 to-destructive/5 text-destructive shadow-inner ring-2 ring-destructive/20"
+            aria-hidden
+          >
+            <XCircle className="size-11" strokeWidth={2.25} />
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
+            Thanh toán thất bại
+          </h1>
+          <p className="mt-4 max-w-md text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
+            Có lỗi xảy ra trong quá trình thanh toán. Bạn có thể thử lại hoặc
+            chọn phương thức khác.
+          </p>
+        </CardHeader>
+
+        {orderCode ? (
+          <CardContent className="pb-6 pt-2">
+            <p className="text-center text-sm text-muted-foreground">
+              Mã đơn hàng:{' '}
+              <span className="font-mono font-semibold text-foreground">
+                {orderCode}
+              </span>
+            </p>
+            <Button
+              asChild
+              variant="default"
+              size="lg"
+              className="mt-4 w-full shadow-md"
+            >
+              <Link href={`/track-order?code=${encodeURIComponent(orderCode)}`}>
+                <Search className="size-4 shrink-0" aria-hidden />
+                Tra cứu đơn hàng
+              </Link>
+            </Button>
+          </CardContent>
+        ) : null}
+
+        <CardFooter className="flex flex-col gap-3 border-t border-border/80 bg-muted/20 px-4 py-6 sm:flex-row sm:justify-center sm:gap-4">
+          <Button asChild size="lg" className="w-full min-w-48 sm:w-auto">
+            <Link href="/checkout">
+              <RefreshCw className="size-4 shrink-0" aria-hidden />
+              Quay lại thanh toán
+            </Link>
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            size="lg"
+            className="w-full min-w-48 border-border bg-background sm:w-auto"
+          >
+            <Link href="/">
+              <Home className="size-4 shrink-0" aria-hidden />
+              Về trang chủ
+            </Link>
+          </Button>
+        </CardFooter>
+      </Card>
+    </section>
+  );
+}
+</file>
+
 <file path="apps/web/src/app/checkout/success/page.tsx">
 'use client';
 
@@ -43012,120 +42945,37 @@ function PaymentStatusBadge({ status }: { status: string }) {
 }
 </file>
 
-<file path="apps/web/src/app/track-order/page.tsx">
-import type { PublicOrderSummary } from '@/actions/order-tracking-actions';
-import { OrderSummaryPanel } from '@/components/orders/order-summary-panel';
-import { OrderTrackForm } from '@/components/orders/order-track-form';
-import Breadcrumb from '@/components/ui/breadcrumb';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { apiServer } from '@/lib/api-server';
-import { buildBreadcrumb } from '@/lib/breadcrumb';
+<file path="apps/web/src/app/checkout/page.tsx">
+import { CheckoutPageContent } from '@/components/checkout/checkout-page-content';
 import { buildSeoMetadata } from '@/lib/seo';
 
 export const metadata = buildSeoMetadata({
-  title: 'Tra cứu đơn hàng',
+  title: 'Thanh toán',
   description:
-    'Theo dõi trạng thái đơn long nhãn bằng mã đơn hoặc link từ email — nhanhunguyen.com.',
-  canonicalPath: '/track-order',
+    'Hoàn tất đơn hàng long nhãn Hưng Yên — thanh toán an toàn tại nhanhunguyen.com.',
+  canonicalPath: '/checkout',
   robots: { index: false, follow: false },
 });
 
-type SearchParams = Promise<{
-  t?: string | string[];
-  code?: string | string[];
-}>;
+export default function CheckoutPage() {
+  return <CheckoutPageContent />;
+}
+</file>
 
-export default async function TrackOrderPage({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
-  const params = await searchParams;
-  const token =
-    typeof params.t === 'string'
-      ? params.t.slice(0, 512)
-      : Array.isArray(params.t)
-        ? params.t[0]?.slice(0, 512)
-        : null;
+<file path="apps/web/src/app/service-unavailable/page.tsx">
+import { buildSeoMetadata } from '@/lib/seo';
+import { ServiceUnavailableScreen } from './service-unavailable-screen';
 
-  const code =
-    typeof params.code === 'string'
-      ? params.code.slice(0, 64)
-      : Array.isArray(params.code)
-        ? params.code[0]?.slice(0, 64)
-        : '';
+export const metadata = buildSeoMetadata({
+  title: 'Tạm ngưng phục vụ',
+  description:
+    'Hệ thống nhanhunguyen.com tạm không phản hồi. Vui lòng thử lại sau hoặc quay về trang chủ.',
+  canonicalPath: '/service-unavailable',
+  robots: { index: false, follow: false },
+});
 
-  const breadcrumbItems = [
-    { label: 'Trang chủ', url: '/' },
-    { label: 'Tra cứu đơn hàng' },
-  ];
-  const { schema: breadcrumbSchema } = buildBreadcrumb({
-    items: breadcrumbItems,
-    currentUrl: '/track-order',
-  });
-
-  if (token) {
-    let tokenData: PublicOrderSummary | null = null;
-
-    try {
-      const res = await apiServer.get<PublicOrderSummary>(
-        '/orders/track-by-token',
-        {
-          params: { t: token },
-        },
-      );
-      tokenData = res.data;
-    } catch {}
-
-    return (
-      <section className="mx-auto max-w-lg px-4 py-10 md:py-16">
-        {breadcrumbSchema ? (
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{
-              __html: JSON.stringify(breadcrumbSchema),
-            }}
-          />
-        ) : null}
-        <Breadcrumb items={breadcrumbItems} />
-        {tokenData ? (
-          <div className="space-y-8">
-            <Card className="border-border/80 bg-surface shadow-md ring-1 ring-border/40">
-              <CardHeader className="border-b border-border/60 bg-muted/15">
-                <h1 className="text-xl font-semibold tracking-tight">
-                  Theo dõi từ email
-                </h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Link chỉ dùng một lần. Lần sau hãy tra cứu bằng mã đơn bên
-                  dưới.
-                </p>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <OrderSummaryPanel data={tokenData} />
-              </CardContent>
-            </Card>
-          </div>
-        ) : (
-          <div className="space-y-8">
-            <OrderTrackForm initialCode={code} />
-          </div>
-        )}
-      </section>
-    );
-  }
-
-  return (
-    <section className="mx-auto max-w-lg px-4 py-10 md:py-16">
-      {breadcrumbSchema ? (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
-        />
-      ) : null}
-      <Breadcrumb items={breadcrumbItems} />
-      <OrderTrackForm initialCode={code} />
-    </section>
-  );
+export default function ServiceUnavailablePage() {
+  return <ServiceUnavailableScreen />;
 }
 </file>
 
@@ -43158,66 +43008,31 @@ export default function GlobalError({
 }
 </file>
 
-<file path="apps/web/src/app/sitemap.ts">
+<file path="apps/web/src/app/robots.ts">
 import type { MetadataRoute } from 'next';
-import type { Article, Product } from '@longnhan/types';
-import { fetchPaginated } from '@/lib/api-client';
-import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
-import { FOOTER_PAGES } from '@/data/footer-pages';
 import { SITE_URL } from '@/lib/constants';
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  let products: Product[] = [];
-  let articles: Article[] = [];
+const PRIVATE_PATHS = [
+  '/cart',
+  '/checkout',
+  '/checkout/',
+  '/order-success',
+  '/track-order',
+  '/service-unavailable',
+];
 
-  try {
-    const [productRes, articleRes] = await Promise.all([
-      fetchPaginated<Product>('/products', { limit: 1000 }),
-      fetchPaginated<Article>('/articles', { limit: 1000 }),
-    ]);
-    products = productRes.data;
-    articles = articleRes.data;
-  } catch (error) {
-    captureApiFetchError(error, {
-      route: 'sitemap',
-      section: 'entries',
-    });
-    products = [];
-    articles = [];
-  }
-
-  return [
-    {
-      url: SITE_URL,
-      priority: 1,
-      changeFrequency: 'daily',
-    },
-    {
-      url: `${SITE_URL}/products`,
-      priority: 0.9,
-      changeFrequency: 'daily',
-    },
-    {
-      url: `${SITE_URL}/articles`,
-      priority: 0.8,
-      changeFrequency: 'weekly',
-    },
-    ...FOOTER_PAGES.map((page) => ({
-      url: `${SITE_URL}/${page.slug}`,
-      priority: 0.4,
-      changeFrequency: 'yearly' as const,
-    })),
-    ...products.map((product) => ({
-      url: `${SITE_URL}/products/${product.slug}`,
-      priority: 0.8,
-      changeFrequency: 'weekly' as const,
-    })),
-    ...articles.map((article) => ({
-      url: `${SITE_URL}/articles/${article.slug}`,
-      priority: 0.7,
-      changeFrequency: 'monthly' as const,
-    })),
-  ];
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: [
+      {
+        userAgent: '*',
+        allow: '/',
+        disallow: PRIVATE_PATHS,
+      },
+    ],
+    sitemap: `${SITE_URL}/sitemap.xml`,
+    host: SITE_URL,
+  };
 }
 </file>
 
@@ -45184,216 +44999,6 @@ export function QuantityStepper({
 }
 </file>
 
-<file path="apps/web/src/components/ui/route-loading-skeleton.tsx">
-/** Shared instant-loading UI for App Router `loading.tsx` segments. */
-
-import type { ReactNode } from 'react';
-import { ArticleCardSkeleton } from '@/components/ui/article-card-skeleton';
-import { ProductCardSkeleton } from '@/components/ui/product-card-skeleton';
-import { Skeleton } from '@/components/ui/skeleton';
-
-function BreadcrumbRowSkeleton() {
-  return (
-    <div className="mb-6 flex flex-wrap items-center gap-2" aria-hidden>
-      <Skeleton className="h-4 w-20 bg-gray-100" />
-      <span className="text-gray-300">/</span>
-      <Skeleton className="h-4 w-24 bg-gray-100" />
-    </div>
-  );
-}
-
-function PageShell({
-  children,
-  label,
-}: {
-  children: ReactNode;
-  label: string;
-}) {
-  return (
-    <div
-      className="mx-auto max-w-6xl px-4 py-8"
-      aria-busy="true"
-      aria-live="polite"
-      aria-label={label}
-    >
-      {children}
-    </div>
-  );
-}
-
-/** Home / generic listing — hero block + product-style cards. */
-export function RouteLoadingSkeleton() {
-  return (
-    <PageShell label="Đang tải trang">
-      <Skeleton className="mb-8 h-10 max-w-md rounded-lg bg-(--brand-forest)/10" />
-      <Skeleton className="mb-10 h-48 w-full max-w-3xl rounded-2xl bg-(--brand-forest)/10" />
-      <div className="mb-4 h-8 w-40 animate-pulse rounded-lg bg-(--brand-forest)/10" />
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <ProductCardSkeleton key={i} />
-        ))}
-      </div>
-    </PageShell>
-  );
-}
-
-/** Category chips + product cards only (inside `/products` Suspense boundary). */
-export function ProductsListingSkeleton() {
-  return (
-    <div aria-busy="true" aria-live="polite" aria-label="Đang tải sản phẩm">
-      <div className="mb-6 flex flex-wrap gap-2">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-9 w-24 rounded-full bg-gray-100" />
-        ))}
-      </div>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <ProductCardSkeleton key={i} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export function ProductsRouteSkeleton() {
-  return (
-    <PageShell label="Đang tải danh mục sản phẩm">
-      <BreadcrumbRowSkeleton />
-      <Skeleton className="mb-6 h-9 w-64 max-w-full bg-gray-100" />
-      <ProductsListingSkeleton />
-    </PageShell>
-  );
-}
-
-export function ProductDetailRouteSkeleton() {
-  return (
-    <PageShell label="Đang tải chi tiết sản phẩm">
-      <BreadcrumbRowSkeleton />
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <div className="space-y-3">
-          <Skeleton className="aspect-square w-full rounded-xl bg-gray-100" />
-          <div className="flex gap-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton
-                key={i}
-                className="h-16 w-16 shrink-0 rounded-lg bg-gray-100"
-              />
-            ))}
-          </div>
-        </div>
-        <div className="space-y-4">
-          <Skeleton className="h-9 w-full bg-gray-100" />
-          <Skeleton className="h-9 w-3/4 bg-gray-100" />
-          <Skeleton className="h-6 w-40 bg-gray-100" />
-          <Skeleton className="h-24 w-full rounded-xl bg-gray-100" />
-          <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-6">
-            <Skeleton className="h-5 w-40 bg-gray-100" />
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full bg-gray-100" />
-            ))}
-            <Skeleton className="h-12 w-full rounded-xl bg-gray-100" />
-          </div>
-        </div>
-      </div>
-      <div className="mt-10 space-y-3">
-        <div className="flex gap-4 border-b border-gray-200 pb-2">
-          <Skeleton className="h-8 w-28 bg-gray-100" />
-          <Skeleton className="h-8 w-28 bg-gray-100" />
-        </div>
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-4 w-full bg-gray-100" />
-        ))}
-      </div>
-      <div className="mt-10">
-        <Skeleton className="mb-4 h-7 w-48 bg-gray-100" />
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <ProductCardSkeleton key={i} />
-          ))}
-        </div>
-      </div>
-    </PageShell>
-  );
-}
-
-export function ArticlesListingSkeleton() {
-  return (
-    <div aria-busy="true" aria-live="polite" aria-label="Đang tải bài viết">
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <ArticleCardSkeleton key={i} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export function ArticlesRouteSkeleton() {
-  return (
-    <PageShell label="Đang tải tin tức">
-      <BreadcrumbRowSkeleton />
-      <Skeleton className="mb-6 h-9 w-48 bg-gray-100" />
-      <ArticlesListingSkeleton />
-    </PageShell>
-  );
-}
-
-export function ArticleDetailRouteSkeleton() {
-  return (
-    <PageShell label="Đang tải bài viết">
-      <BreadcrumbRowSkeleton />
-      <Skeleton className="mb-4 h-10 w-full max-w-2xl bg-gray-100" />
-      <Skeleton className="mb-6 h-4 w-40 bg-gray-100" />
-      <Skeleton className="mb-6 aspect-video w-full max-w-3xl rounded-xl bg-gray-100" />
-      <div className="max-w-3xl space-y-3">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <Skeleton
-            key={i}
-            className="h-4 bg-gray-100"
-            style={{ width: `${70 + ((i * 13) % 25)}%` }}
-          />
-        ))}
-      </div>
-    </PageShell>
-  );
-}
-
-export function CartRouteSkeleton() {
-  return (
-    <PageShell label="Đang tải giỏ hàng">
-      <Skeleton className="mb-8 h-9 w-40 bg-gray-100" />
-      <div className="space-y-4">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex gap-4 rounded-xl border border-gray-200 bg-white p-4"
-          >
-            <Skeleton className="h-20 w-20 shrink-0 rounded-lg bg-gray-100" />
-            <div className="flex flex-1 flex-col justify-center gap-2">
-              <Skeleton className="h-4 w-3/5 bg-gray-100" />
-              <Skeleton className="h-4 w-24 bg-gray-100" />
-            </div>
-          </div>
-        ))}
-      </div>
-    </PageShell>
-  );
-}
-
-export function OrderSuccessRouteSkeleton() {
-  return (
-    <PageShell label="Đang tải trang xác nhận">
-      <div className="mx-auto flex max-w-lg flex-col items-center text-center">
-        <Skeleton className="mb-6 h-16 w-16 rounded-full bg-gray-100" />
-        <Skeleton className="mb-3 h-8 w-64 bg-gray-100" />
-        <Skeleton className="mb-8 h-4 w-full max-w-sm bg-gray-100" />
-        <Skeleton className="h-11 w-48 rounded-md bg-gray-100" />
-      </div>
-    </PageShell>
-  );
-}
-</file>
-
 <file path="apps/web/src/components/ui/section-title-link-button.tsx">
 'use client';
 
@@ -45722,179 +45327,6 @@ export const loadProductSearchParams = createLoader(productSearchParamsParsers);
 export const serializeProductSearchUrl = createSerializer(
   productSearchParamsParsers,
 );
-</file>
-
-<file path="apps/web/src/lib/seo.ts">
-import { SITE_NAME, SITE_URL } from '@/lib/constants';
-import type { Metadata } from 'next';
-import { PWA_CONFIG } from './pwa-config';
-
-type OgImage = {
-  url: string;
-  width?: number;
-  height?: number;
-  alt?: string;
-};
-
-type SeoBuilderCore = {
-  title: string;
-  description?: string;
-  canonicalPath: string;
-  ogImage?: OgImage;
-  ogImages?: OgImage[];
-  /** Use `article` for blog posts so crawlers get the right OG type. */
-  openGraphType?: 'website' | 'article';
-};
-
-/** Core SEO fields plus any optional Next.js `Metadata` fields (merged shallowly; OG/Twitter/canonical are composed on top). */
-export type BuildSeoMetadataInput = SeoBuilderCore & Partial<Metadata>;
-
-const DEFAULT_OG_IMAGE: Required<Pick<OgImage, 'url'>> & Partial<OgImage> = {
-  url: '/banner-web2.png',
-  width: 1200,
-  height: 630,
-  alt: 'Long Nhãn Tống Trân',
-};
-
-/** Strips HTML and trims to a meta description length (default 160). */
-export function trimMetaDescription(text: string, maxLength = 160): string {
-  const plain = text
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  if (plain.length <= maxLength) return plain;
-  return `${plain.slice(0, maxLength - 1)}…`;
-}
-
-/** Resolves image and page URLs for OG/Twitter; Facebook requires absolute https URLs. */
-export function toAbsoluteUrl(pathOrUrl: string): string {
-  const s = pathOrUrl.trim();
-  if (s.startsWith('https://')) return s;
-  if (s.startsWith('http://')) return s;
-  if (s.startsWith('//')) return `https:${s}`;
-  if (s.startsWith('/')) return `${SITE_URL}${s}`;
-  return `${SITE_URL}/${s}`;
-}
-
-function normalizeCanonicalPath(path: string): string {
-  const p = path.trim();
-  if (!p || p === '/') return '/';
-  return p.startsWith('/') ? p : `/${p}`;
-}
-
-export function buildSeoMetadata(input: BuildSeoMetadataInput): Metadata {
-  const {
-    title,
-    description,
-    canonicalPath,
-    ogImage,
-    ogImages,
-    openGraphType,
-    alternates: inputAlternates,
-    openGraph: inputOpenGraph,
-    twitter: inputTwitter,
-    robots: inputRobots,
-    ...metadataRest
-  } = input;
-
-  const pathname = normalizeCanonicalPath(canonicalPath);
-  const pageUrl = `${SITE_URL}${pathname === '/' ? '/' : pathname}`;
-
-  const images = (ogImages ?? (ogImage ? [ogImage] : [DEFAULT_OG_IMAGE]))
-    .filter(Boolean)
-    .map((img) => ({
-      ...img,
-      url: toAbsoluteUrl(img.url),
-    }));
-
-  const imageUrls = images.map((i) => i.url);
-
-  const userOg = inputOpenGraph as
-    | (NonNullable<typeof inputOpenGraph> & { type?: 'website' | 'article' })
-    | undefined;
-  const ogType = openGraphType ?? userOg?.type ?? 'website';
-
-  const userTw = inputTwitter as
-    | (NonNullable<typeof inputTwitter> & {
-        card?: 'summary' | 'summary_large_image' | 'app' | 'player';
-      })
-    | undefined;
-
-  return {
-    ...metadataRest,
-    title,
-    description,
-    alternates: {
-      ...inputAlternates,
-      canonical: pageUrl,
-    },
-    authors: [{ name: SITE_NAME, url: SITE_URL }],
-    generator: 'Next.js',
-    applicationName: SITE_NAME,
-    category: 'food',
-    metadataBase: new URL(SITE_URL),
-    openGraph: {
-      ...inputOpenGraph,
-      type: ogType,
-      locale: userOg?.locale ?? 'vi_VN',
-      siteName: userOg?.siteName ?? SITE_NAME,
-      url: userOg?.url ?? pageUrl,
-      title,
-      description,
-      images,
-    },
-    twitter: {
-      ...inputTwitter,
-      card: userTw?.card ?? 'summary_large_image',
-      title,
-      description,
-      images: imageUrls,
-    },
-    icons: {
-      icon: [{ url: '/favicon.ico', sizes: 'any' }],
-      apple: [
-        { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
-      ],
-    },
-    robots:
-      inputRobots ??
-      ({
-        index: true,
-        follow: true,
-        googleBot: {
-          index: true,
-          follow: true,
-        },
-      } satisfies Metadata['robots']),
-    classification: 'food',
-    other: {
-      google: 'notranslate',
-      'mobile-web-app-capable': 'yes',
-      'apple-mobile-web-app-capable': 'yes',
-      'apple-mobile-web-app-status-bar-style': 'black-translucent',
-      'apple-mobile-web-app-title': SITE_NAME,
-      'application-name': SITE_NAME,
-      'msapplication-TileColor': PWA_CONFIG.themeColor,
-      'msapplication-config': '/browserconfig.xml',
-      'theme-color': PWA_CONFIG.themeColor,
-      'color-scheme': 'dark light',
-      referrer: 'origin-when-cross-origin',
-      viewport: 'width=device-width, initial-scale=1, maximum-scale=5',
-    },
-    appleWebApp: {
-      capable: true,
-      statusBarStyle: 'black-translucent',
-      title: SITE_NAME,
-      startupImage: [
-        {
-          url: '/apple-touch-startup-image-768x1004.png',
-          media: '(device-width: 768px) and (device-height: 1024px)',
-        },
-      ],
-    },
-    referrer: 'origin-when-cross-origin',
-  };
-}
 </file>
 
 <file path="apps/web/src/instrumentation.ts">
@@ -52157,7 +51589,7 @@ export default generateModulesSet;
  * Service-down: redirect to /service-unavailable on 502/503/504 while online; cache reads for pages/assets only when navigator.onLine is false.
  * Bump VERSION when changing caching rules so old caches are purged.
  */
-const VERSION = 'longnhan-web-sw-v4';
+const VERSION = 'longnhan-web-sw-v7';
 const PAGES_CACHE = `${VERSION}-pages`;
 const STATIC_CACHE = `${VERSION}-static`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
@@ -52294,7 +51726,10 @@ async function networkFirstPage(event, request) {
     const networkResponse = await fetch(request, { redirect: 'follow' });
 
     if (networkResponse.ok) {
-      await cache.put(request, networkResponse.clone());
+      // Only persist shell routes — listing pages stream dynamic RSC segments.
+      if (isSuRoute || url.pathname === '/') {
+        await cache.put(request, networkResponse.clone());
+      }
       return networkResponse;
     }
 
@@ -52396,19 +51831,120 @@ async function staleWhileRevalidate(event, request, cacheName) {
 }
 </file>
 
-<file path="apps/web/src/app/cart/page.tsx">
-import { CartPageContent } from '@/components/cart/cart-page-content';
+<file path="apps/web/src/app/track-order/page.tsx">
+import type { PublicOrderSummary } from '@/actions/order-tracking-actions';
+import { OrderSummaryPanel } from '@/components/orders/order-summary-panel';
+import { OrderTrackForm } from '@/components/orders/order-track-form';
+import Breadcrumb from '@/components/ui/breadcrumb';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { apiServer } from '@/lib/api-server';
+import { buildBreadcrumb } from '@/lib/breadcrumb';
 import { buildSeoMetadata } from '@/lib/seo';
 
 export const metadata = buildSeoMetadata({
-  title: 'Giỏ hàng',
-  description: 'Giỏ hàng của bạn tại Long Nhãn Hưng Yên — nhanhunguyen.com.',
-  canonicalPath: '/cart',
+  title: 'Tra cứu đơn hàng',
+  description:
+    'Theo dõi trạng thái đơn long nhãn bằng mã đơn hoặc link từ email — nhanhunguyen.com.',
+  canonicalPath: '/track-order',
   robots: { index: false, follow: false },
 });
 
-export default function CartPage() {
-  return <CartPageContent />;
+type SearchParams = Promise<{
+  t?: string | string[];
+  code?: string | string[];
+}>;
+
+export default async function TrackOrderPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const params = await searchParams;
+  const token =
+    typeof params.t === 'string'
+      ? params.t.slice(0, 512)
+      : Array.isArray(params.t)
+        ? params.t[0]?.slice(0, 512)
+        : null;
+
+  const code =
+    typeof params.code === 'string'
+      ? params.code.slice(0, 64)
+      : Array.isArray(params.code)
+        ? params.code[0]?.slice(0, 64)
+        : '';
+
+  const breadcrumbItems = [
+    { label: 'Trang chủ', url: '/' },
+    { label: 'Tra cứu đơn hàng' },
+  ];
+  const { schema: breadcrumbSchema } = buildBreadcrumb({
+    items: breadcrumbItems,
+    currentUrl: '/track-order',
+  });
+
+  if (token) {
+    let tokenData: PublicOrderSummary | null = null;
+
+    try {
+      const res = await apiServer.get<PublicOrderSummary>(
+        '/orders/track-by-token',
+        {
+          params: { t: token },
+        },
+      );
+      tokenData = res.data;
+    } catch {}
+
+    return (
+      <section className="mx-auto max-w-lg px-4 py-10 md:py-16">
+        {breadcrumbSchema ? (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify(breadcrumbSchema),
+            }}
+          />
+        ) : null}
+        <Breadcrumb items={breadcrumbItems} />
+        {tokenData ? (
+          <div className="space-y-8">
+            <Card className="border-border/80 bg-surface shadow-md ring-1 ring-border/40">
+              <CardHeader className="border-b border-border/60 bg-muted/15">
+                <h1 className="text-xl font-semibold tracking-tight">
+                  Theo dõi từ email
+                </h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Link chỉ dùng một lần. Lần sau hãy tra cứu bằng mã đơn bên
+                  dưới.
+                </p>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <OrderSummaryPanel data={tokenData} />
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          <div className="space-y-8">
+            <OrderTrackForm initialCode={code} />
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  return (
+    <section className="mx-auto max-w-lg px-4 py-10 md:py-16">
+      {breadcrumbSchema ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        />
+      ) : null}
+      <Breadcrumb items={breadcrumbItems} />
+      <OrderTrackForm initialCode={code} />
+    </section>
+  );
 }
 </file>
 
@@ -52456,6 +51992,69 @@ export default function Error({
       </div>
     </section>
   );
+}
+</file>
+
+<file path="apps/web/src/app/sitemap.ts">
+import type { MetadataRoute } from 'next';
+import type { Article, Product } from '@longnhan/types';
+import { fetchPaginated } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
+import { FOOTER_PAGES } from '@/data/footer-pages';
+import { SITE_URL } from '@/lib/constants';
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  let products: Product[] = [];
+  let articles: Article[] = [];
+
+  try {
+    const [productRes, articleRes] = await Promise.all([
+      fetchPaginated<Product>('/products', { limit: 1000 }),
+      fetchPaginated<Article>('/articles', { limit: 1000 }),
+    ]);
+    products = productRes.data;
+    articles = articleRes.data;
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: 'sitemap',
+      section: 'entries',
+    });
+    products = [];
+    articles = [];
+  }
+
+  return [
+    {
+      url: SITE_URL,
+      priority: 1,
+      changeFrequency: 'daily',
+    },
+    {
+      url: `${SITE_URL}/products`,
+      priority: 0.9,
+      changeFrequency: 'daily',
+    },
+    {
+      url: `${SITE_URL}/articles`,
+      priority: 0.8,
+      changeFrequency: 'weekly',
+    },
+    ...FOOTER_PAGES.map((page) => ({
+      url: `${SITE_URL}/${page.slug}`,
+      priority: 0.4,
+      changeFrequency: 'yearly' as const,
+    })),
+    ...products.map((product) => ({
+      url: `${SITE_URL}/products/${product.slug}`,
+      priority: 0.8,
+      changeFrequency: 'weekly' as const,
+    })),
+    ...articles.map((article) => ({
+      url: `${SITE_URL}/articles/${article.slug}`,
+      priority: 0.7,
+      changeFrequency: 'monthly' as const,
+    })),
+  ];
 }
 </file>
 
@@ -53283,6 +52882,216 @@ export default function VariantSelector({
 }
 </file>
 
+<file path="apps/web/src/components/ui/route-loading-skeleton.tsx">
+/** Shared instant-loading UI for App Router `loading.tsx` segments. */
+
+import type { ReactNode } from 'react';
+import { ArticleCardSkeleton } from '@/components/ui/article-card-skeleton';
+import { ProductCardSkeleton } from '@/components/ui/product-card-skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
+
+function BreadcrumbRowSkeleton() {
+  return (
+    <div className="mb-6 flex flex-wrap items-center gap-2" aria-hidden>
+      <Skeleton className="h-4 w-20 bg-gray-100" />
+      <span className="text-gray-300">/</span>
+      <Skeleton className="h-4 w-24 bg-gray-100" />
+    </div>
+  );
+}
+
+function PageShell({
+  children,
+  label,
+}: {
+  children: ReactNode;
+  label: string;
+}) {
+  return (
+    <div
+      className="mx-auto max-w-6xl px-4 py-8"
+      aria-busy="true"
+      aria-live="polite"
+      aria-label={label}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Home / generic listing — hero block + product-style cards. */
+export function RouteLoadingSkeleton() {
+  return (
+    <PageShell label="Đang tải trang">
+      <Skeleton className="mb-8 h-10 max-w-md rounded-lg bg-(--brand-forest)/10" />
+      <Skeleton className="mb-10 h-48 w-full max-w-3xl rounded-2xl bg-(--brand-forest)/10" />
+      <div className="mb-4 h-8 w-40 animate-pulse rounded-lg bg-(--brand-forest)/10" />
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <ProductCardSkeleton key={i} />
+        ))}
+      </div>
+    </PageShell>
+  );
+}
+
+/** Category chips + product cards only (inside `/products` Suspense boundary). */
+export function ProductsListingSkeleton() {
+  return (
+    <div aria-busy="true" aria-live="polite" aria-label="Đang tải sản phẩm">
+      <div className="mb-6 flex flex-wrap gap-2">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-9 w-24 rounded-full bg-gray-100" />
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <ProductCardSkeleton key={i} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function ProductsRouteSkeleton() {
+  return (
+    <PageShell label="Đang tải danh mục sản phẩm">
+      <BreadcrumbRowSkeleton />
+      <Skeleton className="mb-6 h-9 w-64 max-w-full bg-gray-100" />
+      <ProductsListingSkeleton />
+    </PageShell>
+  );
+}
+
+export function ProductDetailRouteSkeleton() {
+  return (
+    <PageShell label="Đang tải chi tiết sản phẩm">
+      <BreadcrumbRowSkeleton />
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+        <div className="space-y-3">
+          <Skeleton className="aspect-square w-full rounded-xl bg-gray-100" />
+          <div className="flex gap-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton
+                key={i}
+                className="h-16 w-16 shrink-0 rounded-lg bg-gray-100"
+              />
+            ))}
+          </div>
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-9 w-full bg-gray-100" />
+          <Skeleton className="h-9 w-3/4 bg-gray-100" />
+          <Skeleton className="h-6 w-40 bg-gray-100" />
+          <Skeleton className="h-24 w-full rounded-xl bg-gray-100" />
+          <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-6">
+            <Skeleton className="h-5 w-40 bg-gray-100" />
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full bg-gray-100" />
+            ))}
+            <Skeleton className="h-12 w-full rounded-xl bg-gray-100" />
+          </div>
+        </div>
+      </div>
+      <div className="mt-10 space-y-3">
+        <div className="flex gap-4 border-b border-gray-200 pb-2">
+          <Skeleton className="h-8 w-28 bg-gray-100" />
+          <Skeleton className="h-8 w-28 bg-gray-100" />
+        </div>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-4 w-full bg-gray-100" />
+        ))}
+      </div>
+      <div className="mt-10">
+        <Skeleton className="mb-4 h-7 w-48 bg-gray-100" />
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <ProductCardSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    </PageShell>
+  );
+}
+
+export function ArticlesListingSkeleton() {
+  return (
+    <div aria-busy="true" aria-live="polite" aria-label="Đang tải bài viết">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <ArticleCardSkeleton key={i} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function ArticlesRouteSkeleton() {
+  return (
+    <PageShell label="Đang tải tin tức">
+      <BreadcrumbRowSkeleton />
+      <Skeleton className="mb-6 h-9 w-48 bg-gray-100" />
+      <ArticlesListingSkeleton />
+    </PageShell>
+  );
+}
+
+export function ArticleDetailRouteSkeleton() {
+  return (
+    <PageShell label="Đang tải bài viết">
+      <BreadcrumbRowSkeleton />
+      <Skeleton className="mb-4 h-10 w-full max-w-2xl bg-gray-100" />
+      <Skeleton className="mb-6 h-4 w-40 bg-gray-100" />
+      <Skeleton className="mb-6 aspect-video w-full max-w-3xl rounded-xl bg-gray-100" />
+      <div className="max-w-3xl space-y-3">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <Skeleton
+            key={i}
+            className="h-4 bg-gray-100"
+            style={{ width: `${70 + ((i * 13) % 25)}%` }}
+          />
+        ))}
+      </div>
+    </PageShell>
+  );
+}
+
+export function CartRouteSkeleton() {
+  return (
+    <PageShell label="Đang tải giỏ hàng">
+      <Skeleton className="mb-8 h-9 w-40 bg-gray-100" />
+      <div className="space-y-4">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex gap-4 rounded-xl border border-gray-200 bg-white p-4"
+          >
+            <Skeleton className="h-20 w-20 shrink-0 rounded-lg bg-gray-100" />
+            <div className="flex flex-1 flex-col justify-center gap-2">
+              <Skeleton className="h-4 w-3/5 bg-gray-100" />
+              <Skeleton className="h-4 w-24 bg-gray-100" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </PageShell>
+  );
+}
+
+export function OrderSuccessRouteSkeleton() {
+  return (
+    <PageShell label="Đang tải trang xác nhận">
+      <div className="mx-auto flex max-w-lg flex-col items-center text-center">
+        <Skeleton className="mb-6 h-16 w-16 rounded-full bg-gray-100" />
+        <Skeleton className="mb-3 h-8 w-64 bg-gray-100" />
+        <Skeleton className="mb-8 h-4 w-full max-w-sm bg-gray-100" />
+        <Skeleton className="h-11 w-48 rounded-md bg-gray-100" />
+      </div>
+    </PageShell>
+  );
+}
+</file>
+
 <file path="apps/web/src/components/ui/scroll-reveal.tsx">
 'use client';
 
@@ -53445,156 +53254,175 @@ export const PWA_MANIFEST_SCREENSHOTS = [
 ] as const;
 </file>
 
-<file path="apps/web/src/lib/structured-data.ts">
-// JSON-LD structured data generators for SEO
-// Used on product pages, article pages, and all pages (organization + breadcrumb)
+<file path="apps/web/src/lib/seo.ts">
+import { SITE_NAME, SITE_URL } from '@/lib/constants';
+import type { Metadata } from 'next';
+import { PWA_CONFIG } from './pwa-config';
 
-import { LANDING_BRAND } from '@/data/landing-page-content';
-import type { Product, Article } from '@longnhan/types';
-import {
-  SITE_URL,
-  SITE_NAME,
-  CONTACT_PHONE,
-  CONTACT_ADDRESS,
-  CONTACT_EMAIL,
-  SOCIAL_LINKS,
-} from './constants';
-import { toAbsoluteUrl } from './seo';
+type OgImage = {
+  url: string;
+  width?: number;
+  height?: number;
+  alt?: string;
+};
 
-/** Organization schema — included in root layout */
-export function buildOrganizationSchema() {
-  const sameAs = [
-    SOCIAL_LINKS.facebook,
-    SOCIAL_LINKS.zalo,
-    SOCIAL_LINKS.shopee,
-    SOCIAL_LINKS.tiktok,
-  ].filter((url): url is string => Boolean(url));
+type SeoBuilderCore = {
+  title: string;
+  description?: string;
+  canonicalPath: string;
+  ogImage?: OgImage;
+  ogImages?: OgImage[];
+  /** Use `article` for blog posts so crawlers get the right OG type. */
+  openGraphType?: 'website' | 'article';
+};
 
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'Organization',
-    name: SITE_NAME,
-    url: SITE_URL,
-    logo: toAbsoluteUrl(LANDING_BRAND.logoSrc),
-    email: CONTACT_EMAIL,
-    telephone: CONTACT_PHONE,
-    address: {
-      '@type': 'PostalAddress',
-      addressLocality: 'Hưng Yên',
-      addressRegion: 'Hưng Yên',
-      addressCountry: 'VN',
-      streetAddress: CONTACT_ADDRESS,
-    },
-    ...(sameAs.length > 0 ? { sameAs } : {}),
-    contactPoint: {
-      '@type': 'ContactPoint',
-      telephone: CONTACT_PHONE,
-      contactType: 'customer service',
-      areaServed: 'VN',
-      availableLanguage: ['Vietnamese'],
-    },
-  };
+/** Core SEO fields plus any optional Next.js `Metadata` fields (merged shallowly; OG/Twitter/canonical are composed on top). */
+export type BuildSeoMetadataInput = SeoBuilderCore & Partial<Metadata>;
+
+const DEFAULT_OG_IMAGE: Required<Pick<OgImage, 'url'>> & Partial<OgImage> = {
+  url: '/banner-web2.png',
+  width: 1200,
+  height: 630,
+  alt: 'Long Nhãn Tống Trân',
+};
+
+/** Strips HTML and trims to a meta description length (default 160). */
+export function trimMetaDescription(text: string, maxLength = 160): string {
+  const plain = text
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (plain.length <= maxLength) return plain;
+  return `${plain.slice(0, maxLength - 1)}…`;
 }
 
-/** WebSite schema with on-site product search — root layout */
-export function buildWebSiteSchema() {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'WebSite',
-    name: SITE_NAME,
-    url: SITE_URL,
-    inLanguage: 'vi-VN',
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: {
-        '@type': 'EntryPoint',
-        urlTemplate: `${SITE_URL}/products?q={search_term_string}`,
-      },
-      'query-input': 'required name=search_term_string',
-    },
-  };
+/** Resolves image and page URLs for OG/Twitter; Facebook requires absolute https URLs. */
+export function toAbsoluteUrl(pathOrUrl: string): string {
+  const s = pathOrUrl.trim();
+  if (s.startsWith('https://')) return s;
+  if (s.startsWith('http://')) return s;
+  if (s.startsWith('//')) return `https:${s}`;
+  if (s.startsWith('/')) return `${SITE_URL}${s}`;
+  return `${SITE_URL}/${s}`;
 }
 
-/** BreadcrumbList schema */
-export function buildBreadcrumbSchema(items: { name: string; url: string }[]) {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: items.map((item, index) => ({
-      '@type': 'ListItem',
-      position: index + 1,
-      name: item.name,
-      item: item.url,
-    })),
-  };
+function normalizeCanonicalPath(path: string): string {
+  const p = path.trim();
+  if (!p || p === '/') return '/';
+  return p.startsWith('/') ? p : `/${p}`;
 }
 
-/** Product schema with VND pricing */
-export function buildProductSchema(product: Product) {
-  const activeVariants = product.variants.filter((v) => v.active || v.isActive);
-  const variantsForPrice =
-    activeVariants.length > 0 ? activeVariants : product.variants;
-  const lowestPrice =
-    variantsForPrice.length > 0
-      ? Math.min(...variantsForPrice.map((v) => v.price))
-      : product.basePrice;
-  const highestPrice =
-    variantsForPrice.length > 0
-      ? Math.max(...variantsForPrice.map((v) => v.price))
-      : product.basePrice;
-  const imageList = product.images?.length
-    ? product.images
-    : product.imageUrls?.length
-      ? product.imageUrls
-      : product.featuredImageUrl
-        ? [product.featuredImageUrl]
-        : [];
-  const absoluteImages = imageList.map((src) => toAbsoluteUrl(src));
+export function buildSeoMetadata(input: BuildSeoMetadataInput): Metadata {
+  const {
+    title,
+    description,
+    canonicalPath,
+    ogImage,
+    ogImages,
+    openGraphType,
+    alternates: inputAlternates,
+    openGraph: inputOpenGraph,
+    twitter: inputTwitter,
+    robots: inputRobots,
+    ...metadataRest
+  } = input;
+
+  const pathname = normalizeCanonicalPath(canonicalPath);
+  const pageUrl = `${SITE_URL}${pathname === '/' ? '/' : pathname}`;
+
+  const images = (ogImages ?? (ogImage ? [ogImage] : [DEFAULT_OG_IMAGE]))
+    .filter(Boolean)
+    .map((img) => ({
+      ...img,
+      url: toAbsoluteUrl(img.url),
+    }));
+
+  const imageUrls = images.map((i) => i.url);
+
+  const userOg = inputOpenGraph as
+    | (NonNullable<typeof inputOpenGraph> & { type?: 'website' | 'article' })
+    | undefined;
+  const ogType = openGraphType ?? userOg?.type ?? 'website';
+
+  const userTw = inputTwitter as
+    | (NonNullable<typeof inputTwitter> & {
+        card?: 'summary' | 'summary_large_image' | 'app' | 'player';
+      })
+    | undefined;
 
   return {
-    '@context': 'https://schema.org',
-    '@type': 'Product',
-    name: product.name,
-    description: product.summary ?? product.description ?? undefined,
-    image: absoluteImages.length > 0 ? absoluteImages : undefined,
-    brand: {
-      '@type': 'Brand',
-      name: SITE_NAME,
+    ...metadataRest,
+    title,
+    description,
+    alternates: {
+      ...inputAlternates,
+      canonical: pageUrl,
     },
-    url: `${SITE_URL}/products/${product.slug}`,
-    offers: {
-      '@type': 'AggregateOffer',
-      priceCurrency: 'VND',
-      lowPrice: lowestPrice,
-      highPrice: highestPrice,
-      offerCount: variantsForPrice.length,
-      availability: 'https://schema.org/InStock',
+    authors: [{ name: SITE_NAME, url: SITE_URL }],
+    generator: 'Next.js',
+    applicationName: SITE_NAME,
+    category: 'food',
+    metadataBase: new URL(SITE_URL),
+    openGraph: {
+      ...inputOpenGraph,
+      type: ogType,
+      locale: userOg?.locale ?? 'vi_VN',
+      siteName: userOg?.siteName ?? SITE_NAME,
+      url: userOg?.url ?? pageUrl,
+      title,
+      description,
+      images,
     },
-  };
-}
-
-/** NewsArticle schema */
-export function buildArticleSchema(article: Article) {
-  const rawImage =
-    article.featuredImageUrl ?? article.coverImageUrl ?? undefined;
-  const image = rawImage ? toAbsoluteUrl(rawImage) : undefined;
-
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'NewsArticle',
-    headline: article.title,
-    description: article.excerpt ?? article.summary ?? undefined,
-    image,
-    inLanguage: 'vi-VN',
-    mainEntityOfPage: `${SITE_URL}/articles/${article.slug}`,
-    datePublished: article.publishedAt ?? article.createdAt,
-    dateModified: article.updatedAt,
-    publisher: {
-      '@type': 'Organization',
-      name: SITE_NAME,
-      url: SITE_URL,
+    twitter: {
+      ...inputTwitter,
+      card: userTw?.card ?? 'summary_large_image',
+      title,
+      description,
+      images: imageUrls,
     },
-    url: `${SITE_URL}/articles/${article.slug}`,
+    icons: {
+      icon: [{ url: '/favicon.ico', sizes: 'any' }],
+      apple: [
+        { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      ],
+    },
+    robots:
+      inputRobots ??
+      ({
+        index: true,
+        follow: true,
+        googleBot: {
+          index: true,
+          follow: true,
+        },
+      } satisfies Metadata['robots']),
+    classification: 'food',
+    other: {
+      google: 'notranslate',
+      'mobile-web-app-capable': 'yes',
+      'apple-mobile-web-app-capable': 'yes',
+      'apple-mobile-web-app-status-bar-style': 'black-translucent',
+      'apple-mobile-web-app-title': SITE_NAME,
+      'application-name': SITE_NAME,
+      'msapplication-TileColor': PWA_CONFIG.themeColor,
+      'msapplication-config': '/browserconfig.xml',
+      'theme-color': PWA_CONFIG.themeColor,
+      'color-scheme': 'dark light',
+      referrer: 'origin-when-cross-origin',
+      viewport: 'width=device-width, initial-scale=1, maximum-scale=5',
+    },
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: 'black-translucent',
+      title: SITE_NAME,
+      startupImage: [
+        {
+          url: '/apple-touch-startup-image-768x1004.png',
+          media: '(device-width: 768px) and (device-height: 1024px)',
+        },
+      ],
+    },
+    referrer: 'origin-when-cross-origin',
   };
 }
 </file>
@@ -57244,60 +57072,19 @@ export async function lookupOrderAction(
 }
 </file>
 
-<file path="apps/web/src/app/not-found.tsx">
-import Link from 'next/link';
-
-import FuzzyText from '@/components/ui/fuzzy-text';
+<file path="apps/web/src/app/cart/page.tsx">
+import { CartPageContent } from '@/components/cart/cart-page-content';
 import { buildSeoMetadata } from '@/lib/seo';
 
 export const metadata = buildSeoMetadata({
-  title: 'Không tìm thấy trang',
-  description:
-    'Trang bạn tìm không tồn tại. Quay về trang chủ hoặc xem sản phẩm long nhãn Hưng Yên tại nhanhunguyen.com.',
-  canonicalPath: '/404',
+  title: 'Giỏ hàng',
+  description: 'Giỏ hàng của bạn tại Long Nhãn Hưng Yên — nhanhunguyen.com.',
+  canonicalPath: '/cart',
   robots: { index: false, follow: false },
 });
 
-export default function NotFound() {
-  return (
-    <section className="mx-auto max-w-3xl px-4 py-16 text-center">
-      <div className="mb-4 flex justify-center" aria-hidden="true">
-        <FuzzyText
-          fontSize="clamp(4rem, 14vw, 9rem)"
-          fontWeight={900}
-          color="#052e16"
-          baseIntensity={0.12}
-          hoverIntensity={0.45}
-          fuzzRange={26}
-          fps={60}
-          className="max-w-full"
-        >
-          404
-        </FuzzyText>
-      </div>
-      <span className="sr-only">404</span>
-      <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-        Không tìm thấy nội dung
-      </h1>
-      <p className="mt-3 text-gray-600">
-        Trang bạn tìm kiếm hiện không tìm thấy hoặc đã di chuyển
-      </p>
-      <div className="mt-8 flex justify-center gap-3">
-        <Link
-          href="/"
-          className="inline-flex items-center rounded-xl bg-green-700 px-5 py-3 text-sm font-semibold text-white hover:bg-green-600"
-        >
-          Về trang chủ
-        </Link>
-        <Link
-          href="/products"
-          className="inline-flex items-center rounded-xl border border-border px-5 py-3 text-sm font-semibold text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-        >
-          Xem sản phẩm
-        </Link>
-      </div>
-    </section>
-  );
+export default function CartPage() {
+  return <CartPageContent />;
 }
 </file>
 
@@ -58232,6 +58019,160 @@ export const queryKeys = {
       [...queryKeys.articles.all, contentSegment.detail, slug] as const,
   },
 } as const;
+</file>
+
+<file path="apps/web/src/lib/structured-data.ts">
+// JSON-LD structured data generators for SEO
+// Used on product pages, article pages, and all pages (organization + breadcrumb)
+
+import { LANDING_BRAND } from '@/data/landing-page-content';
+import type { Product, Article } from '@longnhan/types';
+import {
+  SITE_URL,
+  SITE_NAME,
+  CONTACT_PHONE,
+  CONTACT_ADDRESS,
+  CONTACT_EMAIL,
+  SOCIAL_LINKS,
+} from './constants';
+import { toAbsoluteUrl } from './seo';
+
+/** Organization schema — included in root layout */
+export function buildOrganizationSchema() {
+  const sameAs = [
+    SOCIAL_LINKS.facebook,
+    SOCIAL_LINKS.zalo,
+    SOCIAL_LINKS.shopee,
+    SOCIAL_LINKS.tiktok,
+  ].filter((url): url is string => Boolean(url));
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: SITE_NAME,
+    url: SITE_URL,
+    logo: toAbsoluteUrl(LANDING_BRAND.logoSrc),
+    email: CONTACT_EMAIL,
+    telephone: CONTACT_PHONE,
+    address: {
+      '@type': 'PostalAddress',
+      addressLocality: 'Hưng Yên',
+      addressRegion: 'Hưng Yên',
+      addressCountry: 'VN',
+      streetAddress: CONTACT_ADDRESS,
+    },
+    ...(sameAs.length > 0 ? { sameAs } : {}),
+    contactPoint: {
+      '@type': 'ContactPoint',
+      telephone: CONTACT_PHONE,
+      contactType: 'customer service',
+      areaServed: 'VN',
+      availableLanguage: ['Vietnamese'],
+    },
+  };
+}
+
+/** WebSite schema with on-site product search — root layout */
+export function buildWebSiteSchema() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: SITE_NAME,
+    url: SITE_URL,
+    inLanguage: 'vi-VN',
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: `${SITE_URL}/products?q={search_term_string}`,
+      },
+      'query-input': 'required name=search_term_string',
+    },
+  };
+}
+
+/** BreadcrumbList schema */
+export function buildBreadcrumbSchema(items: { name: string; url: string }[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((item, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  };
+}
+
+/** Product schema with VND pricing */
+export function buildProductSchema(product: Product) {
+  const activeVariants = product.variants.filter((v) => v.active || v.isActive);
+  const variantsForPrice =
+    activeVariants.length > 0 ? activeVariants : product.variants;
+  const lowestPrice =
+    variantsForPrice.length > 0
+      ? Math.min(...variantsForPrice.map((v) => v.price))
+      : product.basePrice;
+  const highestPrice =
+    variantsForPrice.length > 0
+      ? Math.max(...variantsForPrice.map((v) => v.price))
+      : product.basePrice;
+  const imageList = product.images?.length
+    ? product.images
+    : product.imageUrls?.length
+      ? product.imageUrls
+      : product.featuredImageUrl
+        ? [product.featuredImageUrl]
+        : [];
+  const absoluteImages = imageList.map((src) => toAbsoluteUrl(src));
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    description: product.summary ?? product.description ?? undefined,
+    image: absoluteImages.length > 0 ? absoluteImages : undefined,
+    brand: {
+      '@type': 'Brand',
+      name: SITE_NAME,
+    },
+    url: `${SITE_URL}/products/${product.slug}`,
+    offers: {
+      '@type': 'AggregateOffer',
+      priceCurrency: 'VND',
+      lowPrice: lowestPrice,
+      highPrice: highestPrice,
+      offerCount: variantsForPrice.length,
+      availability: 'https://schema.org/InStock',
+    },
+  };
+}
+
+/** NewsArticle schema */
+export function buildArticleSchema(article: Article) {
+  const rawImage =
+    article.featuredImageUrl ?? article.coverImageUrl ?? undefined;
+  const image = rawImage ? toAbsoluteUrl(rawImage) : undefined;
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'NewsArticle',
+    headline: article.title,
+    description: article.excerpt ?? article.summary ?? undefined,
+    image,
+    inLanguage: 'vi-VN',
+    mainEntityOfPage: `${SITE_URL}/articles/${article.slug}`,
+    datePublished: article.publishedAt ?? article.createdAt,
+    dateModified: article.updatedAt,
+    publisher: {
+      '@type': 'Organization',
+      name: SITE_NAME,
+      url: SITE_URL,
+    },
+    url: `${SITE_URL}/articles/${article.slug}`,
+  };
+}
 </file>
 
 <file path="apps/web/sentry.edge.config.ts">
@@ -59732,159 +59673,59 @@ export class OrdersController {
 }
 </file>
 
-<file path="apps/web/src/components/landing/landing-hero.tsx">
-import Image from 'next/image';
-import {
-  LANDING_BRAND,
-  LANDING_CHANNELS,
-  LANDING_HERO,
-} from '@/data/landing-page-content';
-import { SectionTitleLinkButton } from '@/components/ui/section-title-link-button';
-
-export function LandingHero() {
-  const lines = LANDING_HERO.headline.split('\n');
-
-  return (
-    <section className="relative overflow-hidden border-b border-(--brand-gold)/25 bg-linear-to-b from-(--brand-cream) via-[#eef4ec] to-(--brand-cream)">
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.07]"
-        style={{
-          backgroundImage: `url('/bg-body-pattern.svg')`,
-        }}
-      />
-      <div className="relative mx-auto flex max-w-6xl flex-col gap-12 px-4 py-16 md:flex-row md:items-center md:py-24 lg:gap-16">
-        <div className="flex flex-1 flex-col items-center md:items-start md:text-left text-center">
-          <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-(--brand-gold-dark)">
-            {LANDING_HERO.eyebrow}
-          </p>
-          <h1 className="landing-heading max-w-xl text-4xl font-semibold leading-tight text-(--brand-forest) sm:text-5xl lg:text-[3.25rem]">
-            {lines.map((line, i) => (
-              <span key={i} className="block">
-                {line}
-              </span>
-            ))}
-          </h1>
-          <p className="mt-6 max-w-lg text-lg leading-relaxed text-(--brand-forest-muted)">
-            {LANDING_HERO.subhead}
-          </p>
-          <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center md:justify-start">
-            <SectionTitleLinkButton
-              actionLabel={LANDING_HERO.primaryCta}
-              type="primary"
-              ariaLabel={
-                typeof LANDING_HERO.primaryCta === 'string'
-                  ? LANDING_HERO.primaryCta
-                  : undefined
-              }
-              href="/products"
-            />
-            {LANDING_CHANNELS.shopee.href ? (
-              <SectionTitleLinkButton
-                actionLabel={LANDING_HERO.secondaryCta}
-                ariaLabel={
-                  typeof LANDING_HERO.secondaryCta === 'string'
-                    ? LANDING_HERO.secondaryCta
-                    : undefined
-                }
-                href={LANDING_CHANNELS.shopee.href}
-              />
-            ) : null}
-          </div>
-        </div>
-        <div className="flex flex-1 justify-center md:justify-end">
-          <div className="relative aspect-square w-full max-w-[min(100%,320px)] sm:max-w-sm">
-            <div className="absolute inset-0 rounded-full bg-linear-to-br from-(--brand-gold)/30 to-transparent blur-2xl" />
-            <div className="relative flex h-full items-center justify-center rounded-full border-4 border-(--brand-gold)/40 bg-(--brand-cream) p-6 shadow-xl ring-1 ring-(--brand-forest)/10">
-              <Image
-                src={LANDING_BRAND.logoSrc}
-                alt={LANDING_BRAND.logoAlt}
-                width={280}
-                height={280}
-                sizes="(max-width: 640px) 85vw, 280px"
-                className="h-auto w-[85%] object-contain drop-shadow-md"
-                priority
-                loading="eager"
-                fetchPriority="high"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-      <p className="pb-8 text-center text-sm italic text-(--brand-forest-muted)">
-        {LANDING_BRAND.tagline}
-      </p>
-    </section>
-  );
-}
-</file>
-
-<file path="apps/web/src/components/layout/header.tsx">
-import Image from 'next/image';
+<file path="apps/web/src/app/not-found.tsx">
 import Link from 'next/link';
-import { Phone } from 'lucide-react';
-import { CONTACT_PHONE } from '@/lib/constants';
-import { formatPhoneDisplay } from '@/lib/format-phone-display';
-import { LANDING_BRAND } from '@/data/landing-page-content';
-import HeaderCartButton from './header-cart-button';
-import HeaderSearchBar from './header-search-bar';
-import MobileNav from './mobile-nav';
 
-const navLinks = [
-  { href: '/', label: 'Trang chủ' },
-  { href: '/products', label: 'Sản phẩm' },
-  { href: '/articles', label: 'Bài viết' },
-];
+import FuzzyText from '@/components/ui/fuzzy-text';
+import { buildSeoMetadata } from '@/lib/seo';
 
-export default function Header() {
-  const tel = CONTACT_PHONE.replace(/\s/g, '');
-  const phoneDisplay = formatPhoneDisplay(CONTACT_PHONE);
+export const metadata = buildSeoMetadata({
+  title: 'Không tìm thấy trang',
+  description:
+    'Trang bạn tìm không tồn tại. Quay về trang chủ hoặc xem sản phẩm long nhãn Hưng Yên tại nhanhunguyen.com.',
+  canonicalPath: '/404',
+  robots: { index: false, follow: false },
+});
 
+export default function NotFound() {
   return (
-    <header className="sticky top-0 z-50 border-b border-(--brand-forest)/10 bg-(--brand-cream)/95 shadow-sm backdrop-blur-md">
-      <div className="relative mx-auto flex min-h-17 max-w-6xl items-center gap-3 px-4 py-2 md:min-h-18 md:gap-4">
-        <Link href="/" className="relative z-10 flex shrink-0 items-center">
-          <Image
-            src={LANDING_BRAND.logoSrc}
-            alt={LANDING_BRAND.logoAlt}
-            width={72}
-            height={72}
-            sizes="72px"
-            loading="eager"
-            className="h-14 w-14 object-contain md:h-18 md:w-18"
-          />
-        </Link>
-
-        <div className="hidden min-w-0 flex-1 items-center justify-center md:flex">
-          <HeaderSearchBar className="w-full max-w-xl" />
-        </div>
-
-        <div className="relative z-10 ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
-          <a
-            href={`tel:${tel}`}
-            className="hidden items-center gap-2.5 rounded-full border-2 border-(--brand-gold)/55 bg-linear-to-br from-(--brand-gold)/20 via-(--brand-cream) to-(--brand-gold)/10 px-3 py-1.5 text-(--brand-forest) shadow-sm transition hover:border-(--brand-gold) hover:shadow-md sm:inline-flex sm:px-4 sm:py-2"
-          >
-            <Phone className="h-4 w-4" strokeWidth={2} aria-hidden />
-            <span className="flex min-w-0 flex-col leading-tight">
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-(--brand-forest-muted) sm:text-[11px]">
-                Giao hàng tận nơi
-              </span>
-              <span className="text-sm font-bold tabular-nums">
-                {phoneDisplay}
-              </span>
-            </span>
-          </a>
-
-          <div
-            className="hidden h-8 w-px bg-(--brand-forest)/15 sm:block"
-            aria-hidden
-          />
-
-          <HeaderCartButton />
-
-          <MobileNav links={navLinks} />
-        </div>
+    <section className="mx-auto max-w-3xl px-4 py-16 text-center">
+      <div className="mb-4 flex justify-center" aria-hidden="true">
+        <FuzzyText
+          fontSize="clamp(4rem, 14vw, 9rem)"
+          fontWeight={900}
+          color="#052e16"
+          baseIntensity={0.12}
+          hoverIntensity={0.45}
+          fuzzRange={26}
+          fps={60}
+          className="max-w-full"
+        >
+          404
+        </FuzzyText>
       </div>
-    </header>
+      <span className="sr-only">404</span>
+      <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+        Không tìm thấy nội dung
+      </h1>
+      <p className="mt-3 text-gray-600">
+        Trang bạn tìm kiếm hiện không tìm thấy hoặc đã di chuyển
+      </p>
+      <div className="mt-8 flex justify-center gap-3">
+        <Link
+          href="/"
+          className="inline-flex items-center rounded-xl bg-green-700 px-5 py-3 text-sm font-semibold text-white hover:bg-green-600"
+        >
+          Về trang chủ
+        </Link>
+        <Link
+          href="/products"
+          className="inline-flex items-center rounded-xl border border-border px-5 py-3 text-sm font-semibold text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+        >
+          Xem sản phẩm
+        </Link>
+      </div>
+    </section>
   );
 }
 </file>
@@ -62673,6 +62514,163 @@ export function LandingArticlesPreview({
 }
 </file>
 
+<file path="apps/web/src/components/landing/landing-hero.tsx">
+import Image from 'next/image';
+import {
+  LANDING_BRAND,
+  LANDING_CHANNELS,
+  LANDING_HERO,
+} from '@/data/landing-page-content';
+import { SectionTitleLinkButton } from '@/components/ui/section-title-link-button';
+
+export function LandingHero() {
+  const lines = LANDING_HERO.headline.split('\n');
+
+  return (
+    <section className="relative overflow-hidden border-b border-(--brand-gold)/25 bg-linear-to-b from-(--brand-cream) via-[#eef4ec] to-(--brand-cream)">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.07]"
+        style={{
+          backgroundImage: `url('/bg-body-pattern.svg')`,
+        }}
+      />
+      <div className="relative mx-auto flex max-w-6xl flex-col gap-12 px-4 py-16 md:flex-row md:items-center md:py-24 lg:gap-16">
+        <div className="flex flex-1 flex-col items-center md:items-start md:text-left text-center">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-(--brand-gold-dark)">
+            {LANDING_HERO.eyebrow}
+          </p>
+          <h1 className="landing-heading max-w-xl text-4xl font-semibold leading-tight text-(--brand-forest) sm:text-5xl lg:text-[3.25rem]">
+            {lines.map((line, i) => (
+              <span key={i} className="block">
+                {line}
+              </span>
+            ))}
+          </h1>
+          <p className="mt-6 max-w-lg text-lg leading-relaxed text-(--brand-forest-muted)">
+            {LANDING_HERO.subhead}
+          </p>
+          <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center md:justify-start">
+            <SectionTitleLinkButton
+              actionLabel={LANDING_HERO.primaryCta}
+              type="primary"
+              ariaLabel={
+                typeof LANDING_HERO.primaryCta === 'string'
+                  ? LANDING_HERO.primaryCta
+                  : undefined
+              }
+              href="/products"
+            />
+            {LANDING_CHANNELS.shopee.href ? (
+              <SectionTitleLinkButton
+                actionLabel={LANDING_HERO.secondaryCta}
+                ariaLabel={
+                  typeof LANDING_HERO.secondaryCta === 'string'
+                    ? LANDING_HERO.secondaryCta
+                    : undefined
+                }
+                href={LANDING_CHANNELS.shopee.href}
+              />
+            ) : null}
+          </div>
+        </div>
+        <div className="flex flex-1 justify-center md:justify-end">
+          <div className="relative aspect-square w-full max-w-[min(100%,320px)] sm:max-w-sm">
+            <div className="absolute inset-0 rounded-full bg-linear-to-br from-(--brand-gold)/30 to-transparent blur-2xl" />
+            <div className="relative flex h-full items-center justify-center rounded-full border-4 border-(--brand-gold)/40 bg-(--brand-cream) p-6 shadow-xl ring-1 ring-(--brand-forest)/10">
+              <Image
+                src={LANDING_BRAND.logoSrc}
+                alt={LANDING_BRAND.logoAlt}
+                width={280}
+                height={280}
+                sizes="(max-width: 640px) 85vw, 280px"
+                className="h-auto w-[85%] object-contain drop-shadow-md"
+                priority
+                loading="eager"
+                fetchPriority="high"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      <p className="pb-8 text-center text-sm italic text-(--brand-forest-muted)">
+        {LANDING_BRAND.tagline}
+      </p>
+    </section>
+  );
+}
+</file>
+
+<file path="apps/web/src/components/layout/header.tsx">
+import Image from 'next/image';
+import Link from 'next/link';
+import { Phone } from 'lucide-react';
+import { CONTACT_PHONE } from '@/lib/constants';
+import { formatPhoneDisplay } from '@/lib/format-phone-display';
+import { LANDING_BRAND } from '@/data/landing-page-content';
+import HeaderCartButton from './header-cart-button';
+import HeaderSearchBar from './header-search-bar';
+import MobileNav from './mobile-nav';
+
+const navLinks = [
+  { href: '/', label: 'Trang chủ' },
+  { href: '/products', label: 'Sản phẩm' },
+  { href: '/articles', label: 'Bài viết' },
+];
+
+export default function Header() {
+  const tel = CONTACT_PHONE.replace(/\s/g, '');
+  const phoneDisplay = formatPhoneDisplay(CONTACT_PHONE);
+
+  return (
+    <header className="sticky top-0 z-50 border-b border-(--brand-forest)/10 bg-(--brand-cream)/95 shadow-sm backdrop-blur-md">
+      <div className="relative mx-auto flex min-h-17 max-w-6xl items-center gap-3 px-4 py-2 md:min-h-18 md:gap-4">
+        <Link href="/" className="relative z-10 flex shrink-0 items-center">
+          <Image
+            src={LANDING_BRAND.logoSrc}
+            alt={LANDING_BRAND.logoAlt}
+            width={72}
+            height={72}
+            sizes="72px"
+            loading="eager"
+            className="h-14 w-14 object-contain md:h-18 md:w-18"
+          />
+        </Link>
+
+        <div className="hidden min-w-0 flex-1 items-center justify-center md:flex">
+          <HeaderSearchBar className="w-full max-w-xl" />
+        </div>
+
+        <div className="relative z-10 ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
+          <a
+            href={`tel:${tel}`}
+            className="hidden items-center gap-2.5 rounded-full border-2 border-(--brand-gold)/55 bg-linear-to-br from-(--brand-gold)/20 via-(--brand-cream) to-(--brand-gold)/10 px-3 py-1.5 text-(--brand-forest) shadow-sm transition hover:border-(--brand-gold) hover:shadow-md sm:inline-flex sm:px-4 sm:py-2"
+          >
+            <Phone className="h-4 w-4" strokeWidth={2} aria-hidden />
+            <span className="flex min-w-0 flex-col leading-tight">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-(--brand-forest-muted) sm:text-[11px]">
+                Giao hàng tận nơi
+              </span>
+              <span className="text-sm font-bold tabular-nums">
+                {phoneDisplay}
+              </span>
+            </span>
+          </a>
+
+          <div
+            className="hidden h-8 w-px bg-(--brand-forest)/15 sm:block"
+            aria-hidden
+          />
+
+          <HeaderCartButton />
+
+          <MobileNav links={navLinks} />
+        </div>
+      </div>
+    </header>
+  );
+}
+</file>
+
 <file path="apps/web/src/components/products/product-pdp-hero.tsx">
 import type { Product } from '@longnhan/types';
 import Link from 'next/link';
@@ -64942,344 +64940,6 @@ export function OrderStatusPanel({
 }
 </file>
 
-<file path="apps/web/src/app/order-success/page.tsx">
-import Link from 'next/link';
-import {
-  CircleCheck,
-  Home,
-  Package,
-  ShoppingBag,
-  Sparkles,
-} from 'lucide-react';
-
-import { apiServer } from '@/lib/api-server';
-import { OrderSuccessCartClearer } from '@/components/orders/order-success-cart-clearer';
-import { AutoSaveOrderForReviews } from '@/components/orders/auto-save-order-for-reviews';
-import {
-  paymentMethodLabel,
-  paymentStatusLabel,
-} from '@/components/orders/order-summary-panel';
-import { OrderStatusTimeline } from '@/components/orders/order-status-timeline';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from '@/components/ui/card';
-import type { PublicOrderSummary } from '@/actions/order-tracking-actions';
-import { buildSeoMetadata } from '@/lib/seo';
-
-interface OrderSuccessPageProps {
-  searchParams: Promise<{
-    code?: string | string[];
-  }>;
-}
-
-export const metadata = buildSeoMetadata({
-  title: 'Đặt hàng thành công',
-  description:
-    'Đơn hàng long nhãn đã được ghi nhận — chúng tôi sẽ liên hệ xác nhận sớm. Cảm ơn bạn đã mua tại nhanhunguyen.com.',
-  canonicalPath: '/order-success',
-  robots: { index: false, follow: false },
-});
-
-export default async function OrderSuccessPage({
-  searchParams,
-}: OrderSuccessPageProps) {
-  const params = await searchParams;
-  const codeFromQuery =
-    typeof params.code === 'string'
-      ? params.code.slice(0, 64)
-      : Array.isArray(params.code)
-        ? params.code[0]?.slice(0, 64)
-        : null;
-
-  let summary: PublicOrderSummary | null = null;
-  if (codeFromQuery) {
-    try {
-      const res = await apiServer.get<PublicOrderSummary>('/orders/summary', {
-        params: { code: codeFromQuery },
-      });
-      summary = res.data;
-    } catch {
-      summary = null;
-    }
-  }
-
-  const orderCode = summary?.code ?? codeFromQuery;
-
-  return (
-    <section className="relative mx-auto max-w-xl px-4 py-12 md:py-20">
-      <div
-        className="pointer-events-none absolute inset-x-0 -top-24 h-64 bg-gradient-to-b from-primary/10 via-transparent to-transparent blur-3xl"
-        aria-hidden
-      />
-
-      {orderCode ? <OrderSuccessCartClearer /> : null}
-
-      <Card
-        className="relative overflow-hidden border-border/80 bg-surface text-foreground shadow-xl ring-1 ring-border/50"
-        role="status"
-        aria-live="polite"
-      >
-        <div className="absolute right-4 top-4 opacity-[0.07]">
-          <Sparkles className="size-24 text-primary" aria-hidden />
-        </div>
-
-        <CardHeader className="items-center space-y-0 pb-2 pt-10 text-center">
-          <div
-            className="mb-6 flex size-20 items-center justify-center rounded-full bg-gradient-to-br from-primary/15 to-primary/5 text-primary shadow-inner ring-2 ring-primary/20"
-            aria-hidden
-          >
-            <CircleCheck className="size-11" strokeWidth={2.25} />
-          </div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-            Đặt hàng thành công
-          </h1>
-          <p className="mt-4 max-w-md text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
-            Cảm ơn bạn đã đặt hàng. Đội ngũ Long Nhãn Tổng Trần sẽ liên hệ xác
-            nhận đơn trong thời gian sớm nhất.
-          </p>
-        </CardHeader>
-
-        <CardContent className="space-y-6 pb-6 pt-2">
-          {orderCode ? (
-            <div className="mx-auto flex max-w-md flex-col gap-4 rounded-2xl border border-border/80 bg-gradient-to-br from-muted/50 to-background p-5 text-left shadow-sm">
-              <div className="flex items-start gap-3">
-                <span className="mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-xl bg-background text-primary shadow-sm ring-1 ring-border/60">
-                  <Package className="size-5" aria-hidden />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Mã đơn hàng
-                  </p>
-                  <p className="mt-1 break-all font-mono text-lg font-semibold tracking-tight text-foreground">
-                    {orderCode}
-                  </p>
-                  {summary ? (
-                    <dl className="mt-4 grid gap-2 text-sm">
-                      <div className="flex justify-between gap-4">
-                        <dt className="text-muted-foreground">Tổng tiền</dt>
-                        <dd className="font-semibold tabular-nums">
-                          {summary.total.toLocaleString('vi-VN')}₫
-                        </dd>
-                      </div>
-                      <div className="flex justify-between gap-4">
-                        <dt className="text-muted-foreground">Thanh toán</dt>
-                        <dd className="text-right font-medium">
-                          {paymentMethodLabel(summary.paymentMethod)}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between gap-4">
-                        <dt className="text-muted-foreground">Trạng thái TT</dt>
-                        <dd className="text-right font-medium">
-                          {paymentStatusLabel(summary.paymentStatus)}
-                        </dd>
-                      </div>
-                    </dl>
-                  ) : (
-                    <p className="mt-3 text-sm text-muted-foreground">
-                      Không tải được chi tiết đơn. Bạn vẫn có thể tra cứu bằng
-                      mã ở trang theo dõi.
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <Button
-                asChild
-                variant="default"
-                size="lg"
-                className="w-full shadow-md"
-              >
-                <Link
-                  href={`/track-order?code=${encodeURIComponent(orderCode)}`}
-                >
-                  Xem tiến trình đơn hàng
-                </Link>
-              </Button>
-
-              {summary ? (
-                <div className="mt-2">
-                  <OrderStatusTimeline
-                    orderStatus={summary.orderStatus}
-                    history={summary.statusHistory}
-                  />
-                </div>
-              ) : null}
-
-              {summary?.id && summary.phone ? (
-                <AutoSaveOrderForReviews summary={summary} />
-              ) : null}
-            </div>
-          ) : (
-            <p className="text-center text-sm text-muted-foreground">
-              Nếu bạn không thấy mã đơn, vui lòng kiểm tra email hoặc liên hệ hỗ
-              trợ.
-            </p>
-          )}
-        </CardContent>
-
-        <CardFooter className="flex flex-col gap-3 border-t border-border/80 bg-muted/20 px-4 py-6 sm:flex-row sm:justify-center sm:gap-4">
-          <Button asChild size="lg" className="w-full min-w-48 sm:w-auto">
-            <Link href="/products">
-              <ShoppingBag className="size-4 shrink-0" aria-hidden />
-              Tiếp tục mua sắm
-            </Link>
-          </Button>
-          <Button
-            asChild
-            variant="outline"
-            size="lg"
-            className="w-full min-w-48 border-border bg-background sm:w-auto"
-          >
-            <Link href="/">
-              <Home className="size-4 shrink-0" aria-hidden />
-              Về trang chủ
-            </Link>
-          </Button>
-        </CardFooter>
-      </Card>
-    </section>
-  );
-}
-</file>
-
-<file path="apps/web/src/app/layout.tsx">
-import type { Metadata, Viewport } from 'next';
-import { Geist } from 'next/font/google';
-import localFont from 'next/font/local';
-import './globals.css';
-import { AppProviders } from '@/components/providers/app-providers';
-import Header from '@/components/layout/header';
-import BackToTopButton from '@/components/ui/back-to-top-button';
-import dynamic from 'next/dynamic';
-
-const Footer = dynamic(() => import('@/components/layout/footer'), {
-  loading: () => (
-    <footer
-      className="mt-auto min-h-[320px] border-t border-(--brand-gold)/25 bg-(--brand-forest)"
-      aria-hidden
-    />
-  ),
-});
-
-const FloatingContactWidget = dynamic(
-  () => import('@/components/layout/floating-contact-widget'),
-  { loading: () => null },
-);
-import { LANDING_SEO } from '@/data/landing-page-content';
-import { GOOGLE_VERIFICATION, SITE_URL } from '@/lib/constants';
-import { PWA_CONFIG } from '@/lib/pwa-config';
-import { buildSeoMetadata } from '@/lib/seo';
-import {
-  buildOrganizationSchema,
-  buildWebSiteSchema,
-} from '@/lib/structured-data';
-import { GoogleAnalytics } from '@/components/analytics/google-analytics';
-
-const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-});
-
-const seagullDisplay = localFont({
-  src: [
-    {
-      path: '../../public/fonts/UTM SeagullBold.ttf',
-      weight: '700',
-      style: 'normal',
-    },
-    {
-      path: '../../public/fonts/UTM SeagullBoldItalic.ttf',
-      weight: '700',
-      style: 'italic',
-    },
-  ],
-  variable: '--font-seagull',
-  display: 'swap',
-});
-
-export const viewport: Viewport = {
-  themeColor: PWA_CONFIG.themeColor,
-  colorScheme: 'light',
-};
-
-const landingMetadata = buildSeoMetadata({
-  title: LANDING_SEO.title,
-  description: LANDING_SEO.description,
-  canonicalPath: '/',
-  ogImage: {
-    url: PWA_CONFIG.heroImage.path,
-    width: PWA_CONFIG.heroImage.width,
-    height: PWA_CONFIG.heroImage.height,
-    alt: PWA_CONFIG.heroImage.alt,
-  },
-});
-
-export const metadata: Metadata = {
-  ...landingMetadata,
-  metadataBase: new URL(SITE_URL),
-  title: {
-    default: PWA_CONFIG.documentTitle,
-    template: '%s | Long Nhãn Hưng Yên',
-  },
-  keywords: [...LANDING_SEO.keywords],
-  applicationName: PWA_CONFIG.name,
-  category: 'food',
-  icons: {
-    icon: [{ url: PWA_CONFIG.icons.src, type: 'image/png' }],
-    apple: [{ url: PWA_CONFIG.icons.src, type: 'image/png' }],
-  },
-  appleWebApp: {
-    capable: true,
-    title: PWA_CONFIG.name,
-    statusBarStyle: 'black-translucent',
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
-  verification: {
-    google: GOOGLE_VERIFICATION,
-  },
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
-  const structuredData = [buildOrganizationSchema(), buildWebSiteSchema()];
-
-  return (
-    <html
-      lang="vi"
-      className={`${geistSans.variable} ${seagullDisplay.variable} h-full`}
-    >
-      <head>
-        {structuredData.map((schema, index) => (
-          <script
-            key={index}
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-          />
-        ))}
-      </head>
-      <body className="min-h-full flex flex-col antialiased">
-        <GoogleAnalytics />
-        <AppProviders>
-          <Header />
-          <main className="flex-1 pb-16 md:pb-0">{children}</main>
-          <Footer />
-          <FloatingContactWidget />
-          <BackToTopButton />
-        </AppProviders>
-      </body>
-    </html>
-  );
-}
-</file>
-
 <file path="apps/web/src/components/checkout/checkout-page-content.tsx">
 'use client';
 
@@ -65902,354 +65562,6 @@ export default function ProductCard({
     </Card>
   );
 }
-</file>
-
-<file path="apps/web/src/data/landing-page-content.ts">
-import { SOCIAL_LINKS } from '@/lib/constants';
-
-export const LANDING_SEO = {
-  title: 'Long Nhãn Hưng Yên — Đặc Sản Tống Trân | nhanhunguyen.com',
-  description:
-    'Mua long nhãn Hưng Yên chính gốc Tống Trân tại nhanhunguyen.com: sấy khô không tẩm đường, quà biếu sang trọng. Giao COD toàn quốc — Zalo, Shopee, TikTok.',
-  keywords: [
-    'nhanhunguyen.com',
-    'Long nhãn Hưng Yên',
-    'Nhãn Hưng Yên',
-    'Long nhãn Tống Trân',
-    'Long nhãn sấy khô',
-    'Long nhãn quà tặng',
-    'Đặc sản Hưng Yên',
-    'Long nhãn giao COD',
-    'Long nhãn Shopee',
-    'Long nhãn TikTok',
-  ],
-  ogImageAlt: 'Long nhãn Hưng Yên — đặc sản Tống Trân, nhanhunguyen.com',
-} as const;
-
-export const PRODUCTS_LISTING_SEO = {
-  title: 'Sản phẩm Long Nhãn Hưng Yên',
-  description:
-    'Khám phá long nhãn sấy khô, set quà biếu và đặc sản Tống Trân — chọn lọc từ vườn Hưng Yên, giao COD toàn quốc. Đặt hàng nhanh tại nhanhunguyen.com.',
-} as const;
-
-export const ARTICLES_LISTING_SEO = {
-  title: 'Bài viết về Long Nhãn Hưng Yên',
-  description:
-    'Cẩm nang chọn long nhãn, bảo quản, nấu chè và câu chuyện vườn Tống Trân — kiến thức từ nông trại Hưng Yên, cập nhật tại nhanhunguyen.com.',
-} as const;
-
-export const LANDING_BRAND = {
-  name: 'Long Nhãn Hưng Yên',
-  specialtyLine: 'Đặc sản Hưng Yên',
-  tagline: 'Ngọt lành từng hạt — An thần, dưỡng tâm',
-  logoSrc: '/logo.png',
-  logoAlt: 'Logo Long Nhãn Tống Trân — Đặc sản Hưng Yên',
-} as const;
-
-export const LANDING_HERO = {
-  eyebrow: 'Long Nhãn Tống Trân',
-  headline: 'Dẻo thơm vị mật, ngọt thanh vị đời.',
-  subhead:
-    'Tuyển chọn từ những trái nhãn ngon nhất vườn nhà Tống Trân - Hưng Yên. Cam kết không tẩm đường, không chất bảo quản.',
-  primaryCta: 'Xem ngay',
-  secondaryCta: 'Xem Shopee',
-  tertiaryCta: 'Chat Zalo',
-} as const;
-
-export const LANDING_ORIGIN = {
-  sectionTitle: 'Long Nhãn Tống Trân',
-  sectionSubtitle: 'Tinh Túy Từ Vườn Nhà, Ngọt Thơm Vị Truyền Thống',
-  paragraphs: [
-    'Sinh ra và lớn lên tại mảnh đất Tống Trân, Hưng Yên – cái nôi của những mùa nhãn lồng trĩu quả, chúng tôi tự hào mang đến cho bạn thức quà quý giá nhất của quê hương: Long nhãn sấy khô 100% nhà làm.',
-    'Không sản xuất công nghiệp đại trà, mỗi mẻ long nhãn của shop đều chứa đựng sự tỉ mỉ của người nông dân. Từ khâu chọn những trái nhãn cùi dày, mọng nước nhất trong chính khu vườn gia đình, đến việc bóc vỏ, tách hạt khéo léo và đưa vào lò sấy giữ trọn hương vị.',
-    'Vì sao bạn có thể hoàn toàn yên tâm khi chọn Long Nhãn nhà chúng tôi?',
-    'Nguồn gốc minh bạch: Thu hoạch trực tiếp từ vườn nhãn gia đình tại Tống Trân, Hưng Yên.',
-    'Chất lượng thượng hạng: Cùi nhãn sấy xong dày mình, màu vàng ươm tự nhiên, dẻo dai và mang vị ngọt thanh, thơm mùi mật quyến rũ.',
-    'An toàn tuyệt đối - Cam kết 3 KHÔNG: KHÔNG tẩm đường – KHÔNG chất bảo quản – KHÔNG chất tạo màu.',
-    'Từ món ăn vặt lành mạnh cho cả gia đình, đến nguyên liệu cho nồi chè dưỡng nhan thanh mát hay bình rượu quý biếu khách, Long Nhãn Tống Trân tự tin làm hài lòng cả những vị khách kỹ tính nhất!',
-  ],
-} as const;
-
-export const LANDING_PRODUCT_TYPES = {
-  sectionTitle: 'Dòng sản phẩm',
-  sectionSubtitle: 'Phù hợp biếu tặng và thưởng thức tại gia',
-  items: [
-    {
-      title: 'Long nhãn đặc biệt',
-      description:
-        'Quả nhãn tươi bóc vỏ, bỏ hạt, sấy khô theo công thức Hưng Yên — vàng ươm, dẻo ngọt, giữ trọn hương đặc trưng.',
-    },
-    {
-      title: 'Set quà cao cấp',
-      description:
-        'Hộp quà sang trọng, tinh tế — biếu ông bà, đối tác hay dịp lễ Tết đều trọn vẹn ý nghĩa.',
-    },
-    {
-      title: 'Kết hợp đặc sản',
-      description:
-        'Có thể kết hợp cùng sen, trà hoặc sản phẩm địa phương khác theo nhu cầu (cập nhật theo mùa).',
-    },
-  ],
-} as const;
-
-export const LANDING_QUALITY = {
-  sectionTitle: 'Chất lượng & quy trình',
-  sectionSubtitle: 'Từ vườn đến hạt — minh bạch, an tâm',
-  bullets: [
-    'Thu hoạch và chế biến giai đoạn tháng 7 — tháng 9 hàng năm (theo mùa vụ).',
-    'Sấy khép kín, đúng quy trình — hạn sử dụng 12 tháng kể từ ngày sản xuất (điền SKU cụ thể khi có).',
-    'Phù hợp mọi lứa tuổi: ăn vặt, pha trà, hầm gà, nấu chè, làm mứt hoặc ngâm rượu.',
-  ],
-} as const;
-
-export const LANDING_NUTRITION = {
-  sectionTitle: 'Dinh dưỡng & đông y',
-  sectionSubtitle: 'Vị ngọt tự nhiên, nhiều dưỡng chất',
-  intro:
-    'Long nhãn chứa đường tự nhiên, vitamin và khoáng chất; khi sấy đúng cách, dưỡng chất được giữ trọn vẹn hơn.',
-  bullets: [
-    'Ăn trực tiếp hoặc thưởng thức cùng trà — hương thơm dễ chịu, vị ngọt thanh.',
-    'Dùng trong món ăn bổ dưỡng: chè, hầm, mứt — thân quen trong bếp Việt.',
-    'Trong đông y, long nhãn thường được nhắc tới trong các phương an thần, dưỡng tâm (tham khảo ý kiến chuyên gia y tế cho nhu cầu cá nhân).',
-  ],
-} as const;
-
-export const LANDING_SEASON = {
-  sectionTitle: 'Mùa vụ & đặt hàng',
-  body: 'Long nhãn tươi và long nhãn sấy theo mùa. Quý khách vui lòng liên hệ để biết tồn kho, dung tích hộp và ưu đãi theo đợt hàng.',
-} as const;
-
-export const LANDING_PRICING = {
-  sectionTitle: 'Báo giá',
-  body: 'Giá theo khối lượng (500g, 1kg…) và loại hộp quà. Vui lòng gọi, nhắn Zalo hoặc đặt qua Shopee/TikTok Shop để nhận báo giá và hỗ trợ giao COD.',
-} as const;
-
-export const LANDING_TESTIMONIALS: {
-  sectionTitle: string;
-  sectionSubtitle: string;
-  items: {
-    quote: string;
-    author: string;
-    location?: string;
-    rating?: number;
-  }[];
-} = {
-  sectionTitle: 'Khách hàng tin chọn',
-  sectionSubtitle: 'Cập nhật đánh giá thật khi có dữ liệu',
-  items: [],
-};
-
-export const LANDING_FAQ = {
-  sectionTitle: 'Câu hỏi thường gặp (FAQ)',
-  items: [
-    {
-      q: 'Long nhãn của shop có đúng là nhãn lồng Hưng Yên chính gốc không?',
-      a: 'Dạ, 100% đúng ạ! Toàn bộ sản phẩm được sấy từ những chùm nhãn lồng tươi ngon nhất tại vườn nhà mình ở Tống Trân, Phù Cừ, Hưng Yên. Vì là hàng nhà làm nên mình kiểm soát được từ khâu hái quả đến khi đóng hộp, không nhập qua trung gian hay trộn hàng vùng khác, bạn hoàn toàn yên tâm về nguồn gốc nhé!',
-    },
-    {
-      q: 'Tại sao long nhãn nhà mình lại có vị ngọt đậm, có phải do tẩm thêm đường không?',
-      a: 'Shop cam kết KHÔNG tẩm thêm một hạt đường nào. Vị ngọt đậm đà bạn cảm nhận được chính là lượng đường tự nhiên từ mật nhãn được cô đọng lại sau quá trình sấy nhiệt lâu. Đây là điểm đặc trưng của nhãn Tống Trân: cùi dày, mọng mật nên khi khô sẽ có vị ngọt thanh rất sang, không bị khé cổ như nhãn tẩm đường công nghiệp.',
-    },
-    {
-      q: 'Sản phẩm có dùng chất bảo quản hay chất tạo màu không?',
-      a: 'Tuyệt đối không ạ. Màu vàng óng ươm của long nhãn là màu tự nhiên của cùi nhãn khi được sấy đủ độ. Nhà mình làm để gia đình dùng và bán cho khách quen lâu năm nên tiêu chí Sạch - An toàn luôn đặt lên hàng đầu. Long nhãn được sấy khô kiệt nên có thể bảo quản tự nhiên rất lâu mà không cần hóa chất.',
-    },
-    {
-      q: 'Tôi nên bảo quản long nhãn thế nào để không bị xuống màu?',
-      a: 'Long nhãn nhà mình đã được sấy rất khô. Bạn chỉ cần để nơi thoáng mát, tránh ánh nắng trực tiếp là có thể dùng trong 6 tháng. Mẹo nhỏ: Nếu bạn muốn giữ màu vàng đẹp mắt và vị dẻo ngon lâu nhất (trên 1 năm), hãy bọc kín và để trong ngăn mát tủ lạnh nhé!',
-    },
-    {
-      q: 'Long nhãn Tống Trân ngoài ăn trực tiếp thì làm món gì ngon nhất?',
-      a: `Bạn có thể biến tấu rất nhiều món:
-
-Giải nhiệt: Nấu chè hạt sen long nhãn, chè dưỡng nhan.
-
-Thư giãn: Pha trà cùng táo đỏ, kỷ tử giúp an thần, ngủ ngon.
-
-Bồi bổ: Hầm gà, chim bồ câu hoặc ngâm rượu quý.
-
-Vị ngọt thơm của nhãn Hưng Yên sẽ làm các món ăn của bạn tăng thêm hương vị đặc trưng.`,
-    },
-    {
-      q: 'Tôi có được kiểm tra hàng trước khi nhận không?',
-      a: 'Chắc chắn là có ạ! Shop khuyến khích bạn mở hộp kiểm tra màu sắc và nếm thử vị nhãn ngay khi nhận hàng. Nếu không đúng chuẩn nhãn Tống Trân, cùi mỏng hay có mùi lạ, bạn cứ hoàn hàng cho shop mà không mất bất kỳ chi phí nào. Uy tín của gia đình là quan trọng nhất!',
-    },
-  ],
-} as const;
-
-export const LANDING_CHANNELS = {
-  sectionTitle: 'Đặt hàng & kết nối',
-  sectionSubtitle: 'Chọn kênh thuận tiện nhất cho bạn',
-  codLabel: 'Đặt hàng COD toàn quốc',
-  codDescription:
-    'Gọi hoặc nhắn Zalo — xác nhận đơn, giao hàng thu tiền tại nhà.',
-  shopee: {
-    label: 'Shopee',
-    href: SOCIAL_LINKS.shopee,
-    description:
-      'Điền link gian hàng Shopee chính thức (cập nhật trong lib/constants).',
-  },
-  tiktok: {
-    label: 'TikTok Shop',
-    href: SOCIAL_LINKS.tiktok,
-    description:
-      'Điền link TikTok hoặc TikTok Shop (cập nhật trong lib/constants).',
-  },
-  zalo: {
-    label: 'Chat Zalo',
-    href: SOCIAL_LINKS.zalo,
-    description: 'Nhắn Zalo để tư vấn size hộp, quà tặng và lịch giao hàng.',
-  },
-  phoneCta: 'Gọi ngay',
-} as const;
-
-export const LANDING_TRUST = {
-  sectionTitle: 'Cam kết từ gia đình chúng tôi',
-  items: [
-    {
-      title: 'Chuẩn vị quê hương',
-      body: '100% long nhãn nguồn gốc Tống Trân - Hưng Yên, cùi dày, ngọt thanh vị mật tự nhiên.',
-    },
-    {
-      title: 'Cam kết 3 KHÔNG',
-      body: 'Không tẩm đường - Không hóa chất bảo quản - Không chất tạo màu. Hoàn toàn sạch và an toàn cho sức khỏe.',
-    },
-    {
-      title: 'Mắt thấy, miệng nếm mới trả tiền',
-      body: 'Hỗ trợ giao hàng COD toàn quốc. Khách được mở hộp kiểm tra màu sắc, chất lượng trước khi thanh toán.',
-    },
-    {
-      title: 'Bảo hành tận tâm',
-      body: 'Hoàn tiền 100% hoặc 1 đổi 1 trong 7 ngày nếu sản phẩm không đúng chuẩn vị Hưng Yên hoặc có lỗi do sản xuất.',
-    },
-  ],
-} as const;
-
-export const LANDING_FOOTER_TAGLINE =
-  'Đặc sản Hưng Yên — long nhãn chọn lọc, quà biếu sang trọng, giao hàng tận nơi.';
-
-// Phase 1 — Conversion Elements
-export const LANDING_SERVICE_BADGES = [
-  { icon: 'truck', label: 'Giao hàng 24h', sublabel: 'Toàn quốc' },
-  { icon: 'chat', label: 'Tư vấn miễn phí', sublabel: 'Zalo & điện thoại' },
-  { icon: 'cash', label: 'Thanh toán COD', sublabel: 'Nhận hàng mới trả' },
-] as const;
-
-// Phase 2 — Trust & Social Proof
-export const LANDING_STATS = [
-  { value: '500+', label: 'Đơn hàng mỗi mùa' },
-  { value: '5+', label: 'Năm kinh nghiệm' },
-  { value: '98%', label: 'Khách hài lòng' },
-] as const;
-
-export const LANDING_CERTS = {
-  sectionTitle: 'Chứng nhận & uy tín',
-  items: [
-    { label: 'An toàn thực phẩm', imageSrc: null },
-    { label: 'Sản phẩm OCOP', imageSrc: null },
-  ],
-} as const;
-
-// Phase 3 — UX Polish
-export const LANDING_URGENCY = {
-  enabled: true,
-  message:
-    'Mùa nhãn tháng 7–9 — Liên hệ sớm để đảm bảo nguồn hàng chất lượng nhất',
-} as const;
-
-// Phase 6 — Home Page Enhancement
-export const LANDING_HERO_SLIDES = [
-  {
-    headline: 'Long nhãn Tống Trân:\n Dẻo thơm vị mật, ngọt thanh vị đời.',
-    subhead:
-      'Hương vị cổ truyền, chọn lọc từ vườn nhãn xứ Đông — món quà quê nhà ý nghĩa.',
-    ctaLabel: 'Xem ngay',
-    ctaHref: '/products',
-    imageSrc: null as string | null,
-  },
-  {
-    headline: 'Set quà cao cấp\nbiếu tặng ý nghĩa',
-    subhead: 'Hộp quà sang trọng, phù hợp mọi dịp lễ và doanh nghiệp.',
-    ctaLabel: 'Xem bộ quà tặng',
-    ctaHref: '/products',
-    imageSrc: null as string | null,
-  },
-];
-
-export const LANDING_CATEGORIES = [
-  {
-    label: 'Đặc sản Hưng Yên',
-    href: '/products?category=longnhan',
-    iconSrc: '/icon-menu-pho-hien-36x36.webp',
-    iconAlt: 'Biểu tượng danh mục',
-  },
-  {
-    label: 'Giải pháp quà tặng',
-    href: '/products?category=gift',
-    iconSrc: '/cate-icon-2.webp',
-    iconAlt: 'Biểu tượng danh mục',
-  },
-  {
-    label: 'Bộ quà tặng',
-    href: '/products?category=giftset',
-    iconSrc: '/cate-icon-2.webp',
-    iconAlt: 'Biểu tượng danh mục',
-  },
-] as const;
-
-/** Curated YouTube URLs for the marketing “video album” block (v1 static). Empty hides the section. */
-export const LANDING_VIDEO_ALBUM_URLS: readonly string[] = [
-  'https://youtube.com/shorts/0XRJt9zdy5I?si=oSfaBYZDvy08SeE7',
-  'https://youtube.com/shorts/vZHSAh8nPz8?si=tqHFp-jpwFYFwL7q',
-  'https://youtube.com/shorts/nkfG25MG9vY?si=oo-R6_Y7SyFHyL7v',
-];
-
-/** Image grid + lightbox on the home page (v1 static paths under `public/`). */
-export const LANDING_IMAGE_ALBUM: { src: string; alt: string }[] = [
-  {
-    src: '/banner-web2.png',
-    alt: 'Tinh hoa Phố Hiến — đặc sản Hưng Yên',
-  },
-  {
-    src: '/bannerweb4.jpg',
-    alt: 'Bộ quà tặng cao cấp',
-  },
-  {
-    src: '/bannerweb5-2048x785.jpg',
-    alt: 'Mật hoa nhãn — Long Nhãn Tống Trân',
-  },
-  {
-    src: '/tinhhoaphohien.com_-2048x788.webp',
-    alt: 'Long Nhãn Tống Trân — banner giới thiệu',
-  },
-];
-
-export const LANDING_BANNER_SLIDES = [
-  {
-    id: 'tinh-hoa-pho-hien',
-    imageSrc: '/banner-web2.png',
-    alt: 'Tinh hoa Phố Hiến — đặc sản Hưng Yên',
-    href: '/products',
-  },
-  {
-    id: 'qua-tang-cao-cap',
-    imageSrc: '/bannerweb4.jpg',
-    alt: 'Mai Trang — Tinh hoa Phố Hiến (bộ quà tặng)',
-    href: '/products?category=giftset',
-  },
-  {
-    id: 'mat-hoa-nhan',
-    imageSrc: '/bannerweb5-2048x785.jpg',
-    alt: 'Mai Trang — sản phẩm mật hoa nhãn',
-    href: '/products',
-  },
-  {
-    id: 'tinhhoaphohien',
-    imageSrc: '/tinhhoaphohien.com_-2048x788.webp',
-    alt: 'Tinh hoa Phố Hiến — banner giới thiệu',
-    href: '/products',
-  },
-] as const;
 </file>
 
 <file path="docs/deployment-guide.md">
@@ -67141,8 +66453,8 @@ export default function RootLayout({
 
 <file path="apps/api/src/api/orders/orders.service.ts">
 import { OffsetPaginatedDto } from '@/common/dto/offset-pagination/paginated.dto';
-
 import { Uuid } from '@/common/types/common.type';
+import { SHIPPING_FLAT_VND } from '@/constants/order.constant';
 import { paginate } from '@/utils/offset-pagination';
 import {
   BadRequestException,
@@ -67237,12 +66549,12 @@ export class OrdersService {
         }
       }
 
-      // Build order items and calculate total
-      let total = 0;
+      // Build order items and calculate subtotal (shipping added server-side)
+      let itemsSubtotal = 0;
       const orderItems: Partial<OrderItemEntity>[] = dto.items.map((item) => {
         const variant = variantMap.get(item.variantId as Uuid)!;
         const subtotal = variant.price * item.qty;
-        total += subtotal;
+        itemsSubtotal += subtotal;
         return {
           variantId: variant.id,
           qty: item.qty,
@@ -67259,6 +66571,9 @@ export class OrdersService {
         };
       });
 
+      const shippingFee = dto.items.length > 0 ? SHIPPING_FLAT_VND : 0;
+      const orderTotalBeforeDiscount = itemsSubtotal + shippingFee;
+
       // Generate unique order code: LN-YYMMDD-XXXX
       const code = await this.generateOrderCode(em);
 
@@ -67270,14 +66585,14 @@ export class OrdersService {
         const voucherResult = await this.vouchersService.validateForOrder(
           em,
           dto.voucherCode.toUpperCase(),
-          total,
+          orderTotalBeforeDiscount,
           dto.phone,
         );
         discountAmount = voucherResult.discountAmount;
         voucherEntity = voucherResult.voucher;
       }
 
-      const finalTotal = total - discountAmount;
+      const finalTotal = orderTotalBeforeDiscount - discountAmount;
 
       // Create order
       const order = em.create(OrderEntity, {
@@ -67347,7 +66662,7 @@ export class OrdersService {
           voucherEntity.id,
           savedOrder.id,
           dto.phone,
-          total, // pre-discount total (service calculates discount itself)
+          orderTotalBeforeDiscount,
         );
       }
 
@@ -68286,106 +67601,340 @@ GRAFANA_CLOUD_LOKI_USER=
 GRAFANA_CLOUD_API_KEY=
 </file>
 
-<file path="apps/web/src/app/articles/[slug]/page.tsx">
-import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
-import type { Article } from '@longnhan/types';
-import ArticleContent from '@/components/articles/article-content';
-import Breadcrumb from '@/components/ui/breadcrumb';
-import { fetchApi } from '@/lib/api-client';
-import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
-import { buildBreadcrumb } from '@/lib/breadcrumb';
-import { articleDetailCacheTags } from '@/lib/content-cache-tags';
+<file path="apps/web/src/app/order-success/page.tsx">
+import Link from 'next/link';
+import {
+  CircleCheck,
+  Home,
+  Package,
+  ShoppingBag,
+  Sparkles,
+} from 'lucide-react';
+
+import { apiServer } from '@/lib/api-server';
+import { OrderSuccessCartClearer } from '@/components/orders/order-success-cart-clearer';
+import { AutoSaveOrderForReviews } from '@/components/orders/auto-save-order-for-reviews';
+import {
+  paymentMethodLabel,
+  paymentStatusLabel,
+} from '@/components/orders/order-summary-panel';
+import { OrderStatusTimeline } from '@/components/orders/order-status-timeline';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from '@/components/ui/card';
+import type { PublicOrderSummary } from '@/actions/order-tracking-actions';
 import { buildSeoMetadata } from '@/lib/seo';
-import { buildArticleSchema } from '@/lib/structured-data';
-import { cacheLife, cacheTag } from 'next/cache';
 
-interface ArticleDetailPageProps {
-  params: Promise<{ slug: string }>;
+interface OrderSuccessPageProps {
+  searchParams: Promise<{
+    code?: string | string[];
+  }>;
 }
 
-async function getArticle(slug: string): Promise<Article | null> {
-  'use cache';
-  cacheLife({ revalidate: 3600 });
-  cacheTag(...articleDetailCacheTags(slug));
-  try {
-    return await fetchApi<Article>(`/articles/${slug}`);
-  } catch (error) {
-    captureApiFetchError(error, {
-      route: '/articles/[slug]',
-      section: 'article_detail',
-      extra: { slug },
-    });
-    return null;
-  }
-}
+export const metadata = buildSeoMetadata({
+  title: 'Đặt hàng thành công',
+  description:
+    'Đơn hàng long nhãn đã được ghi nhận — chúng tôi sẽ liên hệ xác nhận sớm. Cảm ơn bạn đã mua tại nhanhunguyen.com.',
+  canonicalPath: '/order-success',
+  robots: { index: false, follow: false },
+});
 
-export async function generateMetadata({
-  params,
-}: ArticleDetailPageProps): Promise<Metadata> {
-  const { slug } = await params;
-  const article = await getArticle(slug);
+export default async function OrderSuccessPage({
+  searchParams,
+}: OrderSuccessPageProps) {
+  const params = await searchParams;
+  const codeFromQuery =
+    typeof params.code === 'string'
+      ? params.code.slice(0, 64)
+      : Array.isArray(params.code)
+        ? params.code[0]?.slice(0, 64)
+        : null;
 
-  if (!article) {
-    return buildSeoMetadata({
-      title: 'Không tìm thấy bài viết',
-      description:
-        'Bài viết không tồn tại hoặc đã được gỡ. Đọc thêm về long nhãn Hưng Yên tại nhanhunguyen.com.',
-      canonicalPath: `/articles/${slug}`,
-      robots: { index: false, follow: false },
-    });
-  }
-
-  const title = article.metaTitle ?? article.title;
-  const description = article.metaDescription ?? article.excerpt ?? undefined;
-  const image = article.featuredImageUrl ?? article.coverImageUrl ?? undefined;
-
-  return buildSeoMetadata({
-    title,
-    description,
-    canonicalPath: `/articles/${article.slug}`,
-    openGraphType: 'article',
-    ...(image ? { ogImage: { url: image, alt: title } } : {}),
-  });
-}
-
-export default async function ArticleDetailPage({
-  params,
-}: ArticleDetailPageProps) {
-  const { slug } = await params;
-  const article = await getArticle(slug);
-
-  if (!article) {
-    notFound();
+  let summary: PublicOrderSummary | null = null;
+  if (codeFromQuery) {
+    try {
+      const res = await apiServer.get<PublicOrderSummary>('/orders/summary', {
+        params: { code: codeFromQuery },
+      });
+      summary = res.data;
+    } catch {
+      summary = null;
+    }
   }
 
-  const articleSchema = buildArticleSchema(article);
-  const breadcrumbItems = [
-    { label: 'Trang chủ', url: '/' },
-    { label: 'Bài viết', url: '/articles' },
-    { label: article.title },
-  ];
-  const { schema: breadcrumbSchema } = buildBreadcrumb({
-    items: breadcrumbItems,
-    currentUrl: `/articles/${article.slug}`,
-  });
+  const orderCode = summary?.code ?? codeFromQuery;
 
   return (
-    <section className="mx-auto max-w-6xl px-4 py-8">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+    <section className="relative mx-auto max-w-xl px-4 py-12 md:py-20">
+      <div
+        className="pointer-events-none absolute inset-x-0 -top-24 h-64 bg-gradient-to-b from-primary/10 via-transparent to-transparent blur-3xl"
+        aria-hidden
       />
-      {breadcrumbSchema ? (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
-        />
-      ) : null}
 
-      <Breadcrumb items={breadcrumbItems} />
-      <ArticleContent article={article} />
+      {orderCode ? <OrderSuccessCartClearer /> : null}
+
+      <Card
+        className="relative overflow-hidden border-border/80 bg-surface text-foreground shadow-xl ring-1 ring-border/50"
+        role="status"
+        aria-live="polite"
+      >
+        <div className="absolute right-4 top-4 opacity-[0.07]">
+          <Sparkles className="size-24 text-primary" aria-hidden />
+        </div>
+
+        <CardHeader className="items-center space-y-0 pb-2 pt-10 text-center">
+          <div
+            className="mb-6 flex size-20 items-center justify-center rounded-full bg-gradient-to-br from-primary/15 to-primary/5 text-primary shadow-inner ring-2 ring-primary/20"
+            aria-hidden
+          >
+            <CircleCheck className="size-11" strokeWidth={2.25} />
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+            Đặt hàng thành công
+          </h1>
+          <p className="mt-4 max-w-md text-pretty text-sm leading-relaxed text-muted-foreground md:text-base">
+            Cảm ơn bạn đã đặt hàng. Đội ngũ Long Nhãn Tổng Trần sẽ liên hệ xác
+            nhận đơn trong thời gian sớm nhất.
+          </p>
+        </CardHeader>
+
+        <CardContent className="space-y-6 pb-6 pt-2">
+          {orderCode ? (
+            <div className="mx-auto flex max-w-md flex-col gap-4 rounded-2xl border border-border/80 bg-gradient-to-br from-muted/50 to-background p-5 text-left shadow-sm">
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-xl bg-background text-primary shadow-sm ring-1 ring-border/60">
+                  <Package className="size-5" aria-hidden />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Mã đơn hàng
+                  </p>
+                  <p className="mt-1 break-all font-mono text-lg font-semibold tracking-tight text-foreground">
+                    {orderCode}
+                  </p>
+                  {summary ? (
+                    <dl className="mt-4 grid gap-2 text-sm">
+                      <div className="flex justify-between gap-4">
+                        <dt className="text-muted-foreground">Tổng tiền</dt>
+                        <dd className="font-semibold tabular-nums">
+                          {summary.total.toLocaleString('vi-VN')}₫
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <dt className="text-muted-foreground">Thanh toán</dt>
+                        <dd className="text-right font-medium">
+                          {paymentMethodLabel(summary.paymentMethod)}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between gap-4">
+                        <dt className="text-muted-foreground">Trạng thái TT</dt>
+                        <dd className="text-right font-medium">
+                          {paymentStatusLabel(summary.paymentStatus)}
+                        </dd>
+                      </div>
+                    </dl>
+                  ) : (
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      Không tải được chi tiết đơn. Bạn vẫn có thể tra cứu bằng
+                      mã ở trang theo dõi.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <Button
+                asChild
+                variant="default"
+                size="lg"
+                className="w-full shadow-md"
+              >
+                <Link
+                  href={`/track-order?code=${encodeURIComponent(orderCode)}`}
+                >
+                  Xem tiến trình đơn hàng
+                </Link>
+              </Button>
+
+              {summary ? (
+                <div className="mt-2">
+                  <OrderStatusTimeline
+                    orderStatus={summary.orderStatus}
+                    history={summary.statusHistory}
+                  />
+                </div>
+              ) : null}
+
+              {summary?.id && summary.phone ? (
+                <AutoSaveOrderForReviews summary={summary} />
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-center text-sm text-muted-foreground">
+              Nếu bạn không thấy mã đơn, vui lòng kiểm tra email hoặc liên hệ hỗ
+              trợ.
+            </p>
+          )}
+        </CardContent>
+
+        <CardFooter className="flex flex-col gap-3 border-t border-border/80 bg-muted/20 px-4 py-6 sm:flex-row sm:justify-center sm:gap-4">
+          <Button asChild size="lg" className="w-full min-w-48 sm:w-auto">
+            <Link href="/products">
+              <ShoppingBag className="size-4 shrink-0" aria-hidden />
+              Tiếp tục mua sắm
+            </Link>
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            size="lg"
+            className="w-full min-w-48 border-border bg-background sm:w-auto"
+          >
+            <Link href="/">
+              <Home className="size-4 shrink-0" aria-hidden />
+              Về trang chủ
+            </Link>
+          </Button>
+        </CardFooter>
+      </Card>
     </section>
+  );
+}
+</file>
+
+<file path="apps/web/src/app/layout.tsx">
+import type { Metadata, Viewport } from 'next';
+import { Geist } from 'next/font/google';
+import localFont from 'next/font/local';
+import './globals.css';
+import { AppProviders } from '@/components/providers/app-providers';
+import Header from '@/components/layout/header';
+import BackToTopButton from '@/components/ui/back-to-top-button';
+import dynamic from 'next/dynamic';
+
+const Footer = dynamic(() => import('@/components/layout/footer'), {
+  loading: () => (
+    <footer
+      className="mt-auto min-h-[320px] border-t border-(--brand-gold)/25 bg-(--brand-forest)"
+      aria-hidden
+    />
+  ),
+});
+
+const FloatingContactWidget = dynamic(
+  () => import('@/components/layout/floating-contact-widget'),
+  { loading: () => null },
+);
+import { LANDING_SEO } from '@/data/landing-page-content';
+import { GOOGLE_VERIFICATION, SITE_URL } from '@/lib/constants';
+import { PWA_CONFIG } from '@/lib/pwa-config';
+import { buildSeoMetadata } from '@/lib/seo';
+import {
+  buildOrganizationSchema,
+  buildWebSiteSchema,
+} from '@/lib/structured-data';
+import { GoogleAnalytics } from '@/components/analytics/google-analytics';
+
+const geistSans = Geist({
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
+});
+
+const seagullDisplay = localFont({
+  src: [
+    {
+      path: '../../public/fonts/UTM SeagullBold.ttf',
+      weight: '700',
+      style: 'normal',
+    },
+    {
+      path: '../../public/fonts/UTM SeagullBoldItalic.ttf',
+      weight: '700',
+      style: 'italic',
+    },
+  ],
+  variable: '--font-seagull',
+  display: 'swap',
+});
+
+export const viewport: Viewport = {
+  themeColor: PWA_CONFIG.themeColor,
+  colorScheme: 'light',
+};
+
+const landingMetadata = buildSeoMetadata({
+  title: LANDING_SEO.title,
+  description: LANDING_SEO.description,
+  canonicalPath: '/',
+  ogImage: {
+    url: PWA_CONFIG.heroImage.path,
+    width: PWA_CONFIG.heroImage.width,
+    height: PWA_CONFIG.heroImage.height,
+    alt: PWA_CONFIG.heroImage.alt,
+  },
+});
+
+export const metadata: Metadata = {
+  ...landingMetadata,
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: PWA_CONFIG.documentTitle,
+    template: '%s | Long Nhãn Hưng Yên',
+  },
+  keywords: [...LANDING_SEO.keywords],
+  applicationName: PWA_CONFIG.name,
+  category: 'food',
+  icons: {
+    icon: [{ url: PWA_CONFIG.icons.src, type: 'image/png' }],
+    apple: [{ url: PWA_CONFIG.icons.src, type: 'image/png' }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: PWA_CONFIG.name,
+    statusBarStyle: 'black-translucent',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  verification: {
+    google: GOOGLE_VERIFICATION,
+  },
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  const structuredData = [buildOrganizationSchema(), buildWebSiteSchema()];
+
+  return (
+    <html
+      lang="vi"
+      className={`${geistSans.variable} ${seagullDisplay.variable} h-full`}
+    >
+      <head>
+        {structuredData.map((schema, index) => (
+          <script
+            key={index}
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+          />
+        ))}
+      </head>
+      <body className="min-h-full flex flex-col antialiased">
+        <GoogleAnalytics />
+        <AppProviders>
+          <Header />
+          <main className="flex-1 pb-16 md:pb-0">{children}</main>
+          <Footer />
+          <FloatingContactWidget />
+          <BackToTopButton />
+        </AppProviders>
+      </body>
+    </html>
   );
 }
 </file>
@@ -68967,6 +68516,354 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
     </section>
   );
 }
+</file>
+
+<file path="apps/web/src/data/landing-page-content.ts">
+import { SOCIAL_LINKS } from '@/lib/constants';
+
+export const LANDING_SEO = {
+  title: 'Long Nhãn Hưng Yên — Đặc Sản Tống Trân | nhanhunguyen.com',
+  description:
+    'Mua long nhãn Hưng Yên chính gốc Tống Trân tại nhanhunguyen.com: sấy khô không tẩm đường, quà biếu sang trọng. Giao COD toàn quốc — Zalo, Shopee, TikTok.',
+  keywords: [
+    'nhanhunguyen.com',
+    'Long nhãn Hưng Yên',
+    'Nhãn Hưng Yên',
+    'Long nhãn Tống Trân',
+    'Long nhãn sấy khô',
+    'Long nhãn quà tặng',
+    'Đặc sản Hưng Yên',
+    'Long nhãn giao COD',
+    'Long nhãn Shopee',
+    'Long nhãn TikTok',
+  ],
+  ogImageAlt: 'Long nhãn Hưng Yên — đặc sản Tống Trân, nhanhunguyen.com',
+} as const;
+
+export const PRODUCTS_LISTING_SEO = {
+  title: 'Sản phẩm Long Nhãn Hưng Yên',
+  description:
+    'Khám phá long nhãn sấy khô, set quà biếu và đặc sản Tống Trân — chọn lọc từ vườn Hưng Yên, giao COD toàn quốc. Đặt hàng nhanh tại nhanhunguyen.com.',
+} as const;
+
+export const ARTICLES_LISTING_SEO = {
+  title: 'Bài viết về Long Nhãn Hưng Yên',
+  description:
+    'Cẩm nang chọn long nhãn, bảo quản, nấu chè và câu chuyện vườn Tống Trân — kiến thức từ nông trại Hưng Yên, cập nhật tại nhanhunguyen.com.',
+} as const;
+
+export const LANDING_BRAND = {
+  name: 'Long Nhãn Hưng Yên',
+  specialtyLine: 'Đặc sản Hưng Yên',
+  tagline: 'Ngọt lành từng hạt — An thần, dưỡng tâm',
+  logoSrc: '/logo.png',
+  logoAlt: 'Logo Long Nhãn Tống Trân — Đặc sản Hưng Yên',
+} as const;
+
+export const LANDING_HERO = {
+  eyebrow: 'Long Nhãn Tống Trân',
+  headline: 'Dẻo thơm vị mật, ngọt thanh vị đời.',
+  subhead:
+    'Tuyển chọn từ những trái nhãn ngon nhất vườn nhà Tống Trân - Hưng Yên. Cam kết không tẩm đường, không chất bảo quản.',
+  primaryCta: 'Xem ngay',
+  secondaryCta: 'Xem Shopee',
+  tertiaryCta: 'Chat Zalo',
+} as const;
+
+export const LANDING_ORIGIN = {
+  sectionTitle: 'Long Nhãn Tống Trân',
+  sectionSubtitle: 'Tinh Túy Từ Vườn Nhà, Ngọt Thơm Vị Truyền Thống',
+  paragraphs: [
+    'Sinh ra và lớn lên tại mảnh đất Tống Trân, Hưng Yên – cái nôi của những mùa nhãn lồng trĩu quả, chúng tôi tự hào mang đến cho bạn thức quà quý giá nhất của quê hương: Long nhãn sấy khô 100% nhà làm.',
+    'Không sản xuất công nghiệp đại trà, mỗi mẻ long nhãn của shop đều chứa đựng sự tỉ mỉ của người nông dân. Từ khâu chọn những trái nhãn cùi dày, mọng nước nhất trong chính khu vườn gia đình, đến việc bóc vỏ, tách hạt khéo léo và đưa vào lò sấy giữ trọn hương vị.',
+    'Vì sao bạn có thể hoàn toàn yên tâm khi chọn Long Nhãn nhà chúng tôi?',
+    'Nguồn gốc minh bạch: Thu hoạch trực tiếp từ vườn nhãn gia đình tại Tống Trân, Hưng Yên.',
+    'Chất lượng thượng hạng: Cùi nhãn sấy xong dày mình, màu vàng ươm tự nhiên, dẻo dai và mang vị ngọt thanh, thơm mùi mật quyến rũ.',
+    'An toàn tuyệt đối - Cam kết 3 KHÔNG: KHÔNG tẩm đường – KHÔNG chất bảo quản – KHÔNG chất tạo màu.',
+    'Từ món ăn vặt lành mạnh cho cả gia đình, đến nguyên liệu cho nồi chè dưỡng nhan thanh mát hay bình rượu quý biếu khách, Long Nhãn Tống Trân tự tin làm hài lòng cả những vị khách kỹ tính nhất!',
+  ],
+} as const;
+
+export const LANDING_PRODUCT_TYPES = {
+  sectionTitle: 'Dòng sản phẩm',
+  sectionSubtitle: 'Phù hợp biếu tặng và thưởng thức tại gia',
+  items: [
+    {
+      title: 'Long nhãn đặc biệt',
+      description:
+        'Quả nhãn tươi bóc vỏ, bỏ hạt, sấy khô theo công thức Hưng Yên — vàng ươm, dẻo ngọt, giữ trọn hương đặc trưng.',
+    },
+    {
+      title: 'Set quà cao cấp',
+      description:
+        'Hộp quà sang trọng, tinh tế — biếu ông bà, đối tác hay dịp lễ Tết đều trọn vẹn ý nghĩa.',
+    },
+    {
+      title: 'Kết hợp đặc sản',
+      description:
+        'Có thể kết hợp cùng sen, trà hoặc sản phẩm địa phương khác theo nhu cầu (cập nhật theo mùa).',
+    },
+  ],
+} as const;
+
+export const LANDING_QUALITY = {
+  sectionTitle: 'Chất lượng & quy trình',
+  sectionSubtitle: 'Từ vườn đến hạt — minh bạch, an tâm',
+  bullets: [
+    'Thu hoạch và chế biến giai đoạn tháng 7 — tháng 9 hàng năm (theo mùa vụ).',
+    'Sấy khép kín, đúng quy trình — hạn sử dụng 12 tháng kể từ ngày sản xuất (điền SKU cụ thể khi có).',
+    'Phù hợp mọi lứa tuổi: ăn vặt, pha trà, hầm gà, nấu chè, làm mứt hoặc ngâm rượu.',
+  ],
+} as const;
+
+export const LANDING_NUTRITION = {
+  sectionTitle: 'Dinh dưỡng & đông y',
+  sectionSubtitle: 'Vị ngọt tự nhiên, nhiều dưỡng chất',
+  intro:
+    'Long nhãn chứa đường tự nhiên, vitamin và khoáng chất; khi sấy đúng cách, dưỡng chất được giữ trọn vẹn hơn.',
+  bullets: [
+    'Ăn trực tiếp hoặc thưởng thức cùng trà — hương thơm dễ chịu, vị ngọt thanh.',
+    'Dùng trong món ăn bổ dưỡng: chè, hầm, mứt — thân quen trong bếp Việt.',
+    'Trong đông y, long nhãn thường được nhắc tới trong các phương an thần, dưỡng tâm (tham khảo ý kiến chuyên gia y tế cho nhu cầu cá nhân).',
+  ],
+} as const;
+
+export const LANDING_SEASON = {
+  sectionTitle: 'Mùa vụ & đặt hàng',
+  body: 'Long nhãn tươi và long nhãn sấy theo mùa. Quý khách vui lòng liên hệ để biết tồn kho, dung tích hộp và ưu đãi theo đợt hàng.',
+} as const;
+
+export const LANDING_PRICING = {
+  sectionTitle: 'Báo giá',
+  body: 'Giá theo khối lượng (500g, 1kg…) và loại hộp quà. Vui lòng gọi, nhắn Zalo hoặc đặt qua Shopee/TikTok Shop để nhận báo giá và hỗ trợ giao COD.',
+} as const;
+
+export const LANDING_TESTIMONIALS: {
+  sectionTitle: string;
+  sectionSubtitle: string;
+  items: {
+    quote: string;
+    author: string;
+    location?: string;
+    rating?: number;
+  }[];
+} = {
+  sectionTitle: 'Khách hàng tin chọn',
+  sectionSubtitle: 'Cập nhật đánh giá thật khi có dữ liệu',
+  items: [],
+};
+
+export const LANDING_FAQ = {
+  sectionTitle: 'Câu hỏi thường gặp (FAQ)',
+  items: [
+    {
+      q: 'Long nhãn của shop có đúng là nhãn lồng Hưng Yên chính gốc không?',
+      a: 'Dạ, 100% đúng ạ! Toàn bộ sản phẩm được sấy từ những chùm nhãn lồng tươi ngon nhất tại vườn nhà mình ở Tống Trân, Phù Cừ, Hưng Yên. Vì là hàng nhà làm nên mình kiểm soát được từ khâu hái quả đến khi đóng hộp, không nhập qua trung gian hay trộn hàng vùng khác, bạn hoàn toàn yên tâm về nguồn gốc nhé!',
+    },
+    {
+      q: 'Tại sao long nhãn nhà mình lại có vị ngọt đậm, có phải do tẩm thêm đường không?',
+      a: 'Shop cam kết KHÔNG tẩm thêm một hạt đường nào. Vị ngọt đậm đà bạn cảm nhận được chính là lượng đường tự nhiên từ mật nhãn được cô đọng lại sau quá trình sấy nhiệt lâu. Đây là điểm đặc trưng của nhãn Tống Trân: cùi dày, mọng mật nên khi khô sẽ có vị ngọt thanh rất sang, không bị khé cổ như nhãn tẩm đường công nghiệp.',
+    },
+    {
+      q: 'Sản phẩm có dùng chất bảo quản hay chất tạo màu không?',
+      a: 'Tuyệt đối không ạ. Màu vàng óng ươm của long nhãn là màu tự nhiên của cùi nhãn khi được sấy đủ độ. Nhà mình làm để gia đình dùng và bán cho khách quen lâu năm nên tiêu chí Sạch - An toàn luôn đặt lên hàng đầu. Long nhãn được sấy khô kiệt nên có thể bảo quản tự nhiên rất lâu mà không cần hóa chất.',
+    },
+    {
+      q: 'Tôi nên bảo quản long nhãn thế nào để không bị xuống màu?',
+      a: 'Long nhãn nhà mình đã được sấy rất khô. Bạn chỉ cần để nơi thoáng mát, tránh ánh nắng trực tiếp là có thể dùng trong 6 tháng. Mẹo nhỏ: Nếu bạn muốn giữ màu vàng đẹp mắt và vị dẻo ngon lâu nhất (trên 1 năm), hãy bọc kín và để trong ngăn mát tủ lạnh nhé!',
+    },
+    {
+      q: 'Long nhãn Tống Trân ngoài ăn trực tiếp thì làm món gì ngon nhất?',
+      a: `Bạn có thể biến tấu rất nhiều món:
+
+Giải nhiệt: Nấu chè hạt sen long nhãn, chè dưỡng nhan.
+
+Thư giãn: Pha trà cùng táo đỏ, kỷ tử giúp an thần, ngủ ngon.
+
+Bồi bổ: Hầm gà, chim bồ câu hoặc ngâm rượu quý.
+
+Vị ngọt thơm của nhãn Hưng Yên sẽ làm các món ăn của bạn tăng thêm hương vị đặc trưng.`,
+    },
+    {
+      q: 'Tôi có được kiểm tra hàng trước khi nhận không?',
+      a: 'Chắc chắn là có ạ! Shop khuyến khích bạn mở hộp kiểm tra màu sắc và nếm thử vị nhãn ngay khi nhận hàng. Nếu không đúng chuẩn nhãn Tống Trân, cùi mỏng hay có mùi lạ, bạn cứ hoàn hàng cho shop mà không mất bất kỳ chi phí nào. Uy tín của gia đình là quan trọng nhất!',
+    },
+  ],
+} as const;
+
+export const LANDING_CHANNELS = {
+  sectionTitle: 'Đặt hàng & kết nối',
+  sectionSubtitle: 'Chọn kênh thuận tiện nhất cho bạn',
+  codLabel: 'Đặt hàng COD toàn quốc',
+  codDescription:
+    'Gọi hoặc nhắn Zalo — xác nhận đơn, giao hàng thu tiền tại nhà.',
+  shopee: {
+    label: 'Shopee',
+    href: SOCIAL_LINKS.shopee,
+    description:
+      'Điền link gian hàng Shopee chính thức (cập nhật trong lib/constants).',
+  },
+  tiktok: {
+    label: 'TikTok Shop',
+    href: SOCIAL_LINKS.tiktok,
+    description:
+      'Điền link TikTok hoặc TikTok Shop (cập nhật trong lib/constants).',
+  },
+  zalo: {
+    label: 'Chat Zalo',
+    href: SOCIAL_LINKS.zalo,
+    description: 'Nhắn Zalo để tư vấn size hộp, quà tặng và lịch giao hàng.',
+  },
+  phoneCta: 'Gọi ngay',
+} as const;
+
+export const LANDING_TRUST = {
+  sectionTitle: 'Cam kết từ gia đình chúng tôi',
+  items: [
+    {
+      title: 'Chuẩn vị quê hương',
+      body: '100% long nhãn nguồn gốc Tống Trân - Hưng Yên, cùi dày, ngọt thanh vị mật tự nhiên.',
+    },
+    {
+      title: 'Cam kết 3 KHÔNG',
+      body: 'Không tẩm đường - Không hóa chất bảo quản - Không chất tạo màu. Hoàn toàn sạch và an toàn cho sức khỏe.',
+    },
+    {
+      title: 'Mắt thấy, miệng nếm mới trả tiền',
+      body: 'Hỗ trợ giao hàng COD toàn quốc. Khách được mở hộp kiểm tra màu sắc, chất lượng trước khi thanh toán.',
+    },
+    {
+      title: 'Bảo hành tận tâm',
+      body: 'Hoàn tiền 100% hoặc 1 đổi 1 trong 7 ngày nếu sản phẩm không đúng chuẩn vị Hưng Yên hoặc có lỗi do sản xuất.',
+    },
+  ],
+} as const;
+
+export const LANDING_FOOTER_TAGLINE =
+  'Đặc sản Hưng Yên — long nhãn chọn lọc, quà biếu sang trọng, giao hàng tận nơi.';
+
+// Phase 1 — Conversion Elements
+export const LANDING_SERVICE_BADGES = [
+  { icon: 'truck', label: 'Giao hàng 24h', sublabel: 'Toàn quốc' },
+  { icon: 'chat', label: 'Tư vấn miễn phí', sublabel: 'Zalo & điện thoại' },
+  { icon: 'cash', label: 'Thanh toán COD', sublabel: 'Nhận hàng mới trả' },
+] as const;
+
+// Phase 2 — Trust & Social Proof
+export const LANDING_STATS = [
+  { value: '500+', label: 'Đơn hàng mỗi mùa' },
+  { value: '5+', label: 'Năm kinh nghiệm' },
+  { value: '98%', label: 'Khách hài lòng' },
+] as const;
+
+export const LANDING_CERTS = {
+  sectionTitle: 'Chứng nhận & uy tín',
+  items: [
+    { label: 'An toàn thực phẩm', imageSrc: null },
+    { label: 'Sản phẩm OCOP', imageSrc: null },
+  ],
+} as const;
+
+// Phase 3 — UX Polish
+export const LANDING_URGENCY = {
+  enabled: true,
+  message:
+    'Mùa nhãn tháng 7–9 — Liên hệ sớm để đảm bảo nguồn hàng chất lượng nhất',
+} as const;
+
+// Phase 6 — Home Page Enhancement
+export const LANDING_HERO_SLIDES = [
+  {
+    headline: 'Long nhãn Tống Trân:\n Dẻo thơm vị mật, ngọt thanh vị đời.',
+    subhead:
+      'Hương vị cổ truyền, chọn lọc từ vườn nhãn xứ Đông — món quà quê nhà ý nghĩa.',
+    ctaLabel: 'Xem ngay',
+    ctaHref: '/products',
+    imageSrc: null as string | null,
+  },
+  {
+    headline: 'Set quà cao cấp\nbiếu tặng ý nghĩa',
+    subhead: 'Hộp quà sang trọng, phù hợp mọi dịp lễ và doanh nghiệp.',
+    ctaLabel: 'Xem bộ quà tặng',
+    ctaHref: '/products',
+    imageSrc: null as string | null,
+  },
+];
+
+export const LANDING_CATEGORIES = [
+  {
+    label: 'Đặc sản Hưng Yên',
+    href: '/products?category=longnhan',
+    iconSrc: '/icon-menu-pho-hien-36x36.webp',
+    iconAlt: 'Biểu tượng danh mục',
+  },
+  {
+    label: 'Giải pháp quà tặng',
+    href: '/products?category=gift',
+    iconSrc: '/cate-icon-2.webp',
+    iconAlt: 'Biểu tượng danh mục',
+  },
+  {
+    label: 'Bộ quà tặng',
+    href: '/products?category=giftset',
+    iconSrc: '/cate-icon-2.webp',
+    iconAlt: 'Biểu tượng danh mục',
+  },
+] as const;
+
+/** Curated YouTube URLs for the marketing “video album” block (v1 static). Empty hides the section. */
+export const LANDING_VIDEO_ALBUM_URLS: readonly string[] = [
+  'https://youtube.com/shorts/0XRJt9zdy5I?si=oSfaBYZDvy08SeE7',
+  'https://youtube.com/shorts/vZHSAh8nPz8?si=tqHFp-jpwFYFwL7q',
+  'https://youtube.com/shorts/nkfG25MG9vY?si=oo-R6_Y7SyFHyL7v',
+];
+
+/** Image grid + lightbox on the home page (v1 static paths under `public/`). */
+export const LANDING_IMAGE_ALBUM: { src: string; alt: string }[] = [
+  {
+    src: '/banner-web2.png',
+    alt: 'Tinh hoa Phố Hiến — đặc sản Hưng Yên',
+  },
+  {
+    src: '/bannerweb4.jpg',
+    alt: 'Bộ quà tặng cao cấp',
+  },
+  {
+    src: '/bannerweb5-2048x785.jpg',
+    alt: 'Mật hoa nhãn — Long Nhãn Tống Trân',
+  },
+  {
+    src: '/tinhhoaphohien.com_-2048x788.webp',
+    alt: 'Long Nhãn Tống Trân — banner giới thiệu',
+  },
+];
+
+export const LANDING_BANNER_SLIDES = [
+  {
+    id: 'tinh-hoa-pho-hien',
+    imageSrc: '/banner-web2.png',
+    alt: 'Tinh hoa Phố Hiến — đặc sản Hưng Yên',
+    href: '/products',
+  },
+  {
+    id: 'qua-tang-cao-cap',
+    imageSrc: '/bannerweb4.jpg',
+    alt: 'Mai Trang — Tinh hoa Phố Hiến (bộ quà tặng)',
+    href: '/products?category=giftset',
+  },
+  {
+    id: 'mat-hoa-nhan',
+    imageSrc: '/bannerweb5-2048x785.jpg',
+    alt: 'Mai Trang — sản phẩm mật hoa nhãn',
+    href: '/products',
+  },
+  {
+    id: 'tinhhoaphohien',
+    imageSrc: '/tinhhoaphohien.com_-2048x788.webp',
+    alt: 'Tinh hoa Phố Hiến — banner giới thiệu',
+    href: '/products',
+  },
+] as const;
 </file>
 
 <file path="docs/frontend-code-standards.md">
@@ -71579,134 +71476,105 @@ export async function validateCart(
 }
 </file>
 
-<file path="apps/web/src/app/articles/page.tsx">
+<file path="apps/web/src/app/articles/[slug]/page.tsx">
 import type { Metadata } from 'next';
-import { ArticlesListingContent } from '@/components/articles/articles-listing-content';
+import { notFound } from 'next/navigation';
+import type { Article } from '@longnhan/types';
+import ArticleContent from '@/components/articles/article-content';
 import Breadcrumb from '@/components/ui/breadcrumb';
-import { ArticlesListingSkeleton } from '@/components/ui/route-loading-skeleton';
-import { ARTICLES_LISTING_SEO } from '@/data/landing-page-content';
+import { fetchApi } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
 import { buildBreadcrumb } from '@/lib/breadcrumb';
+import { articleDetailCacheTags } from '@/lib/content-cache-tags';
 import { buildSeoMetadata } from '@/lib/seo';
-import { PWA_CONFIG } from '@/lib/pwa-config';
-import { connection } from 'next/server';
-import { Suspense } from 'react';
+import { buildArticleSchema } from '@/lib/structured-data';
+import { cacheLife, cacheTag } from 'next/cache';
 
-export async function generateMetadata(): Promise<Metadata> {
+interface ArticleDetailPageProps {
+  params: Promise<{ slug: string }>;
+}
+
+async function getArticle(slug: string): Promise<Article | null> {
+  'use cache';
+  cacheLife({ revalidate: 3600 });
+  cacheTag(...articleDetailCacheTags(slug));
+  try {
+    return await fetchApi<Article>(`/articles/${slug}`);
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/articles/[slug]',
+      section: 'article_detail',
+      extra: { slug },
+    });
+    return null;
+  }
+}
+
+export async function generateMetadata({
+  params,
+}: ArticleDetailPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const article = await getArticle(slug);
+
+  if (!article) {
+    return buildSeoMetadata({
+      title: 'Không tìm thấy bài viết',
+      description:
+        'Bài viết không tồn tại hoặc đã được gỡ. Đọc thêm về long nhãn Hưng Yên tại nhanhunguyen.com.',
+      canonicalPath: `/articles/${slug}`,
+      robots: { index: false, follow: false },
+    });
+  }
+
+  const title = article.metaTitle ?? article.title;
+  const description = article.metaDescription ?? article.excerpt ?? undefined;
+  const image = article.featuredImageUrl ?? article.coverImageUrl ?? undefined;
+
   return buildSeoMetadata({
-    title: ARTICLES_LISTING_SEO.title,
-    description: ARTICLES_LISTING_SEO.description,
-    canonicalPath: '/articles',
-    ogImage: {
-      url: PWA_CONFIG.heroImage.path,
-      width: PWA_CONFIG.heroImage.width,
-      height: PWA_CONFIG.heroImage.height,
-      alt: PWA_CONFIG.heroImage.alt,
-    },
+    title,
+    description,
+    canonicalPath: `/articles/${article.slug}`,
+    openGraphType: 'article',
+    ...(image ? { ogImage: { url: image, alt: title } } : {}),
   });
 }
 
-export default async function ArticlesPage() {
-  await connection();
+export default async function ArticleDetailPage({
+  params,
+}: ArticleDetailPageProps) {
+  const { slug } = await params;
+  const article = await getArticle(slug);
 
+  if (!article) {
+    notFound();
+  }
+
+  const articleSchema = buildArticleSchema(article);
   const breadcrumbItems = [
     { label: 'Trang chủ', url: '/' },
-    { label: 'Bài viết' },
+    { label: 'Bài viết', url: '/articles' },
+    { label: article.title },
   ];
   const { schema: breadcrumbSchema } = buildBreadcrumb({
     items: breadcrumbItems,
-    currentUrl: '/articles',
+    currentUrl: `/articles/${article.slug}`,
   });
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+      />
       {breadcrumbSchema ? (
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
         />
       ) : null}
+
       <Breadcrumb items={breadcrumbItems} />
-      <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-6">
-        Bài viết
-      </h1>
-      <Suspense fallback={<ArticlesListingSkeleton />}>
-        <ArticlesListingContent />
-      </Suspense>
-    </section>
-  );
-}
-</file>
-
-<file path="apps/web/src/app/products/page.tsx">
-import type { Metadata } from 'next';
-import type { SearchParams } from 'nuqs/server';
-import { ProductsListingContent } from '@/components/products/products-listing-content';
-import Breadcrumb from '@/components/ui/breadcrumb';
-import { ProductsListingSkeleton } from '@/components/ui/route-loading-skeleton';
-import { buildBreadcrumb } from '@/lib/breadcrumb';
-import { loadProductSearchParams } from '@/lib/product-search-params';
-import { PRODUCTS_LISTING_SEO } from '@/data/landing-page-content';
-import { buildSeoMetadata } from '@/lib/seo';
-import { PWA_CONFIG } from '@/lib/pwa-config';
-import { connection } from 'next/server';
-import { Suspense } from 'react';
-
-interface ProductsPageProps {
-  searchParams: Promise<SearchParams>;
-}
-
-export async function generateMetadata(): Promise<Metadata> {
-  return buildSeoMetadata({
-    title: PRODUCTS_LISTING_SEO.title,
-    description: PRODUCTS_LISTING_SEO.description,
-    canonicalPath: '/products',
-    ogImage: {
-      url: PWA_CONFIG.heroImage.path,
-      width: PWA_CONFIG.heroImage.width,
-      height: PWA_CONFIG.heroImage.height,
-      alt: PWA_CONFIG.heroImage.alt,
-    },
-  });
-}
-
-export default async function ProductsPage({
-  searchParams,
-}: ProductsPageProps) {
-  await connection();
-  const { q: qRaw, category: categoryRaw } =
-    await loadProductSearchParams(searchParams);
-  const category = categoryRaw ?? undefined;
-  const q = qRaw ?? undefined;
-
-  const breadcrumbItems = [
-    { label: 'Trang chủ', url: '/' },
-    { label: 'Sản phẩm' },
-  ];
-  const { schema: breadcrumbSchema } = buildBreadcrumb({
-    items: breadcrumbItems,
-    currentUrl: '/products',
-  });
-
-  return (
-    <section className="mx-auto max-w-6xl px-4 py-8">
-      {breadcrumbSchema ? (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
-        />
-      ) : null}
-      <Breadcrumb items={breadcrumbItems} />
-      <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-          Danh mục sản phẩm
-        </h1>
-      </div>
-      <Suspense
-        key={`${category ?? ''}:${q ?? ''}`}
-        fallback={<ProductsListingSkeleton />}
-      >
-        <ProductsListingContent category={category} q={q} />
-      </Suspense>
+      <ArticleContent article={article} />
     </section>
   );
 }
@@ -71905,6 +71773,139 @@ export default sentryEnabled && sentryAuthToken && sentryOrg && sentryProject
       },
     })
   : nextConfig;
+</file>
+
+<file path="apps/web/src/app/articles/page.tsx">
+import type { Metadata } from 'next';
+import { ArticlesListingContent } from '@/components/articles/articles-listing-content';
+import Breadcrumb from '@/components/ui/breadcrumb';
+import { ArticlesListingSkeleton } from '@/components/ui/route-loading-skeleton';
+import { ARTICLES_LISTING_SEO } from '@/data/landing-page-content';
+import { buildBreadcrumb } from '@/lib/breadcrumb';
+import { buildSeoMetadata } from '@/lib/seo';
+import { PWA_CONFIG } from '@/lib/pwa-config';
+import { connection } from 'next/server';
+import { Suspense } from 'react';
+
+export async function generateMetadata(): Promise<Metadata> {
+  return buildSeoMetadata({
+    title: ARTICLES_LISTING_SEO.title,
+    description: ARTICLES_LISTING_SEO.description,
+    canonicalPath: '/articles',
+    ogImage: {
+      url: PWA_CONFIG.heroImage.path,
+      width: PWA_CONFIG.heroImage.width,
+      height: PWA_CONFIG.heroImage.height,
+      alt: PWA_CONFIG.heroImage.alt,
+    },
+  });
+}
+
+export default async function ArticlesPage() {
+  await connection();
+
+  const breadcrumbItems = [
+    { label: 'Trang chủ', url: '/' },
+    { label: 'Bài viết' },
+  ];
+  const { schema: breadcrumbSchema } = buildBreadcrumb({
+    items: breadcrumbItems,
+    currentUrl: '/articles',
+  });
+
+  return (
+    <section className="mx-auto max-w-6xl px-4 py-8">
+      {breadcrumbSchema ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        />
+      ) : null}
+      <Breadcrumb items={breadcrumbItems} />
+      <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-6">
+        Bài viết
+      </h1>
+      <Suspense fallback={<ArticlesListingSkeleton />}>
+        <ArticlesListingContent />
+      </Suspense>
+    </section>
+  );
+}
+</file>
+
+<file path="apps/web/src/app/products/page.tsx">
+import type { Metadata } from 'next';
+import type { SearchParams } from 'nuqs/server';
+import { ProductsListingContent } from '@/components/products/products-listing-content';
+import Breadcrumb from '@/components/ui/breadcrumb';
+import { ProductsListingSkeleton } from '@/components/ui/route-loading-skeleton';
+import { buildBreadcrumb } from '@/lib/breadcrumb';
+import { loadProductSearchParams } from '@/lib/product-search-params';
+import { PRODUCTS_LISTING_SEO } from '@/data/landing-page-content';
+import { buildSeoMetadata } from '@/lib/seo';
+import { PWA_CONFIG } from '@/lib/pwa-config';
+import { connection } from 'next/server';
+import { Suspense } from 'react';
+
+interface ProductsPageProps {
+  searchParams: Promise<SearchParams>;
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  return buildSeoMetadata({
+    title: PRODUCTS_LISTING_SEO.title,
+    description: PRODUCTS_LISTING_SEO.description,
+    canonicalPath: '/products',
+    ogImage: {
+      url: PWA_CONFIG.heroImage.path,
+      width: PWA_CONFIG.heroImage.width,
+      height: PWA_CONFIG.heroImage.height,
+      alt: PWA_CONFIG.heroImage.alt,
+    },
+  });
+}
+
+export default async function ProductsPage({
+  searchParams,
+}: ProductsPageProps) {
+  await connection();
+  const { q: qRaw, category: categoryRaw } =
+    await loadProductSearchParams(searchParams);
+  const category = categoryRaw ?? undefined;
+  const q = qRaw ?? undefined;
+
+  const breadcrumbItems = [
+    { label: 'Trang chủ', url: '/' },
+    { label: 'Sản phẩm' },
+  ];
+  const { schema: breadcrumbSchema } = buildBreadcrumb({
+    items: breadcrumbItems,
+    currentUrl: '/products',
+  });
+
+  return (
+    <section className="mx-auto max-w-6xl px-4 py-8">
+      {breadcrumbSchema ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        />
+      ) : null}
+      <Breadcrumb items={breadcrumbItems} />
+      <div className="mb-6">
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+          Danh mục sản phẩm
+        </h1>
+      </div>
+      <Suspense
+        key={`${category ?? ''}:${q ?? ''}`}
+        fallback={<ProductsListingSkeleton />}
+      >
+        <ProductsListingContent category={category} q={q} />
+      </Suspense>
+    </section>
+  );
+}
 </file>
 
 <file path="apps/web/src/app/products/[slug]/page.tsx">
@@ -72160,52 +72161,6 @@ export default async function ProductDetailPage({
       />
       <RelatedProducts products={relatedProducts} />
     </section>
-  );
-}
-</file>
-
-<file path="apps/web/src/app/page.tsx">
-import { LandingCategoryCarousel } from '@/components/landing/landing-category-carousel';
-import { LandingHero } from '@/components/landing/landing-hero';
-import { LandingHomeBelowFold } from '@/components/landing/landing-home-below-fold';
-import { LandingHomeBelowFoldFallback } from '@/components/landing/landing-home-below-fold-fallback';
-import ScrollReveal from '@/components/ui/scroll-reveal';
-import { fetchApi } from '@/lib/api-client';
-import { homeContentTags } from '@/lib/content-cache-tags';
-import { captureHomeContentFetchError } from '@/lib/observability/api-fetch-sentry';
-import { buildLandingCategoryNav } from '@/lib/landing-category-nav';
-import type { Category } from '@longnhan/types';
-import { cacheLife, cacheTag } from 'next/cache';
-import { connection } from 'next/server';
-import { Suspense } from 'react';
-
-async function getHomeCategories(): Promise<Category[]> {
-  'use cache';
-  cacheTag(homeContentTags.categories);
-  cacheLife({ revalidate: 300 });
-  try {
-    return await fetchApi<Category[]>('/categories');
-  } catch (error) {
-    captureHomeContentFetchError('categories', error);
-    return [];
-  }
-}
-
-export default async function Home() {
-  await connection();
-  const categories = await getHomeCategories();
-  const categoryNavItems = buildLandingCategoryNav(categories);
-
-  return (
-    <div className="landing-page bg-(--brand-cream) text-(--brand-forest)">
-      <LandingHero />
-      <ScrollReveal delayMs={60}>
-        <LandingCategoryCarousel navItems={categoryNavItems} />
-      </ScrollReveal>
-      <Suspense fallback={<LandingHomeBelowFoldFallback />}>
-        <LandingHomeBelowFold />
-      </Suspense>
-    </div>
   );
 }
 </file>
@@ -73191,6 +73146,52 @@ pnpm seed:run
 - **Interceptor** — Middleware for request/response transformation
 - **Filter** — Exception handler
 - **Decorator** — Function annotation (e.g., @Post, @UseGuards)
+</file>
+
+<file path="apps/web/src/app/page.tsx">
+import { LandingCategoryCarousel } from '@/components/landing/landing-category-carousel';
+import { LandingHero } from '@/components/landing/landing-hero';
+import { LandingHomeBelowFold } from '@/components/landing/landing-home-below-fold';
+import { LandingHomeBelowFoldFallback } from '@/components/landing/landing-home-below-fold-fallback';
+import ScrollReveal from '@/components/ui/scroll-reveal';
+import { fetchApi } from '@/lib/api-client';
+import { homeContentTags } from '@/lib/content-cache-tags';
+import { captureHomeContentFetchError } from '@/lib/observability/api-fetch-sentry';
+import { buildLandingCategoryNav } from '@/lib/landing-category-nav';
+import type { Category } from '@longnhan/types';
+import { cacheLife, cacheTag } from 'next/cache';
+import { connection } from 'next/server';
+import { Suspense } from 'react';
+
+async function getHomeCategories(): Promise<Category[]> {
+  'use cache';
+  cacheTag(homeContentTags.categories);
+  cacheLife({ revalidate: 300 });
+  try {
+    return await fetchApi<Category[]>('/categories');
+  } catch (error) {
+    captureHomeContentFetchError('categories', error);
+    return [];
+  }
+}
+
+export default async function Home() {
+  await connection();
+  const categories = await getHomeCategories();
+  const categoryNavItems = buildLandingCategoryNav(categories);
+
+  return (
+    <div className="landing-page bg-(--brand-cream) text-(--brand-forest)">
+      <LandingHero />
+      <ScrollReveal delayMs={60}>
+        <LandingCategoryCarousel navItems={categoryNavItems} />
+      </ScrollReveal>
+      <Suspense fallback={<LandingHomeBelowFoldFallback />}>
+        <LandingHomeBelowFold />
+      </Suspense>
+    </div>
+  );
+}
 </file>
 
 <file path="apps/web/src/lib/constants.ts">

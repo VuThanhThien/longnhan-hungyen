@@ -3,7 +3,7 @@
  * Service-down: redirect to /service-unavailable on 502/503/504 while online; cache reads for pages/assets only when navigator.onLine is false.
  * Bump VERSION when changing caching rules so old caches are purged.
  */
-const VERSION = 'longnhan-web-sw-v4';
+const VERSION = 'longnhan-web-sw-v7';
 const PAGES_CACHE = `${VERSION}-pages`;
 const STATIC_CACHE = `${VERSION}-static`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
@@ -140,7 +140,10 @@ async function networkFirstPage(event, request) {
     const networkResponse = await fetch(request, { redirect: 'follow' });
 
     if (networkResponse.ok) {
-      await cache.put(request, networkResponse.clone());
+      // Only persist shell routes — listing pages stream dynamic RSC segments.
+      if (isSuRoute || url.pathname === '/') {
+        await cache.put(request, networkResponse.clone());
+      }
       return networkResponse;
     }
 
