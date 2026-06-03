@@ -29,6 +29,16 @@ const DEFAULT_OG_IMAGE: Required<Pick<OgImage, 'url'>> & Partial<OgImage> = {
   alt: 'Long Nhãn Tống Trân',
 };
 
+/** Strips HTML and trims to a meta description length (default 160). */
+export function trimMetaDescription(text: string, maxLength = 160): string {
+  const plain = text
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (plain.length <= maxLength) return plain;
+  return `${plain.slice(0, maxLength - 1)}…`;
+}
+
 /** Resolves image and page URLs for OG/Twitter; Facebook requires absolute https URLs. */
 export function toAbsoluteUrl(pathOrUrl: string): string {
   const s = pathOrUrl.trim();
@@ -56,6 +66,7 @@ export function buildSeoMetadata(input: BuildSeoMetadataInput): Metadata {
     alternates: inputAlternates,
     openGraph: inputOpenGraph,
     twitter: inputTwitter,
+    robots: inputRobots,
     ...metadataRest
   } = input;
 
@@ -118,14 +129,16 @@ export function buildSeoMetadata(input: BuildSeoMetadataInput): Metadata {
         { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
       ],
     },
-    robots: {
-      index: true,
-      follow: true,
-      googleBot: {
+    robots:
+      inputRobots ??
+      ({
         index: true,
         follow: true,
-      },
-    },
+        googleBot: {
+          index: true,
+          follow: true,
+        },
+      } satisfies Metadata['robots']),
     classification: 'food',
     other: {
       google: 'notranslate',

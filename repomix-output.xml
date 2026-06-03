@@ -518,18 +518,6 @@ apps/
     tailwind.config.ts
     tsconfig.json
   api/
-    .github/
-      workflows/
-        check-semantic-prs.yml
-        ci.yml
-        deploy-docs.yml
-        release.yml
-      pull-request-template.md
-    .husky/
-      commit-msg
-      install.mjs
-      pre-commit
-      pre-push
     .vscode/
       launch.json
       settings.json
@@ -974,10 +962,13 @@ apps/
         robots.ts
         sitemap.ts
       components/
+        analytics/
+          google-analytics.tsx
         articles/
           article-card.tsx
           article-content.tsx
           article-tiptap-content.css
+          articles-listing-content.tsx
         cart/
           cart-line-item.tsx
           cart-page-content.tsx
@@ -991,7 +982,6 @@ apps/
         home/
           category-nav-cards.tsx
           featured-products.tsx
-          hero-carousel.tsx
           hero-section.tsx
           product-quick-view-modal.tsx
           video-section.tsx
@@ -1002,6 +992,8 @@ apps/
           landing-category-carousel.tsx
           landing-faq.tsx
           landing-hero.tsx
+          landing-home-below-fold-fallback.tsx
+          landing-home-below-fold.tsx
           landing-image-album.tsx
           landing-origin-badge.tsx
           landing-service-badges.tsx
@@ -1036,6 +1028,7 @@ apps/
           product-pdp-tabs.tsx
           product-pdp-trust-badges.tsx
           product-reviews-section.tsx
+          products-listing-content.tsx
           related-products.tsx
           variant-picker-sheet.tsx
           variant-selector.tsx
@@ -1169,8 +1162,6 @@ docs/
   project-roadmap.md
   README.md
   system-architecture.md
-  web-cart-remove-voucher-ui-spec.md
-  web-header-search-suggestions-autocomplete-spec.md
 monitoring/
   alloy/
     config.alloy
@@ -1221,6 +1212,279 @@ This section contains the contents of the repository's files.
 
 <file path="apps/admin/.git/gk/config">
 
+</file>
+
+<file path="apps/web/src/components/analytics/google-analytics.tsx">
+import Script from 'next/script';
+import { GOOGLE_ANALYTICS_ID } from '@/lib/constants';
+
+export function GoogleAnalytics() {
+  return (
+    <>
+      <Script
+        src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ANALYTICS_ID}`}
+        strategy="afterInteractive"
+      />
+      <Script id="google-analytics" strategy="afterInteractive">
+        {`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', '${GOOGLE_ANALYTICS_ID}');
+        `}
+      </Script>
+    </>
+  );
+}
+</file>
+
+<file path="apps/web/src/components/articles/articles-listing-content.tsx">
+import type { Article } from '@longnhan/types';
+import ArticleCard from '@/components/articles/article-card';
+import { fetchPaginated } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
+import { articlesListCacheTags } from '@/lib/content-cache-tags';
+import { cacheLife, cacheTag } from 'next/cache';
+
+async function getArticles(): Promise<Article[]> {
+  'use cache';
+  cacheLife({ revalidate: 3600 });
+  cacheTag(...articlesListCacheTags());
+  const response = await fetchPaginated<Article>('/articles', { limit: 24 });
+  return response.data;
+}
+
+export async function ArticlesListingContent() {
+  let articles: Article[] = [];
+
+  try {
+    articles = await getArticles();
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/articles',
+      section: 'listing',
+    });
+  }
+
+  if (articles.length === 0) {
+    return (
+      <p className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-600">
+        Chưa có bài viết nào.
+      </p>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {articles.map((article) => (
+        <ArticleCard key={article.id} article={article} />
+      ))}
+    </div>
+  );
+}
+</file>
+
+<file path="apps/web/src/components/landing/landing-home-below-fold-fallback.tsx">
+/** Placeholder while below-the-fold home sections stream in. */
+export function LandingHomeBelowFoldFallback() {
+  return (
+    <div
+      className="landing-below-fold-fallback"
+      aria-hidden
+      data-testid="landing-below-fold-fallback"
+    >
+      <div className="mx-auto max-w-6xl px-4 py-14">
+        <div className="h-8 w-48 animate-pulse rounded-md bg-(--brand-forest)/10" />
+        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="aspect-4/3 animate-pulse rounded-xl bg-(--brand-forest)/8"
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="apps/web/src/components/landing/landing-home-below-fold.tsx">
+import FeaturedProducts from '@/components/home/featured-products';
+import { LandingArticlesPreview } from '@/components/landing/landing-articles-preview';
+import { LandingStory } from '@/components/landing/landing-story';
+import { LandingTestimonialsTrust } from '@/components/landing/landing-testimonials-trust';
+import ScrollReveal from '@/components/ui/scroll-reveal';
+import {
+  LANDING_IMAGE_ALBUM,
+  LANDING_VIDEO_ALBUM_URLS,
+} from '@/data/landing-page-content';
+import { fetchPaginated } from '@/lib/api-client';
+import { homeContentTags } from '@/lib/content-cache-tags';
+import { captureHomeContentFetchError } from '@/lib/observability/api-fetch-sentry';
+import type { Article, Product } from '@longnhan/types';
+import { cacheLife, cacheTag } from 'next/cache';
+import dynamic from 'next/dynamic';
+
+const VideoSection = dynamic(() => import('@/components/home/video-section'));
+const LandingFaq = dynamic(() =>
+  import('@/components/landing/landing-faq').then((m) => ({
+    default: m.LandingFaq,
+  })),
+);
+const LandingImageAlbum = dynamic(() =>
+  import('@/components/landing/landing-image-album').then((m) => ({
+    default: m.LandingImageAlbum,
+  })),
+);
+
+async function getHomeProducts(): Promise<Product[]> {
+  'use cache';
+  cacheTag(homeContentTags.featuredProducts);
+  cacheLife({ revalidate: 300 });
+  try {
+    const response = await fetchPaginated<Product>('/products', { limit: 8 });
+    return response.data;
+  } catch (error) {
+    captureHomeContentFetchError('products', error);
+    return [];
+  }
+}
+
+async function getHomeArticles(): Promise<Article[]> {
+  'use cache';
+  cacheTag(homeContentTags.articles);
+  cacheLife({ revalidate: 300 });
+  try {
+    const response = await fetchPaginated<Article>('/articles', {
+      limit: 4,
+      page: 1,
+    });
+    return response.data;
+  } catch (error) {
+    captureHomeContentFetchError('articles', error);
+    return [];
+  }
+}
+
+export async function LandingHomeBelowFold() {
+  const [products, articles] = await Promise.all([
+    getHomeProducts(),
+    getHomeArticles(),
+  ]);
+  const productVideos = products
+    .map((p) => p.videoUrl)
+    .filter(Boolean) as string[];
+
+  return (
+    <>
+      <ScrollReveal delayMs={80}>
+        <FeaturedProducts products={products} />
+      </ScrollReveal>
+      <ScrollReveal delayMs={100}>
+        <LandingArticlesPreview articles={articles} />
+      </ScrollReveal>
+      <ScrollReveal delayMs={220}>
+        <LandingStory />
+      </ScrollReveal>
+      <ScrollReveal delayMs={240}>
+        <LandingFaq />
+      </ScrollReveal>
+      {LANDING_VIDEO_ALBUM_URLS.length > 0 ? (
+        <ScrollReveal delayMs={248}>
+          <VideoSection
+            videoUrls={[...LANDING_VIDEO_ALBUM_URLS]}
+            title="Video chia sẻ"
+            sectionId="video-album"
+          />
+        </ScrollReveal>
+      ) : null}
+      <ScrollReveal delayMs={252}>
+        <LandingImageAlbum
+          sectionTitle="Hình ảnh & không gian"
+          sectionSubtitle="Hình ảnh minh họa từ vườn nhãn và sản phẩm"
+          items={LANDING_IMAGE_ALBUM}
+        />
+      </ScrollReveal>
+      <ScrollReveal delayMs={260}>
+        <VideoSection videoUrls={productVideos} />
+      </ScrollReveal>
+      <ScrollReveal delayMs={280}>
+        <section className="landing-section landing-section--decor-cta">
+          <LandingTestimonialsTrust />
+        </section>
+      </ScrollReveal>
+    </>
+  );
+}
+</file>
+
+<file path="apps/web/src/components/products/products-listing-content.tsx">
+import type { Category, Product } from '@longnhan/types';
+import CategoryFilter from '@/components/products/category-filter';
+import ProductGrid from '@/components/products/product-grid';
+import { fetchApi, fetchPaginated } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
+import {
+  productListingCategoriesTag,
+  productsListCacheTags,
+} from '@/lib/content-cache-tags';
+import { cacheLife, cacheTag } from 'next/cache';
+
+async function getProductListingCategories(): Promise<Category[]> {
+  'use cache';
+  cacheTag(productListingCategoriesTag);
+  cacheLife({ revalidate: 60 });
+  return fetchApi<Category[]>('/categories');
+}
+
+async function getProductsListing(
+  category: string | undefined,
+  q: string | undefined,
+): Promise<Product[]> {
+  'use cache';
+  cacheLife({ revalidate: 60 });
+  cacheTag(...productsListCacheTags(category, q));
+  const response = await fetchPaginated<Product>('/products', {
+    category,
+    q,
+    limit: 24,
+  });
+  return response.data;
+}
+
+interface ProductsListingContentProps {
+  category?: string;
+  q?: string;
+}
+
+export async function ProductsListingContent({
+  category,
+  q,
+}: ProductsListingContentProps) {
+  let categories: Category[] = [];
+  let products: Product[] = [];
+
+  try {
+    [categories, products] = await Promise.all([
+      getProductListingCategories(),
+      getProductsListing(category, q),
+    ]);
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/products',
+      section: 'listing',
+      extra: { category: category ?? null, q: q ?? null },
+    });
+  }
+
+  return (
+    <>
+      <CategoryFilter categories={categories} current={category} />
+      <ProductGrid products={products} />
+    </>
+  );
+}
 </file>
 
 <file path="apps/admin/public/file.svg">
@@ -6847,351 +7111,6 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-</file>
-
-<file path="apps/api/.github/workflows/check-semantic-prs.yml">
-name: Semantic PR Check
-
-on:
-  pull_request_target:
-    types:
-      - opened
-      - edited
-      - synchronize
-
-permissions:
-  pull-requests: write
-
-jobs:
-  main:
-    name: Validate PR title
-    runs-on: ubuntu-latest
-    steps:
-      - uses: amannn/action-semantic-pull-request@v5
-        id: lint_pr_title
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: marocchino/sticky-pull-request-comment@v2
-        # When the previous steps fail, the workflow would stop. By adding this
-        # condition you can continue the execution with the populated error message.
-        if: always() && (steps.lint_pr_title.outputs.error_message != null)
-        with:
-          header: pr-title-lint-error
-          message: |
-            Hey there and thank you for opening this pull request! 👋🏼
-
-            We require pull request titles to follow the [Conventional Commits specification](https://www.conventionalcommits.org/en/v1.0.0/) and it looks like your proposed title needs to be adjusted.
-
-            Details:
-
-            ```
-            ${{ steps.lint_pr_title.outputs.error_message }}
-            ```
-
-      # Delete a previous comment when the issue has been resolved
-      - if: ${{ steps.lint_pr_title.outputs.error_message == null }}
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          header: pr-title-lint-error
-          delete: true
-</file>
-
-<file path="apps/api/.github/workflows/ci.yml">
-name: Build & run test
-on:
-  workflow_dispatch:
-  push:
-    branches: [ 'main' ]
-    paths:
-      - 'src/**'
-      - 'test/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - '!**/README*.md'
-      - '!docs/**'
-  pull_request:
-    branches: [ 'main' ]
-    types: [opened, synchronize]
-    paths:
-      - 'src/**'
-      - 'test/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - '!**/README*.md'
-      - '!docs/**'
-
-permissions:
-  contents: read
-
-jobs:
-  build-and-test:
-    name: Build and test
-    timeout-minutes: 15
-    # skip ci if PR has label 'skip-ci' or 'skip-actions'
-    if: |
-      !contains(github.event.pull_request.labels.*.name, 'skip-ci') &&
-      !contains(github.event.pull_request.labels.*.name, 'skip-actions')
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./
-    strategy:
-      matrix:
-        node-version: [20.16.0]
-    steps:
-      - name: Copy repository
-        uses: actions/checkout@v4
-      - name: Install Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-
-      - uses: pnpm/action-setup@v4
-        name: Install pnpm
-        with:
-          run_install: false
-
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - uses: actions/cache@v4
-        name: Setup pnpm cache
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Install dependencies
-        run: pnpm install
-
-      - name: Lint code
-        run: pnpm lint
-
-      - name: Build project
-        run: pnpm build
-
-      - name: Build docs
-        run: pnpm docs:build
-
-      - name: Run UT tests
-        run: pnpm test
-</file>
-
-<file path="apps/api/.github/workflows/deploy-docs.yml">
-name: Deploy docs to Github Pages
-
-on:
-  # Runs on pushes targeting the default branch
-  push:
-    branches: ["main"]
-    paths:
-      - 'docs/**'
-      - '!src/**'
-      - '!test/**'
-      - '!README.md'
-
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
-
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
-# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # fetch all commits to get last updated time or other git log info
-          fetch-depth: 0
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          # install deps with pnpm
-          run_install: true
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          # choose node.js version to use
-          node-version: 20
-          # cache deps for pnpm
-          cache: pnpm
-
-      # run build script
-      - name: Build VuePress site
-        run: pnpm docs:build
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          # Upload entire repository
-          path: 'docs/.vuepress/dist'
-
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-</file>
-
-<file path="apps/api/.github/workflows/release.yml">
-name: Release
-on:
-  workflow_dispatch:
-  # push:
-  #   branches:
-  #     - main
-
-permissions:
-  contents: read # for checkout
-
-jobs:
-  release:
-    name: Release
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./
-    strategy:
-      matrix:
-        node-version: [20.16.0]
-    permissions:
-      contents: write # to be able to publish a GitHub release
-      issues: write # to be able to comment on released issues
-      pull-requests: write # to be able to comment on released pull requests
-      id-token: write # to enable use of OIDC for npm provenance
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'pnpm'
-          cache-dependency-path: ./pnpm-lock.yaml
-      - name: Install dependencies
-        run: pnpm install
-      - name: Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx semantic-release
-</file>
-
-<file path="apps/api/.github/pull-request-template.md">
-<!--
-  Put easy title to understand.
-  Don't forget to set reviewers and assignees.
--->
-
-# Pull Request types
-<!-- Choose only something to come under. -->
-
-- 🐛 Bug Fix
-- 👍 Improvement
-- ✨ New Feature
-- 🎉 Release
-- ♻️ Refactoring
-- 🚿 Refactoring (Remove functions)
-- 💚 Refactoring (Test or CI)
-- 👕 Fix (Lint)
-- 🆙 Update (Dependency packages)
-- 🚀 Improvement (Performance)
-- 👮 Improvement (Security)
-- 🔒 Restriction (Restrict new feature)
-- 👾 Others
-
-# Description
-<!-- Write detailed explanations, URL of explanatory materials, Issue ticket, etc -->
-
-# Checklist
-<!-- Write review checklist for dev and reviewer -->
-
-- [ ] 1. Build successfully on local
-- [ ] 2. Format all code files included in the PR
-- [ ] 3. No more unconfirmed specs in the PR
-- [ ] 4. Tested the normal case and error cases following specs
-- [ ] 5. Is there a refactor to the old code? If yes, have you tested the old function and noted the impact yet?
-- [ ] 6. Loops have a set length and correct termination conditions
-- [ ] 7. There aren't any redundant or duplicate codes in PR (clean code)
-- [ ] 8. There aren't any hard-coded in the code in PR
-- [ ] 9. Optimization logic handling and optimizations SQL (for example, don't get redundant data or add an index to optimize performance, query only necessary fields...)
-- [ ] 10. Update issue status and add PR link to the issue
-
-# Evidence
-(Screenshot or Video)
-
-# Discussion
-<!-- Write what you want to check, what you don't have to check, etc. -->
-</file>
-
-<file path="apps/api/.husky/commit-msg">
-pnpm dlx commitlint --edit $1
-</file>
-
-<file path="apps/api/.husky/install.mjs">
-// Skip Husky install in production and CI
-if (process.env.NODE_ENV === 'production' || process.env.CI === 'true') {
-  process.exit(0)
-}
-const husky = (await import('husky')).default
-console.log(husky())
-</file>
-
-<file path="apps/api/.husky/pre-commit">
-BRANCH=$(git rev-parse --abbrev-ref HEAD)
-REGEX="^(feature|feat|chore|fix|bugfix|hotfix|docs|refactor|test|build|perf|style|ci|release|merge)\.([a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*)$"
-
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-NC='\033[0m'
-echo "Branch name: ${GREEN}$BRANCH${NC}"
-if ! echo "$BRANCH" | grep -qE "$REGEX"; then
-  echo "${RED}Your commit was rejected due to branching name"
-  echo "Please rename your branch with '(feature|feat|chore|fix|bugfix|hotfix|docs|refactor|test|build|perf|style|ci|release|merge)(.<ticket>?).<subject-example>' syntax${NC}"
-  exit 1
-fi
-
-pnpm lint-staged
-</file>
-
-<file path="apps/api/.husky/pre-push">
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-changed_files=$(git diff --name-only HEAD HEAD~ -- '*.ts' '*.js')
-if [ -n "$changed_files" ]; then
-  echo "${BLUE}Running tests due to changes in the following TS/JS files:${NC}"
-  echo "$changed_files"
-  pnpm test
-else
-  echo "${GREEN}No TS/JS files have been changed. Skipping tests.${NC}"
-fi
 </file>
 
 <file path="apps/api/.vscode/launch.json">
@@ -17220,7 +17139,6 @@ export default function CartLoading() {
 
 <file path="apps/web/src/app/checkout/cancel/page.tsx">
 import Link from 'next/link';
-import type { Metadata } from 'next';
 import { Home, RefreshCw, Search, XCircle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -17230,11 +17148,15 @@ import {
   CardFooter,
   CardHeader,
 } from '@/components/ui/card';
+import { buildSeoMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = buildSeoMetadata({
   title: 'Đã huỷ thanh toán',
+  description:
+    'Thanh toán đã huỷ — bạn có thể quay lại giỏ hàng hoặc trang chủ nhanhunguyen.com.',
+  canonicalPath: '/checkout/cancel',
   robots: { index: false, follow: false },
-};
+});
 
 type SearchParams = Promise<{ orderCode?: string | string[] }>;
 
@@ -17319,7 +17241,6 @@ export default async function CheckoutCancelPage({
 
 <file path="apps/web/src/app/checkout/error/page.tsx">
 import Link from 'next/link';
-import type { Metadata } from 'next';
 import { Home, RefreshCw, Search, XCircle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -17329,11 +17250,15 @@ import {
   CardFooter,
   CardHeader,
 } from '@/components/ui/card';
+import { buildSeoMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = buildSeoMetadata({
   title: 'Thanh toán thất bại',
+  description:
+    'Thanh toán chưa hoàn tất — thử lại hoặc liên hệ hỗ trợ qua Zalo tại nhanhunguyen.com.',
+  canonicalPath: '/checkout/error',
   robots: { index: false, follow: false },
-};
+});
 
 type SearchParams = Promise<{ orderCode?: string | string[] }>;
 
@@ -17417,18 +17342,16 @@ export default async function CheckoutErrorPage({
 </file>
 
 <file path="apps/web/src/app/checkout/page.tsx">
-import type { Metadata } from 'next';
-
 import { CheckoutPageContent } from '@/components/checkout/checkout-page-content';
+import { buildSeoMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = buildSeoMetadata({
   title: 'Thanh toán',
-  description: 'Thanh toán — Long Nhãn Tống Trân',
-  robots: {
-    index: false,
-    follow: false,
-  },
-};
+  description:
+    'Hoàn tất đơn hàng long nhãn Hưng Yên — thanh toán an toàn tại nhanhunguyen.com.',
+  canonicalPath: '/checkout',
+  robots: { index: false, follow: false },
+});
 
 export default function CheckoutPage() {
   return <CheckoutPageContent />;
@@ -17460,15 +17383,16 @@ export default function ProductsLoading() {
 </file>
 
 <file path="apps/web/src/app/service-unavailable/page.tsx">
-import type { Metadata } from 'next';
+import { buildSeoMetadata } from '@/lib/seo';
 import { ServiceUnavailableScreen } from './service-unavailable-screen';
 
-export const metadata: Metadata = {
+export const metadata = buildSeoMetadata({
   title: 'Tạm ngưng phục vụ',
   description:
-    'Hệ thống tạm không phản hồi. Vui lòng thử lại sau hoặc quay về trang chủ.',
+    'Hệ thống nhanhunguyen.com tạm không phản hồi. Vui lòng thử lại sau hoặc quay về trang chủ.',
+  canonicalPath: '/service-unavailable',
   robots: { index: false, follow: false },
-};
+});
 
 export default function ServiceUnavailablePage() {
   return <ServiceUnavailableScreen />;
@@ -17581,12 +17505,22 @@ export default function manifest(): MetadataRoute.Manifest {
 import type { MetadataRoute } from 'next';
 import { SITE_URL } from '@/lib/constants';
 
+const PRIVATE_PATHS = [
+  '/cart',
+  '/checkout',
+  '/checkout/',
+  '/order-success',
+  '/track-order',
+  '/service-unavailable',
+];
+
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
       {
         userAgent: '*',
         allow: '/',
+        disallow: PRIVATE_PATHS,
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,
@@ -21876,27 +21810,6 @@ export default config;
 config.yml
 </file>
 
-<file path="deploy/cloudflare/config.yml.example">
-# Credentials + local ingress mode only (omit if you use CLOUDFLARED_TUNNEL_TOKEN — see deploy/README.md).
-# One tunnel can serve all hostnames below via multiple ingress rules.
-#
-# Copy to config.yml; place credentials JSON next to it; set tunnel id in both places.
-
-tunnel: TUNNEL_ID_REPLACE_ME
-credentials-file: /etc/cloudflared/TUNNEL_ID_REPLACE_ME.json
-
-ingress:
-  - hostname: api.nhanhungyen.com
-    service: http://api:3001
-  - hostname: www.nhanhungyen.com
-    service: http://web:3000
-  - hostname: nhanhungyen.com
-    service: http://web:3000
-  - hostname: admin.nhanhungyen.com
-    service: http://admin:3002
-  - service: http_status:404
-</file>
-
 <file path="docs/sepay/sepay-api.md">
 # Bắt đầu nhanh
 
@@ -24003,374 +23916,6 @@ app.post('/webhook', (req, res) => {
 });
 ```
 </Callout>
-</file>
-
-<file path="docs/web-cart-remove-voucher-ui-spec.md">
-# Spec: Remove voucher UI from `/cart` (voucher applies only on `/checkout`)
-
-## Problem
-
-`/cart` currently shows a disabled voucher input labeled “Mã giảm giá (sắp ra mắt)”, implying vouchers are not implemented. Meanwhile `/checkout` already implements voucher validation + display via `validateVoucher` and `CheckoutVoucherInput`.
-
-Users asked to “implement voucher on cart + sync checkout”, but voucher rules are complex (phone-dependent validation, cart edits invalidating discounts). Product decision: **do not implement voucher application on `/cart`**.
-
-## Goals
-
-- Remove misleading “coming soon” voucher UI from `/cart`.
-- Keep **single place** to apply vouchers: `/checkout`.
-- Avoid introducing cart↔checkout voucher state that must stay synchronized.
-
-## Non-goals
-
-- Adding voucher persistence to `useCartStore` / localStorage for “applied voucher”.
-- Duplicating server validation UX on `/cart`.
-- Changing voucher API contracts (`POST /vouchers/validate` via `validateVoucher`).
-
-## User stories
-
-- As a shopper, I don’t see a fake/disabled voucher feature on cart.
-- As a shopper, I apply vouchers during checkout where phone + totals are collected.
-- As product/engineering, we avoid inconsistent totals between cart preview and checkout.
-
-## Approaches considered
-
-### A) Remove voucher section from `/cart` (chosen)
-
-Pros: simplest; no misleading UI; no sync problem  
-Cons: voucher discovery only at checkout
-
-### B) Keep voucher box but redirect/CTA to checkout
-
-Pros: more discoverable  
-Cons: extra UI; user chose **not** to do this
-
-### C) Implement voucher on `/cart` + sync to checkout
-
-Pros: faster perceived checkout  
-Cons: duplicate validation paths; phone requirement mismatch; high bug risk
-
-## Final design
-
-### UX / IA
-
-- `/cart` order summary shows:
-  - subtotal
-  - shipping (flat)
-  - grand total
-  - primary CTA **Thanh toán** → `/checkout`
-  - secondary **Tiếp tục mua hàng** → `/products`
-- **No voucher input, no “Áp dụng”, no “coming soon” copy.**
-
-### Checkout behavior (unchanged)
-
-- Voucher entry remains in checkout flow (`CheckoutVoucherInput`).
-- Validation continues to require **phone** + **order total** context (as today).
-- Cart edits during checkout can clear voucher (existing `useEffect` on subtotal change).
-
-### Data flow / state
-
-- No shared “applied voucher” between `/cart` and `/checkout` besides the natural cart lines persisted in `useCartStore`.
-- **No additional synchronization requirement**: voucher applies only after navigating to `/checkout`.
-
-## Error handling / edge cases
-
-- If user edits cart after applying voucher on checkout, voucher may clear (existing behavior). This remains acceptable; no cart-side voucher to reconcile.
-
-## Testing / QA
-
-Manual:
-
-- `/cart` has **no** voucher UI block.
-- `/checkout` voucher apply/remove still works.
-- Order submission still sends `voucherCode` when applied (existing `submitOrder` wiring).
-
-## Implementation notes (for planning)
-
-Touch points likely limited to:
-
-- `apps/web/src/components/cart/cart-page-content.tsx` — remove disabled voucher block.
-
-No API changes expected.
-
-## Success criteria
-
-- `/cart` no longer advertises vouchers as upcoming/disabled.
-- Checkout remains the only voucher application surface.
-- No user expectation that cart “applied voucher” carries forward (because it doesn’t exist).
-
-## Open questions
-
-None (scope explicitly narrowed by product decision).
-</file>
-
-<file path="docs/web-header-search-suggestions-autocomplete-spec.md">
-# Spec: Web header search suggestions + autocomplete
-
-## Context
-
-Storefront header search lives in `apps/web/src/components/layout/header-search-bar.tsx`.
-
-Current behavior:
-
-- Category select + query input (`q`) stored in URL search params via `nuqs`.
-- Submit navigates to `/products` with `q` and `category` via `serializeProductSearchUrl`.
-- No suggestions dropdown; `<input autoComplete="off" />`.
-
-Goal:
-
-- Enhance header search with **suggestions + autocomplete** dropdown.
-- UX decisions (locked):
-  - **Hybrid**: recent searches local + API suggestions (debounced).
-  - **Grouped suggestions**: Recent searches + Categories + Products.
-  - **Open on focus**: show recent immediately; call API at **≥ 2 chars**.
-  - **Direct navigation**:
-    - Product suggestion → product detail page
-    - Category suggestion → `/products?category=...`
-    - Recent/query suggestion → `/products?q=...` (and keep category if selected)
-
-Non-goals:
-
-- Full search page redesign (`/products`) beyond what’s needed for integration.
-- Personalization beyond local recents (no account-based history).
-
-## User stories
-
-- As a shopper, when I focus the header search input I can see my recent searches so I can re-run them quickly.
-- As a shopper, when I type at least 2 characters, I see relevant categories and products so I can navigate faster.
-- As a shopper, I can use keyboard arrows + Enter + Esc to control suggestions without leaving the keyboard.
-- As a shopper, selecting a product takes me directly to that product page.
-
-## UX / Interaction design
-
-### Dropdown visibility rules
-
-- Open dropdown when:
-  - Input is focused, AND
-  - Either:
-    - query is empty → show Recent section (if any)
-    - query length ≥ 2 → show Categories + Products (and optionally Recent as a first section)
-- Close dropdown when:
-  - Press `Escape`
-  - Click outside
-  - Route navigation happens (selection or form submit)
-
-### Sections (grouped)
-
-- **Recent searches** (local)
-  - Shown on focus when query empty (primary)
-  - Also may show when query non-empty (optional; recommended: show only when query empty to reduce noise)
-  - Each item is clickable; includes “Remove” affordance on hover (optional)
-  - Include “Clear recent” action (optional)
-
-- **Categories**
-  - Each item navigates to `/products?category=<slug>`
-  - If a category is already selected in the select, category suggestions should still show but selection should override the select on navigate (navigate using the chosen category)
-
-- **Products**
-  - Each row: product name, optional thumbnail, optional price
-  - Navigate to product detail on selection
-
-### Keyboard + a11y requirements
-
-Use an established combobox pattern:
-
-- Input behaves as a **combobox** with `aria-expanded`, `aria-controls`, and `aria-autocomplete="list"`.
-- Results container is a `listbox`.
-- Each row is an `option`.
-
-Keyboard behavior:
-
-- `ArrowDown/ArrowUp`: moves active option (wrap optional; recommended: clamp)
-- `Enter`:
-  - If an option is active → select it
-  - Else → submit search (existing behavior)
-- `Escape`: closes dropdown, keeps input value
-- `Tab`: moves focus away; dropdown closes
-
-Accessibility:
-
-- Visible focus ring for active option
-- Adequate contrast for hovered/active items
-- Screen-reader announcement of result count (optional but recommended)
-
-### Empty / loading / error states
-
-- Query length < 2:
-  - No API call
-  - Show recent (if query empty) else show nothing
-- Loading:
-  - Show a compact spinner row or skeleton rows inside dropdown
-- Error:
-  - Fail silently (no toast). Show “Không thể tải gợi ý” (or similar) row, with “Thử lại” action (optional)
-- No results:
-  - Show “Không tìm thấy gợi ý” row
-
-## Data & API contracts
-
-### Local “Recent searches”
-
-Storage:
-
-- `localStorage` key: `web.headerSearch.recentQueries.v1`
-
-Shape:
-
-```ts
-type RecentQuery = {
-  q: string;
-  category?: string | null;
-  at: number; // epoch ms
-};
-```
-
-Rules:
-
-- Save after:
-  - submit search with non-empty `q`, OR
-  - selecting a “query” suggestion
-- Deduplicate by `(q.trim().toLowerCase(), category ?? '')`
-- Keep most recent first
-- Max length: 8–10 items (recommend 8)
-
-### Suggestions API (server)
-
-Need an API endpoint that returns categories and products for a given query.
-
-Proposed endpoint:
-
-- `GET /api/v1/products/suggestions?q=<string>&limit=<n>`
-
-Request rules:
-
-- `q` trimmed
-- Web calls only when `q.length >= 2`
-- `limit` default 10 (server clamps)
-
-Response shape (example):
-
-```ts
-type ProductSuggestion = {
-  id: string;
-  name: string;
-  slug: string; // for product detail route
-  thumbnailUrl?: string | null;
-  price?: number | null;
-  salePrice?: number | null;
-};
-
-type CategorySuggestion = {
-  slug: string;
-  name: string;
-};
-
-type SuggestionsResponse = {
-  q: string;
-  categories: CategorySuggestion[];
-  products: ProductSuggestion[];
-};
-```
-
-Ranking:
-
-- Server ranks by relevance (starts-with boost, contains, popularity if available).
-- Client does not re-rank; only groups and renders.
-
-Caching:
-
-- Server can add short cache headers (optional).
-- Client uses react-query caching:
-  - `staleTime`: ~30s
-  - `gcTime`: a few minutes
-
-## Client implementation outline (for planning)
-
-### Component boundaries
-
-Keep `header-search-bar.tsx` focused on layout and URL params.
-Add a small isolated unit for suggestion behavior:
-
-- `apps/web/src/components/layout/header-search-suggestions.tsx` (new)
-  - Handles dropdown rendering + listbox semantics
-  - Receives:
-    - `q`, `category`
-    - callbacks: `onSelectProduct`, `onSelectCategory`, `onSelectQuery`
-    - `open`, `onOpenChange`
-
-Add utilities:
-
-- `apps/web/src/lib/header-search-recent-queries.ts` (new)
-  - `readRecents`, `writeRecents`, `addRecent`, `removeRecent`, `clearRecents`
-
-Add query hook:
-
-- `apps/web/src/services/product-suggestions.ts` (new or existing pattern under `services/`)
-  - `getProductSuggestions({ q, limit })`
-  - `useProductSuggestions(q)` wrapping react-query
-
-### Debounce
-
-Debounce query input before API calls:
-
-- delay: 200–300ms
-- Cancel in-flight if query changes
-
-### Category select interaction
-
-- Current category select writes to query params via `nuqs` which also updates the input value.
-- On selecting a category suggestion:
-  - Navigate to `/products?category=<suggested>`
-  - Keep `q` as-is only if query is non-empty and we want combined filter (recommend: keep `q`)
-
-### Navigation
-
-- Product suggestion navigation requires the product detail route pattern.
-  - If product detail route is `/products/[slug]` (or similar), use that.
-  - If not present, fall back to `/products?q=<product name>` (only as fallback; prefer detail).
-
-## Edge cases
-
-- IME composition (Vietnamese input):
-  - Do not fetch suggestions while composing (`compositionstart`→`compositionend`)
-- Very fast typing:
-  - Ensure stale responses don’t overwrite newer ones (react-query handles by queryKey)
-- Mobile:
-  - Dropdown should not extend beyond viewport; allow scroll within dropdown
-- Click outside:
-  - Ensure clicking suggestion doesn’t immediately close before onClick runs (use `onMouseDown` or prevent default appropriately)
-
-## Testing strategy
-
-Unit-ish (web):
-
-- `header-search-recent-queries` utility tests (pure functions)
-
-Integration (web):
-
-- Lightweight component tests if test setup exists; otherwise manual QA checklist.
-
-Manual QA checklist:
-
-- Focus input shows recent (if any)
-- Typing 2+ chars shows loading then results
-- Arrow keys highlight options; Enter selects; Esc closes
-- Clicking product navigates to detail
-- Submitting with no active option navigates to `/products` with correct params
-- Recent list updates after submit/selection; dedup works; max length enforced
-
-## Success metrics
-
-- Higher search engagement:
-  - Increase “search initiated” rate (baseline vs after)
-- Reduced time-to-product:
-  - More sessions reaching product detail from header search without visiting `/products` list first
-- Performance:
-  - No noticeable typing lag; suggestions appear < 300–500ms under normal network
-
-## Open questions (resolve before implementation plan)
-
-- Product detail route shape in `apps/web` (e.g. `/products/[slug]` vs `/product/[slug]`).
-- Whether to show **Recent** section when query is non-empty (recommend: only when empty).
-- Whether product rows show thumbnail + price (recommended: thumbnail yes, price optional).
 </file>
 
 <file path="monitoring/alloy/config.alloy">
@@ -43468,8 +43013,6 @@ function PaymentStatusBadge({ status }: { status: string }) {
 </file>
 
 <file path="apps/web/src/app/track-order/page.tsx">
-import type { Metadata } from 'next';
-
 import type { PublicOrderSummary } from '@/actions/order-tracking-actions';
 import { OrderSummaryPanel } from '@/components/orders/order-summary-panel';
 import { OrderTrackForm } from '@/components/orders/order-track-form';
@@ -43477,11 +43020,15 @@ import Breadcrumb from '@/components/ui/breadcrumb';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { apiServer } from '@/lib/api-server';
 import { buildBreadcrumb } from '@/lib/breadcrumb';
+import { buildSeoMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = buildSeoMetadata({
   title: 'Tra cứu đơn hàng',
-  description: 'Theo dõi trạng thái đơn hàng bằng mã đơn hoặc link từ email.',
-};
+  description:
+    'Theo dõi trạng thái đơn long nhãn bằng mã đơn hoặc link từ email — nhanhunguyen.com.',
+  canonicalPath: '/track-order',
+  robots: { index: false, follow: false },
+});
 
 type SearchParams = Promise<{
   t?: string | string[];
@@ -43616,6 +43163,7 @@ import type { MetadataRoute } from 'next';
 import type { Article, Product } from '@longnhan/types';
 import { fetchPaginated } from '@/lib/api-client';
 import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
+import { FOOTER_PAGES } from '@/data/footer-pages';
 import { SITE_URL } from '@/lib/constants';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -43654,6 +43202,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
       changeFrequency: 'weekly',
     },
+    ...FOOTER_PAGES.map((page) => ({
+      url: `${SITE_URL}/${page.slug}`,
+      priority: 0.4,
+      changeFrequency: 'yearly' as const,
+    })),
     ...products.map((product) => ({
       url: `${SITE_URL}/products/${product.slug}`,
       priority: 0.8,
@@ -43875,134 +43428,6 @@ export function CheckoutOrderSummary({
         </Link>
       </div>
     </aside>
-  );
-}
-</file>
-
-<file path="apps/web/src/components/home/hero-carousel.tsx">
-'use client';
-
-// Hero banner carousel — auto-rotates every 5s, manual prev/next, dot indicators
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { LANDING_HERO_SLIDES } from '@/data/landing-page-content';
-import { CONTACT_PHONE } from '@/lib/constants';
-
-const tel = `tel:${CONTACT_PHONE.replace(/\s/g, '')}`;
-
-export function HeroCarousel() {
-  const [active, setActive] = useState(0);
-  const count = LANDING_HERO_SLIDES.length;
-
-  useEffect(() => {
-    if (count <= 1) return;
-    const id = setInterval(() => setActive((prev) => (prev + 1) % count), 5000);
-    return () => clearInterval(id);
-  }, [count]);
-
-  const prev = () => setActive((a) => (a - 1 + count) % count);
-  const next = () => setActive((a) => (a + 1) % count);
-
-  const slide = LANDING_HERO_SLIDES[active];
-  const lines = slide.headline.split('\n');
-
-  return (
-    <section className="relative overflow-hidden border-b border-(--brand-gold)/25 bg-linear-to-b from-(--brand-cream) via-[#eef4ec] to-(--brand-cream)">
-      {/* Background texture */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.07]"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23145232' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-        }}
-      />
-
-      <div className="relative mx-auto flex max-w-6xl flex-col items-center px-4 py-16 text-center md:py-24">
-        <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-(--brand-gold-dark)">
-          Tinh hoa Phố Hiến
-        </p>
-        <h1 className="landing-heading max-w-xl text-4xl font-semibold leading-tight text-(--brand-forest) sm:text-5xl lg:text-[3.25rem] transition-opacity duration-500">
-          {lines.map((line, i) => (
-            <span key={i} className="block">
-              {line}
-            </span>
-          ))}
-        </h1>
-        <p className="mt-6 max-w-lg text-lg leading-relaxed text-(--brand-forest-muted)">
-          {slide.subhead}
-        </p>
-        <div className="mt-10 flex flex-wrap justify-center gap-3">
-          <Link
-            href={slide.ctaHref}
-            className="inline-flex min-h-12 items-center justify-center rounded-sm bg-(--brand-forest) px-8 text-sm font-semibold tracking-wide text-(--brand-cream) shadow-md transition hover:bg-(--brand-forest-soft)"
-          >
-            {slide.ctaLabel}
-          </Link>
-          <a
-            href={tel}
-            className="inline-flex min-h-12 items-center justify-center rounded-sm border border-(--brand-gold)/60 bg-(--brand-gold)/10 px-8 text-sm font-semibold text-(--brand-forest) transition hover:bg-(--brand-gold)/20"
-          >
-            Gọi tư vấn
-          </a>
-        </div>
-
-        {/* Dot indicators */}
-        {count > 1 && (
-          <div className="mt-8 flex items-center gap-4">
-            <button
-              type="button"
-              onClick={prev}
-              aria-label="Slide trước"
-              className="rounded-full p-1 text-(--brand-forest-muted) transition hover:text-(--brand-forest)"
-            >
-              <svg
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </button>
-            <div className="flex gap-2">
-              {LANDING_HERO_SLIDES.map((_, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setActive(i)}
-                  aria-label={`Slide ${i + 1}`}
-                  className={`h-2 rounded-full transition-all ${i === active ? 'w-6 bg-(--brand-forest)' : 'w-2 bg-(--brand-forest)/30'}`}
-                />
-              ))}
-            </div>
-            <button
-              type="button"
-              onClick={next}
-              aria-label="Slide tiếp"
-              className="rounded-full p-1 text-(--brand-forest-muted) transition hover:text-(--brand-forest)"
-            >
-              <svg
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
-          </div>
-        )}
-      </div>
-    </section>
   );
 }
 </file>
@@ -45812,11 +45237,10 @@ export function RouteLoadingSkeleton() {
   );
 }
 
-export function ProductsRouteSkeleton() {
+/** Category chips + product cards only (inside `/products` Suspense boundary). */
+export function ProductsListingSkeleton() {
   return (
-    <PageShell label="Đang tải danh mục sản phẩm">
-      <BreadcrumbRowSkeleton />
-      <Skeleton className="mb-6 h-9 w-64 max-w-full bg-gray-100" />
+    <div aria-busy="true" aria-live="polite" aria-label="Đang tải sản phẩm">
       <div className="mb-6 flex flex-wrap gap-2">
         {Array.from({ length: 5 }).map((_, i) => (
           <Skeleton key={i} className="h-9 w-24 rounded-full bg-gray-100" />
@@ -45827,6 +45251,16 @@ export function ProductsRouteSkeleton() {
           <ProductCardSkeleton key={i} />
         ))}
       </div>
+    </div>
+  );
+}
+
+export function ProductsRouteSkeleton() {
+  return (
+    <PageShell label="Đang tải danh mục sản phẩm">
+      <BreadcrumbRowSkeleton />
+      <Skeleton className="mb-6 h-9 w-64 max-w-full bg-gray-100" />
+      <ProductsListingSkeleton />
     </PageShell>
   );
 }
@@ -45882,16 +45316,24 @@ export function ProductDetailRouteSkeleton() {
   );
 }
 
-export function ArticlesRouteSkeleton() {
+export function ArticlesListingSkeleton() {
   return (
-    <PageShell label="Đang tải tin tức">
-      <BreadcrumbRowSkeleton />
-      <Skeleton className="mb-6 h-9 w-48 bg-gray-100" />
+    <div aria-busy="true" aria-live="polite" aria-label="Đang tải bài viết">
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
           <ArticleCardSkeleton key={i} />
         ))}
       </div>
+    </div>
+  );
+}
+
+export function ArticlesRouteSkeleton() {
+  return (
+    <PageShell label="Đang tải tin tức">
+      <BreadcrumbRowSkeleton />
+      <Skeleton className="mb-6 h-9 w-48 bg-gray-100" />
+      <ArticlesListingSkeleton />
     </PageShell>
   );
 }
@@ -46314,6 +45756,16 @@ const DEFAULT_OG_IMAGE: Required<Pick<OgImage, 'url'>> & Partial<OgImage> = {
   alt: 'Long Nhãn Tống Trân',
 };
 
+/** Strips HTML and trims to a meta description length (default 160). */
+export function trimMetaDescription(text: string, maxLength = 160): string {
+  const plain = text
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (plain.length <= maxLength) return plain;
+  return `${plain.slice(0, maxLength - 1)}…`;
+}
+
 /** Resolves image and page URLs for OG/Twitter; Facebook requires absolute https URLs. */
 export function toAbsoluteUrl(pathOrUrl: string): string {
   const s = pathOrUrl.trim();
@@ -46341,6 +45793,7 @@ export function buildSeoMetadata(input: BuildSeoMetadataInput): Metadata {
     alternates: inputAlternates,
     openGraph: inputOpenGraph,
     twitter: inputTwitter,
+    robots: inputRobots,
     ...metadataRest
   } = input;
 
@@ -46403,14 +45856,16 @@ export function buildSeoMetadata(input: BuildSeoMetadataInput): Metadata {
         { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
       ],
     },
-    robots: {
-      index: true,
-      follow: true,
-      googleBot: {
+    robots:
+      inputRobots ??
+      ({
         index: true,
         follow: true,
-      },
-    },
+        googleBot: {
+          index: true,
+          follow: true,
+        },
+      } satisfies Metadata['robots']),
     classification: 'food',
     other: {
       google: 'notranslate',
@@ -46509,6 +45964,27 @@ next-env.d.ts
 
 # Sentry Config File
 .env.sentry-build-plugin
+</file>
+
+<file path="deploy/cloudflare/config.yml.example">
+# Credentials + local ingress mode only (omit if you use CLOUDFLARED_TUNNEL_TOKEN — see deploy/README.md).
+# One tunnel can serve all hostnames below via multiple ingress rules.
+#
+# Copy to config.yml; place credentials JSON next to it; set tunnel id in both places.
+
+tunnel: TUNNEL_ID_REPLACE_ME
+credentials-file: /etc/cloudflared/TUNNEL_ID_REPLACE_ME.json
+
+ingress:
+  - hostname: api.nhanhungyen.com
+    service: http://api:3001
+  - hostname: www.nhanhungyen.com
+    service: http://web:3000
+  - hostname: nhanhungyen.com
+    service: http://web:3000
+  - hostname: admin.nhanhungyen.com
+    service: http://admin:3002
+  - service: http_status:404
 </file>
 
 <file path="deploy/README.md">
@@ -52921,13 +52397,15 @@ async function staleWhileRevalidate(event, request, cacheName) {
 </file>
 
 <file path="apps/web/src/app/cart/page.tsx">
-import type { Metadata } from 'next';
 import { CartPageContent } from '@/components/cart/cart-page-content';
+import { buildSeoMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = buildSeoMetadata({
   title: 'Giỏ hàng',
-  description: 'Giỏ hàng — Long Nhãn Tống Trân',
-};
+  description: 'Giỏ hàng của bạn tại Long Nhãn Hưng Yên — nhanhunguyen.com.',
+  canonicalPath: '/cart',
+  robots: { index: false, follow: false },
+});
 
 export default function CartPage() {
   return <CartPageContent />;
@@ -53971,27 +53449,68 @@ export const PWA_MANIFEST_SCREENSHOTS = [
 // JSON-LD structured data generators for SEO
 // Used on product pages, article pages, and all pages (organization + breadcrumb)
 
+import { LANDING_BRAND } from '@/data/landing-page-content';
 import type { Product, Article } from '@longnhan/types';
 import {
   SITE_URL,
   SITE_NAME,
   CONTACT_PHONE,
   CONTACT_ADDRESS,
+  CONTACT_EMAIL,
+  SOCIAL_LINKS,
 } from './constants';
+import { toAbsoluteUrl } from './seo';
 
 /** Organization schema — included in root layout */
 export function buildOrganizationSchema() {
+  const sameAs = [
+    SOCIAL_LINKS.facebook,
+    SOCIAL_LINKS.zalo,
+    SOCIAL_LINKS.shopee,
+    SOCIAL_LINKS.tiktok,
+  ].filter((url): url is string => Boolean(url));
+
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: SITE_NAME,
     url: SITE_URL,
+    logo: toAbsoluteUrl(LANDING_BRAND.logoSrc),
+    email: CONTACT_EMAIL,
     telephone: CONTACT_PHONE,
     address: {
       '@type': 'PostalAddress',
       addressLocality: 'Hưng Yên',
+      addressRegion: 'Hưng Yên',
       addressCountry: 'VN',
       streetAddress: CONTACT_ADDRESS,
+    },
+    ...(sameAs.length > 0 ? { sameAs } : {}),
+    contactPoint: {
+      '@type': 'ContactPoint',
+      telephone: CONTACT_PHONE,
+      contactType: 'customer service',
+      areaServed: 'VN',
+      availableLanguage: ['Vietnamese'],
+    },
+  };
+}
+
+/** WebSite schema with on-site product search — root layout */
+export function buildWebSiteSchema() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: SITE_NAME,
+    url: SITE_URL,
+    inLanguage: 'vi-VN',
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: `${SITE_URL}/products?q={search_term_string}`,
+      },
+      'query-input': 'required name=search_term_string',
     },
   };
 }
@@ -54030,13 +53549,18 @@ export function buildProductSchema(product: Product) {
       : product.featuredImageUrl
         ? [product.featuredImageUrl]
         : [];
+  const absoluteImages = imageList.map((src) => toAbsoluteUrl(src));
 
   return {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: product.name,
     description: product.summary ?? product.description ?? undefined,
-    image: imageList,
+    image: absoluteImages.length > 0 ? absoluteImages : undefined,
+    brand: {
+      '@type': 'Brand',
+      name: SITE_NAME,
+    },
     url: `${SITE_URL}/products/${product.slug}`,
     offers: {
       '@type': 'AggregateOffer',
@@ -54051,12 +53575,18 @@ export function buildProductSchema(product: Product) {
 
 /** NewsArticle schema */
 export function buildArticleSchema(article: Article) {
+  const rawImage =
+    article.featuredImageUrl ?? article.coverImageUrl ?? undefined;
+  const image = rawImage ? toAbsoluteUrl(rawImage) : undefined;
+
   return {
     '@context': 'https://schema.org',
     '@type': 'NewsArticle',
     headline: article.title,
     description: article.excerpt ?? article.summary ?? undefined,
-    image: article.featuredImageUrl ?? article.coverImageUrl ?? undefined,
+    image,
+    inLanguage: 'vi-VN',
+    mainEntityOfPage: `${SITE_URL}/articles/${article.slug}`,
     datePublished: article.publishedAt ?? article.createdAt,
     dateModified: article.updatedAt,
     publisher: {
@@ -57718,6 +57248,15 @@ export async function lookupOrderAction(
 import Link from 'next/link';
 
 import FuzzyText from '@/components/ui/fuzzy-text';
+import { buildSeoMetadata } from '@/lib/seo';
+
+export const metadata = buildSeoMetadata({
+  title: 'Không tìm thấy trang',
+  description:
+    'Trang bạn tìm không tồn tại. Quay về trang chủ hoặc xem sản phẩm long nhãn Hưng Yên tại nhanhunguyen.com.',
+  canonicalPath: '/404',
+  robots: { index: false, follow: false },
+});
 
 export default function NotFound() {
   return (
@@ -60261,8 +59800,11 @@ export function LandingHero() {
                 alt={LANDING_BRAND.logoAlt}
                 width={280}
                 height={280}
+                sizes="(max-width: 640px) 85vw, 280px"
                 className="h-auto w-[85%] object-contain drop-shadow-md"
                 priority
+                loading="eager"
+                fetchPriority="high"
               />
             </div>
           </div>
@@ -60306,8 +59848,9 @@ export default function Header() {
             alt={LANDING_BRAND.logoAlt}
             width={72}
             height={72}
+            sizes="72px"
+            loading="eager"
             className="h-14 w-14 object-contain md:h-18 md:w-18"
-            priority
           />
         </Link>
 
@@ -61602,65 +61145,6 @@ test-e2e:
 	pnpm --filter @longnhan/api test:e2e
 </file>
 
-<file path="package.json">
-{
-  "name": "nhanhungyen.com",
-  "private": true,
-  "pnpm": {
-    "ignoredBuiltDependencies": [
-      "sharp",
-      "unrs-resolver"
-    ]
-  },
-  "scripts": {
-    "prepare": "husky || true",
-    "dev": "turbo dev",
-    "dev:api": "pnpm --filter @longnhan/api dev",
-    "dev:web": "pnpm --filter @longnhan/web dev",
-    "dev:admin": "pnpm --filter @longnhan/admin dev",
-    "build": "turbo build",
-    "build:api": "pnpm --filter @longnhan/api build",
-    "build:web": "pnpm --filter @longnhan/web build",
-    "build:admin": "pnpm --filter @longnhan/admin build",
-    "lint": "turbo lint",
-    "lint:fix": "turbo lint:fix",
-    "lint:api": "pnpm --filter @longnhan/api lint",
-    "lint:web": "pnpm --filter @longnhan/web lint",
-    "lint:admin": "pnpm --filter @longnhan/admin lint",
-    "format": "turbo run format",
-    "format:api": "pnpm --filter @longnhan/api format",
-    "format:web": "pnpm --filter @longnhan/web format",
-    "format:admin": "pnpm --filter @longnhan/admin format",
-    "type-check": "turbo type-check",
-    "type-check:api": "pnpm --filter @longnhan/api type-check",
-    "type-check:web": "pnpm --filter @longnhan/web type-check",
-    "type-check:admin": "pnpm --filter @longnhan/admin type-check",
-    "lint-staged": "lint-staged",
-    "repomix": "repomix -o repomix-output.xml --style xml",
-    "docker:up": "docker compose up -d",
-    "docker:down": "docker compose down",
-    "docker:logs": "docker compose logs -f",
-    "docker:reset": "docker compose down -v && docker compose up -d"
-  },
-  "devDependencies": {
-    "@commitlint/cli": "^19.8.1",
-    "@commitlint/config-conventional": "^19.8.1",
-    "husky": "^9.1.7",
-    "lint-staged": "^16.1.6",
-    "prettier": "^3.6.2",
-    "prettier-plugin-organize-imports": "^4.2.0",
-    "repomix": "^1.13.1",
-    "turbo": "^2.5.0",
-    "typescript": "^5.4.0"
-  },
-  "packageManager": "pnpm@10.32.1",
-  "dependencies": {
-    "@hookform/resolvers": "^5.2.2",
-    "zod": "^4.3.6"
-  }
-}
-</file>
-
 <file path="apps/admin/src/app/(dashboard)/articles/page.client.tsx">
 'use client';
 
@@ -62777,119 +62261,6 @@ body {
 }
 </file>
 
-<file path="apps/web/src/app/layout.tsx">
-import type { Metadata, Viewport } from 'next';
-import { Geist } from 'next/font/google';
-import localFont from 'next/font/local';
-import './globals.css';
-import { AppProviders } from '@/components/providers/app-providers';
-import Header from '@/components/layout/header';
-import Footer from '@/components/layout/footer';
-import FloatingContactWidget from '@/components/layout/floating-contact-widget';
-import BackToTopButton from '@/components/ui/back-to-top-button';
-import { LANDING_SEO } from '@/data/landing-page-content';
-import { GOOGLE_VERIFICATION, SITE_URL } from '@/lib/constants';
-import { PWA_CONFIG } from '@/lib/pwa-config';
-import { buildSeoMetadata } from '@/lib/seo';
-import { buildOrganizationSchema } from '@/lib/structured-data';
-
-const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-});
-
-const seagullDisplay = localFont({
-  src: [
-    {
-      path: '../../public/fonts/UTM SeagullBold.ttf',
-      weight: '700',
-      style: 'normal',
-    },
-    {
-      path: '../../public/fonts/UTM SeagullBoldItalic.ttf',
-      weight: '700',
-      style: 'italic',
-    },
-  ],
-  variable: '--font-seagull',
-  display: 'swap',
-});
-
-export const viewport: Viewport = {
-  themeColor: PWA_CONFIG.themeColor,
-  colorScheme: 'light',
-};
-
-const landingMetadata = buildSeoMetadata({
-  title: LANDING_SEO.title,
-  description: LANDING_SEO.description,
-  canonicalPath: '/',
-  ogImage: {
-    url: PWA_CONFIG.heroImage.path,
-    width: PWA_CONFIG.heroImage.width,
-    height: PWA_CONFIG.heroImage.height,
-    alt: PWA_CONFIG.heroImage.alt,
-  },
-});
-
-export const metadata: Metadata = {
-  ...landingMetadata,
-  metadataBase: new URL(SITE_URL),
-  title: {
-    default: PWA_CONFIG.documentTitle,
-    template: '%s | Long Nhãn Tống Trân',
-  },
-  keywords: [...LANDING_SEO.keywords],
-  applicationName: PWA_CONFIG.name,
-  category: 'food',
-  icons: {
-    icon: [{ url: PWA_CONFIG.icons.src, type: 'image/png' }],
-    apple: [{ url: PWA_CONFIG.icons.src, type: 'image/png' }],
-  },
-  appleWebApp: {
-    capable: true,
-    title: PWA_CONFIG.name,
-    statusBarStyle: 'black-translucent',
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
-  verification: {
-    google: GOOGLE_VERIFICATION,
-  },
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
-  const orgSchema = buildOrganizationSchema();
-
-  return (
-    <html
-      lang="vi"
-      className={`${geistSans.variable} ${seagullDisplay.variable} h-full`}
-    >
-      <head>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
-        />
-      </head>
-      <body className="min-h-full flex flex-col antialiased">
-        <AppProviders>
-          <Header />
-          <main className="flex-1 pb-16 md:pb-0">{children}</main>
-          <Footer />
-          <FloatingContactWidget />
-          <BackToTopButton />
-        </AppProviders>
-      </body>
-    </html>
-  );
-}
-</file>
-
 <file path="apps/web/src/components/checkout/checkout-customer-form.tsx">
 'use client';
 
@@ -63672,6 +63043,65 @@ All configs in `.env.example`:
 - **Repository:** Private (ViBe Coding Team)
 - **Documentation:** ./docs/ directory
 - **Issues:** GitHub Issues (if applicable)
+</file>
+
+<file path="package.json">
+{
+  "name": "nhanhungyen.com",
+  "private": true,
+  "pnpm": {
+    "ignoredBuiltDependencies": [
+      "sharp",
+      "unrs-resolver"
+    ]
+  },
+  "scripts": {
+    "prepare": "husky || true",
+    "dev": "turbo dev",
+    "dev:api": "pnpm --filter @longnhan/api dev",
+    "dev:web": "pnpm --filter @longnhan/web dev",
+    "dev:admin": "pnpm --filter @longnhan/admin dev",
+    "build": "turbo build",
+    "build:api": "pnpm --filter @longnhan/api build",
+    "build:web": "pnpm --filter @longnhan/web build",
+    "build:admin": "pnpm --filter @longnhan/admin build",
+    "lint": "turbo lint",
+    "lint:fix": "turbo lint:fix",
+    "lint:api": "pnpm --filter @longnhan/api lint",
+    "lint:web": "pnpm --filter @longnhan/web lint",
+    "lint:admin": "pnpm --filter @longnhan/admin lint",
+    "format": "turbo run format",
+    "format:api": "pnpm --filter @longnhan/api format",
+    "format:web": "pnpm --filter @longnhan/web format",
+    "format:admin": "pnpm --filter @longnhan/admin format",
+    "type-check": "turbo type-check",
+    "type-check:api": "pnpm --filter @longnhan/api type-check",
+    "type-check:web": "pnpm --filter @longnhan/web type-check",
+    "type-check:admin": "pnpm --filter @longnhan/admin type-check",
+    "lint-staged": "lint-staged",
+    "repomix": "repomix -o repomix-output.xml --style xml",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:reset": "docker compose down -v && docker compose up -d"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.6",
+    "prettier": "^3.6.2",
+    "prettier-plugin-organize-imports": "^4.2.0",
+    "repomix": "^1.13.1",
+    "turbo": "^2.5.0",
+    "typescript": "^5.4.0"
+  },
+  "packageManager": "pnpm@10.32.1",
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "zod": "^4.3.6"
+  }
+}
 </file>
 
 <file path="apps/admin/src/app/(dashboard)/articles/[id]/edit/page.tsx">
@@ -65514,7 +64944,6 @@ export function OrderStatusPanel({
 
 <file path="apps/web/src/app/order-success/page.tsx">
 import Link from 'next/link';
-import type { Metadata } from 'next';
 import {
   CircleCheck,
   Home,
@@ -65539,6 +64968,7 @@ import {
   CardHeader,
 } from '@/components/ui/card';
 import type { PublicOrderSummary } from '@/actions/order-tracking-actions';
+import { buildSeoMetadata } from '@/lib/seo';
 
 interface OrderSuccessPageProps {
   searchParams: Promise<{
@@ -65546,15 +64976,13 @@ interface OrderSuccessPageProps {
   }>;
 }
 
-export const metadata: Metadata = {
+export const metadata = buildSeoMetadata({
   title: 'Đặt hàng thành công',
   description:
-    'Đơn hàng của bạn đã được ghi nhận. Chúng tôi sẽ liên hệ xác nhận sớm.',
-  robots: {
-    index: false,
-    follow: false,
-  },
-};
+    'Đơn hàng long nhãn đã được ghi nhận — chúng tôi sẽ liên hệ xác nhận sớm. Cảm ơn bạn đã mua tại nhanhunguyen.com.',
+  canonicalPath: '/order-success',
+  robots: { index: false, follow: false },
+});
 
 export default async function OrderSuccessPage({
   searchParams,
@@ -65714,6 +65142,140 @@ export default async function OrderSuccessPage({
         </CardFooter>
       </Card>
     </section>
+  );
+}
+</file>
+
+<file path="apps/web/src/app/layout.tsx">
+import type { Metadata, Viewport } from 'next';
+import { Geist } from 'next/font/google';
+import localFont from 'next/font/local';
+import './globals.css';
+import { AppProviders } from '@/components/providers/app-providers';
+import Header from '@/components/layout/header';
+import BackToTopButton from '@/components/ui/back-to-top-button';
+import dynamic from 'next/dynamic';
+
+const Footer = dynamic(() => import('@/components/layout/footer'), {
+  loading: () => (
+    <footer
+      className="mt-auto min-h-[320px] border-t border-(--brand-gold)/25 bg-(--brand-forest)"
+      aria-hidden
+    />
+  ),
+});
+
+const FloatingContactWidget = dynamic(
+  () => import('@/components/layout/floating-contact-widget'),
+  { loading: () => null },
+);
+import { LANDING_SEO } from '@/data/landing-page-content';
+import { GOOGLE_VERIFICATION, SITE_URL } from '@/lib/constants';
+import { PWA_CONFIG } from '@/lib/pwa-config';
+import { buildSeoMetadata } from '@/lib/seo';
+import {
+  buildOrganizationSchema,
+  buildWebSiteSchema,
+} from '@/lib/structured-data';
+import { GoogleAnalytics } from '@/components/analytics/google-analytics';
+
+const geistSans = Geist({
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
+});
+
+const seagullDisplay = localFont({
+  src: [
+    {
+      path: '../../public/fonts/UTM SeagullBold.ttf',
+      weight: '700',
+      style: 'normal',
+    },
+    {
+      path: '../../public/fonts/UTM SeagullBoldItalic.ttf',
+      weight: '700',
+      style: 'italic',
+    },
+  ],
+  variable: '--font-seagull',
+  display: 'swap',
+});
+
+export const viewport: Viewport = {
+  themeColor: PWA_CONFIG.themeColor,
+  colorScheme: 'light',
+};
+
+const landingMetadata = buildSeoMetadata({
+  title: LANDING_SEO.title,
+  description: LANDING_SEO.description,
+  canonicalPath: '/',
+  ogImage: {
+    url: PWA_CONFIG.heroImage.path,
+    width: PWA_CONFIG.heroImage.width,
+    height: PWA_CONFIG.heroImage.height,
+    alt: PWA_CONFIG.heroImage.alt,
+  },
+});
+
+export const metadata: Metadata = {
+  ...landingMetadata,
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: PWA_CONFIG.documentTitle,
+    template: '%s | Long Nhãn Hưng Yên',
+  },
+  keywords: [...LANDING_SEO.keywords],
+  applicationName: PWA_CONFIG.name,
+  category: 'food',
+  icons: {
+    icon: [{ url: PWA_CONFIG.icons.src, type: 'image/png' }],
+    apple: [{ url: PWA_CONFIG.icons.src, type: 'image/png' }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: PWA_CONFIG.name,
+    statusBarStyle: 'black-translucent',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  verification: {
+    google: GOOGLE_VERIFICATION,
+  },
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  const structuredData = [buildOrganizationSchema(), buildWebSiteSchema()];
+
+  return (
+    <html
+      lang="vi"
+      className={`${geistSans.variable} ${seagullDisplay.variable} h-full`}
+    >
+      <head>
+        {structuredData.map((schema, index) => (
+          <script
+            key={index}
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+          />
+        ))}
+      </head>
+      <body className="min-h-full flex flex-col antialiased">
+        <GoogleAnalytics />
+        <AppProviders>
+          <Header />
+          <main className="flex-1 pb-16 md:pb-0">{children}</main>
+          <Footer />
+          <FloatingContactWidget />
+          <BackToTopButton />
+        </AppProviders>
+      </body>
+    </html>
   );
 }
 </file>
@@ -66346,23 +65908,38 @@ export default function ProductCard({
 import { SOCIAL_LINKS } from '@/lib/constants';
 
 export const LANDING_SEO = {
-  title: 'Long Nhãn Hưng Yên — Đặc Sản Tống Trân | Quà Tặng Cao Cấp',
+  title: 'Long Nhãn Hưng Yên — Đặc Sản Tống Trân | nhanhunguyen.com',
   description:
-    'Long nhãn Hưng Yên ngọt lành từng hạt, sấy khép kín theo công thức cổ truyền. Quà biếu sang trọng, giao COD toàn quốc. Liên hệ Zalo, Shopee, TikTok.',
+    'Mua long nhãn Hưng Yên chính gốc Tống Trân tại nhanhunguyen.com: sấy khô không tẩm đường, quà biếu sang trọng. Giao COD toàn quốc — Zalo, Shopee, TikTok.',
   keywords: [
-    'long nhãn Hưng Yên',
-    'long nhãn Tống Trân',
-    'đặc sản Hưng Yên',
-    'nhãn lồng Phố Hiến',
-    'quà tặng cao cấp',
-    'long nhãn sấy khô',
-    'đặc sản quê hương',
+    'nhanhunguyen.com',
+    'Long nhãn Hưng Yên',
+    'Nhãn Hưng Yên',
+    'Long nhãn Tống Trân',
+    'Long nhãn sấy khô',
+    'Long nhãn quà tặng',
+    'Đặc sản Hưng Yên',
+    'Long nhãn giao COD',
+    'Long nhãn Shopee',
+    'Long nhãn TikTok',
   ],
-  ogImageAlt: 'Long Nhãn Tống Trân — Đặc sản Hưng Yên',
+  ogImageAlt: 'Long nhãn Hưng Yên — đặc sản Tống Trân, nhanhunguyen.com',
+} as const;
+
+export const PRODUCTS_LISTING_SEO = {
+  title: 'Sản phẩm Long Nhãn Hưng Yên',
+  description:
+    'Khám phá long nhãn sấy khô, set quà biếu và đặc sản Tống Trân — chọn lọc từ vườn Hưng Yên, giao COD toàn quốc. Đặt hàng nhanh tại nhanhunguyen.com.',
+} as const;
+
+export const ARTICLES_LISTING_SEO = {
+  title: 'Bài viết về Long Nhãn Hưng Yên',
+  description:
+    'Cẩm nang chọn long nhãn, bảo quản, nấu chè và câu chuyện vườn Tống Trân — kiến thức từ nông trại Hưng Yên, cập nhật tại nhanhunguyen.com.',
 } as const;
 
 export const LANDING_BRAND = {
-  name: 'Long Nhãn Tống Trân',
+  name: 'Long Nhãn Hưng Yên',
   specialtyLine: 'Đặc sản Hưng Yên',
   tagline: 'Ngọt lành từng hạt — An thần, dưỡng tâm',
   logoSrc: '/logo.png',
@@ -68750,7 +68327,13 @@ export async function generateMetadata({
   const article = await getArticle(slug);
 
   if (!article) {
-    return { title: 'Không tìm thấy bài viết' };
+    return buildSeoMetadata({
+      title: 'Không tìm thấy bài viết',
+      description:
+        'Bài viết không tồn tại hoặc đã được gỡ. Đọc thêm về long nhãn Hưng Yên tại nhanhunguyen.com.',
+      canonicalPath: `/articles/${slug}`,
+      robots: { index: false, follow: false },
+    });
   }
 
   const title = article.metaTitle ?? article.title;
@@ -71998,63 +71581,57 @@ export async function validateCart(
 
 <file path="apps/web/src/app/articles/page.tsx">
 import type { Metadata } from 'next';
-import type { Article } from '@longnhan/types';
-import ArticleCard from '@/components/articles/article-card';
+import { ArticlesListingContent } from '@/components/articles/articles-listing-content';
 import Breadcrumb from '@/components/ui/breadcrumb';
-import { fetchPaginated } from '@/lib/api-client';
-import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
-import { articlesListCacheTags } from '@/lib/content-cache-tags';
+import { ArticlesListingSkeleton } from '@/components/ui/route-loading-skeleton';
+import { ARTICLES_LISTING_SEO } from '@/data/landing-page-content';
+import { buildBreadcrumb } from '@/lib/breadcrumb';
 import { buildSeoMetadata } from '@/lib/seo';
-import { cacheLife, cacheTag } from 'next/cache';
+import { PWA_CONFIG } from '@/lib/pwa-config';
 import { connection } from 'next/server';
-
-async function getArticles(): Promise<Article[]> {
-  'use cache';
-  cacheLife({ revalidate: 3600 });
-  cacheTag(...articlesListCacheTags());
-  try {
-    const response = await fetchPaginated<Article>('/articles', { limit: 24 });
-    return response.data;
-  } catch (error) {
-    captureApiFetchError(error, {
-      route: '/articles',
-      section: 'listing',
-    });
-    return [];
-  }
-}
+import { Suspense } from 'react';
 
 export async function generateMetadata(): Promise<Metadata> {
   return buildSeoMetadata({
-    title: 'Bài viết về Long nhãn Hưng Yên',
-    description: 'Kiến thức, kinh nghiệm và câu chuyện về Long nhãn Hưng Yên.',
+    title: ARTICLES_LISTING_SEO.title,
+    description: ARTICLES_LISTING_SEO.description,
     canonicalPath: '/articles',
+    ogImage: {
+      url: PWA_CONFIG.heroImage.path,
+      width: PWA_CONFIG.heroImage.width,
+      height: PWA_CONFIG.heroImage.height,
+      alt: PWA_CONFIG.heroImage.alt,
+    },
   });
 }
 
 export default async function ArticlesPage() {
   await connection();
-  const articles = await getArticles();
+
+  const breadcrumbItems = [
+    { label: 'Trang chủ', url: '/' },
+    { label: 'Bài viết' },
+  ];
+  const { schema: breadcrumbSchema } = buildBreadcrumb({
+    items: breadcrumbItems,
+    currentUrl: '/articles',
+  });
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8">
-      <Breadcrumb
-        items={[{ label: 'Trang chủ', url: '/' }, { label: 'Bài viết' }]}
-      />
+      {breadcrumbSchema ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        />
+      ) : null}
+      <Breadcrumb items={breadcrumbItems} />
       <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-6">
         Bài viết
       </h1>
-      {articles.length === 0 ? (
-        <p className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-600">
-          Chưa có bài viết nào.
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {articles.map((article) => (
-            <ArticleCard key={article.id} article={article} />
-          ))}
-        </div>
-      )}
+      <Suspense fallback={<ArticlesListingSkeleton />}>
+        <ArticlesListingContent />
+      </Suspense>
     </section>
   );
 }
@@ -72062,60 +71639,17 @@ export default async function ArticlesPage() {
 
 <file path="apps/web/src/app/products/page.tsx">
 import type { Metadata } from 'next';
-import type { Category, Product } from '@longnhan/types';
 import type { SearchParams } from 'nuqs/server';
-import ProductGrid from '@/components/products/product-grid';
-import CategoryFilter from '@/components/products/category-filter';
+import { ProductsListingContent } from '@/components/products/products-listing-content';
 import Breadcrumb from '@/components/ui/breadcrumb';
-import { fetchApi, fetchPaginated } from '@/lib/api-client';
-import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
+import { ProductsListingSkeleton } from '@/components/ui/route-loading-skeleton';
 import { buildBreadcrumb } from '@/lib/breadcrumb';
-import {
-  productListingCategoriesTag,
-  productsListCacheTags,
-} from '@/lib/content-cache-tags';
 import { loadProductSearchParams } from '@/lib/product-search-params';
+import { PRODUCTS_LISTING_SEO } from '@/data/landing-page-content';
 import { buildSeoMetadata } from '@/lib/seo';
-import { cacheLife, cacheTag } from 'next/cache';
-
-async function getProductListingCategories(): Promise<Category[]> {
-  'use cache';
-  cacheTag(productListingCategoriesTag);
-  cacheLife({ revalidate: 60 });
-  try {
-    return await fetchApi<Category[]>('/categories');
-  } catch (error) {
-    captureApiFetchError(error, {
-      route: '/products',
-      section: 'categories',
-    });
-    return [];
-  }
-}
-
-async function getProductsListing(
-  category: string | undefined,
-  q: string | undefined,
-): Promise<Product[]> {
-  'use cache';
-  cacheLife({ revalidate: 60 });
-  cacheTag(...productsListCacheTags(category, q));
-  try {
-    const response = await fetchPaginated<Product>('/products', {
-      category,
-      q,
-      limit: 24,
-    });
-    return response.data;
-  } catch (error) {
-    captureApiFetchError(error, {
-      route: '/products',
-      section: 'listing',
-      extra: { category: category ?? null, q: q ?? null },
-    });
-    return [];
-  }
-}
+import { PWA_CONFIG } from '@/lib/pwa-config';
+import { connection } from 'next/server';
+import { Suspense } from 'react';
 
 interface ProductsPageProps {
   searchParams: Promise<SearchParams>;
@@ -72123,25 +71657,26 @@ interface ProductsPageProps {
 
 export async function generateMetadata(): Promise<Metadata> {
   return buildSeoMetadata({
-    title: 'Sản phẩm Long Nhãn Hưng Yên',
-    description:
-      'Danh sách sản phẩm Long Nhãn, Nhãn Long Hưng Yên và quà biếu đặc sản.',
+    title: PRODUCTS_LISTING_SEO.title,
+    description: PRODUCTS_LISTING_SEO.description,
     canonicalPath: '/products',
+    ogImage: {
+      url: PWA_CONFIG.heroImage.path,
+      width: PWA_CONFIG.heroImage.width,
+      height: PWA_CONFIG.heroImage.height,
+      alt: PWA_CONFIG.heroImage.alt,
+    },
   });
 }
 
 export default async function ProductsPage({
   searchParams,
 }: ProductsPageProps) {
+  await connection();
   const { q: qRaw, category: categoryRaw } =
     await loadProductSearchParams(searchParams);
   const category = categoryRaw ?? undefined;
   const q = qRaw ?? undefined;
-
-  const [categories, products] = await Promise.all([
-    getProductListingCategories(),
-    getProductsListing(category, q),
-  ]);
 
   const breadcrumbItems = [
     { label: 'Trang chủ', url: '/' },
@@ -72166,8 +71701,12 @@ export default async function ProductsPage({
           Danh mục sản phẩm
         </h1>
       </div>
-      <CategoryFilter categories={categories} current={category} />
-      <ProductGrid products={products} />
+      <Suspense
+        key={`${category ?? ''}:${q ?? ''}`}
+        fallback={<ProductsListingSkeleton />}
+      >
+        <ProductsListingContent category={category} q={q} />
+      </Suspense>
     </section>
   );
 }
@@ -72383,7 +71922,7 @@ import {
   productDetailCacheTags,
   relatedProductsCacheTags,
 } from '@/lib/content-cache-tags';
-import { buildSeoMetadata } from '@/lib/seo';
+import { buildSeoMetadata, trimMetaDescription } from '@/lib/seo';
 import { buildProductSchema } from '@/lib/structured-data';
 import type { Product } from '@longnhan/types';
 import type { Metadata } from 'next';
@@ -72480,7 +72019,10 @@ export async function generateMetadata({
   if (!product) {
     return buildSeoMetadata({
       title: 'Không tìm thấy sản phẩm',
+      description:
+        'Sản phẩm không tồn tại hoặc đã ngừng kinh doanh. Xem danh mục long nhãn Hưng Yên tại nhanhunguyen.com.',
       canonicalPath: `/products/${slug}`,
+      robots: { index: false, follow: false },
     });
   }
 
@@ -72490,13 +72032,17 @@ export async function generateMetadata({
     product.imageUrls?.[0] ??
     undefined;
 
+  const description =
+    product.summary?.trim() ||
+    (product.description
+      ? trimMetaDescription(product.description)
+      : `Mua ${product.name} — long nhãn Hưng Yên Tống Trân, giao COD toàn quốc. Đặt hàng tại nhanhunguyen.com.`);
+
   return buildSeoMetadata({
     title: product.name,
-    description: `Chi tiết sản phẩm ${product.name} của shop Long Nhãn Tống Trân.`,
+    description,
     canonicalPath: `/products/${product.slug}`,
     openGraphType: 'website',
-    category: 'food',
-    generator: 'Next.js',
     ...(firstImage
       ? {
           ogImage: {
@@ -72619,40 +72165,19 @@ export default async function ProductDetailPage({
 </file>
 
 <file path="apps/web/src/app/page.tsx">
-import FeaturedProducts from '@/components/home/featured-products';
-import VideoSection from '@/components/home/video-section';
-import { LandingArticlesPreview } from '@/components/landing/landing-articles-preview';
 import { LandingCategoryCarousel } from '@/components/landing/landing-category-carousel';
-import { LandingFaq } from '@/components/landing/landing-faq';
 import { LandingHero } from '@/components/landing/landing-hero';
-import { LandingImageAlbum } from '@/components/landing/landing-image-album';
-import { LandingStory } from '@/components/landing/landing-story';
-import { LandingTestimonialsTrust } from '@/components/landing/landing-testimonials-trust';
+import { LandingHomeBelowFold } from '@/components/landing/landing-home-below-fold';
+import { LandingHomeBelowFoldFallback } from '@/components/landing/landing-home-below-fold-fallback';
 import ScrollReveal from '@/components/ui/scroll-reveal';
-import {
-  LANDING_IMAGE_ALBUM,
-  LANDING_VIDEO_ALBUM_URLS,
-} from '@/data/landing-page-content';
-import { fetchApi, fetchPaginated } from '@/lib/api-client';
+import { fetchApi } from '@/lib/api-client';
 import { homeContentTags } from '@/lib/content-cache-tags';
 import { captureHomeContentFetchError } from '@/lib/observability/api-fetch-sentry';
 import { buildLandingCategoryNav } from '@/lib/landing-category-nav';
-import type { Article, Category, Product } from '@longnhan/types';
+import type { Category } from '@longnhan/types';
 import { cacheLife, cacheTag } from 'next/cache';
 import { connection } from 'next/server';
-
-async function getHomeProducts(): Promise<Product[]> {
-  'use cache';
-  cacheTag(homeContentTags.featuredProducts);
-  cacheLife({ revalidate: 300 });
-  try {
-    const response = await fetchPaginated<Product>('/products', { limit: 8 });
-    return response.data;
-  } catch (error) {
-    captureHomeContentFetchError('products', error);
-    return [];
-  }
-}
+import { Suspense } from 'react';
 
 async function getHomeCategories(): Promise<Category[]> {
   'use cache';
@@ -72666,78 +72191,20 @@ async function getHomeCategories(): Promise<Category[]> {
   }
 }
 
-async function getHomeArticles(): Promise<Article[]> {
-  'use cache';
-  cacheTag(homeContentTags.articles);
-  cacheLife({ revalidate: 300 });
-  try {
-    const response = await fetchPaginated<Article>('/articles', {
-      limit: 4,
-      page: 1,
-    });
-    return response.data;
-  } catch (error) {
-    captureHomeContentFetchError('articles', error);
-    return [];
-  }
-}
-
 export default async function Home() {
   await connection();
-  const [categories, products, articles] = await Promise.all([
-    getHomeCategories(),
-    getHomeProducts(),
-    getHomeArticles(),
-  ]);
+  const categories = await getHomeCategories();
   const categoryNavItems = buildLandingCategoryNav(categories);
-  const productVideos = products
-    .map((p) => p.videoUrl)
-    .filter(Boolean) as string[];
 
   return (
     <div className="landing-page bg-(--brand-cream) text-(--brand-forest)">
-      <ScrollReveal>
-        <LandingHero />
-      </ScrollReveal>
+      <LandingHero />
       <ScrollReveal delayMs={60}>
         <LandingCategoryCarousel navItems={categoryNavItems} />
       </ScrollReveal>
-      <ScrollReveal delayMs={80}>
-        <FeaturedProducts products={products} />
-      </ScrollReveal>
-      <ScrollReveal delayMs={100}>
-        <LandingArticlesPreview articles={articles} />
-      </ScrollReveal>
-      <ScrollReveal delayMs={220}>
-        <LandingStory />
-      </ScrollReveal>
-      <ScrollReveal delayMs={240}>
-        <LandingFaq />
-      </ScrollReveal>
-      {LANDING_VIDEO_ALBUM_URLS.length > 0 ? (
-        <ScrollReveal delayMs={248}>
-          <VideoSection
-            videoUrls={[...LANDING_VIDEO_ALBUM_URLS]}
-            title="Video chia sẻ"
-            sectionId="video-album"
-          />
-        </ScrollReveal>
-      ) : null}
-      <ScrollReveal delayMs={252}>
-        <LandingImageAlbum
-          sectionTitle="Hình ảnh & không gian"
-          sectionSubtitle="Hình ảnh minh họa từ vườn nhãn và sản phẩm"
-          items={LANDING_IMAGE_ALBUM}
-        />
-      </ScrollReveal>
-      <ScrollReveal delayMs={260}>
-        <VideoSection videoUrls={productVideos} />
-      </ScrollReveal>
-      <ScrollReveal delayMs={280}>
-        <section className="landing-section landing-section--decor-cta">
-          <LandingTestimonialsTrust />
-        </section>
-      </ScrollReveal>
+      <Suspense fallback={<LandingHomeBelowFoldFallback />}>
+        <LandingHomeBelowFold />
+      </Suspense>
     </div>
   );
 }
@@ -73730,7 +73197,7 @@ pnpm seed:run
 export const SITE_URL = 'https://nhanhungyen.com';
 export const SITE_NAME = 'Long Nhãn Hưng Yên — Đặc Sản Tống Trân';
 export const SITE_DESCRIPTION =
-  'Long nhãn Hưng Yên — đặc sản chọn lọc, quà biếu sang trọng. Giao COD toàn quốc, Shopee, TikTok, Zalo.';
+  'Cửa hàng long nhãn Hưng Yên chính gốc Tống Trân tại nhanhunguyen.com — quà biếu sang trọng, giao COD toàn quốc. Zalo, Shopee, TikTok.';
 
 export const CONTACT_PHONE = '0922919456';
 export const CONTACT_EMAIL = 'noreply@nhanhungyen.com';
@@ -73739,7 +73206,7 @@ export const CONTACT_ADDRESS = 'Tống Trân, Hưng Yên, Việt Nam';
 export const SOCIAL_LINKS = {
   facebook: 'https://www.facebook.com/exameen.dev/',
   zalo: 'https://zalo.me/0362804035',
-  shopee: 'https://shopee.vn/sieuthithaomoc',
+  shopee: 'https://shopee.vn/empt_',
   tiktok: 'https://www.tiktok.com/@longnhantongtran',
 };
 
@@ -73790,6 +73257,8 @@ export const PROVINCES = [
 
 export const GOOGLE_VERIFICATION =
   'pOGGbAnqliIaDiOAoY0ak4OVsKdUzk4UlfGMeOEx2AU';
+
+export const GOOGLE_ANALYTICS_ID = 'G-EF0DG4WZHC';
 </file>
 
 <file path="docs/codebase-summary.md">

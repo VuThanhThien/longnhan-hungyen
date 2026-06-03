@@ -50,11 +50,10 @@ export function RouteLoadingSkeleton() {
   );
 }
 
-export function ProductsRouteSkeleton() {
+/** Category chips + product cards only (inside `/products` Suspense boundary). */
+export function ProductsListingSkeleton() {
   return (
-    <PageShell label="Đang tải danh mục sản phẩm">
-      <BreadcrumbRowSkeleton />
-      <Skeleton className="mb-6 h-9 w-64 max-w-full bg-gray-100" />
+    <div aria-busy="true" aria-live="polite" aria-label="Đang tải sản phẩm">
       <div className="mb-6 flex flex-wrap gap-2">
         {Array.from({ length: 5 }).map((_, i) => (
           <Skeleton key={i} className="h-9 w-24 rounded-full bg-gray-100" />
@@ -65,6 +64,16 @@ export function ProductsRouteSkeleton() {
           <ProductCardSkeleton key={i} />
         ))}
       </div>
+    </div>
+  );
+}
+
+export function ProductsRouteSkeleton() {
+  return (
+    <PageShell label="Đang tải danh mục sản phẩm">
+      <BreadcrumbRowSkeleton />
+      <Skeleton className="mb-6 h-9 w-64 max-w-full bg-gray-100" />
+      <ProductsListingSkeleton />
     </PageShell>
   );
 }
@@ -120,16 +129,24 @@ export function ProductDetailRouteSkeleton() {
   );
 }
 
-export function ArticlesRouteSkeleton() {
+export function ArticlesListingSkeleton() {
   return (
-    <PageShell label="Đang tải tin tức">
-      <BreadcrumbRowSkeleton />
-      <Skeleton className="mb-6 h-9 w-48 bg-gray-100" />
+    <div aria-busy="true" aria-live="polite" aria-label="Đang tải bài viết">
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
           <ArticleCardSkeleton key={i} />
         ))}
       </div>
+    </div>
+  );
+}
+
+export function ArticlesRouteSkeleton() {
+  return (
+    <PageShell label="Đang tải tin tức">
+      <BreadcrumbRowSkeleton />
+      <Skeleton className="mb-6 h-9 w-48 bg-gray-100" />
+      <ArticlesListingSkeleton />
     </PageShell>
   );
 }

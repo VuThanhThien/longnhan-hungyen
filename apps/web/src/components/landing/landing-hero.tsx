@@ -65,8 +65,11 @@ export function LandingHero() {
                 alt={LANDING_BRAND.logoAlt}
                 width={280}
                 height={280}
+                sizes="(max-width: 640px) 85vw, 280px"
                 className="h-auto w-[85%] object-contain drop-shadow-md"
                 priority
+                loading="eager"
+                fetchPriority="high"
               />
             </div>
           </div>

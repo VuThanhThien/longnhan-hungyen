@@ -4,14 +4,31 @@ import localFont from 'next/font/local';
 import './globals.css';
 import { AppProviders } from '@/components/providers/app-providers';
 import Header from '@/components/layout/header';
-import Footer from '@/components/layout/footer';
-import FloatingContactWidget from '@/components/layout/floating-contact-widget';
 import BackToTopButton from '@/components/ui/back-to-top-button';
+import dynamic from 'next/dynamic';
+
+const Footer = dynamic(() => import('@/components/layout/footer'), {
+  loading: () => (
+    <footer
+      className="mt-auto min-h-[320px] border-t border-(--brand-gold)/25 bg-(--brand-forest)"
+      aria-hidden
+    />
+  ),
+});
+
+const FloatingContactWidget = dynamic(
+  () => import('@/components/layout/floating-contact-widget'),
+  { loading: () => null },
+);
 import { LANDING_SEO } from '@/data/landing-page-content';
 import { GOOGLE_VERIFICATION, SITE_URL } from '@/lib/constants';
 import { PWA_CONFIG } from '@/lib/pwa-config';
 import { buildSeoMetadata } from '@/lib/seo';
-import { buildOrganizationSchema } from '@/lib/structured-data';
+import {
+  buildOrganizationSchema,
+  buildWebSiteSchema,
+} from '@/lib/structured-data';
+import { GoogleAnalytics } from '@/components/analytics/google-analytics';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -57,7 +74,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: PWA_CONFIG.documentTitle,
-    template: '%s | Long Nhãn Tống Trân',
+    template: '%s | Long Nhãn Hưng Yên',
   },
   keywords: [...LANDING_SEO.keywords],
   applicationName: PWA_CONFIG.name,
@@ -83,7 +100,7 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const orgSchema = buildOrganizationSchema();
+  const structuredData = [buildOrganizationSchema(), buildWebSiteSchema()];
 
   return (
     <html
@@ -91,12 +108,16 @@ export default function RootLayout({
       className={`${geistSans.variable} ${seagullDisplay.variable} h-full`}
     >
       <head>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
-        />
+        {structuredData.map((schema, index) => (
+          <script
+            key={index}
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+          />
+        ))}
       </head>
       <body className="min-h-full flex flex-col antialiased">
+        <GoogleAnalytics />
         <AppProviders>
           <Header />
           <main className="flex-1 pb-16 md:pb-0">{children}</main>

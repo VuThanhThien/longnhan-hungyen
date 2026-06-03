@@ -12,7 +12,7 @@ import {
   productDetailCacheTags,
   relatedProductsCacheTags,
 } from '@/lib/content-cache-tags';
-import { buildSeoMetadata } from '@/lib/seo';
+import { buildSeoMetadata, trimMetaDescription } from '@/lib/seo';
 import { buildProductSchema } from '@/lib/structured-data';
 import type { Product } from '@longnhan/types';
 import type { Metadata } from 'next';
@@ -109,7 +109,10 @@ export async function generateMetadata({
   if (!product) {
     return buildSeoMetadata({
       title: 'Không tìm thấy sản phẩm',
+      description:
+        'Sản phẩm không tồn tại hoặc đã ngừng kinh doanh. Xem danh mục long nhãn Hưng Yên tại nhanhunguyen.com.',
       canonicalPath: `/products/${slug}`,
+      robots: { index: false, follow: false },
     });
   }
 
@@ -119,13 +122,17 @@ export async function generateMetadata({
     product.imageUrls?.[0] ??
     undefined;
 
+  const description =
+    product.summary?.trim() ||
+    (product.description
+      ? trimMetaDescription(product.description)
+      : `Mua ${product.name} — long nhãn Hưng Yên Tống Trân, giao COD toàn quốc. Đặt hàng tại nhanhunguyen.com.`);
+
   return buildSeoMetadata({
     title: product.name,
-    description: `Chi tiết sản phẩm ${product.name} của shop Long Nhãn Tống Trân.`,
+    description,
     canonicalPath: `/products/${product.slug}`,
     openGraphType: 'website',
-    category: 'food',
-    generator: 'Next.js',
     ...(firstImage
       ? {
           ogImage: {

@@ -1,6 +1,15 @@
 import Link from 'next/link';
 
 import FuzzyText from '@/components/ui/fuzzy-text';
+import { buildSeoMetadata } from '@/lib/seo';
+
+export const metadata = buildSeoMetadata({
+  title: 'Không tìm thấy trang',
+  description:
+    'Trang bạn tìm không tồn tại. Quay về trang chủ hoặc xem sản phẩm long nhãn Hưng Yên tại nhanhunguyen.com.',
+  canonicalPath: '/404',
+  robots: { index: false, follow: false },
+});
 
 export default function NotFound() {
   return (

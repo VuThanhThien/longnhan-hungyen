@@ -1,5 +1,3 @@
-import type { Metadata } from 'next';
-
 import type { PublicOrderSummary } from '@/actions/order-tracking-actions';
 import { OrderSummaryPanel } from '@/components/orders/order-summary-panel';
 import { OrderTrackForm } from '@/components/orders/order-track-form';
@@ -7,11 +5,15 @@ import Breadcrumb from '@/components/ui/breadcrumb';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { apiServer } from '@/lib/api-server';
 import { buildBreadcrumb } from '@/lib/breadcrumb';
+import { buildSeoMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = buildSeoMetadata({
   title: 'Tra cứu đơn hàng',
-  description: 'Theo dõi trạng thái đơn hàng bằng mã đơn hoặc link từ email.',
-};
+  description:
+    'Theo dõi trạng thái đơn long nhãn bằng mã đơn hoặc link từ email — nhanhunguyen.com.',
+  canonicalPath: '/track-order',
+  robots: { index: false, follow: false },
+});
 
 type SearchParams = Promise<{
   t?: string | string[];

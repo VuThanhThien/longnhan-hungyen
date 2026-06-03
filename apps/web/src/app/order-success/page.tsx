@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import type { Metadata } from 'next';
 import {
   CircleCheck,
   Home,
@@ -24,6 +23,7 @@ import {
   CardHeader,
 } from '@/components/ui/card';
 import type { PublicOrderSummary } from '@/actions/order-tracking-actions';
+import { buildSeoMetadata } from '@/lib/seo';
 
 interface OrderSuccessPageProps {
   searchParams: Promise<{
@@ -31,15 +31,13 @@ interface OrderSuccessPageProps {
   }>;
 }
 
-export const metadata: Metadata = {
+export const metadata = buildSeoMetadata({
   title: 'Đặt hàng thành công',
   description:
-    'Đơn hàng của bạn đã được ghi nhận. Chúng tôi sẽ liên hệ xác nhận sớm.',
-  robots: {
-    index: false,
-    follow: false,
-  },
-};
+    'Đơn hàng long nhãn đã được ghi nhận — chúng tôi sẽ liên hệ xác nhận sớm. Cảm ơn bạn đã mua tại nhanhunguyen.com.',
+  canonicalPath: '/order-success',
+  robots: { index: false, follow: false },
+});
 
 export default async function OrderSuccessPage({
   searchParams,

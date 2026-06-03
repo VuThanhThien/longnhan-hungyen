@@ -38,7 +38,13 @@ export async function generateMetadata({
   const article = await getArticle(slug);
 
   if (!article) {
-    return { title: 'Không tìm thấy bài viết' };
+    return buildSeoMetadata({
+      title: 'Không tìm thấy bài viết',
+      description:
+        'Bài viết không tồn tại hoặc đã được gỡ. Đọc thêm về long nhãn Hưng Yên tại nhanhunguyen.com.',
+      canonicalPath: `/articles/${slug}`,
+      robots: { index: false, follow: false },
+    });
   }
 
   const title = article.metaTitle ?? article.title;

@@ -1,23 +1,38 @@
 import { SOCIAL_LINKS } from '@/lib/constants';
 
 export const LANDING_SEO = {
-  title: 'Long Nhãn Hưng Yên — Đặc Sản Tống Trân | Quà Tặng Cao Cấp',
+  title: 'Long Nhãn Hưng Yên — Đặc Sản Tống Trân | nhanhunguyen.com',
   description:
-    'Long nhãn Hưng Yên ngọt lành từng hạt, sấy khép kín theo công thức cổ truyền. Quà biếu sang trọng, giao COD toàn quốc. Liên hệ Zalo, Shopee, TikTok.',
+    'Mua long nhãn Hưng Yên chính gốc Tống Trân tại nhanhunguyen.com: sấy khô không tẩm đường, quà biếu sang trọng. Giao COD toàn quốc — Zalo, Shopee, TikTok.',
   keywords: [
-    'long nhãn Hưng Yên',
-    'long nhãn Tống Trân',
-    'đặc sản Hưng Yên',
-    'nhãn lồng Phố Hiến',
-    'quà tặng cao cấp',
-    'long nhãn sấy khô',
-    'đặc sản quê hương',
+    'nhanhunguyen.com',
+    'Long nhãn Hưng Yên',
+    'Nhãn Hưng Yên',
+    'Long nhãn Tống Trân',
+    'Long nhãn sấy khô',
+    'Long nhãn quà tặng',
+    'Đặc sản Hưng Yên',
+    'Long nhãn giao COD',
+    'Long nhãn Shopee',
+    'Long nhãn TikTok',
   ],
-  ogImageAlt: 'Long Nhãn Tống Trân — Đặc sản Hưng Yên',
+  ogImageAlt: 'Long nhãn Hưng Yên — đặc sản Tống Trân, nhanhunguyen.com',
+} as const;
+
+export const PRODUCTS_LISTING_SEO = {
+  title: 'Sản phẩm Long Nhãn Hưng Yên',
+  description:
+    'Khám phá long nhãn sấy khô, set quà biếu và đặc sản Tống Trân — chọn lọc từ vườn Hưng Yên, giao COD toàn quốc. Đặt hàng nhanh tại nhanhunguyen.com.',
+} as const;
+
+export const ARTICLES_LISTING_SEO = {
+  title: 'Bài viết về Long Nhãn Hưng Yên',
+  description:
+    'Cẩm nang chọn long nhãn, bảo quản, nấu chè và câu chuyện vườn Tống Trân — kiến thức từ nông trại Hưng Yên, cập nhật tại nhanhunguyen.com.',
 } as const;
 
 export const LANDING_BRAND = {
-  name: 'Long Nhãn Tống Trân',
+  name: 'Long Nhãn Hưng Yên',
   specialtyLine: 'Đặc sản Hưng Yên',
   tagline: 'Ngọt lành từng hạt — An thần, dưỡng tâm',
   logoSrc: '/logo.png',

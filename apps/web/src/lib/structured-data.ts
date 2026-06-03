@@ -1,27 +1,68 @@
 // JSON-LD structured data generators for SEO
 // Used on product pages, article pages, and all pages (organization + breadcrumb)
 
+import { LANDING_BRAND } from '@/data/landing-page-content';
 import type { Product, Article } from '@longnhan/types';
 import {
   SITE_URL,
   SITE_NAME,
   CONTACT_PHONE,
   CONTACT_ADDRESS,
+  CONTACT_EMAIL,
+  SOCIAL_LINKS,
 } from './constants';
+import { toAbsoluteUrl } from './seo';
 
 /** Organization schema — included in root layout */
 export function buildOrganizationSchema() {
+  const sameAs = [
+    SOCIAL_LINKS.facebook,
+    SOCIAL_LINKS.zalo,
+    SOCIAL_LINKS.shopee,
+    SOCIAL_LINKS.tiktok,
+  ].filter((url): url is string => Boolean(url));
+
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: SITE_NAME,
     url: SITE_URL,
+    logo: toAbsoluteUrl(LANDING_BRAND.logoSrc),
+    email: CONTACT_EMAIL,
     telephone: CONTACT_PHONE,
     address: {
       '@type': 'PostalAddress',
       addressLocality: 'Hưng Yên',
+      addressRegion: 'Hưng Yên',
       addressCountry: 'VN',
       streetAddress: CONTACT_ADDRESS,
+    },
+    ...(sameAs.length > 0 ? { sameAs } : {}),
+    contactPoint: {
+      '@type': 'ContactPoint',
+      telephone: CONTACT_PHONE,
+      contactType: 'customer service',
+      areaServed: 'VN',
+      availableLanguage: ['Vietnamese'],
+    },
+  };
+}
+
+/** WebSite schema with on-site product search — root layout */
+export function buildWebSiteSchema() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: SITE_NAME,
+    url: SITE_URL,
+    inLanguage: 'vi-VN',
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: `${SITE_URL}/products?q={search_term_string}`,
+      },
+      'query-input': 'required name=search_term_string',
     },
   };
 }
@@ -60,13 +101,18 @@ export function buildProductSchema(product: Product) {
       : product.featuredImageUrl
         ? [product.featuredImageUrl]
         : [];
+  const absoluteImages = imageList.map((src) => toAbsoluteUrl(src));
 
   return {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: product.name,
     description: product.summary ?? product.description ?? undefined,
-    image: imageList,
+    image: absoluteImages.length > 0 ? absoluteImages : undefined,
+    brand: {
+      '@type': 'Brand',
+      name: SITE_NAME,
+    },
     url: `${SITE_URL}/products/${product.slug}`,
     offers: {
       '@type': 'AggregateOffer',
@@ -81,12 +127,18 @@ export function buildProductSchema(product: Product) {
 
 /** NewsArticle schema */
 export function buildArticleSchema(article: Article) {
+  const rawImage =
+    article.featuredImageUrl ?? article.coverImageUrl ?? undefined;
+  const image = rawImage ? toAbsoluteUrl(rawImage) : undefined;
+
   return {
     '@context': 'https://schema.org',
     '@type': 'NewsArticle',
     headline: article.title,
     description: article.excerpt ?? article.summary ?? undefined,
-    image: article.featuredImageUrl ?? article.coverImageUrl ?? undefined,
+    image,
+    inLanguage: 'vi-VN',
+    mainEntityOfPage: `${SITE_URL}/articles/${article.slug}`,
     datePublished: article.publishedAt ?? article.createdAt,
     dateModified: article.updatedAt,
     publisher: {

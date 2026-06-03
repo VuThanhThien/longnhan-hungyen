@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import type { Metadata } from 'next';
 import { Home, RefreshCw, Search, XCircle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -9,11 +8,15 @@ import {
   CardFooter,
   CardHeader,
 } from '@/components/ui/card';
+import { buildSeoMetadata } from '@/lib/seo';
 
-export const metadata: Metadata = {
+export const metadata = buildSeoMetadata({
   title: 'Đã huỷ thanh toán',
+  description:
+    'Thanh toán đã huỷ — bạn có thể quay lại giỏ hàng hoặc trang chủ nhanhunguyen.com.',
+  canonicalPath: '/checkout/cancel',
   robots: { index: false, follow: false },
-};
+});
 
 type SearchParams = Promise<{ orderCode?: string | string[] }>;
 

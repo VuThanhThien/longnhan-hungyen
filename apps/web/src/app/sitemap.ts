@@ -2,6 +2,7 @@ import type { MetadataRoute } from 'next';
 import type { Article, Product } from '@longnhan/types';
 import { fetchPaginated } from '@/lib/api-client';
 import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
+import { FOOTER_PAGES } from '@/data/footer-pages';
 import { SITE_URL } from '@/lib/constants';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -40,6 +41,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
       changeFrequency: 'weekly',
     },
+    ...FOOTER_PAGES.map((page) => ({
+      url: `${SITE_URL}/${page.slug}`,
+      priority: 0.4,
+      changeFrequency: 'yearly' as const,
+    })),
     ...products.map((product) => ({
       url: `${SITE_URL}/products/${product.slug}`,
       priority: 0.8,

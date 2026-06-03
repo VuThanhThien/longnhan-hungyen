@@ -27,8 +27,9 @@ export default function Header() {
             alt={LANDING_BRAND.logoAlt}
             width={72}
             height={72}
+            sizes="72px"
+            loading="eager"
             className="h-14 w-14 object-contain md:h-18 md:w-18"
-            priority
           />
         </Link>
 

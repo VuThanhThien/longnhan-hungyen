@@ -1,61 +1,55 @@
 import type { Metadata } from 'next';
-import type { Article } from '@longnhan/types';
-import ArticleCard from '@/components/articles/article-card';
+import { ArticlesListingContent } from '@/components/articles/articles-listing-content';
 import Breadcrumb from '@/components/ui/breadcrumb';
-import { fetchPaginated } from '@/lib/api-client';
-import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
-import { articlesListCacheTags } from '@/lib/content-cache-tags';
+import { ArticlesListingSkeleton } from '@/components/ui/route-loading-skeleton';
+import { ARTICLES_LISTING_SEO } from '@/data/landing-page-content';
+import { buildBreadcrumb } from '@/lib/breadcrumb';
 import { buildSeoMetadata } from '@/lib/seo';
-import { cacheLife, cacheTag } from 'next/cache';
+import { PWA_CONFIG } from '@/lib/pwa-config';
 import { connection } from 'next/server';
-
-async function getArticles(): Promise<Article[]> {
-  'use cache';
-  cacheLife({ revalidate: 3600 });
-  cacheTag(...articlesListCacheTags());
-  try {
-    const response = await fetchPaginated<Article>('/articles', { limit: 24 });
-    return response.data;
-  } catch (error) {
-    captureApiFetchError(error, {
-      route: '/articles',
-      section: 'listing',
-    });
-    return [];
-  }
-}
+import { Suspense } from 'react';
 
 export async function generateMetadata(): Promise<Metadata> {
   return buildSeoMetadata({
-    title: 'Bài viết về Long nhãn Hưng Yên',
-    description: 'Kiến thức, kinh nghiệm và câu chuyện về Long nhãn Hưng Yên.',
+    title: ARTICLES_LISTING_SEO.title,
+    description: ARTICLES_LISTING_SEO.description,
     canonicalPath: '/articles',
+    ogImage: {
+      url: PWA_CONFIG.heroImage.path,
+      width: PWA_CONFIG.heroImage.width,
+      height: PWA_CONFIG.heroImage.height,
+      alt: PWA_CONFIG.heroImage.alt,
+    },
   });
 }
 
 export default async function ArticlesPage() {
   await connection();
-  const articles = await getArticles();
+
+  const breadcrumbItems = [
+    { label: 'Trang chủ', url: '/' },
+    { label: 'Bài viết' },
+  ];
+  const { schema: breadcrumbSchema } = buildBreadcrumb({
+    items: breadcrumbItems,
+    currentUrl: '/articles',
+  });
 
   return (
     <section className="mx-auto max-w-6xl px-4 py-8">
-      <Breadcrumb
-        items={[{ label: 'Trang chủ', url: '/' }, { label: 'Bài viết' }]}
-      />
+      {breadcrumbSchema ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        />
+      ) : null}
+      <Breadcrumb items={breadcrumbItems} />
       <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-6">
         Bài viết
       </h1>
-      {articles.length === 0 ? (
-        <p className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-600">
-          Chưa có bài viết nào.
-        </p>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {articles.map((article) => (
-            <ArticleCard key={article.id} article={article} />
-          ))}
-        </div>
-      )}
+      <Suspense fallback={<ArticlesListingSkeleton />}>
+        <ArticlesListingContent />
+      </Suspense>
     </section>
   );
 }
