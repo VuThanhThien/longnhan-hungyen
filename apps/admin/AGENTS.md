@@ -13,3 +13,5 @@ This version has breaking changes — APIs, conventions, and file structure may 
 **Components:** Prefer **[shadcn/ui](https://ui.shadcn.com/)** patterns (Radix + Tailwind). Primitives live under `src/components/ui/`. Add missing pieces from the registry with the CLI from `apps/admin` (for example `pnpm dlx shadcn@latest add dialog`), then tune classes to match **DESIGN.md**. Avoid bespoke duplicate controls when a shadcn component already covers the pattern.
 
 **Standards:** See [Frontend code standards](../../docs/frontend-code-standards.md) for shared Next.js rules, including the admin-specific UI subsection.
+
+**API query params:** Sanitize before `httpClient` / `adminClientGet` / hooks — see `.cursor/rules/frontend-api-query-params.mdc`.

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { sanitizeApiQueryParams } from '@/lib/http/sanitize-api-query-params';
 import { getTokensInfo, setTokensInfo } from '@/services/auth/auth-tokens-info';
 
 export const httpClient = axios.create({
@@ -56,6 +57,20 @@ async function refreshTokens() {
 }
 
 httpClient.interceptors.request.use(async (config) => {
+  if (
+    config.params != null &&
+    typeof config.params === 'object' &&
+    !Array.isArray(config.params) &&
+    !(config.params instanceof URLSearchParams)
+  ) {
+    config.params = sanitizeApiQueryParams(
+      config.params as Record<
+        string,
+        string | number | boolean | undefined | null
+      >,
+    );
+  }
+
   const tokens = getTokensInfo();
 
   if (tokens?.tokenExpires && tokens.tokenExpires - 60_000 <= Date.now()) {

@@ -35,8 +35,8 @@ export default async function ProductsPage({
   await connection();
   const { q: qRaw, category: categoryRaw } =
     await loadProductSearchParams(searchParams);
-  const category = categoryRaw ?? undefined;
-  const q = qRaw ?? undefined;
+  const category = categoryRaw?.trim() || undefined;
+  const q = qRaw?.trim() || undefined;
 
   const breadcrumbItems = [
     { label: 'Trang chủ', url: '/' },

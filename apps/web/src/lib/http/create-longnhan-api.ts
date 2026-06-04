@@ -6,6 +6,7 @@ import {
   type AuthTokens,
 } from '@/lib/auth-token';
 import { extractErrorMessage } from '@/lib/http/extract-error-message';
+import { sanitizeApiQueryParams } from '@/lib/http/sanitize-api-query-params';
 
 export function createLongnhanApi(baseURL: string): AxiosInstance {
   const instance = axios.create({
@@ -67,6 +68,17 @@ export function createLongnhanApi(baseURL: string): AxiosInstance {
   };
 
   instance.interceptors.request.use(async (config) => {
+    if (
+      config.params != null &&
+      typeof config.params === 'object' &&
+      !Array.isArray(config.params) &&
+      !(config.params instanceof URLSearchParams)
+    ) {
+      config.params = sanitizeApiQueryParams(
+        config.params as Record<string, string | number | undefined>,
+      );
+    }
+
     if (typeof window === 'undefined') return config;
 
     const tokens = parseAuthTokens(Cookies.get(AUTH_TOKEN_KEY));

@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/nextjs';
+import { isApiValidationFetchError } from '@/lib/observability/is-api-validation-fetch-error';
 
 export type HomeContentSection = 'products' | 'categories' | 'articles';
 
@@ -15,7 +16,7 @@ export function captureApiFetchError(
   error: unknown,
   context: ApiFetchSentryContext,
 ): void {
-  if (!Sentry.getClient()) return;
+  if (!Sentry.getClient() || isApiValidationFetchError(error)) return;
 
   Sentry.withScope((scope) => {
     scope.setTag('fetch_route', context.route);

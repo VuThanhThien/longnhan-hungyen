@@ -1,0 +1,69 @@
+---
+description: Sanitize API query params and URL search state before hooks/axios (avoid 422 + Sentry noise)
+globs: apps/web/src/**/*.{ts,tsx},apps/admin/src/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Frontend API query params
+
+Nest `StringFieldOptional` treats `""` as present and fails `MinLength(1)` → **422 Validation failed**. Never pass blank query strings to the API.
+
+## Required layers (defense in depth)
+
+1. **HTTP boundary (mandatory)** — `sanitizeApiQueryParams` runs on every axios `params` object via the request interceptor in:
+   - `apps/web/src/lib/http/create-longnhan-api.ts`
+   - `apps/admin/src/lib/http-client.ts`
+
+2. **Call site (mandatory)** — Before `apiClient` / `httpClient` / `useQuery` `queryFn`, normalize input:
+   - Use `sanitizeApiQueryParams(params)` when building `params`, **or**
+   - Parse with Zod / app validation (`apps/web/src/lib/validation/*`, `apps/admin/src/lib/validation/*`), **or**
+   - Use a thin `*-api.ts` helper that parses then calls axios.
+
+3. **URL boundary** — For Next `searchParams` / nuqs, trim and drop empty values (nuqs loaders, Zod, or `value?.trim() || undefined`) **before** passing into hooks or server fetches.
+
+## Do
+
+```typescript
+// ✅ Paginated fetch helper (web)
+const { data } = await apiClient.get(path, {
+  params: sanitizeApiQueryParams({ q, category, limit: 24 }),
+});
+
+// ✅ TanStack Query
+queryFn: () => listProducts(sanitizeApiQueryParams(params) ?? {}),
+
+// ✅ Admin list client
+await adminClientGet('/products/admin', sanitizeApiQueryParams(filters));
+
+// ✅ URL → page props
+const q = typeof raw === 'string' ? raw.trim() || undefined : undefined;
+```
+
+## Do not
+
+```typescript
+// ❌ Raw searchParams or empty string
+apiClient.get('/products', { params: { q: qRaw ?? '' } });
+
+// ❌ Query string baked into path (bypasses sanitizer)
+fetchApi(`/orders/summary?code=${code}`);
+
+// ❌ useQuery enabled without normalizing URL input
+enabled: Boolean(searchParams.get('q'));
+```
+
+## New endpoints checklist
+
+- Add/update Zod (or existing) schema aligned with API DTOs when filters are non-trivial.
+- Route list/search calls through `fetchPaginated`, `adminClientGet`, or a feature `*-api.ts` — not ad-hoc `apiClient.get` with raw `params`.
+- Endpoint-specific rules (e.g. suggestions `q` min 2): enforce in schema + `enabled` on `useQuery`, not only the interceptor.
+- Do not `captureApiFetchError` for expected **422** validation (`isApiValidationFetchError`).
+
+## Imports (web)
+
+- `sanitizeApiQueryParams` → `@/lib/http/sanitize-api-query-params`
+
+## Imports (admin)
+
+- `sanitizeApiQueryParams` → `@/lib/http/sanitize-api-query-params`
+- List filters → parse with `admin*ListFilterSchema` before `adminClientGet`

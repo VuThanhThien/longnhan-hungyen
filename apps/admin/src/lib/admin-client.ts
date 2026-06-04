@@ -1,10 +1,13 @@
 import { httpClient } from '@/lib/http-client';
+import { sanitizeApiQueryParams } from '@/lib/http/sanitize-api-query-params';
 
 export async function adminClientGet<T>(
   path: string,
   params?: Record<string, string | number | boolean | undefined | null>,
 ) {
-  const res = await httpClient.get(path, { params });
+  const res = await httpClient.get(path, {
+    params: sanitizeApiQueryParams(params),
+  });
   const json = res.data;
   if (
     json &&

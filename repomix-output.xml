@@ -476,6 +476,7 @@ apps/
           dashboard-types.ts
         http/
           extract-error-message.ts
+          sanitize-api-query-params.ts
         validation/
           admin-list-filter-schemas.ts
         admin-api-client.ts
@@ -1076,8 +1077,10 @@ apps/
         http/
           create-longnhan-api.ts
           extract-error-message.ts
+          sanitize-api-query-params.ts
         observability/
           api-fetch-sentry.ts
+          is-api-validation-fetch-error.ts
           order-submit-sentry.ts
         types/
           api-paginated.ts
@@ -1215,9 +1218,69 @@ This section contains the contents of the repository's files.
 
 </file>
 
-<file path="apps/api/src/constants/order.constant.ts">
-/** Flat shipping fee (VND) for orders with at least one line item. */
-export const SHIPPING_FLAT_VND = 30_000;
+<file path="apps/admin/src/lib/http/sanitize-api-query-params.ts">
+export type ApiQueryParams = Record<
+  string,
+  string | number | boolean | undefined | null
+>;
+
+/** Drops blank strings so optional API query fields are omitted instead of sent as `key=`. */
+export function sanitizeApiQueryParams(
+  params?: ApiQueryParams,
+): Record<string, string | number | boolean> | undefined {
+  if (!params) return undefined;
+
+  const out: Record<string, string | number | boolean> = {};
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null) continue;
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed === '') continue;
+      out[key] = trimmed;
+      continue;
+    }
+    out[key] = value;
+  }
+
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+</file>
+
+<file path="apps/web/src/lib/http/sanitize-api-query-params.ts">
+export type ApiQueryParams = Record<string, string | number | undefined>;
+
+/** Drops empty strings so optional API query fields are omitted instead of sent as `q=`. */
+export function sanitizeApiQueryParams(
+  params?: ApiQueryParams,
+): ApiQueryParams | undefined {
+  if (!params) return undefined;
+
+  const out: ApiQueryParams = {};
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined) continue;
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed === '') continue;
+      out[key] = trimmed;
+      continue;
+    }
+    out[key] = value;
+  }
+
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+</file>
+
+<file path="apps/web/src/lib/observability/is-api-validation-fetch-error.ts">
+import { isAxiosError } from 'axios';
+
+/** Client/query validation (422) — not worth a Sentry exception after graceful fallbacks. */
+export function isApiValidationFetchError(error: unknown): boolean {
+  if (isAxiosError(error) && error.response?.status === 422) return true;
+  if (error instanceof Error && error.message === 'Validation failed')
+    return true;
+  return false;
+}
 </file>
 
 <file path="apps/admin/public/file.svg">
@@ -6223,6 +6286,7 @@ export function parseAuthTokens(value: string | undefined): AuthTokens | null {
 
 <file path="apps/admin/src/lib/http-client.ts">
 import axios from 'axios';
+import { sanitizeApiQueryParams } from '@/lib/http/sanitize-api-query-params';
 import { getTokensInfo, setTokensInfo } from '@/services/auth/auth-tokens-info';
 
 export const httpClient = axios.create({
@@ -6280,6 +6344,20 @@ async function refreshTokens() {
 }
 
 httpClient.interceptors.request.use(async (config) => {
+  if (
+    config.params != null &&
+    typeof config.params === 'object' &&
+    !Array.isArray(config.params) &&
+    !(config.params instanceof URLSearchParams)
+  ) {
+    config.params = sanitizeApiQueryParams(
+      config.params as Record<
+        string,
+        string | number | boolean | undefined | null
+      >,
+    );
+  }
+
   const tokens = getTokensInfo();
 
   if (tokens?.tokenExpires && tokens.tokenExpires - 60_000 <= Date.now()) {
@@ -12266,6 +12344,11 @@ export enum ErrorCode {
 }
 </file>
 
+<file path="apps/api/src/constants/order.constant.ts">
+/** Flat shipping fee (VND) for orders with at least one line item. */
+export const SHIPPING_FLAT_VND = 30_000;
+</file>
+
 <file path="apps/api/src/constants/sort.enum.ts">
 
 </file>
@@ -17324,46 +17407,6 @@ export function GoogleAnalytics() {
 }
 </file>
 
-<file path="apps/web/src/components/articles/articles-listing-content.tsx">
-import type { Article } from '@longnhan/types';
-import ArticleCard from '@/components/articles/article-card';
-import { fetchPaginated } from '@/lib/api-client';
-import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
-
-async function getArticles(): Promise<Article[]> {
-  try {
-    const response = await fetchPaginated<Article>('/articles', { limit: 24 });
-    return response.data;
-  } catch (error) {
-    captureApiFetchError(error, {
-      route: '/articles',
-      section: 'listing',
-    });
-    return [];
-  }
-}
-
-export async function ArticlesListingContent() {
-  const articles = await getArticles();
-
-  if (articles.length === 0) {
-    return (
-      <p className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-600">
-        Chưa có bài viết nào.
-      </p>
-    );
-  }
-
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-      {articles.map((article) => (
-        <ArticleCard key={article.id} article={article} />
-      ))}
-    </div>
-  );
-}
-</file>
-
 <file path="apps/web/src/components/cart/cart-line-item.tsx">
 'use client';
 
@@ -18568,69 +18611,6 @@ export function ProductAddToCart({
         </p>
       ) : null}
     </section>
-  );
-}
-</file>
-
-<file path="apps/web/src/components/products/products-listing-content.tsx">
-import type { Category, Product } from '@longnhan/types';
-import CategoryFilter from '@/components/products/category-filter';
-import ProductGrid from '@/components/products/product-grid';
-import { fetchApi, fetchPaginated } from '@/lib/api-client';
-import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
-
-async function getProductListingCategories(): Promise<Category[]> {
-  try {
-    return await fetchApi<Category[]>('/categories');
-  } catch (error) {
-    captureApiFetchError(error, {
-      route: '/products',
-      section: 'listing_categories',
-    });
-    return [];
-  }
-}
-
-async function getProductsListing(
-  category: string | undefined,
-  q: string | undefined,
-): Promise<Product[]> {
-  try {
-    const response = await fetchPaginated<Product>('/products', {
-      category,
-      q,
-      limit: 24,
-    });
-    return response.data;
-  } catch (error) {
-    captureApiFetchError(error, {
-      route: '/products',
-      section: 'listing',
-      extra: { category: category ?? null, q: q ?? null },
-    });
-    return [];
-  }
-}
-
-interface ProductsListingContentProps {
-  category?: string;
-  q?: string;
-}
-
-export async function ProductsListingContent({
-  category,
-  q,
-}: ProductsListingContentProps) {
-  const [categories, products] = await Promise.all([
-    getProductListingCategories(),
-    getProductsListing(category, q),
-  ]);
-
-  return (
-    <>
-      <CategoryFilter categories={categories} current={category} />
-      <ProductGrid products={products} />
-    </>
   );
 }
 </file>
@@ -20643,6 +20623,7 @@ export function extractErrorMessage(error: unknown): string {
 
 <file path="apps/web/src/lib/observability/api-fetch-sentry.ts">
 import * as Sentry from '@sentry/nextjs';
+import { isApiValidationFetchError } from '@/lib/observability/is-api-validation-fetch-error';
 
 export type HomeContentSection = 'products' | 'categories' | 'articles';
 
@@ -20659,7 +20640,7 @@ export function captureApiFetchError(
   error: unknown,
   context: ApiFetchSentryContext,
 ): void {
-  if (!Sentry.getClient()) return;
+  if (!Sentry.getClient() || isApiValidationFetchError(error)) return;
 
   Sentry.withScope((scope) => {
     scope.setTag('fetch_route', context.route);
@@ -21394,10 +21375,16 @@ export const config = {
 
 <file path="apps/web/AGENTS.md">
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+
 <!-- END:nextjs-agent-rules -->
+
+## API query params
+
+Before any `apiClient` / `useQuery` fetch with query params: sanitize via `sanitizeApiQueryParams` or Zod parsers. See `.cursor/rules/frontend-api-query-params.mdc` (axios interceptor is the HTTP safety net).
 </file>
 
 <file path="apps/web/eslint.config.mjs">
@@ -43036,6 +43023,46 @@ export default function robots(): MetadataRoute.Robots {
 }
 </file>
 
+<file path="apps/web/src/components/articles/articles-listing-content.tsx">
+import type { Article } from '@longnhan/types';
+import ArticleCard from '@/components/articles/article-card';
+import { fetchPaginated } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
+
+async function getArticles(): Promise<Article[]> {
+  try {
+    const response = await fetchPaginated<Article>('/articles', { limit: 24 });
+    return response.data;
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/articles',
+      section: 'listing',
+    });
+    return [];
+  }
+}
+
+export async function ArticlesListingContent() {
+  const articles = await getArticles();
+
+  if (articles.length === 0) {
+    return (
+      <p className="rounded-xl border border-gray-200 bg-white p-8 text-center text-gray-600">
+        Chưa có bài viết nào.
+      </p>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {articles.map((article) => (
+        <ArticleCard key={article.id} article={article} />
+      ))}
+    </div>
+  );
+}
+</file>
+
 <file path="apps/web/src/components/cart/cart-page-content.tsx">
 'use client';
 
@@ -44506,6 +44533,69 @@ export default function ProductReviewsSection({
 }
 </file>
 
+<file path="apps/web/src/components/products/products-listing-content.tsx">
+import type { Category, Product } from '@longnhan/types';
+import CategoryFilter from '@/components/products/category-filter';
+import ProductGrid from '@/components/products/product-grid';
+import { fetchApi, fetchPaginated } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
+
+async function getProductListingCategories(): Promise<Category[]> {
+  try {
+    return await fetchApi<Category[]>('/categories');
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/products',
+      section: 'listing_categories',
+    });
+    return [];
+  }
+}
+
+async function getProductsListing(
+  category: string | undefined,
+  q: string | undefined,
+): Promise<Product[]> {
+  try {
+    const response = await fetchPaginated<Product>('/products', {
+      category,
+      q,
+      limit: 24,
+    });
+    return response.data;
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/products',
+      section: 'listing',
+      extra: { category: category ?? null, q: q ?? null },
+    });
+    return [];
+  }
+}
+
+interface ProductsListingContentProps {
+  category?: string;
+  q?: string;
+}
+
+export async function ProductsListingContent({
+  category,
+  q,
+}: ProductsListingContentProps) {
+  const [categories, products] = await Promise.all([
+    getProductListingCategories(),
+    getProductsListing(category, q),
+  ]);
+
+  return (
+    <>
+      <CategoryFilter categories={categories} current={category} />
+      <ProductGrid products={products} />
+    </>
+  );
+}
+</file>
+
 <file path="apps/web/src/components/pwa/offline-support.tsx">
 'use client';
 
@@ -45202,6 +45292,7 @@ export default SectionTitleLinkButton;
 import { useQuery } from '@tanstack/react-query';
 import type { Product } from '@longnhan/types';
 import { apiClient } from '@/lib/api-client';
+import { sanitizeApiQueryParams } from '@/lib/http/sanitize-api-query-params';
 import { queryKeys } from '@/lib/query-keys';
 import type { PaginatedResponse } from '@/lib/types/api-paginated';
 
@@ -45216,7 +45307,7 @@ export function useProductsList(params?: {
     queryFn: async () => {
       const { data } = await apiClient.get<PaginatedResponse<Product>>(
         '/products',
-        { params },
+        { params: sanitizeApiQueryParams(params) },
       );
       return data;
     },
@@ -45226,6 +45317,7 @@ export function useProductsList(params?: {
 
 <file path="apps/web/src/lib/api-client.ts">
 import { createLongnhanApi } from '@/lib/http/create-longnhan-api';
+import { sanitizeApiQueryParams } from '@/lib/http/sanitize-api-query-params';
 import type { PaginatedResponse } from '@/lib/types/api-paginated';
 
 const baseURL =
@@ -45239,11 +45331,17 @@ export const apiClient = createLongnhanApi(baseURL);
 
 export async function fetchApi<T>(
   path: string,
-  init?: { method?: string; body?: unknown },
+  init?: {
+    method?: string;
+    body?: unknown;
+    params?: Record<string, string | number | undefined>;
+  },
 ): Promise<T> {
   const method = init?.method ?? 'GET';
   if (method === 'GET' || !init?.body) {
-    const { data } = await apiClient.get<T>(path);
+    const { data } = await apiClient.get<T>(path, {
+      params: sanitizeApiQueryParams(init?.params),
+    });
     return data as T;
   }
   const { data } = await apiClient.request<T>({
@@ -45258,7 +45356,9 @@ export async function fetchPaginated<T>(
   path: string,
   params?: Record<string, string | number | undefined>,
 ): Promise<PaginatedResponse<T>> {
-  const { data } = await apiClient.get<PaginatedResponse<T>>(path, { params });
+  const { data } = await apiClient.get<PaginatedResponse<T>>(path, {
+    params: sanitizeApiQueryParams(params),
+  });
   return data;
 }
 
@@ -49201,12 +49301,15 @@ export default useUnmount;
 
 <file path="apps/admin/src/lib/admin-client.ts">
 import { httpClient } from '@/lib/http-client';
+import { sanitizeApiQueryParams } from '@/lib/http/sanitize-api-query-params';
 
 export async function adminClientGet<T>(
   path: string,
   params?: Record<string, string | number | boolean | undefined | null>,
 ) {
-  const res = await httpClient.get(path, { params });
+  const res = await httpClient.get(path, {
+    params: sanitizeApiQueryParams(params),
+  });
   const json = res.data;
   if (
     json &&
@@ -50259,6 +50362,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 **Components:** Prefer **[shadcn/ui](https://ui.shadcn.com/)** patterns (Radix + Tailwind). Primitives live under `src/components/ui/`. Add missing pieces from the registry with the CLI from `apps/admin` (for example `pnpm dlx shadcn@latest add dialog`), then tune classes to match **DESIGN.md**. Avoid bespoke duplicate controls when a shadcn component already covers the pattern.
 
 **Standards:** See [Frontend code standards](../../docs/frontend-code-standards.md) for shared Next.js rules, including the admin-specific UI subsection.
+
+**API query params:** Sanitize before `httpClient` / `adminClientGet` / hooks — see `.cursor/rules/frontend-api-query-params.mdc`.
 </file>
 
 <file path="apps/admin/next.config.ts">
@@ -51581,254 +51686,6 @@ function generateModulesSet() {
 }
 
 export default generateModulesSet;
-</file>
-
-<file path="apps/web/public/sw.js">
-/**
- * Offline shell: network-first HTML; static assets use network when online, cache only when offline.
- * Service-down: redirect to /service-unavailable on 502/503/504 while online; cache reads for pages/assets only when navigator.onLine is false.
- * Bump VERSION when changing caching rules so old caches are purged.
- */
-const VERSION = 'longnhan-web-sw-v7';
-const PAGES_CACHE = `${VERSION}-pages`;
-const STATIC_CACHE = `${VERSION}-static`;
-const RUNTIME_CACHE = `${VERSION}-runtime`;
-const SERVICE_UNAVAILABLE_PATH = '/service-unavailable';
-
-const ALLOWED_CACHES = new Set([PAGES_CACHE, STATIC_CACHE, RUNTIME_CACHE]);
-const LOG_PREFIX = '[LongNhan SW:worker]';
-const redundantLifecycleHooks = new WeakSet();
-
-function isNavigatorOffline() {
-  return !self.navigator?.onLine;
-}
-
-/** Covers unregister(), clear site data, or replacement by a newer worker. */
-function attachRedundantStateLogging() {
-  const reg = self.registration;
-  const sw = reg?.installing ?? reg?.waiting ?? reg?.active;
-  if (!sw || redundantLifecycleHooks.has(sw)) return;
-  redundantLifecycleHooks.add(sw);
-  sw.addEventListener('statechange', () => {
-    if (sw.state === 'redundant') {
-      console.log(
-        `${LOG_PREFIX} redundant — SW unregistered, cleared, or replaced (version ${VERSION})`,
-      );
-    }
-  });
-}
-
-self.addEventListener('install', (event) => {
-  attachRedundantStateLogging();
-  console.log(`${LOG_PREFIX} install — version`, VERSION);
-  self.skipWaiting();
-  event.waitUntil(
-    caches.open(PAGES_CACHE).then((cache) =>
-      Promise.all([
-        cache.add(new Request('/', { cache: 'reload' })).catch((e) => {
-          console.warn(
-            `${LOG_PREFIX} precache / failed (ok on first visit)`,
-            e,
-          );
-        }),
-        cache
-          .add(
-            new Request(SERVICE_UNAVAILABLE_PATH, {
-              cache: 'reload',
-            }),
-          )
-          .catch((e) => {
-            console.warn(
-              `${LOG_PREFIX} precache ${SERVICE_UNAVAILABLE_PATH} failed`,
-              e,
-            );
-          }),
-      ]),
-    ),
-  );
-});
-
-self.addEventListener('activate', (event) => {
-  attachRedundantStateLogging();
-  console.log(`${LOG_PREFIX} activate — claiming clients, pruning old caches`);
-  event.waitUntil(
-    (async () => {
-      const keys = await caches.keys();
-      const removed = keys.filter((k) => !ALLOWED_CACHES.has(k));
-      await Promise.all(removed.map((k) => caches.delete(k)));
-      if (removed.length) {
-        console.log(`${LOG_PREFIX} deleted stale caches:`, removed);
-      }
-      await self.clients.claim();
-      console.log(`${LOG_PREFIX} activate — ready (${VERSION})`);
-    })(),
-  );
-});
-
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  if (request.method !== 'GET') return;
-
-  const url = new URL(request.url);
-  if (url.origin !== self.location.origin) return;
-
-  if (
-    url.pathname.startsWith('/api') ||
-    url.pathname.startsWith('/monitoring') ||
-    url.pathname.startsWith('/_next/data')
-  ) {
-    return;
-  }
-
-  if (request.mode === 'navigate') {
-    event.respondWith(networkFirstPage(event, request));
-    return;
-  }
-
-  if (url.pathname.startsWith('/_next/static/')) {
-    event.respondWith(staleWhileRevalidate(event, request, STATIC_CACHE));
-    return;
-  }
-
-  if (
-    /\.(css|png|jpg|jpeg|gif|webp|avif|svg|ico|woff2?|ttf|eot)$/i.test(
-      url.pathname,
-    )
-  ) {
-    event.respondWith(staleWhileRevalidate(event, request, RUNTIME_CACHE));
-    return;
-  }
-});
-
-function isUpstreamFailureStatus(status) {
-  return status === 502 || status === 503 || status === 504;
-}
-
-async function matchCachedPath(cache, path) {
-  const absolute = new URL(path, self.location.origin).href;
-  return (
-    (await cache.match(absolute)) ||
-    (await cache.match(new Request(path))) ||
-    (await cache.match(path))
-  );
-}
-
-/**
- * Prefer network; cache successful HTML for offline use.
- * Upstream 502/503/504 → redirect to SU page (online); cached fallbacks only when offline.
- */
-async function networkFirstPage(event, request) {
-  const url = new URL(request.url);
-  const isSuRoute = url.pathname === SERVICE_UNAVAILABLE_PATH;
-  const cache = await caches.open(PAGES_CACHE);
-
-  try {
-    const networkResponse = await fetch(request, { redirect: 'follow' });
-
-    if (networkResponse.ok) {
-      // Only persist shell routes — listing pages stream dynamic RSC segments.
-      if (isSuRoute || url.pathname === '/') {
-        await cache.put(request, networkResponse.clone());
-      }
-      return networkResponse;
-    }
-
-    if (isUpstreamFailureStatus(networkResponse.status)) {
-      if (isSuRoute) {
-        if (isNavigatorOffline()) {
-          const cachedSu = await matchCachedPath(
-            cache,
-            SERVICE_UNAVAILABLE_PATH,
-          );
-          if (cachedSu) return cachedSu;
-        }
-        return minimalServiceUnavailableResponse();
-      }
-      console.log(
-        `${LOG_PREFIX} upstream ${networkResponse.status} — redirecting to ${SERVICE_UNAVAILABLE_PATH}`,
-      );
-      return Response.redirect(
-        new URL(SERVICE_UNAVAILABLE_PATH, self.location.origin).href,
-        302,
-      );
-    }
-
-    return networkResponse;
-  } catch (err) {
-    console.warn(`${LOG_PREFIX} network error for navigation`, err);
-
-    const offline = isNavigatorOffline();
-
-    if (offline) {
-      const cachedNav = await cache.match(request);
-      if (cachedNav) return cachedNav;
-    }
-
-    if (isSuRoute) {
-      if (offline) {
-        const cachedSu = await matchCachedPath(cache, SERVICE_UNAVAILABLE_PATH);
-        if (cachedSu) return cachedSu;
-      }
-      return minimalServiceUnavailableResponse();
-    }
-
-    if (offline) {
-      const cachedSu = await matchCachedPath(cache, SERVICE_UNAVAILABLE_PATH);
-      if (cachedSu) {
-        return Response.redirect(
-          new URL(SERVICE_UNAVAILABLE_PATH, self.location.origin).href,
-          302,
-        );
-      }
-
-      const root = new URL('/', self.location.origin).href;
-      if (request.url === root || request.url.startsWith(`${root}?`)) {
-        const cachedRoot = await matchCachedPath(cache, '/');
-        if (cachedRoot) return cachedRoot;
-      }
-    }
-
-    return minimalServiceUnavailableResponse();
-  }
-}
-
-/** Last-resort HTML when no precache and no network (UTF-8 Vietnamese). */
-function minimalServiceUnavailableResponse() {
-  const html = `<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Tạm ngưng phục vụ</title></head><body style="font-family:system-ui,-apple-system,sans-serif;max-width:28rem;margin:4rem auto;padding:0 1rem;text-align:center;color:#201d18"><p style="font-size:3rem;font-weight:800;margin:0">503</p><h1 style="font-size:1.25rem;font-weight:700">Hệ thống tạm không phản hồi</h1><p style="color:#555;line-height:1.5">Chưa có bản lưu đầy đủ. Kiểm tra kết nối mạng hoặc thử lại sau.</p><p style="margin-top:1.5rem"><a href="/" style="color:#166534;font-weight:600">Về trang chủ</a></p></body></html>`;
-  return new Response(html, {
-    status: 503,
-    headers: { 'Content-Type': 'text/html; charset=utf-8' },
-  });
-}
-
-async function staleWhileRevalidate(event, request, cacheName) {
-  const cache = await caches.open(cacheName);
-  const cached = await cache.match(request);
-  const offline = isNavigatorOffline();
-
-  if (offline) {
-    if (cached) return cached;
-    try {
-      const response = await fetch(request);
-      if (response.ok) {
-        await cache.put(request, response.clone());
-      }
-      return response;
-    } catch {
-      return new Response('', { status: 504, statusText: 'Gateway Timeout' });
-    }
-  }
-
-  try {
-    const response = await fetch(request);
-    if (response.ok) {
-      event.waitUntil(cache.put(request, response.clone()));
-    }
-    return response;
-  } catch {
-    return new Response('', { status: 504, statusText: 'Gateway Timeout' });
-  }
-}
 </file>
 
 <file path="apps/web/src/app/track-order/page.tsx">
@@ -56999,6 +56856,254 @@ export class ProductEntity {
 </html>
 </file>
 
+<file path="apps/web/public/sw.js">
+/**
+ * Offline shell: network-first HTML; static assets use network when online, cache only when offline.
+ * Service-down: redirect to /service-unavailable on 502/503/504 while online; cache reads for pages/assets only when navigator.onLine is false.
+ * Bump VERSION when changing caching rules so old caches are purged.
+ */
+const VERSION = 'longnhan-web-sw-v7';
+const PAGES_CACHE = `${VERSION}-pages`;
+const STATIC_CACHE = `${VERSION}-static`;
+const RUNTIME_CACHE = `${VERSION}-runtime`;
+const SERVICE_UNAVAILABLE_PATH = '/service-unavailable';
+
+const ALLOWED_CACHES = new Set([PAGES_CACHE, STATIC_CACHE, RUNTIME_CACHE]);
+const LOG_PREFIX = '[LongNhan SW:worker]';
+const redundantLifecycleHooks = new WeakSet();
+
+function isNavigatorOffline() {
+  return !self.navigator?.onLine;
+}
+
+/** Covers unregister(), clear site data, or replacement by a newer worker. */
+function attachRedundantStateLogging() {
+  const reg = self.registration;
+  const sw = reg?.installing ?? reg?.waiting ?? reg?.active;
+  if (!sw || redundantLifecycleHooks.has(sw)) return;
+  redundantLifecycleHooks.add(sw);
+  sw.addEventListener('statechange', () => {
+    if (sw.state === 'redundant') {
+      console.log(
+        `${LOG_PREFIX} redundant — SW unregistered, cleared, or replaced (version ${VERSION})`,
+      );
+    }
+  });
+}
+
+self.addEventListener('install', (event) => {
+  attachRedundantStateLogging();
+  console.log(`${LOG_PREFIX} install — version`, VERSION);
+  self.skipWaiting();
+  event.waitUntil(
+    caches.open(PAGES_CACHE).then((cache) =>
+      Promise.all([
+        cache.add(new Request('/', { cache: 'reload' })).catch((e) => {
+          console.warn(
+            `${LOG_PREFIX} precache / failed (ok on first visit)`,
+            e,
+          );
+        }),
+        cache
+          .add(
+            new Request(SERVICE_UNAVAILABLE_PATH, {
+              cache: 'reload',
+            }),
+          )
+          .catch((e) => {
+            console.warn(
+              `${LOG_PREFIX} precache ${SERVICE_UNAVAILABLE_PATH} failed`,
+              e,
+            );
+          }),
+      ]),
+    ),
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  attachRedundantStateLogging();
+  console.log(`${LOG_PREFIX} activate — claiming clients, pruning old caches`);
+  event.waitUntil(
+    (async () => {
+      const keys = await caches.keys();
+      const removed = keys.filter((k) => !ALLOWED_CACHES.has(k));
+      await Promise.all(removed.map((k) => caches.delete(k)));
+      if (removed.length) {
+        console.log(`${LOG_PREFIX} deleted stale caches:`, removed);
+      }
+      await self.clients.claim();
+      console.log(`${LOG_PREFIX} activate — ready (${VERSION})`);
+    })(),
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  if (
+    url.pathname.startsWith('/api') ||
+    url.pathname.startsWith('/monitoring') ||
+    url.pathname.startsWith('/_next/data')
+  ) {
+    return;
+  }
+
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirstPage(event, request));
+    return;
+  }
+
+  if (url.pathname.startsWith('/_next/static/')) {
+    event.respondWith(staleWhileRevalidate(event, request, STATIC_CACHE));
+    return;
+  }
+
+  if (
+    /\.(css|png|jpg|jpeg|gif|webp|avif|svg|ico|woff2?|ttf|eot)$/i.test(
+      url.pathname,
+    )
+  ) {
+    event.respondWith(staleWhileRevalidate(event, request, RUNTIME_CACHE));
+    return;
+  }
+});
+
+function isUpstreamFailureStatus(status) {
+  return status === 502 || status === 503 || status === 504;
+}
+
+async function matchCachedPath(cache, path) {
+  const absolute = new URL(path, self.location.origin).href;
+  return (
+    (await cache.match(absolute)) ||
+    (await cache.match(new Request(path))) ||
+    (await cache.match(path))
+  );
+}
+
+/**
+ * Prefer network; cache successful HTML for offline use.
+ * Upstream 502/503/504 → redirect to SU page (online); cached fallbacks only when offline.
+ */
+async function networkFirstPage(event, request) {
+  const url = new URL(request.url);
+  const isSuRoute = url.pathname === SERVICE_UNAVAILABLE_PATH;
+  const cache = await caches.open(PAGES_CACHE);
+
+  try {
+    const networkResponse = await fetch(request, { redirect: 'follow' });
+
+    if (networkResponse.ok) {
+      // Only persist shell routes — listing pages stream dynamic RSC segments.
+      if (isSuRoute || url.pathname === '/') {
+        await cache.put(request, networkResponse.clone());
+      }
+      return networkResponse;
+    }
+
+    if (isUpstreamFailureStatus(networkResponse.status)) {
+      if (isSuRoute) {
+        if (isNavigatorOffline()) {
+          const cachedSu = await matchCachedPath(
+            cache,
+            SERVICE_UNAVAILABLE_PATH,
+          );
+          if (cachedSu) return cachedSu;
+        }
+        return minimalServiceUnavailableResponse();
+      }
+      console.log(
+        `${LOG_PREFIX} upstream ${networkResponse.status} — redirecting to ${SERVICE_UNAVAILABLE_PATH}`,
+      );
+      return Response.redirect(
+        new URL(SERVICE_UNAVAILABLE_PATH, self.location.origin).href,
+        302,
+      );
+    }
+
+    return networkResponse;
+  } catch (err) {
+    console.warn(`${LOG_PREFIX} network error for navigation`, err);
+
+    const offline = isNavigatorOffline();
+
+    if (offline) {
+      const cachedNav = await cache.match(request);
+      if (cachedNav) return cachedNav;
+    }
+
+    if (isSuRoute) {
+      if (offline) {
+        const cachedSu = await matchCachedPath(cache, SERVICE_UNAVAILABLE_PATH);
+        if (cachedSu) return cachedSu;
+      }
+      return minimalServiceUnavailableResponse();
+    }
+
+    if (offline) {
+      const cachedSu = await matchCachedPath(cache, SERVICE_UNAVAILABLE_PATH);
+      if (cachedSu) {
+        return Response.redirect(
+          new URL(SERVICE_UNAVAILABLE_PATH, self.location.origin).href,
+          302,
+        );
+      }
+
+      const root = new URL('/', self.location.origin).href;
+      if (request.url === root || request.url.startsWith(`${root}?`)) {
+        const cachedRoot = await matchCachedPath(cache, '/');
+        if (cachedRoot) return cachedRoot;
+      }
+    }
+
+    return minimalServiceUnavailableResponse();
+  }
+}
+
+/** Last-resort HTML when no precache and no network (UTF-8 Vietnamese). */
+function minimalServiceUnavailableResponse() {
+  const html = `<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Tạm ngưng phục vụ</title></head><body style="font-family:system-ui,-apple-system,sans-serif;max-width:28rem;margin:4rem auto;padding:0 1rem;text-align:center;color:#201d18"><p style="font-size:3rem;font-weight:800;margin:0">503</p><h1 style="font-size:1.25rem;font-weight:700">Hệ thống tạm không phản hồi</h1><p style="color:#555;line-height:1.5">Chưa có bản lưu đầy đủ. Kiểm tra kết nối mạng hoặc thử lại sau.</p><p style="margin-top:1.5rem"><a href="/" style="color:#166534;font-weight:600">Về trang chủ</a></p></body></html>`;
+  return new Response(html, {
+    status: 503,
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  });
+}
+
+async function staleWhileRevalidate(event, request, cacheName) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(request);
+  const offline = isNavigatorOffline();
+
+  if (offline) {
+    if (cached) return cached;
+    try {
+      const response = await fetch(request);
+      if (response.ok) {
+        await cache.put(request, response.clone());
+      }
+      return response;
+    } catch {
+      return new Response('', { status: 504, statusText: 'Gateway Timeout' });
+    }
+  }
+
+  try {
+    const response = await fetch(request);
+    if (response.ok) {
+      event.waitUntil(cache.put(request, response.clone()));
+    }
+    return response;
+  } catch {
+    return new Response('', { status: 504, statusText: 'Gateway Timeout' });
+  }
+}
+</file>
+
 <file path="apps/web/src/actions/order-tracking-actions.ts">
 'use server';
 
@@ -57527,7 +57632,7 @@ export default function HeaderSearchBar({
         case 'recent':
           navigate(
             serializeProductSearchUrl('/products', {
-              q: option.item.q,
+              q: option.item.q.trim() || null,
               category: option.item.category || null,
             }),
           );
@@ -59826,6 +59931,7 @@ import {
   type AuthTokens,
 } from '@/lib/auth-token';
 import { extractErrorMessage } from '@/lib/http/extract-error-message';
+import { sanitizeApiQueryParams } from '@/lib/http/sanitize-api-query-params';
 
 export function createLongnhanApi(baseURL: string): AxiosInstance {
   const instance = axios.create({
@@ -59887,6 +59993,17 @@ export function createLongnhanApi(baseURL: string): AxiosInstance {
   };
 
   instance.interceptors.request.use(async (config) => {
+    if (
+      config.params != null &&
+      typeof config.params === 'object' &&
+      !Array.isArray(config.params) &&
+      !(config.params instanceof URLSearchParams)
+    ) {
+      config.params = sanitizeApiQueryParams(
+        config.params as Record<string, string | number | undefined>,
+      );
+    }
+
     if (typeof window === 'undefined') return config;
 
     const tokens = parseAuthTokens(Cookies.get(AUTH_TOKEN_KEY));
@@ -66451,576 +66568,6 @@ export default function RootLayout({
 }
 </file>
 
-<file path="apps/api/src/api/orders/orders.service.ts">
-import { OffsetPaginatedDto } from '@/common/dto/offset-pagination/paginated.dto';
-import { Uuid } from '@/common/types/common.type';
-import { SHIPPING_FLAT_VND } from '@/constants/order.constant';
-import { paginate } from '@/utils/offset-pagination';
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { plainToInstance } from 'class-transformer';
-import crypto from 'crypto';
-import { DataSource, EntityManager, Repository } from 'typeorm';
-import { SepayService } from '../../integrations/sepay/sepay.service';
-import { ProductVariantEntity } from '../products/entities/product-variant.entity';
-import {
-  TransactionDirection,
-  TransactionEntity,
-  TransactionMethod,
-  TransactionStatus,
-  TransactionType,
-} from '../transactions/entities/transaction.entity';
-import { TransactionsService } from '../transactions/transactions.service';
-import { VoucherEntity } from '../vouchers/entities/voucher.entity';
-import { VouchersService } from '../vouchers/vouchers.service';
-import { CreateOrderReqDto } from './dto/create-order.req.dto';
-import { OrderQueryReqDto } from './dto/order-query.req.dto';
-import {
-  OrderStatusHistoryResDto,
-  PublicOrderStatusHistoryResDto,
-} from './dto/order-status-history.res.dto';
-import { OrderResDto } from './dto/order.res.dto';
-import { PublicOrderSummaryResDto } from './dto/public-order-summary.res.dto';
-import { UpdateOrderStatusReqDto } from './dto/update-order-status.req.dto';
-import {
-  ValidateCartItemDto,
-  ValidateCartResDto,
-} from './dto/validate-cart.req.dto';
-import { OrderItemEntity } from './entities/order-item.entity';
-import {
-  OrderStatusHistoryActor,
-  OrderStatusHistoryEntity,
-} from './entities/order-status-history.entity';
-import { OrderTrackingTokenEntity } from './entities/order-tracking-token.entity';
-import {
-  OrderEntity,
-  OrderStatus,
-  PaymentMethod,
-} from './entities/order.entity';
-
-@Injectable()
-export class OrdersService {
-  constructor(
-    @InjectRepository(OrderEntity)
-    private readonly orderRepo: Repository<OrderEntity>,
-    @InjectRepository(OrderItemEntity)
-    private readonly orderItemRepo: Repository<OrderItemEntity>,
-    @InjectRepository(OrderTrackingTokenEntity)
-    private readonly orderTrackingTokenRepo: Repository<OrderTrackingTokenEntity>,
-    @InjectRepository(ProductVariantEntity)
-    private readonly variantRepo: Repository<ProductVariantEntity>,
-    private readonly dataSource: DataSource,
-    private readonly vouchersService: VouchersService,
-    private readonly transactionsService: TransactionsService,
-    private readonly sepayService: SepayService,
-  ) {}
-
-  /** Public: create order with transaction (validates stock, decrements) */
-  async create(dto: CreateOrderReqDto): Promise<OrderResDto> {
-    dto.phone = dto.phone.trim();
-
-    const result = await this.dataSource.transaction(async (em) => {
-      // Load variants with SELECT FOR UPDATE to prevent race conditions
-      const variantIds = dto.items.map((i) => i.variantId);
-      const variants = await em
-        .createQueryBuilder(ProductVariantEntity, 'v')
-        .setLock('pessimistic_write')
-        .whereInIds(variantIds)
-        .getMany();
-
-      const variantMap = new Map(variants.map((v) => [v.id, v]));
-
-      // Validate all variants exist, are active, and have stock
-      for (const item of dto.items) {
-        const variant = variantMap.get(item.variantId as Uuid);
-        if (!variant || !variant.active) {
-          throw new BadRequestException(
-            `Variant ${item.variantId} not found or inactive`,
-          );
-        }
-        if (variant.stock < item.qty) {
-          throw new BadRequestException(
-            `Insufficient stock for variant "${variant.label}": available ${variant.stock}, requested ${item.qty}`,
-          );
-        }
-      }
-
-      // Build order items and calculate subtotal (shipping added server-side)
-      let itemsSubtotal = 0;
-      const orderItems: Partial<OrderItemEntity>[] = dto.items.map((item) => {
-        const variant = variantMap.get(item.variantId as Uuid)!;
-        const subtotal = variant.price * item.qty;
-        itemsSubtotal += subtotal;
-        return {
-          variantId: variant.id,
-          qty: item.qty,
-          unitPrice: variant.price,
-          subtotal,
-          variantSnapshot: {
-            id: variant.id,
-            label: variant.label,
-            price: variant.price,
-            weightG: variant.weightG,
-            skuCode: variant.skuCode,
-            productId: variant.productId,
-          },
-        };
-      });
-
-      const shippingFee = dto.items.length > 0 ? SHIPPING_FLAT_VND : 0;
-      const orderTotalBeforeDiscount = itemsSubtotal + shippingFee;
-
-      // Generate unique order code: LN-YYMMDD-XXXX
-      const code = await this.generateOrderCode(em);
-
-      // Apply voucher if provided
-      let discountAmount = 0;
-      let voucherEntity: VoucherEntity | null = null;
-
-      if (dto.voucherCode) {
-        const voucherResult = await this.vouchersService.validateForOrder(
-          em,
-          dto.voucherCode.toUpperCase(),
-          orderTotalBeforeDiscount,
-          dto.phone,
-        );
-        discountAmount = voucherResult.discountAmount;
-        voucherEntity = voucherResult.voucher;
-      }
-
-      const finalTotal = orderTotalBeforeDiscount - discountAmount;
-
-      // Create order
-      const order = em.create(OrderEntity, {
-        code,
-        customerName: dto.customerName,
-        phone: dto.phone,
-        email: dto.email ?? null,
-        address: dto.address,
-        province: dto.province ?? null,
-        total: finalTotal,
-        discountAmount,
-        voucherCode: dto.voucherCode?.toUpperCase() ?? null,
-        voucherId: voucherEntity?.id ?? null,
-        paymentMethod: dto.paymentMethod ?? PaymentMethod.COD,
-        notes: dto.notes ?? null,
-      });
-      const savedOrder = await em.save(OrderEntity, order);
-
-      // Save order items
-      const items = orderItems.map((item) =>
-        em.create(OrderItemEntity, { ...item, orderId: savedOrder.id }),
-      );
-      savedOrder.items = await em.save(OrderItemEntity, items);
-
-      await em.insert(OrderStatusHistoryEntity, {
-        orderId: savedOrder.id,
-        fromStatus: null,
-        toStatus: OrderStatus.PENDING,
-        actorType: OrderStatusHistoryActor.SYSTEM,
-        actorId: null,
-      });
-
-      if (
-        (dto.paymentMethod ?? PaymentMethod.COD) === PaymentMethod.BANK_TRANSFER
-      ) {
-        await em.save(
-          TransactionEntity,
-          em.create(TransactionEntity, {
-            orderId: savedOrder.id,
-            type: TransactionType.PAYMENT,
-            method: TransactionMethod.BANK_TRANSFER,
-            amount: finalTotal,
-            direction: TransactionDirection.IN,
-            status: TransactionStatus.PENDING,
-            referenceNo: null,
-            referenceNote: null,
-            occurredAt: new Date(),
-            createdByAdminId: null,
-          }),
-        );
-      }
-
-      // Decrement stock
-      for (const item of dto.items) {
-        await em.decrement(
-          ProductVariantEntity,
-          { id: item.variantId as Uuid },
-          'stock',
-          item.qty,
-        );
-      }
-
-      // Record voucher usage (increment usedCount + create VoucherUsage row)
-      if (voucherEntity) {
-        await this.vouchersService.applyVoucherInTransaction(
-          em,
-          voucherEntity.id,
-          savedOrder.id,
-          dto.phone,
-          orderTotalBeforeDiscount,
-        );
-      }
-
-      const resDto = plainToInstance(OrderResDto, savedOrder, {
-        excludeExtraneousValues: true,
-      });
-
-      const wantsSepay =
-        (dto.paymentMethod ?? PaymentMethod.COD) ===
-        PaymentMethod.BANK_TRANSFER;
-
-      if (wantsSepay) {
-        resDto.sepay = this.sepayService.buildCheckoutFields(savedOrder);
-      }
-
-      return resDto;
-    });
-
-    return result;
-  }
-
-  /** Public: validate cart items (check existence, active status, stock) */
-  async validateCartItems(
-    items: ValidateCartItemDto[],
-  ): Promise<ValidateCartResDto> {
-    const variantIds = items.map((i) => i.variantId);
-    const variants = await this.variantRepo.findByIds(variantIds);
-
-    const variantMap = new Map(variants.map((v) => [v.id, v]));
-    const invalidItems: { variantId: string; reason: string }[] = [];
-
-    for (const item of items) {
-      const variant = variantMap.get(item.variantId as Uuid);
-      if (!variant) {
-        invalidItems.push({
-          variantId: item.variantId,
-          reason: 'Sản phẩm không tồn tại',
-        });
-      } else if (!variant.active) {
-        invalidItems.push({
-          variantId: item.variantId,
-          reason: 'Sản phẩm đã ngưng bán',
-        });
-      } else if (variant.stock < item.qty) {
-        invalidItems.push({
-          variantId: item.variantId,
-          reason: `Chỉ còn ${variant.stock} sản phẩm`,
-        });
-      }
-    }
-
-    return { valid: invalidItems.length === 0, invalidItems };
-  }
-
-  /** Admin: list orders with filters */
-  async findMany(
-    dto: OrderQueryReqDto,
-  ): Promise<OffsetPaginatedDto<OrderResDto>> {
-    const qb = this.orderRepo
-      .createQueryBuilder('order')
-      .leftJoinAndSelect('order.items', 'item')
-      .orderBy('order.createdAt', 'DESC');
-
-    if (dto.orderStatus) {
-      qb.andWhere('order.orderStatus = :orderStatus', {
-        orderStatus: dto.orderStatus,
-      });
-    }
-    if (dto.paymentStatus) {
-      qb.andWhere('order.paymentStatus = :paymentStatus', {
-        paymentStatus: dto.paymentStatus,
-      });
-    }
-    if (dto.dateFrom) {
-      qb.andWhere('order.createdAt >= :dateFrom', {
-        dateFrom: new Date(dto.dateFrom),
-      });
-    }
-    if (dto.dateTo) {
-      qb.andWhere('order.createdAt <= :dateTo', {
-        dateTo: new Date(dto.dateTo),
-      });
-    }
-    if (dto.q) {
-      qb.andWhere('(order.code ILIKE :q OR order.phone ILIKE :q)', {
-        q: `%${dto.q}%`,
-      });
-    }
-
-    const [orders, meta] = await paginate(qb, dto, {
-      skipCount: false,
-      takeAll: false,
-    });
-    return new OffsetPaginatedDto(
-      plainToInstance(OrderResDto, orders, { excludeExtraneousValues: true }),
-      meta,
-    );
-  }
-
-  /** Admin: get single order */
-  async findOne(id: Uuid): Promise<OrderResDto> {
-    const order = await this.orderRepo.findOne({
-      where: { id },
-      relations: ['items'],
-    });
-    if (!order) throw new NotFoundException('Order not found');
-    return plainToInstance(OrderResDto, order, {
-      excludeExtraneousValues: true,
-    });
-  }
-
-  /** Admin: update order/payment status (atomic + appends status history) */
-  async updateStatus(
-    id: Uuid,
-    dto: UpdateOrderStatusReqDto,
-    actorId: Uuid | null,
-  ): Promise<OrderResDto & { suggestRefund?: { suggestedAmount: number } }> {
-    const result = await this.dataSource.transaction(async (em) => {
-      const order = await em
-        .createQueryBuilder(OrderEntity, 'order')
-        .setLock('pessimistic_write')
-        .where('order.id = :id', { id })
-        .getOne();
-      if (!order) throw new NotFoundException('Order not found');
-
-      let transitioned = false;
-
-      const paymentStatusChanging =
-        dto.paymentStatus !== undefined &&
-        dto.paymentStatus !== order.paymentStatus;
-
-      if (
-        dto.orderStatus !== undefined &&
-        dto.orderStatus === order.orderStatus &&
-        !paymentStatusChanging
-      ) {
-        throw new BadRequestException('Order is already in this status');
-      }
-
-      if (dto.orderStatus && dto.orderStatus !== order.orderStatus) {
-        this.assertValidTransition(order.orderStatus, dto.orderStatus);
-        const fromStatus = order.orderStatus;
-        order.orderStatus = dto.orderStatus;
-        await em.insert(OrderStatusHistoryEntity, {
-          orderId: order.id,
-          fromStatus,
-          toStatus: dto.orderStatus,
-          actorType: OrderStatusHistoryActor.ADMIN,
-          actorId,
-        });
-        transitioned = true;
-      }
-
-      if (dto.paymentStatus !== undefined) {
-        order.paymentStatus = dto.paymentStatus;
-      }
-
-      const saved = await em.save(OrderEntity, order);
-      const withItems = await em.findOne(OrderEntity, {
-        where: { id: saved.id },
-        relations: ['items'],
-      });
-
-      let suggestRefund: { suggestedAmount: number } | undefined;
-      if (transitioned && saved.orderStatus === OrderStatus.CANCELLED) {
-        const net = await this.transactionsService.getPaidAmount(saved.id);
-        if (net > 0) suggestRefund = { suggestedAmount: net };
-      }
-
-      return { order: withItems!, suggestRefund };
-    });
-
-    const dtoOut = plainToInstance(OrderResDto, result.order, {
-      excludeExtraneousValues: true,
-    }) as OrderResDto & { suggestRefund?: { suggestedAmount: number } };
-    if (result.suggestRefund) dtoOut.suggestRefund = result.suggestRefund;
-    return dtoOut;
-  }
-
-  /** Admin: full status history (with actor identity). */
-  async getStatusHistory(orderId: Uuid): Promise<OrderStatusHistoryResDto[]> {
-    const order = await this.orderRepo.findOne({ where: { id: orderId } });
-    if (!order) throw new NotFoundException('Order not found');
-    const rows = await this.dataSource
-      .getRepository(OrderStatusHistoryEntity)
-      .find({ where: { orderId }, order: { createdAt: 'ASC' } });
-    return plainToInstance(OrderStatusHistoryResDto, rows, {
-      excludeExtraneousValues: true,
-    });
-  }
-
-  /** Public: guest-safe history via tracking token (single-use, expires). */
-  async getPublicStatusHistory(
-    token: string,
-  ): Promise<PublicOrderStatusHistoryResDto[]> {
-    const orderId = await this.consumeTrackingToken(token);
-    const rows = await this.dataSource
-      .getRepository(OrderStatusHistoryEntity)
-      .find({ where: { orderId }, order: { createdAt: 'ASC' } });
-    return plainToInstance(PublicOrderStatusHistoryResDto, rows, {
-      excludeExtraneousValues: true,
-    });
-  }
-
-  private assertValidTransition(from: OrderStatus, to: OrderStatus): void {
-    const allowed: Record<OrderStatus, OrderStatus[]> = {
-      [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
-      [OrderStatus.CONFIRMED]: [OrderStatus.SHIPPING, OrderStatus.CANCELLED],
-      [OrderStatus.SHIPPING]: [OrderStatus.DELIVERED, OrderStatus.CANCELLED],
-      [OrderStatus.DELIVERED]: [],
-      [OrderStatus.CANCELLED]: [],
-    };
-    if (!allowed[from].includes(to)) {
-      throw new BadRequestException(
-        `Invalid status transition: ${from} → ${to}`,
-      );
-    }
-  }
-
-  private async consumeTrackingToken(token: string): Promise<Uuid> {
-    if (!token || token.length < 20 || token.length > 512) {
-      throw new NotFoundException('Order not found');
-    }
-    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-    const updateRes = await this.orderTrackingTokenRepo
-      .createQueryBuilder()
-      .update(OrderTrackingTokenEntity)
-      .set({ usedAt: new Date() })
-      .where('"tokenHash" = :tokenHash', { tokenHash })
-      .andWhere('"usedAt" IS NULL')
-      .andWhere('"expiresAt" > NOW()')
-      .returning(['orderId'])
-      .execute();
-    const orderId = updateRes.raw?.[0]?.orderId as Uuid | undefined;
-    if (updateRes.affected !== 1 || !orderId) {
-      throw new NotFoundException('Order not found');
-    }
-    return orderId;
-  }
-
-  /**
-   * Generate unique order code within the same transaction.
-   * Uses a random 4-char hex suffix to avoid race conditions from
-   * sequential count-based codes (two concurrent txns could read same count).
-   * Falls back to retry on unique constraint violation handled by the DB.
-   */
-  private async generateOrderCode(_em: EntityManager): Promise<string> {
-    const now = new Date();
-    const yy = String(now.getFullYear()).slice(-2);
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(now.getDate()).padStart(2, '0');
-    const prefix = `LN-${yy}${mm}${dd}-`;
-
-    // Random 4-char alphanumeric suffix — collision probability negligible for MVP scale
-    const randomSuffix = Math.random()
-      .toString(36)
-      .slice(2, 6)
-      .toUpperCase()
-      .padEnd(4, '0');
-    return `${prefix}${randomSuffix}`;
-  }
-
-  /**
-   * Public: guest-safe summary by order code (rate-limit at controller).
-   */
-  async lookupByCode(code: string): Promise<PublicOrderSummaryResDto> {
-    const trimmed = code?.trim();
-    if (!trimmed || trimmed.length > 64) {
-      throw new NotFoundException('Order not found');
-    }
-
-    const order = await this.orderRepo.findOne({
-      where: { code: trimmed },
-      relations: ['items'],
-    });
-    if (!order) throw new NotFoundException('Order not found');
-
-    const history = await this.loadPublicStatusHistory(order.id);
-    return plainToInstance(
-      PublicOrderSummaryResDto,
-      mapOrderToPublicSummary(order, history),
-      { excludeExtraneousValues: true },
-    );
-  }
-
-  /** Public: exchange token for guest-safe summary (single-use, expires) */
-  async trackByToken(token: string): Promise<PublicOrderSummaryResDto> {
-    const orderId = await this.consumeTrackingToken(token);
-
-    const order = await this.orderRepo.findOne({
-      where: { id: orderId },
-      relations: ['items'],
-    });
-    if (!order) throw new NotFoundException('Order not found');
-
-    const history = await this.loadPublicStatusHistory(order.id);
-    return plainToInstance(
-      PublicOrderSummaryResDto,
-      mapOrderToPublicSummary(order, history),
-      { excludeExtraneousValues: true },
-    );
-  }
-
-  private async loadPublicStatusHistory(
-    orderId: Uuid,
-  ): Promise<PublicOrderStatusHistoryResDto[]> {
-    const rows = await this.dataSource
-      .getRepository(OrderStatusHistoryEntity)
-      .find({ where: { orderId }, order: { createdAt: 'ASC' } });
-    return plainToInstance(PublicOrderStatusHistoryResDto, rows, {
-      excludeExtraneousValues: true,
-    });
-  }
-}
-
-function mapOrderToPublicSummary(
-  order: OrderEntity,
-  statusHistory: PublicOrderStatusHistoryResDto[] = [],
-) {
-  const addressPreview = getAddressPreview(order.address);
-
-  return {
-    id: order.id,
-    code: order.code,
-    phone: order.phone,
-    orderStatus: order.orderStatus,
-    paymentStatus: order.paymentStatus,
-    paymentMethod: order.paymentMethod,
-    total: order.total,
-    createdAt: order.createdAt,
-    province: order.province ?? null,
-    addressPreview,
-    statusHistory,
-    items: (order.items ?? []).map((i) => {
-      const snap = i.variantSnapshot as Record<string, unknown>;
-      const productId =
-        snap?.productId != null ? String(snap.productId) : undefined;
-      const variantLabel =
-        typeof snap?.label === 'string' ? snap.label : undefined;
-      return {
-        name: String(snap?.label ?? 'Sản phẩm'),
-        qty: i.qty,
-        subtotal: i.subtotal,
-        ...(productId ? { productId } : {}),
-        ...(variantLabel ? { variantLabel } : {}),
-      };
-    }),
-  };
-}
-
-function getAddressPreview(address: string | null | undefined): string | null {
-  if (!address) return null;
-  const first = address.split(',')[0]?.trim();
-  if (!first) return null;
-  return first;
-}
-</file>
-
 <file path="apps/api/src/api/products/products.service.ts">
 import { CategoriesService } from '@/api/categories/categories.service';
 import { CategoryEntity } from '@/api/categories/entities/category.entity';
@@ -71323,6 +70870,576 @@ export function ProductForm({
 }
 </file>
 
+<file path="apps/api/src/api/orders/orders.service.ts">
+import { OffsetPaginatedDto } from '@/common/dto/offset-pagination/paginated.dto';
+import { Uuid } from '@/common/types/common.type';
+import { SHIPPING_FLAT_VND } from '@/constants/order.constant';
+import { paginate } from '@/utils/offset-pagination';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { plainToInstance } from 'class-transformer';
+import crypto from 'crypto';
+import { DataSource, EntityManager, Repository } from 'typeorm';
+import { SepayService } from '../../integrations/sepay/sepay.service';
+import { ProductVariantEntity } from '../products/entities/product-variant.entity';
+import {
+  TransactionDirection,
+  TransactionEntity,
+  TransactionMethod,
+  TransactionStatus,
+  TransactionType,
+} from '../transactions/entities/transaction.entity';
+import { TransactionsService } from '../transactions/transactions.service';
+import { VoucherEntity } from '../vouchers/entities/voucher.entity';
+import { VouchersService } from '../vouchers/vouchers.service';
+import { CreateOrderReqDto } from './dto/create-order.req.dto';
+import { OrderQueryReqDto } from './dto/order-query.req.dto';
+import {
+  OrderStatusHistoryResDto,
+  PublicOrderStatusHistoryResDto,
+} from './dto/order-status-history.res.dto';
+import { OrderResDto } from './dto/order.res.dto';
+import { PublicOrderSummaryResDto } from './dto/public-order-summary.res.dto';
+import { UpdateOrderStatusReqDto } from './dto/update-order-status.req.dto';
+import {
+  ValidateCartItemDto,
+  ValidateCartResDto,
+} from './dto/validate-cart.req.dto';
+import { OrderItemEntity } from './entities/order-item.entity';
+import {
+  OrderStatusHistoryActor,
+  OrderStatusHistoryEntity,
+} from './entities/order-status-history.entity';
+import { OrderTrackingTokenEntity } from './entities/order-tracking-token.entity';
+import {
+  OrderEntity,
+  OrderStatus,
+  PaymentMethod,
+} from './entities/order.entity';
+
+@Injectable()
+export class OrdersService {
+  constructor(
+    @InjectRepository(OrderEntity)
+    private readonly orderRepo: Repository<OrderEntity>,
+    @InjectRepository(OrderItemEntity)
+    private readonly orderItemRepo: Repository<OrderItemEntity>,
+    @InjectRepository(OrderTrackingTokenEntity)
+    private readonly orderTrackingTokenRepo: Repository<OrderTrackingTokenEntity>,
+    @InjectRepository(ProductVariantEntity)
+    private readonly variantRepo: Repository<ProductVariantEntity>,
+    private readonly dataSource: DataSource,
+    private readonly vouchersService: VouchersService,
+    private readonly transactionsService: TransactionsService,
+    private readonly sepayService: SepayService,
+  ) {}
+
+  /** Public: create order with transaction (validates stock, decrements) */
+  async create(dto: CreateOrderReqDto): Promise<OrderResDto> {
+    dto.phone = dto.phone.trim();
+
+    const result = await this.dataSource.transaction(async (em) => {
+      // Load variants with SELECT FOR UPDATE to prevent race conditions
+      const variantIds = dto.items.map((i) => i.variantId);
+      const variants = await em
+        .createQueryBuilder(ProductVariantEntity, 'v')
+        .setLock('pessimistic_write')
+        .whereInIds(variantIds)
+        .getMany();
+
+      const variantMap = new Map(variants.map((v) => [v.id, v]));
+
+      // Validate all variants exist, are active, and have stock
+      for (const item of dto.items) {
+        const variant = variantMap.get(item.variantId as Uuid);
+        if (!variant || !variant.active) {
+          throw new BadRequestException(
+            `Variant ${item.variantId} not found or inactive`,
+          );
+        }
+        if (variant.stock < item.qty) {
+          throw new BadRequestException(
+            `Insufficient stock for variant "${variant.label}": available ${variant.stock}, requested ${item.qty}`,
+          );
+        }
+      }
+
+      // Build order items and calculate subtotal (shipping added server-side)
+      let itemsSubtotal = 0;
+      const orderItems: Partial<OrderItemEntity>[] = dto.items.map((item) => {
+        const variant = variantMap.get(item.variantId as Uuid)!;
+        const subtotal = variant.price * item.qty;
+        itemsSubtotal += subtotal;
+        return {
+          variantId: variant.id,
+          qty: item.qty,
+          unitPrice: variant.price,
+          subtotal,
+          variantSnapshot: {
+            id: variant.id,
+            label: variant.label,
+            price: variant.price,
+            weightG: variant.weightG,
+            skuCode: variant.skuCode,
+            productId: variant.productId,
+          },
+        };
+      });
+
+      const shippingFee = dto.items.length > 0 ? SHIPPING_FLAT_VND : 0;
+      const orderTotalBeforeDiscount = itemsSubtotal + shippingFee;
+
+      // Generate unique order code: LN-YYMMDD-XXXX
+      const code = await this.generateOrderCode(em);
+
+      // Apply voucher if provided
+      let discountAmount = 0;
+      let voucherEntity: VoucherEntity | null = null;
+
+      if (dto.voucherCode) {
+        const voucherResult = await this.vouchersService.validateForOrder(
+          em,
+          dto.voucherCode.toUpperCase(),
+          orderTotalBeforeDiscount,
+          dto.phone,
+        );
+        discountAmount = voucherResult.discountAmount;
+        voucherEntity = voucherResult.voucher;
+      }
+
+      const finalTotal = orderTotalBeforeDiscount - discountAmount;
+
+      // Create order
+      const order = em.create(OrderEntity, {
+        code,
+        customerName: dto.customerName,
+        phone: dto.phone,
+        email: dto.email ?? null,
+        address: dto.address,
+        province: dto.province ?? null,
+        total: finalTotal,
+        discountAmount,
+        voucherCode: dto.voucherCode?.toUpperCase() ?? null,
+        voucherId: voucherEntity?.id ?? null,
+        paymentMethod: dto.paymentMethod ?? PaymentMethod.COD,
+        notes: dto.notes ?? null,
+      });
+      const savedOrder = await em.save(OrderEntity, order);
+
+      // Save order items
+      const items = orderItems.map((item) =>
+        em.create(OrderItemEntity, { ...item, orderId: savedOrder.id }),
+      );
+      savedOrder.items = await em.save(OrderItemEntity, items);
+
+      await em.insert(OrderStatusHistoryEntity, {
+        orderId: savedOrder.id,
+        fromStatus: null,
+        toStatus: OrderStatus.PENDING,
+        actorType: OrderStatusHistoryActor.SYSTEM,
+        actorId: null,
+      });
+
+      if (
+        (dto.paymentMethod ?? PaymentMethod.COD) === PaymentMethod.BANK_TRANSFER
+      ) {
+        await em.save(
+          TransactionEntity,
+          em.create(TransactionEntity, {
+            orderId: savedOrder.id,
+            type: TransactionType.PAYMENT,
+            method: TransactionMethod.BANK_TRANSFER,
+            amount: finalTotal,
+            direction: TransactionDirection.IN,
+            status: TransactionStatus.PENDING,
+            referenceNo: null,
+            referenceNote: null,
+            occurredAt: new Date(),
+            createdByAdminId: null,
+          }),
+        );
+      }
+
+      // Decrement stock
+      for (const item of dto.items) {
+        await em.decrement(
+          ProductVariantEntity,
+          { id: item.variantId as Uuid },
+          'stock',
+          item.qty,
+        );
+      }
+
+      // Record voucher usage (increment usedCount + create VoucherUsage row)
+      if (voucherEntity) {
+        await this.vouchersService.applyVoucherInTransaction(
+          em,
+          voucherEntity.id,
+          savedOrder.id,
+          dto.phone,
+          orderTotalBeforeDiscount,
+        );
+      }
+
+      const resDto = plainToInstance(OrderResDto, savedOrder, {
+        excludeExtraneousValues: true,
+      });
+
+      const wantsSepay =
+        (dto.paymentMethod ?? PaymentMethod.COD) ===
+        PaymentMethod.BANK_TRANSFER;
+
+      if (wantsSepay) {
+        resDto.sepay = this.sepayService.buildCheckoutFields(savedOrder);
+      }
+
+      return resDto;
+    });
+
+    return result;
+  }
+
+  /** Public: validate cart items (check existence, active status, stock) */
+  async validateCartItems(
+    items: ValidateCartItemDto[],
+  ): Promise<ValidateCartResDto> {
+    const variantIds = items.map((i) => i.variantId);
+    const variants = await this.variantRepo.findByIds(variantIds);
+
+    const variantMap = new Map(variants.map((v) => [v.id, v]));
+    const invalidItems: { variantId: string; reason: string }[] = [];
+
+    for (const item of items) {
+      const variant = variantMap.get(item.variantId as Uuid);
+      if (!variant) {
+        invalidItems.push({
+          variantId: item.variantId,
+          reason: 'Sản phẩm không tồn tại',
+        });
+      } else if (!variant.active) {
+        invalidItems.push({
+          variantId: item.variantId,
+          reason: 'Sản phẩm đã ngưng bán',
+        });
+      } else if (variant.stock < item.qty) {
+        invalidItems.push({
+          variantId: item.variantId,
+          reason: `Chỉ còn ${variant.stock} sản phẩm`,
+        });
+      }
+    }
+
+    return { valid: invalidItems.length === 0, invalidItems };
+  }
+
+  /** Admin: list orders with filters */
+  async findMany(
+    dto: OrderQueryReqDto,
+  ): Promise<OffsetPaginatedDto<OrderResDto>> {
+    const qb = this.orderRepo
+      .createQueryBuilder('order')
+      .leftJoinAndSelect('order.items', 'item')
+      .orderBy('order.createdAt', 'DESC');
+
+    if (dto.orderStatus) {
+      qb.andWhere('order.orderStatus = :orderStatus', {
+        orderStatus: dto.orderStatus,
+      });
+    }
+    if (dto.paymentStatus) {
+      qb.andWhere('order.paymentStatus = :paymentStatus', {
+        paymentStatus: dto.paymentStatus,
+      });
+    }
+    if (dto.dateFrom) {
+      qb.andWhere('order.createdAt >= :dateFrom', {
+        dateFrom: new Date(dto.dateFrom),
+      });
+    }
+    if (dto.dateTo) {
+      qb.andWhere('order.createdAt <= :dateTo', {
+        dateTo: new Date(dto.dateTo),
+      });
+    }
+    if (dto.q) {
+      qb.andWhere('(order.code ILIKE :q OR order.phone ILIKE :q)', {
+        q: `%${dto.q}%`,
+      });
+    }
+
+    const [orders, meta] = await paginate(qb, dto, {
+      skipCount: false,
+      takeAll: false,
+    });
+    return new OffsetPaginatedDto(
+      plainToInstance(OrderResDto, orders, { excludeExtraneousValues: true }),
+      meta,
+    );
+  }
+
+  /** Admin: get single order */
+  async findOne(id: Uuid): Promise<OrderResDto> {
+    const order = await this.orderRepo.findOne({
+      where: { id },
+      relations: ['items'],
+    });
+    if (!order) throw new NotFoundException('Order not found');
+    return plainToInstance(OrderResDto, order, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  /** Admin: update order/payment status (atomic + appends status history) */
+  async updateStatus(
+    id: Uuid,
+    dto: UpdateOrderStatusReqDto,
+    actorId: Uuid | null,
+  ): Promise<OrderResDto & { suggestRefund?: { suggestedAmount: number } }> {
+    const result = await this.dataSource.transaction(async (em) => {
+      const order = await em
+        .createQueryBuilder(OrderEntity, 'order')
+        .setLock('pessimistic_write')
+        .where('order.id = :id', { id })
+        .getOne();
+      if (!order) throw new NotFoundException('Order not found');
+
+      let transitioned = false;
+
+      const paymentStatusChanging =
+        dto.paymentStatus !== undefined &&
+        dto.paymentStatus !== order.paymentStatus;
+
+      if (
+        dto.orderStatus !== undefined &&
+        dto.orderStatus === order.orderStatus &&
+        !paymentStatusChanging
+      ) {
+        throw new BadRequestException('Order is already in this status');
+      }
+
+      if (dto.orderStatus && dto.orderStatus !== order.orderStatus) {
+        this.assertValidTransition(order.orderStatus, dto.orderStatus);
+        const fromStatus = order.orderStatus;
+        order.orderStatus = dto.orderStatus;
+        await em.insert(OrderStatusHistoryEntity, {
+          orderId: order.id,
+          fromStatus,
+          toStatus: dto.orderStatus,
+          actorType: OrderStatusHistoryActor.ADMIN,
+          actorId,
+        });
+        transitioned = true;
+      }
+
+      if (dto.paymentStatus !== undefined) {
+        order.paymentStatus = dto.paymentStatus;
+      }
+
+      const saved = await em.save(OrderEntity, order);
+      const withItems = await em.findOne(OrderEntity, {
+        where: { id: saved.id },
+        relations: ['items'],
+      });
+
+      let suggestRefund: { suggestedAmount: number } | undefined;
+      if (transitioned && saved.orderStatus === OrderStatus.CANCELLED) {
+        const net = await this.transactionsService.getPaidAmount(saved.id);
+        if (net > 0) suggestRefund = { suggestedAmount: net };
+      }
+
+      return { order: withItems!, suggestRefund };
+    });
+
+    const dtoOut = plainToInstance(OrderResDto, result.order, {
+      excludeExtraneousValues: true,
+    }) as OrderResDto & { suggestRefund?: { suggestedAmount: number } };
+    if (result.suggestRefund) dtoOut.suggestRefund = result.suggestRefund;
+    return dtoOut;
+  }
+
+  /** Admin: full status history (with actor identity). */
+  async getStatusHistory(orderId: Uuid): Promise<OrderStatusHistoryResDto[]> {
+    const order = await this.orderRepo.findOne({ where: { id: orderId } });
+    if (!order) throw new NotFoundException('Order not found');
+    const rows = await this.dataSource
+      .getRepository(OrderStatusHistoryEntity)
+      .find({ where: { orderId }, order: { createdAt: 'ASC' } });
+    return plainToInstance(OrderStatusHistoryResDto, rows, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  /** Public: guest-safe history via tracking token (single-use, expires). */
+  async getPublicStatusHistory(
+    token: string,
+  ): Promise<PublicOrderStatusHistoryResDto[]> {
+    const orderId = await this.consumeTrackingToken(token);
+    const rows = await this.dataSource
+      .getRepository(OrderStatusHistoryEntity)
+      .find({ where: { orderId }, order: { createdAt: 'ASC' } });
+    return plainToInstance(PublicOrderStatusHistoryResDto, rows, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  private assertValidTransition(from: OrderStatus, to: OrderStatus): void {
+    const allowed: Record<OrderStatus, OrderStatus[]> = {
+      [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
+      [OrderStatus.CONFIRMED]: [OrderStatus.SHIPPING, OrderStatus.CANCELLED],
+      [OrderStatus.SHIPPING]: [OrderStatus.DELIVERED, OrderStatus.CANCELLED],
+      [OrderStatus.DELIVERED]: [],
+      [OrderStatus.CANCELLED]: [],
+    };
+    if (!allowed[from].includes(to)) {
+      throw new BadRequestException(
+        `Invalid status transition: ${from} → ${to}`,
+      );
+    }
+  }
+
+  private async consumeTrackingToken(token: string): Promise<Uuid> {
+    if (!token || token.length < 20 || token.length > 512) {
+      throw new NotFoundException('Order not found');
+    }
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const updateRes = await this.orderTrackingTokenRepo
+      .createQueryBuilder()
+      .update(OrderTrackingTokenEntity)
+      .set({ usedAt: new Date() })
+      .where('"tokenHash" = :tokenHash', { tokenHash })
+      .andWhere('"usedAt" IS NULL')
+      .andWhere('"expiresAt" > NOW()')
+      .returning(['orderId'])
+      .execute();
+    const orderId = updateRes.raw?.[0]?.orderId as Uuid | undefined;
+    if (updateRes.affected !== 1 || !orderId) {
+      throw new NotFoundException('Order not found');
+    }
+    return orderId;
+  }
+
+  /**
+   * Generate unique order code within the same transaction.
+   * Uses a random 4-char hex suffix to avoid race conditions from
+   * sequential count-based codes (two concurrent txns could read same count).
+   * Falls back to retry on unique constraint violation handled by the DB.
+   */
+  private async generateOrderCode(_em: EntityManager): Promise<string> {
+    const now = new Date();
+    const yy = String(now.getFullYear()).slice(-2);
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const prefix = `LN-${yy}${mm}${dd}-`;
+
+    // Random 4-char alphanumeric suffix — collision probability negligible for MVP scale
+    const randomSuffix = Math.random()
+      .toString(36)
+      .slice(2, 6)
+      .toUpperCase()
+      .padEnd(4, '0');
+    return `${prefix}${randomSuffix}`;
+  }
+
+  /**
+   * Public: guest-safe summary by order code (rate-limit at controller).
+   */
+  async lookupByCode(code: string): Promise<PublicOrderSummaryResDto> {
+    const trimmed = code?.trim();
+    if (!trimmed || trimmed.length > 64) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const order = await this.orderRepo.findOne({
+      where: { code: trimmed },
+      relations: ['items'],
+    });
+    if (!order) throw new NotFoundException('Order not found');
+
+    const history = await this.loadPublicStatusHistory(order.id);
+    return plainToInstance(
+      PublicOrderSummaryResDto,
+      mapOrderToPublicSummary(order, history),
+      { excludeExtraneousValues: true },
+    );
+  }
+
+  /** Public: exchange token for guest-safe summary (single-use, expires) */
+  async trackByToken(token: string): Promise<PublicOrderSummaryResDto> {
+    const orderId = await this.consumeTrackingToken(token);
+
+    const order = await this.orderRepo.findOne({
+      where: { id: orderId },
+      relations: ['items'],
+    });
+    if (!order) throw new NotFoundException('Order not found');
+
+    const history = await this.loadPublicStatusHistory(order.id);
+    return plainToInstance(
+      PublicOrderSummaryResDto,
+      mapOrderToPublicSummary(order, history),
+      { excludeExtraneousValues: true },
+    );
+  }
+
+  private async loadPublicStatusHistory(
+    orderId: Uuid,
+  ): Promise<PublicOrderStatusHistoryResDto[]> {
+    const rows = await this.dataSource
+      .getRepository(OrderStatusHistoryEntity)
+      .find({ where: { orderId }, order: { createdAt: 'ASC' } });
+    return plainToInstance(PublicOrderStatusHistoryResDto, rows, {
+      excludeExtraneousValues: true,
+    });
+  }
+}
+
+function mapOrderToPublicSummary(
+  order: OrderEntity,
+  statusHistory: PublicOrderStatusHistoryResDto[] = [],
+) {
+  const addressPreview = getAddressPreview(order.address);
+
+  return {
+    id: order.id,
+    code: order.code,
+    phone: order.phone,
+    orderStatus: order.orderStatus,
+    paymentStatus: order.paymentStatus,
+    paymentMethod: order.paymentMethod,
+    total: order.total,
+    createdAt: order.createdAt,
+    province: order.province ?? null,
+    addressPreview,
+    statusHistory,
+    items: (order.items ?? []).map((i) => {
+      const snap = i.variantSnapshot as Record<string, unknown>;
+      const productId =
+        snap?.productId != null ? String(snap.productId) : undefined;
+      const variantLabel =
+        typeof snap?.label === 'string' ? snap.label : undefined;
+      return {
+        name: String(snap?.label ?? 'Sản phẩm'),
+        qty: i.qty,
+        subtotal: i.subtotal,
+        ...(productId ? { productId } : {}),
+        ...(variantLabel ? { variantLabel } : {}),
+      };
+    }),
+  };
+}
+
+function getAddressPreview(address: string | null | undefined): string | null {
+  if (!address) return null;
+  const first = address.split(',')[0]?.trim();
+  if (!first) return null;
+  return first;
+}
+</file>
+
 <file path="apps/web/src/actions/order-actions.ts">
 'use server';
 
@@ -71871,8 +71988,8 @@ export default async function ProductsPage({
   await connection();
   const { q: qRaw, category: categoryRaw } =
     await loadProductSearchParams(searchParams);
-  const category = categoryRaw ?? undefined;
-  const q = qRaw ?? undefined;
+  const category = categoryRaw?.trim() || undefined;
+  const q = qRaw?.trim() || undefined;
 
   const breadcrumbItems = [
     { label: 'Trang chủ', url: '/' },

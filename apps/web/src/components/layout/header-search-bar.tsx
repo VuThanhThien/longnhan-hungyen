@@ -98,7 +98,7 @@ export default function HeaderSearchBar({
         case 'recent':
           navigate(
             serializeProductSearchUrl('/products', {
-              q: option.item.q,
+              q: option.item.q.trim() || null,
               category: option.item.category || null,
             }),
           );
