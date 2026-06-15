@@ -3,18 +3,10 @@ import { Geist } from 'next/font/google';
 import localFont from 'next/font/local';
 import './globals.css';
 import { AppProviders } from '@/components/providers/app-providers';
+import Footer from '@/components/layout/footer';
 import Header from '@/components/layout/header';
 import BackToTopButton from '@/components/ui/back-to-top-button';
 import dynamic from 'next/dynamic';
-
-const Footer = dynamic(() => import('@/components/layout/footer'), {
-  loading: () => (
-    <footer
-      className="mt-auto min-h-[320px] border-t border-(--brand-gold)/25 bg-(--brand-forest)"
-      aria-hidden
-    />
-  ),
-});
 
 const FloatingContactWidget = dynamic(
   () => import('@/components/layout/floating-contact-widget'),

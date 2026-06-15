@@ -7,6 +7,7 @@ import { buildBreadcrumb } from '@/lib/breadcrumb';
 import { loadProductSearchParams } from '@/lib/product-search-params';
 import { PRODUCTS_LISTING_SEO } from '@/data/landing-page-content';
 import { buildSeoMetadata } from '@/lib/seo';
+import { PAGE_SEO_KEYWORDS } from '@/lib/seo-keywords';
 import { PWA_CONFIG } from '@/lib/pwa-config';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
@@ -20,6 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: PRODUCTS_LISTING_SEO.title,
     description: PRODUCTS_LISTING_SEO.description,
     canonicalPath: '/products',
+    keywords: [...PAGE_SEO_KEYWORDS],
     ogImage: {
       url: PWA_CONFIG.heroImage.path,
       width: PWA_CONFIG.heroImage.width,
@@ -58,8 +60,11 @@ export default async function ProductsPage({
       <Breadcrumb items={breadcrumbItems} />
       <div className="mb-6">
         <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-          Danh mục sản phẩm
+          Sản phẩm Nhãn Hưng Yên
         </h1>
+        <p className="mt-2 text-muted-foreground">
+          Long nhãn sấy khô, nhãn lồng và set quà Tống Trân — chính gốc Hưng Yên
+        </p>
       </div>
       <Suspense
         key={`${category ?? ''}:${q ?? ''}`}

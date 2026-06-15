@@ -1,43 +1,27 @@
 import ProductImages from '@/components/products/product-images';
 import { ProductAddToCart } from '@/components/products/product-add-to-cart';
+import { ProductDetailEnrichment } from '@/components/products/product-detail-enrichment';
 import ProductPdpHero from '@/components/products/product-pdp-hero';
 import ProductPdpTabs from '@/components/products/product-pdp-tabs';
 import ProductReviewsSection from '@/components/products/product-reviews-section';
-import RelatedProducts from '@/components/products/related-products';
 import Breadcrumb from '@/components/ui/breadcrumb';
-import { fetchApi, fetchPaginated } from '@/lib/api-client';
+import { fetchApi } from '@/lib/api-client';
 import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
 import { buildBreadcrumb } from '@/lib/breadcrumb';
-import {
-  productDetailCacheTags,
-  relatedProductsCacheTags,
-} from '@/lib/content-cache-tags';
+import { productDetailCacheTags } from '@/lib/content-cache-tags';
 import { buildSeoMetadata, trimMetaDescription } from '@/lib/seo';
+import { PAGE_SEO_KEYWORDS } from '@/lib/seo-keywords';
 import { buildProductSchema } from '@/lib/structured-data';
 import type { Product } from '@longnhan/types';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { cacheLife, cacheTag } from 'next/cache';
+import { connection } from 'next/server';
+import { Suspense } from 'react';
 
 interface ProductDetailPageProps {
   params: Promise<{ slug: string }>;
 }
-
-type ProductReviewItem = {
-  id: string;
-  productId: string;
-  rating: number;
-  comment: string | null;
-  createdAt: string;
-  reviewerLabel: string;
-  variantLabel: string;
-};
-
-type ProductReviewsList = {
-  ratingAvg: number;
-  ratingCount: number;
-  items: ProductReviewItem[];
-};
 
 async function getProduct(slug: string): Promise<Product | null> {
   'use cache';
@@ -50,51 +34,6 @@ async function getProduct(slug: string): Promise<Product | null> {
       route: '/products/[slug]',
       section: 'product_detail',
       extra: { slug },
-    });
-    return null;
-  }
-}
-
-async function getRelatedProducts(
-  category: string | undefined,
-  excludeSlug: string,
-): Promise<Product[]> {
-  'use cache';
-  cacheLife({ revalidate: 60 });
-  cacheTag(...relatedProductsCacheTags(category, excludeSlug));
-  try {
-    const relatedResponse = await fetchPaginated<Product>('/products', {
-      category,
-      limit: 8,
-    });
-    return relatedResponse.data
-      .filter((item) => item.slug !== excludeSlug)
-      .slice(0, 4);
-  } catch (error) {
-    captureApiFetchError(error, {
-      route: '/products/[slug]',
-      section: 'related_products',
-      extra: { category: category ?? null, excludeSlug },
-    });
-    return [];
-  }
-}
-
-async function getProductReviews(
-  productId: string,
-): Promise<ProductReviewsList | null> {
-  'use cache';
-  cacheLife({ revalidate: 60 });
-  cacheTag('products', 'reviews', productId);
-  try {
-    return await fetchApi<ProductReviewsList>(
-      `/products/${encodeURIComponent(productId)}/reviews`,
-    );
-  } catch (error) {
-    captureApiFetchError(error, {
-      route: '/products/[slug]',
-      section: 'product_reviews_schema',
-      extra: { productId },
     });
     return null;
   }
@@ -126,12 +65,13 @@ export async function generateMetadata({
     product.summary?.trim() ||
     (product.description
       ? trimMetaDescription(product.description)
-      : `Mua ${product.name} — long nhãn Hưng Yên Tống Trân, giao COD toàn quốc. Đặt hàng tại nhanhunguyen.com.`);
+      : `Mua ${product.name} — nhãn Hưng Yên, long nhãn Tống Trân chính gốc. Giao COD toàn quốc tại nhanhunguyen.com.`);
 
   return buildSeoMetadata({
     title: product.name,
     description,
     canonicalPath: `/products/${product.slug}`,
+    keywords: [...PAGE_SEO_KEYWORDS, product.name],
     openGraphType: 'website',
     ...(firstImage
       ? {
@@ -147,17 +87,13 @@ export async function generateMetadata({
 export default async function ProductDetailPage({
   params,
 }: ProductDetailPageProps) {
+  await connection();
   const { slug } = await params;
   const product = await getProduct(slug);
 
   if (!product) {
     notFound();
   }
-
-  const relatedProducts = await getRelatedProducts(
-    product.category,
-    product.slug,
-  );
 
   const breadcrumbItems = [
     { label: 'Trang chủ', url: '/' },
@@ -170,41 +106,7 @@ export default async function ProductDetailPage({
     currentUrl: `/products/${product.slug}`,
   });
 
-  const reviews = await getProductReviews(product.id as string);
-  const baseProductSchema = buildProductSchema(product);
-  const productSchema = {
-    ...baseProductSchema,
-    ...(reviews?.ratingCount && reviews.ratingCount > 0
-      ? {
-          aggregateRating: {
-            '@type': 'AggregateRating',
-            ratingValue: Number(reviews.ratingAvg.toFixed(1)),
-            reviewCount: reviews.ratingCount,
-            bestRating: 5,
-            worstRating: 1,
-          },
-        }
-      : null),
-    ...(reviews?.items?.length
-      ? {
-          review: reviews.items.slice(0, 5).map((r) => ({
-            '@type': 'Review',
-            author: {
-              '@type': 'Person',
-              name: r.reviewerLabel,
-            },
-            datePublished: r.createdAt,
-            reviewRating: {
-              '@type': 'Rating',
-              ratingValue: r.rating,
-              bestRating: 5,
-              worstRating: 1,
-            },
-            ...(r.comment ? { reviewBody: r.comment } : null),
-          })),
-        }
-      : null),
-  };
+  const productSchema = buildProductSchema(product);
   const images = product.images ?? [];
   const imageList =
     images.length > 0
@@ -248,7 +150,9 @@ export default async function ProductDetailPage({
         productId={product.id as string}
         productName={product.name}
       />
-      <RelatedProducts products={relatedProducts} />
+      <Suspense fallback={null}>
+        <ProductDetailEnrichment product={product} />
+      </Suspense>
     </section>
   );
 }

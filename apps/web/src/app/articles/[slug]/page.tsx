@@ -10,6 +10,7 @@ import { articleDetailCacheTags } from '@/lib/content-cache-tags';
 import { buildSeoMetadata } from '@/lib/seo';
 import { buildArticleSchema } from '@/lib/structured-data';
 import { cacheLife, cacheTag } from 'next/cache';
+import { connection } from 'next/server';
 
 interface ArticleDetailPageProps {
   params: Promise<{ slug: string }>;
@@ -63,6 +64,7 @@ export async function generateMetadata({
 export default async function ArticleDetailPage({
   params,
 }: ArticleDetailPageProps) {
+  await connection();
   const { slug } = await params;
   const article = await getArticle(slug);
 

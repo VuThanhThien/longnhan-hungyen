@@ -922,9 +922,7 @@ apps/
             page.tsx
         articles/
           [slug]/
-            loading.tsx
             page.tsx
-          loading.tsx
           page.tsx
         cart/
           loading.tsx
@@ -942,9 +940,7 @@ apps/
           page.tsx
         products/
           [slug]/
-            loading.tsx
             page.tsx
-          loading.tsx
           page.tsx
         service-unavailable/
           page.tsx
@@ -957,7 +953,6 @@ apps/
         global-error.tsx
         globals.css
         layout.tsx
-        loading.tsx
         manifest.ts
         not-found.tsx
         page.tsx
@@ -1005,6 +1000,7 @@ apps/
           landing-urgency-strip.tsx
           section-heading.tsx
         layout/
+          copyright-year.tsx
           floating-contact-widget.tsx
           footer.tsx
           header-cart-button.tsx
@@ -1023,6 +1019,7 @@ apps/
           category-filter.tsx
           product-add-to-cart.tsx
           product-card.tsx
+          product-detail-enrichment.tsx
           product-grid.tsx
           product-images.tsx
           product-pdp-hero.tsx
@@ -1106,6 +1103,7 @@ apps/
         pwa-config.ts
         query-keys.ts
         saved-orders.ts
+        seo-keywords.ts
         seo.ts
         structured-data.ts
         utils.ts
@@ -1218,69 +1216,219 @@ This section contains the contents of the repository's files.
 
 </file>
 
-<file path="apps/admin/src/lib/http/sanitize-api-query-params.ts">
-export type ApiQueryParams = Record<
-  string,
-  string | number | boolean | undefined | null
->;
+<file path="apps/web/src/components/layout/copyright-year.tsx">
+'use client';
 
-/** Drops blank strings so optional API query fields are omitted instead of sent as `key=`. */
-export function sanitizeApiQueryParams(
-  params?: ApiQueryParams,
-): Record<string, string | number | boolean> | undefined {
-  if (!params) return undefined;
-
-  const out: Record<string, string | number | boolean> = {};
-  for (const [key, value] of Object.entries(params)) {
-    if (value === undefined || value === null) continue;
-    if (typeof value === 'string') {
-      const trimmed = value.trim();
-      if (trimmed === '') continue;
-      out[key] = trimmed;
-      continue;
-    }
-    out[key] = value;
-  }
-
-  return Object.keys(out).length > 0 ? out : undefined;
+/** Client-only so the layout footer stays statically prerenderable. */
+export function CopyrightYear() {
+  return <>{new Date().getFullYear()}</>;
 }
 </file>
 
-<file path="apps/web/src/lib/http/sanitize-api-query-params.ts">
-export type ApiQueryParams = Record<string, string | number | undefined>;
+<file path="apps/web/src/components/products/product-detail-enrichment.tsx">
+import RelatedProducts from '@/components/products/related-products';
+import { fetchApi, fetchPaginated } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
+import { relatedProductsCacheTags } from '@/lib/content-cache-tags';
+import { buildProductSchema } from '@/lib/structured-data';
+import type { Product } from '@longnhan/types';
+import { cacheLife, cacheTag } from 'next/cache';
 
-/** Drops empty strings so optional API query fields are omitted instead of sent as `q=`. */
-export function sanitizeApiQueryParams(
-  params?: ApiQueryParams,
-): ApiQueryParams | undefined {
-  if (!params) return undefined;
+type ProductReviewItem = {
+  id: string;
+  productId: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  reviewerLabel: string;
+  variantLabel: string;
+};
 
-  const out: ApiQueryParams = {};
-  for (const [key, value] of Object.entries(params)) {
-    if (value === undefined) continue;
-    if (typeof value === 'string') {
-      const trimmed = value.trim();
-      if (trimmed === '') continue;
-      out[key] = trimmed;
-      continue;
-    }
-    out[key] = value;
+type ProductReviewsList = {
+  ratingAvg: number;
+  ratingCount: number;
+  items: ProductReviewItem[];
+};
+
+async function getRelatedProducts(
+  category: string | undefined,
+  excludeSlug: string,
+): Promise<Product[]> {
+  'use cache';
+  cacheLife({ revalidate: 60 });
+  cacheTag(...relatedProductsCacheTags(category, excludeSlug));
+  try {
+    const relatedResponse = await fetchPaginated<Product>('/products', {
+      category,
+      limit: 8,
+    });
+    return relatedResponse.data
+      .filter((item) => item.slug !== excludeSlug)
+      .slice(0, 4);
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/products/[slug]',
+      section: 'related_products',
+      extra: { category: category ?? null, excludeSlug },
+    });
+    return [];
   }
+}
 
-  return Object.keys(out).length > 0 ? out : undefined;
+async function getProductReviews(
+  productId: string,
+): Promise<ProductReviewsList | null> {
+  'use cache';
+  cacheLife({ revalidate: 60 });
+  cacheTag('products', 'reviews', productId);
+  try {
+    return await fetchApi<ProductReviewsList>(
+      `/products/${encodeURIComponent(productId)}/reviews`,
+    );
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/products/[slug]',
+      section: 'product_reviews_schema',
+      extra: { productId },
+    });
+    return null;
+  }
+}
+
+/** Reviews JSON-LD + related products — streamed after primary PDP HTML. */
+export async function ProductDetailEnrichment({
+  product,
+}: {
+  product: Product;
+}) {
+  const [relatedProducts, reviews] = await Promise.all([
+    getRelatedProducts(product.category, product.slug),
+    getProductReviews(product.id as string),
+  ]);
+
+  const baseProductSchema = buildProductSchema(product);
+  const enrichedSchema = {
+    ...baseProductSchema,
+    ...(reviews?.ratingCount && reviews.ratingCount > 0
+      ? {
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: Number(reviews.ratingAvg.toFixed(1)),
+            reviewCount: reviews.ratingCount,
+            bestRating: 5,
+            worstRating: 1,
+          },
+        }
+      : null),
+    ...(reviews?.items?.length
+      ? {
+          review: reviews.items.slice(0, 5).map((r) => ({
+            '@type': 'Review',
+            author: {
+              '@type': 'Person',
+              name: r.reviewerLabel,
+            },
+            datePublished: r.createdAt,
+            reviewRating: {
+              '@type': 'Rating',
+              ratingValue: r.rating,
+              bestRating: 5,
+              worstRating: 1,
+            },
+            ...(r.comment ? { reviewBody: r.comment } : null),
+          })),
+        }
+      : null),
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(enrichedSchema) }}
+      />
+      <RelatedProducts products={relatedProducts} />
+    </>
+  );
 }
 </file>
 
-<file path="apps/web/src/lib/observability/is-api-validation-fetch-error.ts">
-import { isAxiosError } from 'axios';
+<file path="apps/web/src/lib/seo-keywords.ts">
+/**
+ * Central SEO keyword lists — Vietnamese + ASCII (no diacritics) for search coverage.
+ * Used in meta keywords, JSON-LD alternateName, and copy templates.
+ */
 
-/** Client/query validation (422) — not worth a Sentry exception after graceful fallbacks. */
-export function isApiValidationFetchError(error: unknown): boolean {
-  if (isAxiosError(error) && error.response?.status === 422) return true;
-  if (error instanceof Error && error.message === 'Validation failed')
-    return true;
-  return false;
-}
+/** Use-case keywords — chè dưỡng nhan, nấu chè (có nội dung landing/FAQ hỗ trợ) */
+export const CHE_SEO_KEYWORDS = [
+  'chè dưỡng nhan',
+  'long nhãn nấu chè',
+  'hạt sen long nhãn',
+  'che duong nhan',
+  'long nhan nau che',
+  'hat sen long nhan',
+] as const;
+
+/** Full keyword set for home / layout */
+export const CORE_SEO_KEYWORDS = [
+  'nhanhunguyen.com',
+  'Nhãn Hưng Yên',
+  'Long nhãn Hưng Yên',
+  'long nhãn Hưng Yên',
+  'nhãn lồng Hưng Yên',
+  'Long Nhãn Tống Trân',
+  'Nhãn Tống Trân',
+  'đặc sản nhãn Hưng Yên',
+  'đặc sản Hưng Yên',
+  'mua nhãn Hưng Yên',
+  'long nhãn sấy khô',
+  'long nhãn sấy khô Hưng Yên',
+  'long nhãn quà tặng',
+  'Long nhãn giao COD',
+  'Long nhãn Shopee',
+  'Long nhãn TikTok',
+  ...CHE_SEO_KEYWORDS,
+  // ASCII — không dấu (gõ không dấu, tìm kiếm giọng nói)
+  'nhan hung yen',
+  'nhan long hung yen',
+  'long nhan hung yen',
+  'nhan long',
+  'nhan long say kho',
+  'mua nhan hung yen',
+  'dac san nhan hung yen',
+  'nhan tong tran',
+] as const;
+
+/** Shorter subset for product listing / PDP */
+export const PAGE_SEO_KEYWORDS = [
+  'Nhãn Hưng Yên',
+  'Long nhãn Hưng Yên',
+  'nhãn lồng Hưng Yên',
+  'long nhãn sấy khô',
+  'nhan hung yen',
+  'long nhan hung yen',
+  'nhanhunguyen.com',
+] as const;
+
+/** Articles hub — core + chè dưỡng nhan intent */
+export const ARTICLE_SEO_KEYWORDS = [
+  ...PAGE_SEO_KEYWORDS,
+  'chè dưỡng nhan',
+  'long nhãn nấu chè',
+  'hạt sen long nhãn',
+  'che duong nhan',
+] as const;
+
+/** Schema.org alternateName values */
+export const SCHEMA_ALTERNATE_NAMES = [
+  'Nhãn Hưng Yên',
+  'Long Nhãn Hưng Yên',
+  'Long Nhãn Tống Trân',
+  'nhan hung yen',
+  'long nhan hung yen',
+  'nhan long hung yen',
+  'nhanhunguyen.com',
+] as const;
 </file>
 
 <file path="apps/admin/public/file.svg">
@@ -6176,6 +6324,34 @@ export function extractErrorMessage(error: unknown): string {
 }
 </file>
 
+<file path="apps/admin/src/lib/http/sanitize-api-query-params.ts">
+export type ApiQueryParams = Record<
+  string,
+  string | number | boolean | undefined | null
+>;
+
+/** Drops blank strings so optional API query fields are omitted instead of sent as `key=`. */
+export function sanitizeApiQueryParams(
+  params?: ApiQueryParams,
+): Record<string, string | number | boolean> | undefined {
+  if (!params) return undefined;
+
+  const out: Record<string, string | number | boolean> = {};
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null) continue;
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed === '') continue;
+      out[key] = trimmed;
+      continue;
+    }
+    out[key] = value;
+  }
+
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+</file>
+
 <file path="apps/admin/src/lib/validation/admin-list-filter-schemas.ts">
 import { z } from 'zod';
 
@@ -6282,97 +6458,6 @@ export function parseAuthTokens(value: string | undefined): AuthTokens | null {
 
   return null;
 }
-</file>
-
-<file path="apps/admin/src/lib/http-client.ts">
-import axios from 'axios';
-import { sanitizeApiQueryParams } from '@/lib/http/sanitize-api-query-params';
-import { getTokensInfo, setTokensInfo } from '@/services/auth/auth-tokens-info';
-
-export const httpClient = axios.create({
-  baseURL: '/api',
-  timeout: 15_000,
-});
-
-const AUTH_REFRESH_URL = '/api/auth/refresh';
-let refreshPromise: Promise<void> | null = null;
-
-async function refreshTokens() {
-  if (refreshPromise) return refreshPromise;
-
-  refreshPromise = (async () => {
-    try {
-      const tokens = getTokensInfo();
-      if (!tokens?.refreshToken) return;
-
-      const response = await fetch(AUTH_REFRESH_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: tokens.refreshToken }),
-      });
-
-      if (!response.ok) {
-        setTokensInfo(null);
-        return;
-      }
-
-      const json = await response.json();
-      const data = json?.data ?? json;
-
-      if (
-        typeof data?.accessToken === 'string' &&
-        typeof data?.refreshToken === 'string' &&
-        typeof data?.tokenExpires === 'number'
-      ) {
-        setTokensInfo({
-          accessToken: data.accessToken,
-          refreshToken: data.refreshToken,
-          tokenExpires: data.tokenExpires,
-        });
-        return;
-      }
-
-      setTokensInfo(null);
-    } catch {
-      setTokensInfo(null);
-    }
-  })().finally(() => {
-    refreshPromise = null;
-  });
-
-  return refreshPromise;
-}
-
-httpClient.interceptors.request.use(async (config) => {
-  if (
-    config.params != null &&
-    typeof config.params === 'object' &&
-    !Array.isArray(config.params) &&
-    !(config.params instanceof URLSearchParams)
-  ) {
-    config.params = sanitizeApiQueryParams(
-      config.params as Record<
-        string,
-        string | number | boolean | undefined | null
-      >,
-    );
-  }
-
-  const tokens = getTokensInfo();
-
-  if (tokens?.tokenExpires && tokens.tokenExpires - 60_000 <= Date.now()) {
-    await refreshTokens();
-  }
-
-  const refreshed = getTokensInfo();
-
-  if (refreshed?.accessToken) {
-    config.headers = config.headers ?? {};
-    config.headers.Authorization = `Bearer ${refreshed.accessToken}`;
-  }
-
-  return config;
-});
 </file>
 
 <file path="apps/admin/src/lib/media.ts">
@@ -16929,22 +17014,6 @@ export default async function Page({ params }: Props) {
 }
 </file>
 
-<file path="apps/web/src/app/articles/[slug]/loading.tsx">
-import { ArticleDetailRouteSkeleton } from '@/components/ui/route-loading-skeleton';
-
-export default function ArticleDetailLoading() {
-  return <ArticleDetailRouteSkeleton />;
-}
-</file>
-
-<file path="apps/web/src/app/articles/loading.tsx">
-import { ArticlesRouteSkeleton } from '@/components/ui/route-loading-skeleton';
-
-export default function ArticlesLoading() {
-  return <ArticlesRouteSkeleton />;
-}
-</file>
-
 <file path="apps/web/src/app/cart/loading.tsx">
 import { CartRouteSkeleton } from '@/components/ui/route-loading-skeleton';
 
@@ -16958,22 +17027,6 @@ import { OrderSuccessRouteSkeleton } from '@/components/ui/route-loading-skeleto
 
 export default function OrderSuccessLoading() {
   return <OrderSuccessRouteSkeleton />;
-}
-</file>
-
-<file path="apps/web/src/app/products/[slug]/loading.tsx">
-import { ProductDetailRouteSkeleton } from '@/components/ui/route-loading-skeleton';
-
-export default function ProductDetailLoading() {
-  return <ProductDetailRouteSkeleton />;
-}
-</file>
-
-<file path="apps/web/src/app/products/loading.tsx">
-import { ProductsRouteSkeleton } from '@/components/ui/route-loading-skeleton';
-
-export default function ProductsLoading() {
-  return <ProductsRouteSkeleton />;
 }
 </file>
 
@@ -17016,14 +17069,6 @@ export function ServiceUnavailableScreen() {
       </div>
     </section>
   );
-}
-</file>
-
-<file path="apps/web/src/app/loading.tsx">
-import { RouteLoadingSkeleton } from '@/components/ui/route-loading-skeleton';
-
-export default function Loading() {
-  return <RouteLoadingSkeleton />;
 }
 </file>
 
@@ -20355,7 +20400,7 @@ export function FooterPageLayout({ page }: { page: FooterPageData }) {
   });
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-12 md:py-16">
+    <article className="mx-auto max-w-3xl px-4 py-12 md:py-16">
       {breadcrumbSchema ? (
         <script
           type="application/ld+json"
@@ -20382,7 +20427,7 @@ export function FooterPageLayout({ page }: { page: FooterPageData }) {
           </section>
         ))}
       </div>
-    </main>
+    </article>
   );
 }
 </file>
@@ -20621,48 +20666,40 @@ export function extractErrorMessage(error: unknown): string {
 }
 </file>
 
-<file path="apps/web/src/lib/observability/api-fetch-sentry.ts">
-import * as Sentry from '@sentry/nextjs';
-import { isApiValidationFetchError } from '@/lib/observability/is-api-validation-fetch-error';
+<file path="apps/web/src/lib/http/sanitize-api-query-params.ts">
+export type ApiQueryParams = Record<string, string | number | undefined>;
 
-export type HomeContentSection = 'products' | 'categories' | 'articles';
+/** Drops empty strings so optional API query fields are omitted instead of sent as `q=`. */
+export function sanitizeApiQueryParams(
+  params?: ApiQueryParams,
+): ApiQueryParams | undefined {
+  if (!params) return undefined;
 
-export type ApiFetchSentryContext = {
-  /** Logical page or feature, e.g. `/`, `/products`, `sitemap` */
-  route: string;
-  /** Sub-area, e.g. `listing`, `product_detail` */
-  section: string;
-  extra?: Record<string, unknown>;
-};
+  const out: ApiQueryParams = {};
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined) continue;
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed === '') continue;
+      out[key] = trimmed;
+      continue;
+    }
+    out[key] = value;
+  }
 
-/** Reports failed API fetches when `@sentry/nextjs` is initialized (see `sentry.server.config.ts` / client init). */
-export function captureApiFetchError(
-  error: unknown,
-  context: ApiFetchSentryContext,
-): void {
-  if (!Sentry.getClient() || isApiValidationFetchError(error)) return;
-
-  Sentry.withScope((scope) => {
-    scope.setTag('fetch_route', context.route);
-    scope.setTag('fetch_section', context.section);
-    scope.setContext('api_fetch', {
-      route: context.route,
-      section: context.section,
-      source: 'api_client',
-      ...context.extra,
-    });
-    Sentry.captureException(error);
-  });
+  return Object.keys(out).length > 0 ? out : undefined;
 }
+</file>
 
-export function captureHomeContentFetchError(
-  section: HomeContentSection,
-  error: unknown,
-): void {
-  captureApiFetchError(error, {
-    route: '/',
-    section: `home_${section}`,
-  });
+<file path="apps/web/src/lib/observability/is-api-validation-fetch-error.ts">
+import { isAxiosError } from 'axios';
+
+/** Client/query validation (422) — not worth a Sentry exception after graceful fallbacks. */
+export function isApiValidationFetchError(error: unknown): boolean {
+  if (isAxiosError(error) && error.response?.status === 422) return true;
+  if (error instanceof Error && error.message === 'Validation failed')
+    return true;
+  return false;
 }
 </file>
 
@@ -21371,20 +21408,6 @@ export const config = {
     '/((?!_next/static|_next/image|monitoring|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2|ttf)$).*)',
   ],
 };
-</file>
-
-<file path="apps/web/AGENTS.md">
-<!-- BEGIN:nextjs-agent-rules -->
-
-# This is NOT the Next.js you know
-
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
-
-<!-- END:nextjs-agent-rules -->
-
-## API query params
-
-Before any `apiClient` / `useQuery` fetch with query params: sanitize via `sanitizeApiQueryParams` or Zod parsers. See `.cursor/rules/frontend-api-query-params.mdc` (axios interceptor is the HTTP safety net).
 </file>
 
 <file path="apps/web/eslint.config.mjs">
@@ -38170,6 +38193,97 @@ export async function forwardAdminApi(
 }
 </file>
 
+<file path="apps/admin/src/lib/http-client.ts">
+import axios from 'axios';
+import { sanitizeApiQueryParams } from '@/lib/http/sanitize-api-query-params';
+import { getTokensInfo, setTokensInfo } from '@/services/auth/auth-tokens-info';
+
+export const httpClient = axios.create({
+  baseURL: '/api',
+  timeout: 15_000,
+});
+
+const AUTH_REFRESH_URL = '/api/auth/refresh';
+let refreshPromise: Promise<void> | null = null;
+
+async function refreshTokens() {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    try {
+      const tokens = getTokensInfo();
+      if (!tokens?.refreshToken) return;
+
+      const response = await fetch(AUTH_REFRESH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: tokens.refreshToken }),
+      });
+
+      if (!response.ok) {
+        setTokensInfo(null);
+        return;
+      }
+
+      const json = await response.json();
+      const data = json?.data ?? json;
+
+      if (
+        typeof data?.accessToken === 'string' &&
+        typeof data?.refreshToken === 'string' &&
+        typeof data?.tokenExpires === 'number'
+      ) {
+        setTokensInfo({
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+          tokenExpires: data.tokenExpires,
+        });
+        return;
+      }
+
+      setTokensInfo(null);
+    } catch {
+      setTokensInfo(null);
+    }
+  })().finally(() => {
+    refreshPromise = null;
+  });
+
+  return refreshPromise;
+}
+
+httpClient.interceptors.request.use(async (config) => {
+  if (
+    config.params != null &&
+    typeof config.params === 'object' &&
+    !Array.isArray(config.params) &&
+    !(config.params instanceof URLSearchParams)
+  ) {
+    config.params = sanitizeApiQueryParams(
+      config.params as Record<
+        string,
+        string | number | boolean | undefined | null
+      >,
+    );
+  }
+
+  const tokens = getTokensInfo();
+
+  if (tokens?.tokenExpires && tokens.tokenExpires - 60_000 <= Date.now()) {
+    await refreshTokens();
+  }
+
+  const refreshed = getTokensInfo();
+
+  if (refreshed?.accessToken) {
+    config.headers = config.headers ?? {};
+    config.headers.Authorization = `Bearer ${refreshed.accessToken}`;
+  }
+
+  return config;
+});
+</file>
+
 <file path="apps/admin/src/services/auth/auth-provider.tsx">
 'use client';
 
@@ -45286,88 +45400,48 @@ export const SectionTitleLinkButton: React.FC<
 export default SectionTitleLinkButton;
 </file>
 
-<file path="apps/web/src/hooks/use-products.ts">
-'use client';
+<file path="apps/web/src/lib/observability/api-fetch-sentry.ts">
+import * as Sentry from '@sentry/nextjs';
+import { isApiValidationFetchError } from '@/lib/observability/is-api-validation-fetch-error';
 
-import { useQuery } from '@tanstack/react-query';
-import type { Product } from '@longnhan/types';
-import { apiClient } from '@/lib/api-client';
-import { sanitizeApiQueryParams } from '@/lib/http/sanitize-api-query-params';
-import { queryKeys } from '@/lib/query-keys';
-import type { PaginatedResponse } from '@/lib/types/api-paginated';
+export type HomeContentSection = 'products' | 'categories' | 'articles';
 
-export function useProductsList(params?: {
-  category?: string;
-  q?: string;
-  page?: number;
-  limit?: number;
-}) {
-  return useQuery({
-    queryKey: queryKeys.products.list(params),
-    queryFn: async () => {
-      const { data } = await apiClient.get<PaginatedResponse<Product>>(
-        '/products',
-        { params: sanitizeApiQueryParams(params) },
-      );
-      return data;
-    },
-  });
-}
-</file>
+export type ApiFetchSentryContext = {
+  /** Logical page or feature, e.g. `/`, `/products`, `sitemap` */
+  route: string;
+  /** Sub-area, e.g. `listing`, `product_detail` */
+  section: string;
+  extra?: Record<string, unknown>;
+};
 
-<file path="apps/web/src/lib/api-client.ts">
-import { createLongnhanApi } from '@/lib/http/create-longnhan-api';
-import { sanitizeApiQueryParams } from '@/lib/http/sanitize-api-query-params';
-import type { PaginatedResponse } from '@/lib/types/api-paginated';
+/** Reports failed API fetches when `@sentry/nextjs` is initialized (see `sentry.server.config.ts` / client init). */
+export function captureApiFetchError(
+  error: unknown,
+  context: ApiFetchSentryContext,
+): void {
+  if (!Sentry.getClient() || isApiValidationFetchError(error)) return;
 
-const baseURL =
-  typeof window === 'undefined'
-    ? process.env.API_URL ||
-      process.env.NEXT_PUBLIC_API_URL ||
-      'http://localhost:3001/api/v1'
-    : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
-
-export const apiClient = createLongnhanApi(baseURL);
-
-export async function fetchApi<T>(
-  path: string,
-  init?: {
-    method?: string;
-    body?: unknown;
-    params?: Record<string, string | number | undefined>;
-  },
-): Promise<T> {
-  const method = init?.method ?? 'GET';
-  if (method === 'GET' || !init?.body) {
-    const { data } = await apiClient.get<T>(path, {
-      params: sanitizeApiQueryParams(init?.params),
+  Sentry.withScope((scope) => {
+    scope.setTag('fetch_route', context.route);
+    scope.setTag('fetch_section', context.section);
+    scope.setContext('api_fetch', {
+      route: context.route,
+      section: context.section,
+      source: 'api_client',
+      ...context.extra,
     });
-    return data as T;
-  }
-  const { data } = await apiClient.request<T>({
-    url: path,
-    method,
-    data: init.body,
+    Sentry.captureException(error);
   });
-  return data as T;
 }
 
-export async function fetchPaginated<T>(
-  path: string,
-  params?: Record<string, string | number | undefined>,
-): Promise<PaginatedResponse<T>> {
-  const { data } = await apiClient.get<PaginatedResponse<T>>(path, {
-    params: sanitizeApiQueryParams(params),
+export function captureHomeContentFetchError(
+  section: HomeContentSection,
+  error: unknown,
+): void {
+  captureApiFetchError(error, {
+    route: '/',
+    section: `home_${section}`,
   });
-  return data;
-}
-
-export async function fetchList<T>(
-  path: string,
-  params?: Record<string, string | number | undefined>,
-): Promise<T[]> {
-  const result = await fetchPaginated<T>(path, params);
-  return result.data;
 }
 </file>
 
@@ -45496,6 +45570,20 @@ next-env.d.ts
 
 # Sentry Config File
 .env.sentry-build-plugin
+</file>
+
+<file path="apps/web/AGENTS.md">
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+
+<!-- END:nextjs-agent-rules -->
+
+## API query params
+
+Before any `apiClient` / `useQuery` fetch with query params: sanitize via `sanitizeApiQueryParams` or Zod parsers. See `.cursor/rules/frontend-api-query-params.mdc` (axios interceptor is the HTTP safety net).
 </file>
 
 <file path="deploy/cloudflare/config.yml.example">
@@ -49299,54 +49387,6 @@ export const useUnmount = (callback: () => void) => {
 export default useUnmount;
 </file>
 
-<file path="apps/admin/src/lib/admin-client.ts">
-import { httpClient } from '@/lib/http-client';
-import { sanitizeApiQueryParams } from '@/lib/http/sanitize-api-query-params';
-
-export async function adminClientGet<T>(
-  path: string,
-  params?: Record<string, string | number | boolean | undefined | null>,
-) {
-  const res = await httpClient.get(path, {
-    params: sanitizeApiQueryParams(params),
-  });
-  const json = res.data;
-  if (
-    json &&
-    typeof json === 'object' &&
-    'pagination' in json &&
-    Array.isArray((json as { data?: unknown }).data)
-  ) {
-    return json as T;
-  }
-  return (json?.data ?? json) as T;
-}
-
-export async function adminClientPost<T>(path: string, body?: unknown) {
-  const res = await httpClient.post(path, body);
-  const json = res.data;
-  return (json?.data ?? json) as T;
-}
-
-export async function adminClientPut<T>(path: string, body?: unknown) {
-  const res = await httpClient.put(path, body);
-  const json = res.data;
-  return (json?.data ?? json) as T;
-}
-
-export async function adminClientPatch<T>(path: string, body?: unknown) {
-  const res = await httpClient.patch(path, body);
-  const json = res.data;
-  return (json?.data ?? json) as T;
-}
-
-export async function adminClientDelete<T>(path: string) {
-  const res = await httpClient.delete(path);
-  const json = res.data;
-  return (json?.data ?? json) as T;
-}
-</file>
-
 <file path="apps/admin/src/lib/admin-data.ts">
 /** Matches Nest `OffsetPaginationDto` JSON shape from the API */
 export interface ApiOffsetPagination {
@@ -50344,26 +50384,6 @@ export function generateSlug(text: string): string {
     height: 0;
   }
 }
-</file>
-
-<file path="apps/admin/AGENTS.md">
-<!-- BEGIN:nextjs-agent-rules -->
-
-# This is NOT the Next.js you know
-
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
-
-<!-- END:nextjs-agent-rules -->
-
-## Admin UI
-
-**Visual spec:** Use repository root **[DESIGN.md](../../DESIGN.md)** as the canonical reference for admin look and feel (warm palette, typography roles, spacing, buttons, cards, borders, motion). When implementing screens, map those rules through Tailwind and CSS variables in `src/app/globals.css` (and shared tokens under `docs/design-system/` when they exist).
-
-**Components:** Prefer **[shadcn/ui](https://ui.shadcn.com/)** patterns (Radix + Tailwind). Primitives live under `src/components/ui/`. Add missing pieces from the registry with the CLI from `apps/admin` (for example `pnpm dlx shadcn@latest add dialog`), then tune classes to match **DESIGN.md**. Avoid bespoke duplicate controls when a shadcn component already covers the pattern.
-
-**Standards:** See [Frontend code standards](../../docs/frontend-code-standards.md) for shared Next.js rules, including the admin-specific UI subsection.
-
-**API query params:** Sanitize before `httpClient` / `adminClientGet` / hooks — see `.cursor/rules/frontend-api-query-params.mdc`.
 </file>
 
 <file path="apps/admin/next.config.ts">
@@ -53038,6 +53058,91 @@ export default function ScrollReveal({
 }
 </file>
 
+<file path="apps/web/src/hooks/use-products.ts">
+'use client';
+
+import { useQuery } from '@tanstack/react-query';
+import type { Product } from '@longnhan/types';
+import { apiClient } from '@/lib/api-client';
+import { sanitizeApiQueryParams } from '@/lib/http/sanitize-api-query-params';
+import { queryKeys } from '@/lib/query-keys';
+import type { PaginatedResponse } from '@/lib/types/api-paginated';
+
+export function useProductsList(params?: {
+  category?: string;
+  q?: string;
+  page?: number;
+  limit?: number;
+}) {
+  return useQuery({
+    queryKey: queryKeys.products.list(params),
+    queryFn: async () => {
+      const { data } = await apiClient.get<PaginatedResponse<Product>>(
+        '/products',
+        { params: sanitizeApiQueryParams(params) },
+      );
+      return data;
+    },
+  });
+}
+</file>
+
+<file path="apps/web/src/lib/api-client.ts">
+import { createLongnhanApi } from '@/lib/http/create-longnhan-api';
+import { sanitizeApiQueryParams } from '@/lib/http/sanitize-api-query-params';
+import type { PaginatedResponse } from '@/lib/types/api-paginated';
+
+const baseURL =
+  typeof window === 'undefined'
+    ? process.env.API_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      'http://localhost:3001/api/v1'
+    : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+
+export const apiClient = createLongnhanApi(baseURL);
+
+export async function fetchApi<T>(
+  path: string,
+  init?: {
+    method?: string;
+    body?: unknown;
+    params?: Record<string, string | number | undefined>;
+  },
+): Promise<T> {
+  const method = init?.method ?? 'GET';
+  if (method === 'GET' || !init?.body) {
+    const { data } = await apiClient.get<T>(path, {
+      params: sanitizeApiQueryParams(init?.params),
+    });
+    return data as T;
+  }
+  const { data } = await apiClient.request<T>({
+    url: path,
+    method,
+    data: init.body,
+  });
+  return data as T;
+}
+
+export async function fetchPaginated<T>(
+  path: string,
+  params?: Record<string, string | number | undefined>,
+): Promise<PaginatedResponse<T>> {
+  const { data } = await apiClient.get<PaginatedResponse<T>>(path, {
+    params: sanitizeApiQueryParams(params),
+  });
+  return data;
+}
+
+export async function fetchList<T>(
+  path: string,
+  params?: Record<string, string | number | undefined>,
+): Promise<T[]> {
+  const result = await fetchPaginated<T>(path, params);
+  return result.data;
+}
+</file>
+
 <file path="apps/web/src/lib/pwa-config.ts">
 import { LANDING_BRAND, LANDING_SEO } from '@/data/landing-page-content';
 import { SITE_NAME, SITE_URL } from '@/lib/constants';
@@ -53129,6 +53234,8 @@ type SeoBuilderCore = {
   canonicalPath: string;
   ogImage?: OgImage;
   ogImages?: OgImage[];
+  /** Meta keywords — Vietnamese + ASCII variants for search coverage. */
+  keywords?: string | string[];
   /** Use `article` for blog posts so crawlers get the right OG type. */
   openGraphType?: 'website' | 'article';
 };
@@ -53140,7 +53247,7 @@ const DEFAULT_OG_IMAGE: Required<Pick<OgImage, 'url'>> & Partial<OgImage> = {
   url: '/banner-web2.png',
   width: 1200,
   height: 630,
-  alt: 'Long Nhãn Tống Trân',
+  alt: 'Nhãn Hưng Yên — Long Nhãn Tống Trân',
 };
 
 /** Strips HTML and trims to a meta description length (default 160). */
@@ -53176,6 +53283,7 @@ export function buildSeoMetadata(input: BuildSeoMetadataInput): Metadata {
     canonicalPath,
     ogImage,
     ogImages,
+    keywords,
     openGraphType,
     alternates: inputAlternates,
     openGraph: inputOpenGraph,
@@ -53211,6 +53319,7 @@ export function buildSeoMetadata(input: BuildSeoMetadataInput): Metadata {
     ...metadataRest,
     title,
     description,
+    ...(keywords ? { keywords } : {}),
     alternates: {
       ...inputAlternates,
       canonical: pageUrl,
@@ -55746,6 +55855,54 @@ export function getApiUrl() {
 }
 </file>
 
+<file path="apps/admin/src/lib/admin-client.ts">
+import { httpClient } from '@/lib/http-client';
+import { sanitizeApiQueryParams } from '@/lib/http/sanitize-api-query-params';
+
+export async function adminClientGet<T>(
+  path: string,
+  params?: Record<string, string | number | boolean | undefined | null>,
+) {
+  const res = await httpClient.get(path, {
+    params: sanitizeApiQueryParams(params),
+  });
+  const json = res.data;
+  if (
+    json &&
+    typeof json === 'object' &&
+    'pagination' in json &&
+    Array.isArray((json as { data?: unknown }).data)
+  ) {
+    return json as T;
+  }
+  return (json?.data ?? json) as T;
+}
+
+export async function adminClientPost<T>(path: string, body?: unknown) {
+  const res = await httpClient.post(path, body);
+  const json = res.data;
+  return (json?.data ?? json) as T;
+}
+
+export async function adminClientPut<T>(path: string, body?: unknown) {
+  const res = await httpClient.put(path, body);
+  const json = res.data;
+  return (json?.data ?? json) as T;
+}
+
+export async function adminClientPatch<T>(path: string, body?: unknown) {
+  const res = await httpClient.patch(path, body);
+  const json = res.data;
+  return (json?.data ?? json) as T;
+}
+
+export async function adminClientDelete<T>(path: string) {
+  const res = await httpClient.delete(path);
+  const json = res.data;
+  return (json?.data ?? json) as T;
+}
+</file>
+
 <file path="apps/admin/src/lib/admin-form-parsers.ts">
 interface ProductVariantInput {
   label: string;
@@ -55853,6 +56010,26 @@ export function parseArticlePayload(formData: FormData): ArticlePayload {
     published: publish,
   };
 }
+</file>
+
+<file path="apps/admin/AGENTS.md">
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+
+<!-- END:nextjs-agent-rules -->
+
+## Admin UI
+
+**Visual spec:** Use repository root **[DESIGN.md](../../DESIGN.md)** as the canonical reference for admin look and feel (warm palette, typography roles, spacing, buttons, cards, borders, motion). When implementing screens, map those rules through Tailwind and CSS variables in `src/app/globals.css` (and shared tokens under `docs/design-system/` when they exist).
+
+**Components:** Prefer **[shadcn/ui](https://ui.shadcn.com/)** patterns (Radix + Tailwind). Primitives live under `src/components/ui/`. Add missing pieces from the registry with the CLI from `apps/admin` (for example `pnpm dlx shadcn@latest add dialog`), then tune classes to match **DESIGN.md**. Avoid bespoke duplicate controls when a shadcn component already covers the pattern.
+
+**Standards:** See [Frontend code standards](../../docs/frontend-code-standards.md) for shared Next.js rules, including the admin-specific UI subsection.
+
+**API query params:** Sanitize before `httpClient` / `adminClientGet` / hooks — see `.cursor/rules/frontend-api-query-params.mdc`.
 </file>
 
 <file path="apps/api/src/api/orders/dto/create-order.req.dto.ts">
@@ -57531,305 +57708,6 @@ export function LandingTestimonialsTrust() {
 }
 </file>
 
-<file path="apps/web/src/components/layout/header-search-bar.tsx">
-'use client';
-
-import { ChevronDownIcon, MagnifyingGlassIcon } from '@radix-ui/react-icons';
-import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { serializeProductSearchUrl } from '@/lib/product-search-params';
-import {
-  addRecent,
-  readRecents,
-  type RecentQuery,
-} from '@/lib/header-search-recent-queries';
-import { useDebouncedValue } from '@/hooks/use-debounced-value';
-import { useProductSuggestions } from '@/services/product-suggestions';
-import HeaderSearchSuggestions, {
-  getOptionsCount,
-  type SuggestionOption,
-} from './header-search-suggestions';
-
-const ACCENT = '#E8A240';
-
-const CATEGORY_OPTIONS = [
-  { value: '', label: 'Tất cả' },
-  { value: 'longnhan', label: 'Đặc sản Hưng Yên' },
-  { value: 'gift', label: 'Giải pháp quà tặng' },
-  { value: 'giftset', label: 'Bộ quà tặng' },
-] as const;
-
-interface HeaderSearchBarProps {
-  className?: string;
-}
-
-export default function HeaderSearchBar({
-  className = '',
-}: HeaderSearchBarProps) {
-  const router = useRouter();
-  const [inputQ, setInputQ] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-
-  const [open, setOpen] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(-1);
-  const [composing, setComposing] = useState(false);
-  const [recents, setRecents] = useState<RecentQuery[]>([]);
-  const wrapperRef = useRef<HTMLFormElement>(null);
-
-  const trimmedQ = inputQ.trim();
-  const debouncedQ = useDebouncedValue(trimmedQ, 250);
-
-  const {
-    data: suggestions,
-    isLoading,
-    isError,
-  } = useProductSuggestions(debouncedQ, open && !composing);
-
-  const apiCategories = useMemo(
-    () => suggestions?.categories ?? [],
-    [suggestions?.categories],
-  );
-  const apiProducts = useMemo(
-    () => suggestions?.products ?? [],
-    [suggestions?.products],
-  );
-
-  const optionsCount = getOptionsCount(
-    trimmedQ,
-    recents.length,
-    apiCategories.length,
-    apiProducts.length,
-  );
-
-  const refreshRecents = useCallback(() => setRecents(readRecents()), []);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const navigate = useCallback(
-    (url: string) => {
-      setOpen(false);
-      setInputQ('');
-      router.push(url);
-    },
-    [router],
-  );
-
-  const handleSelect = useCallback(
-    (option: SuggestionOption) => {
-      setOpen(false);
-      switch (option.type) {
-        case 'recent':
-          navigate(
-            serializeProductSearchUrl('/products', {
-              q: option.item.q.trim() || null,
-              category: option.item.category || null,
-            }),
-          );
-          break;
-        case 'category':
-          addRecent({
-            q: trimmedQ || option.item.name,
-            category: option.item.slug,
-          });
-          navigate(
-            serializeProductSearchUrl('/products', {
-              q: null,
-              category: option.item.slug,
-            }),
-          );
-          break;
-        case 'product':
-          addRecent({ q: trimmedQ, category: selectedCategory || null });
-          navigate(`/products/${option.item.slug}`);
-          break;
-      }
-    },
-    [navigate, trimmedQ, selectedCategory],
-  );
-
-  const submit = useCallback(() => {
-    if (trimmedQ) {
-      addRecent({ q: trimmedQ, category: selectedCategory || null });
-    }
-    setOpen(false);
-    const url = serializeProductSearchUrl('/products', {
-      q: trimmedQ || null,
-      category: selectedCategory || null,
-    });
-    setInputQ('');
-    router.push(url);
-  }, [trimmedQ, selectedCategory, router]);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (!open || composing || e.nativeEvent.isComposing) return;
-
-      switch (e.key) {
-        case 'ArrowDown':
-          e.preventDefault();
-          setActiveIndex((prev) => (prev < optionsCount - 1 ? prev + 1 : prev));
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          setActiveIndex((prev) => (prev > 0 ? prev - 1 : -1));
-          break;
-        case 'Enter':
-          if (activeIndex >= 0) {
-            e.preventDefault();
-            const options: SuggestionOption[] = [];
-            if (trimmedQ.length === 0) {
-              recents.forEach((r) => options.push({ type: 'recent', item: r }));
-            } else if (trimmedQ.length >= 2) {
-              apiCategories.forEach((c) =>
-                options.push({ type: 'category', item: c }),
-              );
-              apiProducts.forEach((p) =>
-                options.push({ type: 'product', item: p }),
-              );
-            }
-            const selected = options[activeIndex];
-            if (selected) handleSelect(selected);
-          }
-          break;
-        case 'Escape':
-          e.preventDefault();
-          setOpen(false);
-          setActiveIndex(-1);
-          break;
-      }
-    },
-    [
-      open,
-      composing,
-      activeIndex,
-      optionsCount,
-      trimmedQ,
-      recents,
-      apiCategories,
-      apiProducts,
-      handleSelect,
-    ],
-  );
-
-  const hasDropdownContent =
-    (trimmedQ.length === 0 && recents.length > 0) || trimmedQ.length >= 2;
-
-  return (
-    <form
-      ref={wrapperRef}
-      role="search"
-      className={`relative flex h-10 w-full min-w-0 max-w-xl justify-center ${className}`}
-      onSubmit={(e) => {
-        e.preventDefault();
-        submit();
-      }}
-    >
-      <div
-        className="flex min-w-0 flex-1 border border-r-0 bg-white"
-        style={{ borderColor: ACCENT }}
-      >
-        <div className="group relative flex w-25 shrink-0 items-center pl-0.5 transition-transform duration-200 ease-out hover:-translate-y-px hover:scale-[1.01] sm:w-27">
-          <div
-            className="pointer-events-none absolute inset-y-0 left-0 w-7 bg-contain bg-left bg-no-repeat opacity-90 transition-opacity duration-200 ease-out group-hover:opacity-100 sm:w-8"
-            style={{ backgroundImage: "url('/bg-search-left.png')" }}
-            aria-hidden
-          />
-          <label htmlFor="header-search-category" className="sr-only">
-            Danh mục
-          </label>
-          <select
-            id="header-search-category"
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="h-full w-full min-w-0 cursor-pointer appearance-none bg-transparent py-0 pr-5 pl-7 text-xs text-(--brand-forest-muted) outline-none transition-colors duration-200 ease-out group-hover:text-(--brand-forest) sm:pl-8 sm:text-sm"
-          >
-            {CATEGORY_OPTIONS.map((opt) => (
-              <option key={opt.value || 'all'} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-          <ChevronDownIcon
-            className="pointer-events-none absolute right-1 top-1/2 h-3 w-3 -translate-y-1/2 text-(--brand-forest-muted) transition-transform duration-200 ease-out group-hover:translate-x-px sm:right-1.5 sm:h-3.5 sm:w-3.5"
-            aria-hidden
-          />
-        </div>
-
-        <div className="flex min-w-0 flex-1 items-center border-l border-[#d1d5db]">
-          <label htmlFor="header-search-q" className="sr-only">
-            Tìm kiếm sản phẩm
-          </label>
-          <input
-            id="header-search-q"
-            type="search"
-            name="q"
-            value={inputQ}
-            onChange={(e) => {
-              setInputQ(e.target.value);
-              setActiveIndex(-1);
-            }}
-            onFocus={() => {
-              setOpen(true);
-              refreshRecents();
-            }}
-            onCompositionStart={() => setComposing(true)}
-            onCompositionEnd={() => setComposing(false)}
-            onKeyDown={handleKeyDown}
-            placeholder="Tìm kiếm..."
-            autoComplete="off"
-            role="combobox"
-            aria-expanded={open && hasDropdownContent}
-            aria-controls="header-search-listbox"
-            aria-autocomplete="list"
-            aria-activedescendant={
-              activeIndex >= 0
-                ? `header-search-option-${activeIndex}`
-                : undefined
-            }
-            className="h-full min-w-0 flex-1 border-0 bg-transparent px-3 text-sm text-(--brand-forest) placeholder:text-(--brand-forest-muted)/80 outline-none"
-          />
-        </div>
-      </div>
-
-      <button
-        type="submit"
-        className="flex h-10 w-11 shrink-0 items-center justify-center border transition hover:brightness-95"
-        style={{ backgroundColor: ACCENT, borderColor: ACCENT }}
-        aria-label="Tìm kiếm"
-      >
-        <MagnifyingGlassIcon className="h-5 w-5 text-[#5c2e20]" aria-hidden />
-      </button>
-
-      {open && hasDropdownContent && (
-        <HeaderSearchSuggestions
-          q={trimmedQ}
-          recents={recents}
-          categories={apiCategories}
-          products={apiProducts}
-          isLoading={isLoading}
-          isError={isError}
-          activeIndex={activeIndex}
-          onSelect={handleSelect}
-          onActiveIndexChange={setActiveIndex}
-          onRecentsChange={refreshRecents}
-        />
-      )}
-    </form>
-  );
-}
-</file>
-
 <file path="apps/web/src/components/products/category-filter.tsx">
 'use client';
 
@@ -58140,6 +58018,7 @@ import {
   CONTACT_EMAIL,
   SOCIAL_LINKS,
 } from './constants';
+import { SCHEMA_ALTERNATE_NAMES } from './seo-keywords';
 import { toAbsoluteUrl } from './seo';
 
 /** Organization schema — included in root layout */
@@ -58155,6 +58034,7 @@ export function buildOrganizationSchema() {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: SITE_NAME,
+    alternateName: [...SCHEMA_ALTERNATE_NAMES],
     url: SITE_URL,
     logo: toAbsoluteUrl(LANDING_BRAND.logoSrc),
     email: CONTACT_EMAIL,
@@ -58183,6 +58063,7 @@ export function buildWebSiteSchema() {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
     name: SITE_NAME,
+    alternateName: [...SCHEMA_ALTERNATE_NAMES],
     url: SITE_URL,
     inLanguage: 'vi-VN',
     potentialAction: {
@@ -58236,6 +58117,7 @@ export function buildProductSchema(product: Product) {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: product.name,
+    category: 'Nhãn Hưng Yên / Long nhãn sấy khô',
     description: product.summary ?? product.description ?? undefined,
     image: absoluteImages.length > 0 ? absoluteImages : undefined,
     brand: {
@@ -59835,6 +59717,305 @@ export default function NotFound() {
 }
 </file>
 
+<file path="apps/web/src/components/layout/header-search-bar.tsx">
+'use client';
+
+import { ChevronDownIcon, MagnifyingGlassIcon } from '@radix-ui/react-icons';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { serializeProductSearchUrl } from '@/lib/product-search-params';
+import {
+  addRecent,
+  readRecents,
+  type RecentQuery,
+} from '@/lib/header-search-recent-queries';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import { useProductSuggestions } from '@/services/product-suggestions';
+import HeaderSearchSuggestions, {
+  getOptionsCount,
+  type SuggestionOption,
+} from './header-search-suggestions';
+
+const ACCENT = '#E8A240';
+
+const CATEGORY_OPTIONS = [
+  { value: '', label: 'Tất cả' },
+  { value: 'longnhan', label: 'Đặc sản Hưng Yên' },
+  { value: 'gift', label: 'Giải pháp quà tặng' },
+  { value: 'giftset', label: 'Bộ quà tặng' },
+] as const;
+
+interface HeaderSearchBarProps {
+  className?: string;
+}
+
+export default function HeaderSearchBar({
+  className = '',
+}: HeaderSearchBarProps) {
+  const router = useRouter();
+  const [inputQ, setInputQ] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const [composing, setComposing] = useState(false);
+  const [recents, setRecents] = useState<RecentQuery[]>([]);
+  const wrapperRef = useRef<HTMLFormElement>(null);
+
+  const trimmedQ = inputQ.trim();
+  const debouncedQ = useDebouncedValue(trimmedQ, 250);
+
+  const {
+    data: suggestions,
+    isLoading,
+    isError,
+  } = useProductSuggestions(debouncedQ, open && !composing);
+
+  const apiCategories = useMemo(
+    () => suggestions?.categories ?? [],
+    [suggestions?.categories],
+  );
+  const apiProducts = useMemo(
+    () => suggestions?.products ?? [],
+    [suggestions?.products],
+  );
+
+  const optionsCount = getOptionsCount(
+    trimmedQ,
+    recents.length,
+    apiCategories.length,
+    apiProducts.length,
+  );
+
+  const refreshRecents = useCallback(() => setRecents(readRecents()), []);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const navigate = useCallback(
+    (url: string) => {
+      setOpen(false);
+      setInputQ('');
+      router.push(url);
+    },
+    [router],
+  );
+
+  const handleSelect = useCallback(
+    (option: SuggestionOption) => {
+      setOpen(false);
+      switch (option.type) {
+        case 'recent':
+          navigate(
+            serializeProductSearchUrl('/products', {
+              q: option.item.q.trim() || null,
+              category: option.item.category || null,
+            }),
+          );
+          break;
+        case 'category':
+          addRecent({
+            q: trimmedQ || option.item.name,
+            category: option.item.slug,
+          });
+          navigate(
+            serializeProductSearchUrl('/products', {
+              q: null,
+              category: option.item.slug,
+            }),
+          );
+          break;
+        case 'product':
+          addRecent({ q: trimmedQ, category: selectedCategory || null });
+          navigate(`/products/${option.item.slug}`);
+          break;
+      }
+    },
+    [navigate, trimmedQ, selectedCategory],
+  );
+
+  const submit = useCallback(() => {
+    if (trimmedQ) {
+      addRecent({ q: trimmedQ, category: selectedCategory || null });
+    }
+    setOpen(false);
+    const url = serializeProductSearchUrl('/products', {
+      q: trimmedQ || null,
+      category: selectedCategory || null,
+    });
+    setInputQ('');
+    router.push(url);
+  }, [trimmedQ, selectedCategory, router]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (!open || composing || e.nativeEvent.isComposing) return;
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          setActiveIndex((prev) => (prev < optionsCount - 1 ? prev + 1 : prev));
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setActiveIndex((prev) => (prev > 0 ? prev - 1 : -1));
+          break;
+        case 'Enter':
+          if (activeIndex >= 0) {
+            e.preventDefault();
+            const options: SuggestionOption[] = [];
+            if (trimmedQ.length === 0) {
+              recents.forEach((r) => options.push({ type: 'recent', item: r }));
+            } else if (trimmedQ.length >= 2) {
+              apiCategories.forEach((c) =>
+                options.push({ type: 'category', item: c }),
+              );
+              apiProducts.forEach((p) =>
+                options.push({ type: 'product', item: p }),
+              );
+            }
+            const selected = options[activeIndex];
+            if (selected) handleSelect(selected);
+          }
+          break;
+        case 'Escape':
+          e.preventDefault();
+          setOpen(false);
+          setActiveIndex(-1);
+          break;
+      }
+    },
+    [
+      open,
+      composing,
+      activeIndex,
+      optionsCount,
+      trimmedQ,
+      recents,
+      apiCategories,
+      apiProducts,
+      handleSelect,
+    ],
+  );
+
+  const hasDropdownContent =
+    (trimmedQ.length === 0 && recents.length > 0) || trimmedQ.length >= 2;
+
+  return (
+    <form
+      ref={wrapperRef}
+      role="search"
+      className={`relative flex h-10 w-full min-w-0 max-w-xl justify-center ${className}`}
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit();
+      }}
+    >
+      <div
+        className="flex min-w-0 flex-1 border border-r-0 bg-white"
+        style={{ borderColor: ACCENT }}
+      >
+        <div className="group relative flex w-25 shrink-0 items-center pl-0.5 transition-transform duration-200 ease-out hover:-translate-y-px hover:scale-[1.01] sm:w-27">
+          <div
+            className="pointer-events-none absolute inset-y-0 left-0 w-7 bg-contain bg-left bg-no-repeat opacity-90 transition-opacity duration-200 ease-out group-hover:opacity-100 sm:w-8"
+            style={{ backgroundImage: "url('/bg-search-left.png')" }}
+            aria-hidden
+          />
+          <label htmlFor="header-search-category" className="sr-only">
+            Danh mục
+          </label>
+          <select
+            id="header-search-category"
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="h-full w-full min-w-0 cursor-pointer appearance-none bg-transparent py-0 pr-5 pl-7 text-xs text-(--brand-forest-muted) outline-none transition-colors duration-200 ease-out group-hover:text-(--brand-forest) sm:pl-8 sm:text-sm"
+          >
+            {CATEGORY_OPTIONS.map((opt) => (
+              <option key={opt.value || 'all'} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDownIcon
+            className="pointer-events-none absolute right-1 top-1/2 h-3 w-3 -translate-y-1/2 text-(--brand-forest-muted) transition-transform duration-200 ease-out group-hover:translate-x-px sm:right-1.5 sm:h-3.5 sm:w-3.5"
+            aria-hidden
+          />
+        </div>
+
+        <div className="flex min-w-0 flex-1 items-center border-l border-[#d1d5db]">
+          <label htmlFor="header-search-q" className="sr-only">
+            Tìm kiếm sản phẩm
+          </label>
+          <input
+            id="header-search-q"
+            type="search"
+            name="q"
+            value={inputQ}
+            onChange={(e) => {
+              setInputQ(e.target.value);
+              setActiveIndex(-1);
+            }}
+            onFocus={() => {
+              setOpen(true);
+              refreshRecents();
+            }}
+            onCompositionStart={() => setComposing(true)}
+            onCompositionEnd={() => setComposing(false)}
+            onKeyDown={handleKeyDown}
+            placeholder="Tìm kiếm..."
+            autoComplete="off"
+            role="combobox"
+            aria-expanded={open && hasDropdownContent}
+            aria-controls="header-search-listbox"
+            aria-autocomplete="list"
+            aria-activedescendant={
+              activeIndex >= 0
+                ? `header-search-option-${activeIndex}`
+                : undefined
+            }
+            className="h-full min-w-0 flex-1 border-0 bg-transparent px-3 text-sm text-(--brand-forest) placeholder:text-(--brand-forest-muted)/80 outline-none"
+          />
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        className="flex h-10 w-11 shrink-0 items-center justify-center border transition hover:brightness-95"
+        style={{ backgroundColor: ACCENT, borderColor: ACCENT }}
+        aria-label="Tìm kiếm"
+      >
+        <MagnifyingGlassIcon className="h-5 w-5 text-[#5c2e20]" aria-hidden />
+      </button>
+
+      {open && hasDropdownContent && (
+        <HeaderSearchSuggestions
+          q={trimmedQ}
+          recents={recents}
+          categories={apiCategories}
+          products={apiProducts}
+          isLoading={isLoading}
+          isError={isError}
+          activeIndex={activeIndex}
+          onSelect={handleSelect}
+          onActiveIndexChange={setActiveIndex}
+          onRecentsChange={refreshRecents}
+        />
+      )}
+    </form>
+  );
+}
+</file>
+
 <file path="apps/web/src/components/products/product-grid.tsx">
 // Product grid — responsive card layout for product list page
 
@@ -59919,130 +60100,6 @@ export function AppProviders({ children }: { children: ReactNode }) {
       </AuthProvider>
     </QueryClientProvider>
   );
-}
-</file>
-
-<file path="apps/web/src/lib/http/create-longnhan-api.ts">
-import axios, { type AxiosInstance } from 'axios';
-import Cookies from 'js-cookie';
-import {
-  AUTH_TOKEN_KEY,
-  parseAuthTokens,
-  type AuthTokens,
-} from '@/lib/auth-token';
-import { extractErrorMessage } from '@/lib/http/extract-error-message';
-import { sanitizeApiQueryParams } from '@/lib/http/sanitize-api-query-params';
-
-export function createLongnhanApi(baseURL: string): AxiosInstance {
-  const instance = axios.create({
-    baseURL,
-    timeout: typeof window === 'undefined' ? 20_000 : 0,
-    headers: { 'Content-Type': 'application/json' },
-    validateStatus: (status) => status >= 200 && status < 300,
-  });
-
-  let refreshPromise: Promise<void> | null = null;
-
-  const refreshTokens = async () => {
-    if (refreshPromise) return refreshPromise;
-
-    refreshPromise = (async () => {
-      try {
-        const tokens = parseAuthTokens(Cookies.get(AUTH_TOKEN_KEY));
-        if (!tokens?.refreshToken) return;
-
-        const response = await fetch(`${baseURL}/auth/refresh`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken: tokens.refreshToken }),
-        });
-
-        if (!response.ok) {
-          Cookies.remove(AUTH_TOKEN_KEY);
-          return;
-        }
-
-        const json = await response.json();
-        const data = (json?.data ?? json) as Partial<AuthTokens>;
-        if (
-          typeof data.accessToken === 'string' &&
-          typeof data.refreshToken === 'string' &&
-          typeof data.tokenExpires === 'number'
-        ) {
-          Cookies.set(
-            AUTH_TOKEN_KEY,
-            JSON.stringify({
-              accessToken: data.accessToken,
-              refreshToken: data.refreshToken,
-              tokenExpires: data.tokenExpires,
-            }),
-            { sameSite: 'lax' },
-          );
-          return;
-        }
-
-        Cookies.remove(AUTH_TOKEN_KEY);
-      } catch {
-        Cookies.remove(AUTH_TOKEN_KEY);
-      }
-    })().finally(() => {
-      refreshPromise = null;
-    });
-
-    return refreshPromise;
-  };
-
-  instance.interceptors.request.use(async (config) => {
-    if (
-      config.params != null &&
-      typeof config.params === 'object' &&
-      !Array.isArray(config.params) &&
-      !(config.params instanceof URLSearchParams)
-    ) {
-      config.params = sanitizeApiQueryParams(
-        config.params as Record<string, string | number | undefined>,
-      );
-    }
-
-    if (typeof window === 'undefined') return config;
-
-    const tokens = parseAuthTokens(Cookies.get(AUTH_TOKEN_KEY));
-    if (tokens?.tokenExpires && tokens.tokenExpires - 60_000 <= Date.now()) {
-      await refreshTokens();
-    }
-
-    const refreshed = parseAuthTokens(Cookies.get(AUTH_TOKEN_KEY));
-    if (refreshed?.accessToken) {
-      config.headers = config.headers ?? {};
-      config.headers.Authorization = `Bearer ${refreshed.accessToken}`;
-    }
-
-    return config;
-  });
-
-  instance.interceptors.response.use(
-    (response) => {
-      const body = response.data;
-      const isPaginatedEnvelope =
-        body !== null &&
-        typeof body === 'object' &&
-        'data' in body &&
-        'pagination' in body;
-
-      if (
-        !isPaginatedEnvelope &&
-        body !== null &&
-        typeof body === 'object' &&
-        'data' in body
-      ) {
-        response.data = (body as { data: unknown }).data;
-      }
-      return response;
-    },
-    (error) => Promise.reject(new Error(extractErrorMessage(error))),
-  );
-
-  return instance;
 }
 </file>
 
@@ -62856,6 +62913,130 @@ export default function ProductPdpHero({ product }: ProductPdpHeroProps) {
       />
     </div>
   );
+}
+</file>
+
+<file path="apps/web/src/lib/http/create-longnhan-api.ts">
+import axios, { type AxiosInstance } from 'axios';
+import Cookies from 'js-cookie';
+import {
+  AUTH_TOKEN_KEY,
+  parseAuthTokens,
+  type AuthTokens,
+} from '@/lib/auth-token';
+import { extractErrorMessage } from '@/lib/http/extract-error-message';
+import { sanitizeApiQueryParams } from '@/lib/http/sanitize-api-query-params';
+
+export function createLongnhanApi(baseURL: string): AxiosInstance {
+  const instance = axios.create({
+    baseURL,
+    timeout: typeof window === 'undefined' ? 20_000 : 0,
+    headers: { 'Content-Type': 'application/json' },
+    validateStatus: (status) => status >= 200 && status < 300,
+  });
+
+  let refreshPromise: Promise<void> | null = null;
+
+  const refreshTokens = async () => {
+    if (refreshPromise) return refreshPromise;
+
+    refreshPromise = (async () => {
+      try {
+        const tokens = parseAuthTokens(Cookies.get(AUTH_TOKEN_KEY));
+        if (!tokens?.refreshToken) return;
+
+        const response = await fetch(`${baseURL}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken: tokens.refreshToken }),
+        });
+
+        if (!response.ok) {
+          Cookies.remove(AUTH_TOKEN_KEY);
+          return;
+        }
+
+        const json = await response.json();
+        const data = (json?.data ?? json) as Partial<AuthTokens>;
+        if (
+          typeof data.accessToken === 'string' &&
+          typeof data.refreshToken === 'string' &&
+          typeof data.tokenExpires === 'number'
+        ) {
+          Cookies.set(
+            AUTH_TOKEN_KEY,
+            JSON.stringify({
+              accessToken: data.accessToken,
+              refreshToken: data.refreshToken,
+              tokenExpires: data.tokenExpires,
+            }),
+            { sameSite: 'lax' },
+          );
+          return;
+        }
+
+        Cookies.remove(AUTH_TOKEN_KEY);
+      } catch {
+        Cookies.remove(AUTH_TOKEN_KEY);
+      }
+    })().finally(() => {
+      refreshPromise = null;
+    });
+
+    return refreshPromise;
+  };
+
+  instance.interceptors.request.use(async (config) => {
+    if (
+      config.params != null &&
+      typeof config.params === 'object' &&
+      !Array.isArray(config.params) &&
+      !(config.params instanceof URLSearchParams)
+    ) {
+      config.params = sanitizeApiQueryParams(
+        config.params as Record<string, string | number | undefined>,
+      );
+    }
+
+    if (typeof window === 'undefined') return config;
+
+    const tokens = parseAuthTokens(Cookies.get(AUTH_TOKEN_KEY));
+    if (tokens?.tokenExpires && tokens.tokenExpires - 60_000 <= Date.now()) {
+      await refreshTokens();
+    }
+
+    const refreshed = parseAuthTokens(Cookies.get(AUTH_TOKEN_KEY));
+    if (refreshed?.accessToken) {
+      config.headers = config.headers ?? {};
+      config.headers.Authorization = `Bearer ${refreshed.accessToken}`;
+    }
+
+    return config;
+  });
+
+  instance.interceptors.response.use(
+    (response) => {
+      const body = response.data;
+      const isPaginatedEnvelope =
+        body !== null &&
+        typeof body === 'object' &&
+        'data' in body &&
+        'pagination' in body;
+
+      if (
+        !isPaginatedEnvelope &&
+        body !== null &&
+        typeof body === 'object' &&
+        'data' in body
+      ) {
+        response.data = (body as { data: unknown }).data;
+      }
+      return response;
+    },
+    (error) => Promise.reject(new Error(extractErrorMessage(error))),
+  );
+
+  return instance;
 }
 </file>
 
@@ -67358,18 +67539,10 @@ import { Geist } from 'next/font/google';
 import localFont from 'next/font/local';
 import './globals.css';
 import { AppProviders } from '@/components/providers/app-providers';
+import Footer from '@/components/layout/footer';
 import Header from '@/components/layout/header';
 import BackToTopButton from '@/components/ui/back-to-top-button';
 import dynamic from 'next/dynamic';
-
-const Footer = dynamic(() => import('@/components/layout/footer'), {
-  loading: () => (
-    <footer
-      className="mt-auto min-h-[320px] border-t border-(--brand-gold)/25 bg-(--brand-forest)"
-      aria-hidden
-    />
-  ),
-});
 
 const FloatingContactWidget = dynamic(
   () => import('@/components/layout/floating-contact-widget'),
@@ -67496,13 +67669,11 @@ import {
   SITE_NAME,
   SOCIAL_LINKS,
 } from '@/lib/constants';
+import { CopyrightYear } from '@/components/layout/copyright-year';
 import Image from 'next/image';
 import Link from 'next/link';
-import { connection } from 'next/server';
 
-export default async function Footer() {
-  await connection();
-  const year = new Date().getFullYear();
+export default function Footer() {
   // Prefer a no-key embed that works with just an address query.
   const mapEmbedSrc = `https://www.google.com/maps?q=${encodeURIComponent(CONTACT_ADDRESS)}&output=embed`;
 
@@ -67681,7 +67852,7 @@ export default async function Footer() {
       </div>
 
       <div className="border-t border-(--brand-cream)/15 py-4 text-center text-xs text-(--brand-cream)/60">
-        © {year} {SITE_NAME}. Bảo lưu mọi quyền.
+        © <CopyrightYear /> {SITE_NAME}. Bảo lưu mọi quyền.
       </div>
     </footer>
   );
@@ -68067,36 +68238,27 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
 
 <file path="apps/web/src/data/landing-page-content.ts">
 import { SOCIAL_LINKS } from '@/lib/constants';
+import { CORE_SEO_KEYWORDS } from '@/lib/seo-keywords';
 
 export const LANDING_SEO = {
-  title: 'Long Nhãn Hưng Yên — Đặc Sản Tống Trân | nhanhunguyen.com',
+  title: 'Nhãn Hưng Yên — Long Nhãn Tống Trân Chính Gốc | nhanhunguyen.com',
   description:
-    'Mua long nhãn Hưng Yên chính gốc Tống Trân tại nhanhunguyen.com: sấy khô không tẩm đường, quà biếu sang trọng. Giao COD toàn quốc — Zalo, Shopee, TikTok.',
-  keywords: [
-    'nhanhunguyen.com',
-    'Long nhãn Hưng Yên',
-    'Nhãn Hưng Yên',
-    'Long nhãn Tống Trân',
-    'Long nhãn sấy khô',
-    'Long nhãn quà tặng',
-    'Đặc sản Hưng Yên',
-    'Long nhãn giao COD',
-    'Long nhãn Shopee',
-    'Long nhãn TikTok',
-  ],
-  ogImageAlt: 'Long nhãn Hưng Yên — đặc sản Tống Trân, nhanhunguyen.com',
+    'Mua nhãn Hưng Yên, long nhãn sấy khô Tống Trân chính gốc tại nhanhunguyen.com — nguyên liệu chè dưỡng nhan, quà biếu sang trọng. Giao COD toàn quốc — Zalo, Shopee, TikTok.',
+  keywords: [...CORE_SEO_KEYWORDS],
+  ogImageAlt:
+    'Nhãn Hưng Yên — long nhãn Tống Trân đặc sản chính gốc, nhanhunguyen.com',
 } as const;
 
 export const PRODUCTS_LISTING_SEO = {
-  title: 'Sản phẩm Long Nhãn Hưng Yên',
+  title: 'Mua Nhãn Hưng Yên — Sản Phẩm Long Nhãn Tống Trân',
   description:
-    'Khám phá long nhãn sấy khô, set quà biếu và đặc sản Tống Trân — chọn lọc từ vườn Hưng Yên, giao COD toàn quốc. Đặt hàng nhanh tại nhanhunguyen.com.',
+    'Danh mục nhãn Hưng Yên: long nhãn sấy khô, nhãn lồng và set quà biếu Tống Trân — nguyên liệu chè dưỡng nhan, giao COD toàn quốc. Đặt hàng tại nhanhunguyen.com.',
 } as const;
 
 export const ARTICLES_LISTING_SEO = {
-  title: 'Bài viết về Long Nhãn Hưng Yên',
+  title: 'Bài Viết Nhãn Hưng Yên — Chè Dưỡng Nhan & Cẩm Nang',
   description:
-    'Cẩm nang chọn long nhãn, bảo quản, nấu chè và câu chuyện vườn Tống Trân — kiến thức từ nông trại Hưng Yên, cập nhật tại nhanhunguyen.com.',
+    'Cẩm nang chọn nhãn Hưng Yên, nấu chè dưỡng nhan, bảo quản long nhãn và câu chuyện vườn Tống Trân — kiến thức từ Hưng Yên, cập nhật tại nhanhunguyen.com.',
 } as const;
 
 export const LANDING_BRAND = {
@@ -68108,10 +68270,10 @@ export const LANDING_BRAND = {
 } as const;
 
 export const LANDING_HERO = {
-  eyebrow: 'Long Nhãn Tống Trân',
+  eyebrow: 'Nhãn Hưng Yên · Tống Trân',
   headline: 'Dẻo thơm vị mật, ngọt thanh vị đời.',
   subhead:
-    'Tuyển chọn từ những trái nhãn ngon nhất vườn nhà Tống Trân - Hưng Yên. Cam kết không tẩm đường, không chất bảo quản.',
+    'Tuyển chọn nhãn lồng Hưng Yên ngon nhất từ vườn nhà Tống Trân. Cam kết không tẩm đường, không chất bảo quản.',
   primaryCta: 'Xem ngay',
   secondaryCta: 'Xem Shopee',
   tertiaryCta: 'Chat Zalo',
@@ -71606,6 +71768,7 @@ import { articleDetailCacheTags } from '@/lib/content-cache-tags';
 import { buildSeoMetadata } from '@/lib/seo';
 import { buildArticleSchema } from '@/lib/structured-data';
 import { cacheLife, cacheTag } from 'next/cache';
+import { connection } from 'next/server';
 
 interface ArticleDetailPageProps {
   params: Promise<{ slug: string }>;
@@ -71659,6 +71822,7 @@ export async function generateMetadata({
 export default async function ArticleDetailPage({
   params,
 }: ArticleDetailPageProps) {
+  await connection();
   const { slug } = await params;
   const article = await getArticle(slug);
 
@@ -71900,6 +72064,7 @@ import { ArticlesListingSkeleton } from '@/components/ui/route-loading-skeleton'
 import { ARTICLES_LISTING_SEO } from '@/data/landing-page-content';
 import { buildBreadcrumb } from '@/lib/breadcrumb';
 import { buildSeoMetadata } from '@/lib/seo';
+import { ARTICLE_SEO_KEYWORDS } from '@/lib/seo-keywords';
 import { PWA_CONFIG } from '@/lib/pwa-config';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
@@ -71909,6 +72074,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: ARTICLES_LISTING_SEO.title,
     description: ARTICLES_LISTING_SEO.description,
     canonicalPath: '/articles',
+    keywords: [...ARTICLE_SEO_KEYWORDS],
     ogImage: {
       url: PWA_CONFIG.heroImage.path,
       width: PWA_CONFIG.heroImage.width,
@@ -71939,86 +72105,14 @@ export default async function ArticlesPage() {
         />
       ) : null}
       <Breadcrumb items={breadcrumbItems} />
-      <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-6">
-        Bài viết
+      <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
+        Bài viết về Nhãn Hưng Yên
       </h1>
+      <p className="text-muted-foreground mb-6">
+        Cẩm nang long nhãn, chè dưỡng nhan và đặc sản Tống Trân
+      </p>
       <Suspense fallback={<ArticlesListingSkeleton />}>
         <ArticlesListingContent />
-      </Suspense>
-    </section>
-  );
-}
-</file>
-
-<file path="apps/web/src/app/products/page.tsx">
-import type { Metadata } from 'next';
-import type { SearchParams } from 'nuqs/server';
-import { ProductsListingContent } from '@/components/products/products-listing-content';
-import Breadcrumb from '@/components/ui/breadcrumb';
-import { ProductsListingSkeleton } from '@/components/ui/route-loading-skeleton';
-import { buildBreadcrumb } from '@/lib/breadcrumb';
-import { loadProductSearchParams } from '@/lib/product-search-params';
-import { PRODUCTS_LISTING_SEO } from '@/data/landing-page-content';
-import { buildSeoMetadata } from '@/lib/seo';
-import { PWA_CONFIG } from '@/lib/pwa-config';
-import { connection } from 'next/server';
-import { Suspense } from 'react';
-
-interface ProductsPageProps {
-  searchParams: Promise<SearchParams>;
-}
-
-export async function generateMetadata(): Promise<Metadata> {
-  return buildSeoMetadata({
-    title: PRODUCTS_LISTING_SEO.title,
-    description: PRODUCTS_LISTING_SEO.description,
-    canonicalPath: '/products',
-    ogImage: {
-      url: PWA_CONFIG.heroImage.path,
-      width: PWA_CONFIG.heroImage.width,
-      height: PWA_CONFIG.heroImage.height,
-      alt: PWA_CONFIG.heroImage.alt,
-    },
-  });
-}
-
-export default async function ProductsPage({
-  searchParams,
-}: ProductsPageProps) {
-  await connection();
-  const { q: qRaw, category: categoryRaw } =
-    await loadProductSearchParams(searchParams);
-  const category = categoryRaw?.trim() || undefined;
-  const q = qRaw?.trim() || undefined;
-
-  const breadcrumbItems = [
-    { label: 'Trang chủ', url: '/' },
-    { label: 'Sản phẩm' },
-  ];
-  const { schema: breadcrumbSchema } = buildBreadcrumb({
-    items: breadcrumbItems,
-    currentUrl: '/products',
-  });
-
-  return (
-    <section className="mx-auto max-w-6xl px-4 py-8">
-      {breadcrumbSchema ? (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
-        />
-      ) : null}
-      <Breadcrumb items={breadcrumbItems} />
-      <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-          Danh mục sản phẩm
-        </h1>
-      </div>
-      <Suspense
-        key={`${category ?? ''}:${q ?? ''}`}
-        fallback={<ProductsListingSkeleton />}
-      >
-        <ProductsListingContent category={category} q={q} />
       </Suspense>
     </section>
   );
@@ -72028,44 +72122,28 @@ export default async function ProductsPage({
 <file path="apps/web/src/app/products/[slug]/page.tsx">
 import ProductImages from '@/components/products/product-images';
 import { ProductAddToCart } from '@/components/products/product-add-to-cart';
+import { ProductDetailEnrichment } from '@/components/products/product-detail-enrichment';
 import ProductPdpHero from '@/components/products/product-pdp-hero';
 import ProductPdpTabs from '@/components/products/product-pdp-tabs';
 import ProductReviewsSection from '@/components/products/product-reviews-section';
-import RelatedProducts from '@/components/products/related-products';
 import Breadcrumb from '@/components/ui/breadcrumb';
-import { fetchApi, fetchPaginated } from '@/lib/api-client';
+import { fetchApi } from '@/lib/api-client';
 import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
 import { buildBreadcrumb } from '@/lib/breadcrumb';
-import {
-  productDetailCacheTags,
-  relatedProductsCacheTags,
-} from '@/lib/content-cache-tags';
+import { productDetailCacheTags } from '@/lib/content-cache-tags';
 import { buildSeoMetadata, trimMetaDescription } from '@/lib/seo';
+import { PAGE_SEO_KEYWORDS } from '@/lib/seo-keywords';
 import { buildProductSchema } from '@/lib/structured-data';
 import type { Product } from '@longnhan/types';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { cacheLife, cacheTag } from 'next/cache';
+import { connection } from 'next/server';
+import { Suspense } from 'react';
 
 interface ProductDetailPageProps {
   params: Promise<{ slug: string }>;
 }
-
-type ProductReviewItem = {
-  id: string;
-  productId: string;
-  rating: number;
-  comment: string | null;
-  createdAt: string;
-  reviewerLabel: string;
-  variantLabel: string;
-};
-
-type ProductReviewsList = {
-  ratingAvg: number;
-  ratingCount: number;
-  items: ProductReviewItem[];
-};
 
 async function getProduct(slug: string): Promise<Product | null> {
   'use cache';
@@ -72078,51 +72156,6 @@ async function getProduct(slug: string): Promise<Product | null> {
       route: '/products/[slug]',
       section: 'product_detail',
       extra: { slug },
-    });
-    return null;
-  }
-}
-
-async function getRelatedProducts(
-  category: string | undefined,
-  excludeSlug: string,
-): Promise<Product[]> {
-  'use cache';
-  cacheLife({ revalidate: 60 });
-  cacheTag(...relatedProductsCacheTags(category, excludeSlug));
-  try {
-    const relatedResponse = await fetchPaginated<Product>('/products', {
-      category,
-      limit: 8,
-    });
-    return relatedResponse.data
-      .filter((item) => item.slug !== excludeSlug)
-      .slice(0, 4);
-  } catch (error) {
-    captureApiFetchError(error, {
-      route: '/products/[slug]',
-      section: 'related_products',
-      extra: { category: category ?? null, excludeSlug },
-    });
-    return [];
-  }
-}
-
-async function getProductReviews(
-  productId: string,
-): Promise<ProductReviewsList | null> {
-  'use cache';
-  cacheLife({ revalidate: 60 });
-  cacheTag('products', 'reviews', productId);
-  try {
-    return await fetchApi<ProductReviewsList>(
-      `/products/${encodeURIComponent(productId)}/reviews`,
-    );
-  } catch (error) {
-    captureApiFetchError(error, {
-      route: '/products/[slug]',
-      section: 'product_reviews_schema',
-      extra: { productId },
     });
     return null;
   }
@@ -72154,12 +72187,13 @@ export async function generateMetadata({
     product.summary?.trim() ||
     (product.description
       ? trimMetaDescription(product.description)
-      : `Mua ${product.name} — long nhãn Hưng Yên Tống Trân, giao COD toàn quốc. Đặt hàng tại nhanhunguyen.com.`);
+      : `Mua ${product.name} — nhãn Hưng Yên, long nhãn Tống Trân chính gốc. Giao COD toàn quốc tại nhanhunguyen.com.`);
 
   return buildSeoMetadata({
     title: product.name,
     description,
     canonicalPath: `/products/${product.slug}`,
+    keywords: [...PAGE_SEO_KEYWORDS, product.name],
     openGraphType: 'website',
     ...(firstImage
       ? {
@@ -72175,17 +72209,13 @@ export async function generateMetadata({
 export default async function ProductDetailPage({
   params,
 }: ProductDetailPageProps) {
+  await connection();
   const { slug } = await params;
   const product = await getProduct(slug);
 
   if (!product) {
     notFound();
   }
-
-  const relatedProducts = await getRelatedProducts(
-    product.category,
-    product.slug,
-  );
 
   const breadcrumbItems = [
     { label: 'Trang chủ', url: '/' },
@@ -72198,41 +72228,7 @@ export default async function ProductDetailPage({
     currentUrl: `/products/${product.slug}`,
   });
 
-  const reviews = await getProductReviews(product.id as string);
-  const baseProductSchema = buildProductSchema(product);
-  const productSchema = {
-    ...baseProductSchema,
-    ...(reviews?.ratingCount && reviews.ratingCount > 0
-      ? {
-          aggregateRating: {
-            '@type': 'AggregateRating',
-            ratingValue: Number(reviews.ratingAvg.toFixed(1)),
-            reviewCount: reviews.ratingCount,
-            bestRating: 5,
-            worstRating: 1,
-          },
-        }
-      : null),
-    ...(reviews?.items?.length
-      ? {
-          review: reviews.items.slice(0, 5).map((r) => ({
-            '@type': 'Review',
-            author: {
-              '@type': 'Person',
-              name: r.reviewerLabel,
-            },
-            datePublished: r.createdAt,
-            reviewRating: {
-              '@type': 'Rating',
-              ratingValue: r.rating,
-              bestRating: 5,
-              worstRating: 1,
-            },
-            ...(r.comment ? { reviewBody: r.comment } : null),
-          })),
-        }
-      : null),
-  };
+  const productSchema = buildProductSchema(product);
   const images = product.images ?? [];
   const imageList =
     images.length > 0
@@ -72276,7 +72272,89 @@ export default async function ProductDetailPage({
         productId={product.id as string}
         productName={product.name}
       />
-      <RelatedProducts products={relatedProducts} />
+      <Suspense fallback={null}>
+        <ProductDetailEnrichment product={product} />
+      </Suspense>
+    </section>
+  );
+}
+</file>
+
+<file path="apps/web/src/app/products/page.tsx">
+import type { Metadata } from 'next';
+import type { SearchParams } from 'nuqs/server';
+import { ProductsListingContent } from '@/components/products/products-listing-content';
+import Breadcrumb from '@/components/ui/breadcrumb';
+import { ProductsListingSkeleton } from '@/components/ui/route-loading-skeleton';
+import { buildBreadcrumb } from '@/lib/breadcrumb';
+import { loadProductSearchParams } from '@/lib/product-search-params';
+import { PRODUCTS_LISTING_SEO } from '@/data/landing-page-content';
+import { buildSeoMetadata } from '@/lib/seo';
+import { PAGE_SEO_KEYWORDS } from '@/lib/seo-keywords';
+import { PWA_CONFIG } from '@/lib/pwa-config';
+import { connection } from 'next/server';
+import { Suspense } from 'react';
+
+interface ProductsPageProps {
+  searchParams: Promise<SearchParams>;
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  return buildSeoMetadata({
+    title: PRODUCTS_LISTING_SEO.title,
+    description: PRODUCTS_LISTING_SEO.description,
+    canonicalPath: '/products',
+    keywords: [...PAGE_SEO_KEYWORDS],
+    ogImage: {
+      url: PWA_CONFIG.heroImage.path,
+      width: PWA_CONFIG.heroImage.width,
+      height: PWA_CONFIG.heroImage.height,
+      alt: PWA_CONFIG.heroImage.alt,
+    },
+  });
+}
+
+export default async function ProductsPage({
+  searchParams,
+}: ProductsPageProps) {
+  await connection();
+  const { q: qRaw, category: categoryRaw } =
+    await loadProductSearchParams(searchParams);
+  const category = categoryRaw?.trim() || undefined;
+  const q = qRaw?.trim() || undefined;
+
+  const breadcrumbItems = [
+    { label: 'Trang chủ', url: '/' },
+    { label: 'Sản phẩm' },
+  ];
+  const { schema: breadcrumbSchema } = buildBreadcrumb({
+    items: breadcrumbItems,
+    currentUrl: '/products',
+  });
+
+  return (
+    <section className="mx-auto max-w-6xl px-4 py-8">
+      {breadcrumbSchema ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        />
+      ) : null}
+      <Breadcrumb items={breadcrumbItems} />
+      <div className="mb-6">
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+          Sản phẩm Nhãn Hưng Yên
+        </h1>
+        <p className="mt-2 text-muted-foreground">
+          Long nhãn sấy khô, nhãn lồng và set quà Tống Trân — chính gốc Hưng Yên
+        </p>
+      </div>
+      <Suspense
+        key={`${category ?? ''}:${q ?? ''}`}
+        fallback={<ProductsListingSkeleton />}
+      >
+        <ProductsListingContent category={category} q={q} />
+      </Suspense>
     </section>
   );
 }
@@ -73315,7 +73393,7 @@ export default async function Home() {
 export const SITE_URL = 'https://nhanhungyen.com';
 export const SITE_NAME = 'Long Nhãn Hưng Yên — Đặc Sản Tống Trân';
 export const SITE_DESCRIPTION =
-  'Cửa hàng long nhãn Hưng Yên chính gốc Tống Trân tại nhanhunguyen.com — quà biếu sang trọng, giao COD toàn quốc. Zalo, Shopee, TikTok.';
+  'Cửa hàng nhãn Hưng Yên, long nhãn Tống Trân chính gốc tại nhanhunguyen.com — nhãn lồng sấy khô, quà biếu sang trọng, giao COD toàn quốc. Zalo, Shopee, TikTok.';
 
 export const CONTACT_PHONE = '0922919456';
 export const CONTACT_EMAIL = 'noreply@nhanhungyen.com';

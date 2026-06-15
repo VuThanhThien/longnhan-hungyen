@@ -13,7 +13,7 @@ export function FooterPageLayout({ page }: { page: FooterPageData }) {
   });
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-12 md:py-16">
+    <article className="mx-auto max-w-3xl px-4 py-12 md:py-16">
       {breadcrumbSchema ? (
         <script
           type="application/ld+json"
@@ -40,6 +40,6 @@ export function FooterPageLayout({ page }: { page: FooterPageData }) {
           </section>
         ))}
       </div>
-    </main>
+    </article>
   );
 }

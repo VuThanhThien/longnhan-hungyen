@@ -7,13 +7,11 @@ import {
   SITE_NAME,
   SOCIAL_LINKS,
 } from '@/lib/constants';
+import { CopyrightYear } from '@/components/layout/copyright-year';
 import Image from 'next/image';
 import Link from 'next/link';
-import { connection } from 'next/server';
 
-export default async function Footer() {
-  await connection();
-  const year = new Date().getFullYear();
+export default function Footer() {
   // Prefer a no-key embed that works with just an address query.
   const mapEmbedSrc = `https://www.google.com/maps?q=${encodeURIComponent(CONTACT_ADDRESS)}&output=embed`;
 
@@ -192,7 +190,7 @@ export default async function Footer() {
       </div>
 
       <div className="border-t border-(--brand-cream)/15 py-4 text-center text-xs text-(--brand-cream)/60">
-        © {year} {SITE_NAME}. Bảo lưu mọi quyền.
+        © <CopyrightYear /> {SITE_NAME}. Bảo lưu mọi quyền.
       </div>
     </footer>
   );

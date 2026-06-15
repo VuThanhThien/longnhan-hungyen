@@ -1,34 +1,25 @@
 import { SOCIAL_LINKS } from '@/lib/constants';
+import { CORE_SEO_KEYWORDS } from '@/lib/seo-keywords';
 
 export const LANDING_SEO = {
-  title: 'Long Nhãn Hưng Yên — Đặc Sản Tống Trân | nhanhunguyen.com',
+  title: 'Nhãn Hưng Yên — Long Nhãn Tống Trân Chính Gốc | nhanhunguyen.com',
   description:
-    'Mua long nhãn Hưng Yên chính gốc Tống Trân tại nhanhunguyen.com: sấy khô không tẩm đường, quà biếu sang trọng. Giao COD toàn quốc — Zalo, Shopee, TikTok.',
-  keywords: [
-    'nhanhunguyen.com',
-    'Long nhãn Hưng Yên',
-    'Nhãn Hưng Yên',
-    'Long nhãn Tống Trân',
-    'Long nhãn sấy khô',
-    'Long nhãn quà tặng',
-    'Đặc sản Hưng Yên',
-    'Long nhãn giao COD',
-    'Long nhãn Shopee',
-    'Long nhãn TikTok',
-  ],
-  ogImageAlt: 'Long nhãn Hưng Yên — đặc sản Tống Trân, nhanhunguyen.com',
+    'Mua nhãn Hưng Yên, long nhãn sấy khô Tống Trân chính gốc tại nhanhunguyen.com — nguyên liệu chè dưỡng nhan, quà biếu sang trọng. Giao COD toàn quốc — Zalo, Shopee, TikTok.',
+  keywords: [...CORE_SEO_KEYWORDS],
+  ogImageAlt:
+    'Nhãn Hưng Yên — long nhãn Tống Trân đặc sản chính gốc, nhanhunguyen.com',
 } as const;
 
 export const PRODUCTS_LISTING_SEO = {
-  title: 'Sản phẩm Long Nhãn Hưng Yên',
+  title: 'Mua Nhãn Hưng Yên — Sản Phẩm Long Nhãn Tống Trân',
   description:
-    'Khám phá long nhãn sấy khô, set quà biếu và đặc sản Tống Trân — chọn lọc từ vườn Hưng Yên, giao COD toàn quốc. Đặt hàng nhanh tại nhanhunguyen.com.',
+    'Danh mục nhãn Hưng Yên: long nhãn sấy khô, nhãn lồng và set quà biếu Tống Trân — nguyên liệu chè dưỡng nhan, giao COD toàn quốc. Đặt hàng tại nhanhunguyen.com.',
 } as const;
 
 export const ARTICLES_LISTING_SEO = {
-  title: 'Bài viết về Long Nhãn Hưng Yên',
+  title: 'Bài Viết Nhãn Hưng Yên — Chè Dưỡng Nhan & Cẩm Nang',
   description:
-    'Cẩm nang chọn long nhãn, bảo quản, nấu chè và câu chuyện vườn Tống Trân — kiến thức từ nông trại Hưng Yên, cập nhật tại nhanhunguyen.com.',
+    'Cẩm nang chọn nhãn Hưng Yên, nấu chè dưỡng nhan, bảo quản long nhãn và câu chuyện vườn Tống Trân — kiến thức từ Hưng Yên, cập nhật tại nhanhunguyen.com.',
 } as const;
 
 export const LANDING_BRAND = {
@@ -40,10 +31,10 @@ export const LANDING_BRAND = {
 } as const;
 
 export const LANDING_HERO = {
-  eyebrow: 'Long Nhãn Tống Trân',
+  eyebrow: 'Nhãn Hưng Yên · Tống Trân',
   headline: 'Dẻo thơm vị mật, ngọt thanh vị đời.',
   subhead:
-    'Tuyển chọn từ những trái nhãn ngon nhất vườn nhà Tống Trân - Hưng Yên. Cam kết không tẩm đường, không chất bảo quản.',
+    'Tuyển chọn nhãn lồng Hưng Yên ngon nhất từ vườn nhà Tống Trân. Cam kết không tẩm đường, không chất bảo quản.',
   primaryCta: 'Xem ngay',
   secondaryCta: 'Xem Shopee',
   tertiaryCta: 'Chat Zalo',

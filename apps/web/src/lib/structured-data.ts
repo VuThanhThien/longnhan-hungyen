@@ -11,6 +11,7 @@ import {
   CONTACT_EMAIL,
   SOCIAL_LINKS,
 } from './constants';
+import { SCHEMA_ALTERNATE_NAMES } from './seo-keywords';
 import { toAbsoluteUrl } from './seo';
 
 /** Organization schema — included in root layout */
@@ -26,6 +27,7 @@ export function buildOrganizationSchema() {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: SITE_NAME,
+    alternateName: [...SCHEMA_ALTERNATE_NAMES],
     url: SITE_URL,
     logo: toAbsoluteUrl(LANDING_BRAND.logoSrc),
     email: CONTACT_EMAIL,
@@ -54,6 +56,7 @@ export function buildWebSiteSchema() {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
     name: SITE_NAME,
+    alternateName: [...SCHEMA_ALTERNATE_NAMES],
     url: SITE_URL,
     inLanguage: 'vi-VN',
     potentialAction: {
@@ -107,6 +110,7 @@ export function buildProductSchema(product: Product) {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: product.name,
+    category: 'Nhãn Hưng Yên / Long nhãn sấy khô',
     description: product.summary ?? product.description ?? undefined,
     image: absoluteImages.length > 0 ? absoluteImages : undefined,
     brand: {

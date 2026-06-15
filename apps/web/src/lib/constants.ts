@@ -1,7 +1,7 @@
 export const SITE_URL = 'https://nhanhungyen.com';
 export const SITE_NAME = 'Long Nhãn Hưng Yên — Đặc Sản Tống Trân';
 export const SITE_DESCRIPTION =
-  'Cửa hàng long nhãn Hưng Yên chính gốc Tống Trân tại nhanhunguyen.com — quà biếu sang trọng, giao COD toàn quốc. Zalo, Shopee, TikTok.';
+  'Cửa hàng nhãn Hưng Yên, long nhãn Tống Trân chính gốc tại nhanhunguyen.com — nhãn lồng sấy khô, quà biếu sang trọng, giao COD toàn quốc. Zalo, Shopee, TikTok.';
 
 export const CONTACT_PHONE = '0922919456';
 export const CONTACT_EMAIL = 'noreply@nhanhungyen.com';

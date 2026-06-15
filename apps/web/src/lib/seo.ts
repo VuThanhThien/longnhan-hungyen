@@ -15,6 +15,8 @@ type SeoBuilderCore = {
   canonicalPath: string;
   ogImage?: OgImage;
   ogImages?: OgImage[];
+  /** Meta keywords — Vietnamese + ASCII variants for search coverage. */
+  keywords?: string | string[];
   /** Use `article` for blog posts so crawlers get the right OG type. */
   openGraphType?: 'website' | 'article';
 };
@@ -26,7 +28,7 @@ const DEFAULT_OG_IMAGE: Required<Pick<OgImage, 'url'>> & Partial<OgImage> = {
   url: '/banner-web2.png',
   width: 1200,
   height: 630,
-  alt: 'Long Nhãn Tống Trân',
+  alt: 'Nhãn Hưng Yên — Long Nhãn Tống Trân',
 };
 
 /** Strips HTML and trims to a meta description length (default 160). */
@@ -62,6 +64,7 @@ export function buildSeoMetadata(input: BuildSeoMetadataInput): Metadata {
     canonicalPath,
     ogImage,
     ogImages,
+    keywords,
     openGraphType,
     alternates: inputAlternates,
     openGraph: inputOpenGraph,
@@ -97,6 +100,7 @@ export function buildSeoMetadata(input: BuildSeoMetadataInput): Metadata {
     ...metadataRest,
     title,
     description,
+    ...(keywords ? { keywords } : {}),
     alternates: {
       ...inputAlternates,
       canonical: pageUrl,

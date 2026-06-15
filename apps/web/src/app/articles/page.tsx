@@ -5,6 +5,7 @@ import { ArticlesListingSkeleton } from '@/components/ui/route-loading-skeleton'
 import { ARTICLES_LISTING_SEO } from '@/data/landing-page-content';
 import { buildBreadcrumb } from '@/lib/breadcrumb';
 import { buildSeoMetadata } from '@/lib/seo';
+import { ARTICLE_SEO_KEYWORDS } from '@/lib/seo-keywords';
 import { PWA_CONFIG } from '@/lib/pwa-config';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
@@ -14,6 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: ARTICLES_LISTING_SEO.title,
     description: ARTICLES_LISTING_SEO.description,
     canonicalPath: '/articles',
+    keywords: [...ARTICLE_SEO_KEYWORDS],
     ogImage: {
       url: PWA_CONFIG.heroImage.path,
       width: PWA_CONFIG.heroImage.width,
@@ -44,9 +46,12 @@ export default async function ArticlesPage() {
         />
       ) : null}
       <Breadcrumb items={breadcrumbItems} />
-      <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-6">
-        Bài viết
+      <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
+        Bài viết về Nhãn Hưng Yên
       </h1>
+      <p className="text-muted-foreground mb-6">
+        Cẩm nang long nhãn, chè dưỡng nhan và đặc sản Tống Trân
+      </p>
       <Suspense fallback={<ArticlesListingSkeleton />}>
         <ArticlesListingContent />
       </Suspense>
