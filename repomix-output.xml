@@ -114,6 +114,9 @@ apps/
           layout.tsx
           page.tsx
         api/
+          article-import/
+            preview/
+              route.ts
           articles/
             [id]/
               route.ts
@@ -197,6 +200,7 @@ apps/
         admin/
           list-pagination.tsx
         articles/
+          article-crawl-panel.tsx
           article-form.tsx
           tiptap-editor-slash.tsx
           tiptap-html-editor.tsx
@@ -485,6 +489,7 @@ apps/
         admin-data.ts
         admin-form-parsers.ts
         admin-list-query.ts
+        article-import-mappers.ts
         auth-token.ts
         auth.ts
         http-client.ts
@@ -524,6 +529,30 @@ apps/
       settings.json
     src/
       api/
+        article-import/
+          config/
+            article-import-config.spec.ts
+            article-import-config.type.ts
+            article-import.config.ts
+          dto/
+            article-import-preview.req.dto.ts
+            article-import-preview.res.dto.ts
+          types/
+            crawl-result.type.ts
+          utils/
+            truncate-for-llm.util.spec.ts
+            truncate-for-llm.util.ts
+            validate-import-url.util.spec.ts
+            validate-import-url.util.ts
+          article-formatter.service.spec.ts
+          article-formatter.service.ts
+          article-import.controller.spec.ts
+          article-import.controller.ts
+          article-import.module.ts
+          article-import.service.spec.ts
+          article-import.service.ts
+          crawl.service.spec.ts
+          crawl.service.ts
         articles/
           dto/
             article-query.req.dto.ts
@@ -1179,6 +1208,7 @@ monitoring/
 packages/
   types/
     src/
+      article-import.ts
       article.ts
       auth.ts
       category.ts
@@ -1221,199 +1251,1090 @@ This section contains the contents of the repository's files.
 
 </file>
 
-<file path="deploy/backup/backup.sh">
-#!/usr/bin/env bash
-# Nightly Postgres backup: pg_dump → gzip → local volume → prune.
-set -euo pipefail
+<file path="apps/admin/src/app/api/article-import/preview/route.ts">
+import { NextResponse } from 'next/server';
+import { forwardAdminApi } from '@/lib/admin-api-proxy';
 
-readonly HOST_LABEL="${BACKUP_HOST_LABEL:-longnhan_prod}"
-readonly BACKUP_DIR="${BACKUP_DIR:-/backups}"
-readonly BACKUP_KEEP_DAYS="${BACKUP_KEEP_DAYS:-7}"
-readonly POSTGRES_HOST="${POSTGRES_HOST:?POSTGRES_HOST is required}"
-readonly POSTGRES_PORT="${POSTGRES_PORT:-5432}"
-readonly POSTGRES_USER="${POSTGRES_USER:?POSTGRES_USER is required}"
-readonly POSTGRES_PASSWORD="${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}"
-readonly POSTGRES_DB="${POSTGRES_DB:?POSTGRES_DB is required}"
+export async function POST(request: Request) {
+  const body = await request.text();
+  const upstream = await forwardAdminApi('/article-import/preview', {
+    method: 'POST',
+    body,
+  });
+  const text = await upstream.text();
+  if (!text) return new NextResponse(null, { status: upstream.status });
 
-LAST_ERROR=""
-WEBHOOK_SENT=0
+  const contentType =
+    upstream.headers.get('content-type') || 'application/json';
+  return new NextResponse(text, {
+    status: upstream.status,
+    headers: { 'content-type': contentType },
+  });
+}
+</file>
 
-log() {
-  echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*"
+<file path="apps/admin/src/components/articles/article-crawl-panel.tsx">
+'use client';
+
+import type { ArticleImportPreview } from '@longnhan/types';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2 } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { useMutation } from '@tanstack/react-query';
+import { z } from 'zod';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+
+const crawlSchema = z.object({
+  url: z.string().trim().url('URL không hợp lệ').min(1, 'Vui lòng nhập URL'),
+});
+
+type CrawlFormValues = z.infer<typeof crawlSchema>;
+
+interface ArticleCrawlPanelProps {
+  onImportSuccess: (preview: ArticleImportPreview) => void;
+  disabled?: boolean;
 }
 
-truncate_error() {
-  local msg="$1"
-  if ((${#msg} > 500)); then
-    echo "${msg: -500}"
-  else
-    echo "$msg"
-  fi
+export function ArticleCrawlPanel({
+  onImportSuccess,
+  disabled = false,
+}: ArticleCrawlPanelProps) {
+  const form = useForm<CrawlFormValues>({
+    resolver: zodResolver(crawlSchema),
+    defaultValues: { url: '' },
+  });
+
+  const mutation = useMutation({
+    mutationFn: async (url: string) => {
+      const res = await fetch('/api/article-import/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as {
+          message?: string;
+        };
+        throw new Error(err.message || 'Nhập nội dung thất bại');
+      }
+
+      return res.json() as Promise<ArticleImportPreview>;
+    },
+    onSuccess: (data) => {
+      toast.success('Đã nhập nội dung — vui lòng kiểm tra trước khi lưu');
+      onImportSuccess(data);
+      form.reset();
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
+    },
+  });
+
+  const isPending = mutation.isPending;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Nhập từ URL</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Form {...form}>
+          <form
+            className="flex flex-col gap-4 sm:flex-row sm:items-end"
+            onSubmit={form.handleSubmit((values) =>
+              mutation.mutate(values.url),
+            )}
+          >
+            <FormField
+              control={form.control}
+              name="url"
+              render={({ field }) => (
+                <FormItem className="flex-1">
+                  <FormLabel>URL bài viết</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="url"
+                      placeholder="https://..."
+                      disabled={disabled || isPending}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button
+              type="submit"
+              disabled={disabled || isPending}
+              className="sm:mb-0.5"
+            >
+              {isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Nhập nội dung
+            </Button>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
+  );
+}
+</file>
+
+<file path="apps/admin/src/lib/article-import-mappers.ts">
+import type { Article, ArticleImportPreview } from '@longnhan/types';
+import { ArticleStatus } from '@longnhan/types';
+
+export function mapPreviewToArticle(
+  preview: ArticleImportPreview,
+): Partial<Article> {
+  return {
+    title: preview.title,
+    excerpt: preview.excerpt,
+    contentHtml: preview.contentHtml,
+    featuredImageUrl: preview.featuredImageUrl ?? null,
+    metaTitle: preview.metaTitle ?? null,
+    metaDescription: preview.metaDescription ?? null,
+    tags: preview.tags ?? [],
+    status: ArticleStatus.DRAFT,
+  };
+}
+</file>
+
+<file path="apps/api/src/api/article-import/config/article-import-config.spec.ts">
+import articleImportConfig from './article-import.config';
+
+describe('ArticleImportConfig', () => {
+  const originalEnv = { ...process.env };
+
+  beforeEach(() => {
+    process.env = { ...originalEnv };
+  });
+
+  it('returns defaults when env vars are not set', async () => {
+    delete process.env.FIRECRAWL_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_MODEL;
+    delete process.env.ARTICLE_IMPORT_TIMEOUT_MS;
+
+    const config = await articleImportConfig();
+
+    expect(config.firecrawlApiKey).toBe('');
+    expect(config.openaiApiKey).toBe('');
+    expect(config.openaiModel).toBe('gpt-4o-mini');
+    expect(config.timeoutMs).toBe(90_000);
+  });
+
+  it('reads values from environment variables', async () => {
+    process.env.FIRECRAWL_API_KEY = 'fc-key';
+    process.env.OPENAI_API_KEY = 'oa-key';
+    process.env.OPENAI_MODEL = 'gpt-4o';
+    process.env.ARTICLE_IMPORT_TIMEOUT_MS = '120000';
+
+    const config = await articleImportConfig();
+
+    expect(config.firecrawlApiKey).toBe('fc-key');
+    expect(config.openaiApiKey).toBe('oa-key');
+    expect(config.openaiModel).toBe('gpt-4o');
+    expect(config.timeoutMs).toBe(120_000);
+  });
+});
+</file>
+
+<file path="apps/api/src/api/article-import/config/article-import-config.type.ts">
+export type ArticleImportConfig = {
+  firecrawlApiKey: string;
+  openaiApiKey: string;
+  openaiModel: string;
+  timeoutMs: number;
+};
+</file>
+
+<file path="apps/api/src/api/article-import/config/article-import.config.ts">
+import { registerAs } from '@nestjs/config';
+import { ArticleImportConfig } from './article-import-config.type';
+
+export default registerAs<ArticleImportConfig>('articleImport', () => ({
+  firecrawlApiKey: process.env.FIRECRAWL_API_KEY ?? '',
+  openaiApiKey: process.env.OPENAI_API_KEY ?? '',
+  openaiModel: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
+  timeoutMs: Number(process.env.ARTICLE_IMPORT_TIMEOUT_MS ?? 90_000),
+}));
+</file>
+
+<file path="apps/api/src/api/article-import/dto/article-import-preview.req.dto.ts">
+import { StringField } from '@/decorators/field.decorators';
+import { IsUrl } from 'class-validator';
+
+export class ArticleImportPreviewReqDto {
+  @StringField({ maxLength: 2048 })
+  @IsUrl({ require_protocol: true })
+  url!: string;
+}
+</file>
+
+<file path="apps/api/src/api/article-import/dto/article-import-preview.res.dto.ts">
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Expose, Type } from 'class-transformer';
+
+export class ArticleImportCrawlMetaResDto {
+  @ApiProperty()
+  @Expose()
+  crawledAt!: string;
+
+  @ApiProperty()
+  @Expose()
+  loadTimeMs!: number;
+
+  @ApiPropertyOptional()
+  @Expose()
+  sourceTitle?: string;
 }
 
-notify_failure() {
-  local error_msg
-  error_msg="$(truncate_error "${1:-${LAST_ERROR:-Unknown backup error}}")"
-  local timestamp
-  timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+export class ArticleImportPreviewResDto {
+  @ApiProperty()
+  @Expose()
+  sourceUrl!: string;
 
-  log "ERROR: ${error_msg}"
+  @ApiProperty()
+  @Expose()
+  title!: string;
 
-  if [[ -z "${BACKUP_WEBHOOK_URL:-}" ]]; then
-    return 0
-  fi
+  @ApiProperty()
+  @Expose()
+  excerpt!: string;
 
-  if [[ "$WEBHOOK_SENT" -eq 1 ]]; then
-    return 0
-  fi
-  WEBHOOK_SENT=1
+  @ApiProperty()
+  @Expose()
+  contentHtml!: string;
 
-  local payload notify_style="slack"
-  if [[ "$BACKUP_WEBHOOK_URL" == *"discord.com/api/webhooks"* ]]; then
-    notify_style="discord"
-  fi
+  @ApiPropertyOptional()
+  @Expose()
+  featuredImageUrl?: string;
 
-  payload="$(
-    NOTIFY_ERROR_MSG="$error_msg" NOTIFY_TIMESTAMP="$timestamp" NOTIFY_STYLE="$notify_style" HOST_LABEL="$HOST_LABEL" python3 - <<'PY'
-import json, os
+  @ApiPropertyOptional()
+  @Expose()
+  metaTitle?: string;
 
-error = os.environ["NOTIFY_ERROR_MSG"]
-timestamp = os.environ["NOTIFY_TIMESTAMP"]
-host = os.environ["HOST_LABEL"]
-if os.environ["NOTIFY_STYLE"] == "discord":
-    body = {
-        "content": (
-            f"[longnhan-prod] DB backup FAILED\n"
-            f"host: {host}\n"
-            f"timestamp: {timestamp}\n"
-            f"error: {error}"
-        )
+  @ApiPropertyOptional()
+  @Expose()
+  metaDescription?: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  @Expose()
+  tags?: string[];
+
+  @ApiProperty({ type: ArticleImportCrawlMetaResDto })
+  @Expose()
+  @Type(() => ArticleImportCrawlMetaResDto)
+  crawlMeta!: ArticleImportCrawlMetaResDto;
+}
+</file>
+
+<file path="apps/api/src/api/article-import/types/crawl-result.type.ts">
+export type CrawlResult = {
+  title?: string;
+  markdown: string;
+  html?: string;
+  metadata?: {
+    ogImage?: string;
+  };
+};
+</file>
+
+<file path="apps/api/src/api/article-import/utils/truncate-for-llm.util.spec.ts">
+import { truncateForLlm } from './truncate-for-llm.util';
+
+describe('truncateForLlm', () => {
+  it('returns text unchanged when under limit', () => {
+    const text = 'hello world';
+    expect(truncateForLlm(text, 100)).toBe(text);
+  });
+
+  it('truncates text over limit', () => {
+    const text = 'a'.repeat(100);
+    expect(truncateForLlm(text, 50)).toBe('a'.repeat(50));
+  });
+});
+</file>
+
+<file path="apps/api/src/api/article-import/utils/truncate-for-llm.util.ts">
+import { Logger } from '@nestjs/common';
+
+const DEFAULT_MAX_CHARS = 48_000;
+
+const logger = new Logger('TruncateForLlm');
+
+export function truncateForLlm(
+  text: string,
+  maxChars = DEFAULT_MAX_CHARS,
+): string {
+  if (text.length <= maxChars) {
+    return text;
+  }
+
+  logger.warn(
+    `Truncating markdown from ${text.length} to ${maxChars} chars for LLM input`,
+  );
+
+  return text.slice(0, maxChars);
+}
+</file>
+
+<file path="apps/api/src/api/article-import/utils/validate-import-url.util.spec.ts">
+import { BadRequestException } from '@nestjs/common';
+import { validateImportUrl } from './validate-import-url.util';
+
+describe('validateImportUrl', () => {
+  it('allows valid HTTPS URLs', () => {
+    expect(() => validateImportUrl('https://example.com/post')).not.toThrow();
+  });
+
+  it('rejects localhost', () => {
+    expect(() => validateImportUrl('http://localhost/admin')).toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('rejects private IPv4', () => {
+    expect(() => validateImportUrl('http://192.168.1.1/')).toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('rejects non-http(s) schemes', () => {
+    expect(() => validateImportUrl('ftp://example.com')).toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('rejects empty URL', () => {
+    expect(() => validateImportUrl('')).toThrow(BadRequestException);
+  });
+
+  it('rejects URLs over 2048 characters', () => {
+    const longUrl = `https://example.com/${'a'.repeat(2048)}`;
+    expect(() => validateImportUrl(longUrl)).toThrow(BadRequestException);
+  });
+});
+</file>
+
+<file path="apps/api/src/api/article-import/utils/validate-import-url.util.ts">
+import { BadRequestException } from '@nestjs/common';
+
+const MAX_URL_LENGTH = 2048;
+
+const BLOCKED_HOSTNAMES = new Set(['localhost', '0.0.0.0', '::1', '[::1]']);
+
+function isPrivateIpv4(hostname: string): boolean {
+  const parts = hostname.split('.').map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => Number.isNaN(part))) {
+    return false;
+  }
+
+  const [a, b] = parts;
+  if (a === 10) return true;
+  if (a === 127) return true;
+  if (a === 0) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+
+  return false;
+}
+
+function isPrivateIpv6(hostname: string): boolean {
+  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (normalized === '::1') return true;
+  if (normalized.startsWith('fe80:')) return true;
+  if (normalized.startsWith('fc') || normalized.startsWith('fd')) return true;
+  return false;
+}
+
+function isBlockedHostname(hostname: string): boolean {
+  const lower = hostname.toLowerCase();
+
+  if (BLOCKED_HOSTNAMES.has(lower)) return true;
+  if (lower.endsWith('.localhost')) return true;
+  if (isPrivateIpv4(lower)) return true;
+  if (lower.includes(':') && isPrivateIpv6(lower)) return true;
+
+  return false;
+}
+
+export function validateImportUrl(url: string): void {
+  if (!url || url.length > MAX_URL_LENGTH) {
+    throw new BadRequestException('URL không hợp lệ');
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new BadRequestException('URL không hợp lệ');
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new BadRequestException('URL không hợp lệ');
+  }
+
+  if (isBlockedHostname(parsed.hostname)) {
+    throw new BadRequestException('URL không hợp lệ');
+  }
+}
+</file>
+
+<file path="apps/api/src/api/article-import/article-formatter.service.spec.ts">
+const mockCreate = jest.fn();
+
+jest.mock('openai', () => ({
+  __esModule: true,
+  default: jest.fn().mockImplementation(() => ({
+    chat: {
+      completions: {
+        create: mockCreate,
+      },
+    },
+  })),
+}));
+
+import {
+  BadGatewayException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Test, TestingModule } from '@nestjs/testing';
+import { ArticleFormatterService } from './article-formatter.service';
+
+describe('ArticleFormatterService', () => {
+  let service: ArticleFormatterService;
+  let configGet: jest.Mock;
+
+  beforeEach(async () => {
+    mockCreate.mockReset();
+    configGet = jest.fn((key: string) => {
+      if (key === 'articleImport.openaiApiKey') return 'oa-key';
+      if (key === 'articleImport.openaiModel') return 'gpt-4o-mini';
+      return undefined;
+    });
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ArticleFormatterService,
+        {
+          provide: ConfigService,
+          useValue: { get: configGet },
+        },
+      ],
+    }).compile();
+
+    service = module.get(ArticleFormatterService);
+  });
+
+  it('maps OpenAI JSON response to formatted article fields', async () => {
+    mockCreate.mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              title: 'Tiêu đề',
+              excerpt: 'Tóm tắt',
+              contentHtml: '<p>Nội dung</p>',
+              metaTitle: 'SEO',
+              metaDescription: 'Mô tả',
+              tags: ['long nhãn'],
+              featuredImageUrl: 'https://img.test/b.jpg',
+            }),
+          },
+        },
+      ],
+    });
+
+    const result = await service.format('https://example.com/post', {
+      markdown: '# Source',
+      title: 'Source',
+      metadata: { ogImage: 'https://img.test/a.jpg' },
+    });
+
+    expect(result.title).toBe('Tiêu đề');
+    expect(result.excerpt).toBe('Tóm tắt');
+    expect(result.contentHtml).toBe('<p>Nội dung</p>');
+    expect(result.featuredImageUrl).toBe('https://img.test/b.jpg');
+    expect(result.tags).toEqual(['long nhãn']);
+  });
+
+  it('throws ServiceUnavailableException when OpenAI key is missing', async () => {
+    configGet.mockImplementation((key: string) => {
+      if (key === 'articleImport.openaiApiKey') return '';
+      if (key === 'articleImport.openaiModel') return 'gpt-4o-mini';
+      return undefined;
+    });
+
+    await expect(
+      service.format('https://example.com/post', { markdown: '# Source' }),
+    ).rejects.toThrow(ServiceUnavailableException);
+  });
+
+  it('throws BadGatewayException on OpenAI API error', async () => {
+    mockCreate.mockRejectedValue(new Error('API down'));
+
+    await expect(
+      service.format('https://example.com/post', { markdown: '# Source' }),
+    ).rejects.toThrow(BadGatewayException);
+  });
+});
+</file>
+
+<file path="apps/api/src/api/article-import/article-formatter.service.ts">
+import { AllConfigType } from '@/config/config.type';
+import {
+  BadGatewayException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import OpenAI from 'openai';
+import { CrawlResult } from './types/crawl-result.type';
+import { truncateForLlm } from './utils/truncate-for-llm.util';
+
+export type FormattedArticle = {
+  title: string;
+  excerpt: string;
+  contentHtml: string;
+  featuredImageUrl?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  tags?: string[];
+};
+
+type OpenAiArticleJson = {
+  title?: string;
+  excerpt?: string;
+  contentHtml?: string;
+  featuredImageUrl?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  tags?: string[];
+};
+
+const SYSTEM_PROMPT = `Bạn là biên tập viên cho blog Long Nhãn — thương hiệu nhãn lồng long nhãn Tống Trân Hưng Yên.
+
+Nhiệm vụ: viết lại nội dung bài viết bằng tiếng Việt tự nhiên, phù hợp độc giả quan tâm đến ẩm thực và nông sản của thương hiệu Long Nhãn Tống Trân Hưng Yên.
+
+Quy tắc:
+- Chỉ lấy những nội dung chính, bỏ qua những thông tin quảng cáo thừa.
+- Giữ nguyên sự kiện, số liệu, tên riêng, địa danh; không bịa thêm thông tin sản phẩm.
+- contentHtml: HTML ngữ nghĩa cho trình soạn thảo Tiptap, chỉ dùng thẻ h2, p, ul, strong — không html/body/script/style inline.
+- excerpt: tối đa 300 ký tự.
+- tags: 3–8 từ khóa liên quan.
+- Nếu nguồn đã là tiếng Việt, vẫn chuẩn hóa giọng văn và cấu trúc.
+
+Trả về JSON với các trường: title, excerpt, contentHtml, metaTitle, metaDescription, tags, featuredImageUrl.`;
+
+@Injectable()
+export class ArticleFormatterService {
+  private readonly logger = new Logger(ArticleFormatterService.name);
+
+  constructor(private readonly configService: ConfigService<AllConfigType>) {}
+
+  async format(
+    sourceUrl: string,
+    crawl: CrawlResult,
+  ): Promise<FormattedArticle> {
+    const apiKey = this.configService.get('articleImport.openaiApiKey', {
+      infer: true,
+    });
+
+    if (!apiKey) {
+      throw new ServiceUnavailableException(
+        'Chức năng nhập URL chưa được cấu hình',
+      );
     }
-else:
-    body = {
-        "text": "[longnhan-prod] DB backup FAILED",
-        "host": host,
-        "error": error,
-        "timestamp": timestamp,
+
+    const model = this.configService.get('articleImport.openaiModel', {
+      infer: true,
+    })!;
+
+    const markdown = truncateForLlm(crawl.markdown);
+    const userPrompt = [
+      `URL nguồn: ${sourceUrl}`,
+      crawl.title ? `Tiêu đề gốc: ${crawl.title}` : null,
+      crawl.metadata?.ogImage
+        ? `Ảnh đại diện gốc (og:image): ${crawl.metadata.ogImage}`
+        : null,
+      '',
+      'Nội dung markdown:',
+      markdown,
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    try {
+      const client = new OpenAI({ apiKey });
+      const completion = await client.chat.completions.create({
+        model,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: userPrompt },
+        ],
+      });
+
+      const raw = completion.choices[0]?.message?.content;
+      if (!raw) {
+        throw new BadGatewayException('Không thể định dạng nội dung');
+      }
+
+      const parsed = JSON.parse(raw) as OpenAiArticleJson;
+
+      if (!parsed.title || !parsed.excerpt || !parsed.contentHtml) {
+        throw new BadGatewayException('Không thể định dạng nội dung');
+      }
+
+      return {
+        title: parsed.title,
+        excerpt: parsed.excerpt.slice(0, 300),
+        contentHtml: parsed.contentHtml,
+        featuredImageUrl:
+          parsed.featuredImageUrl ?? crawl.metadata?.ogImage ?? undefined,
+        metaTitle: parsed.metaTitle,
+        metaDescription: parsed.metaDescription,
+        tags: parsed.tags,
+      };
+    } catch (error) {
+      if (
+        error instanceof BadGatewayException ||
+        error instanceof ServiceUnavailableException
+      ) {
+        throw error;
+      }
+
+      this.logger.error('OpenAI formatting failed', error);
+      throw new BadGatewayException('Không thể định dạng nội dung');
     }
-print(json.dumps(body))
-PY
-  )"
-
-  if ! curl -fsS -X POST -H "Content-Type: application/json" -d "$payload" "$BACKUP_WEBHOOK_URL" >/dev/null 2>&1; then
-    log "WARN: webhook POST failed (backup failure still reported via exit code)"
-  fi
+  }
 }
-
-on_err() {
-  local line="$1"
-  LAST_ERROR="${LAST_ERROR:-Backup failed at line ${line}}"
-  notify_failure "$LAST_ERROR"
-  exit 1
-}
-
-trap 'on_err $LINENO' ERR
-
-mkdir -p "$BACKUP_DIR"
-
-START_EPOCH=$(date +%s)
-DATE=$(date -u +%Y%m%d_%H%M%S)
-FILE="backup_${DATE}.sql.gz"
-OUTPUT="$BACKUP_DIR/$FILE"
-DUMP_ERR=$(mktemp)
-cleanup() {
-  rm -f "$DUMP_ERR"
-}
-trap cleanup EXIT
-
-log "Starting backup → ${FILE}"
-
-export PGPASSWORD="$POSTGRES_PASSWORD"
-if ! pg_dump -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" 2>"$DUMP_ERR" | gzip >"$OUTPUT"; then
-  rm -f "$OUTPUT"
-  LAST_ERROR="$(cat "$DUMP_ERR" 2>/dev/null || true)"
-  notify_failure "$LAST_ERROR"
-  exit 1
-fi
-
-FILE_SIZE=$(stat -c %s "$OUTPUT" 2>/dev/null || stat -f %z "$OUTPUT")
-log "Dump complete: ${FILE} (${FILE_SIZE} bytes)"
-
-find "$BACKUP_DIR" -name 'backup_*.sql.gz' -mtime +"$BACKUP_KEEP_DAYS" -delete
-log "Pruned local backups older than ${BACKUP_KEEP_DAYS} days"
-
-DURATION=$(( $(date +%s) - START_EPOCH ))
-log "Backup succeeded: ${FILE} (${FILE_SIZE} bytes, ${DURATION}s)"
 </file>
 
-<file path="deploy/backup/crontab">
-0 2 * * * /bin/bash /backup.sh
+<file path="apps/api/src/api/article-import/article-import.controller.spec.ts">
+import { Test, TestingModule } from '@nestjs/testing';
+import { ArticleImportController } from './article-import.controller';
+import { ArticleImportService } from './article-import.service';
+
+describe('ArticleImportController', () => {
+  let controller: ArticleImportController;
+  let service: { preview: jest.Mock };
+
+  beforeEach(async () => {
+    service = { preview: jest.fn() };
+
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [ArticleImportController],
+      providers: [{ provide: ArticleImportService, useValue: service }],
+    }).compile();
+
+    controller = module.get(ArticleImportController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+
+  it('delegates preview to service', async () => {
+    const dto = { url: 'https://example.com/post' };
+    const response = { sourceUrl: dto.url, title: 'Test' };
+    service.preview.mockResolvedValue(response);
+
+    const result = await controller.preview(dto);
+
+    expect(service.preview).toHaveBeenCalledWith(dto);
+    expect(result).toEqual(response);
+  });
+});
 </file>
 
-<file path="deploy/backup/Dockerfile">
-FROM alpine:3.20
+<file path="apps/api/src/api/article-import/article-import.controller.ts">
+import { ApiAuth } from '@/decorators/http.decorators';
+import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
+import { ArticleImportService } from './article-import.service';
+import { ArticleImportPreviewReqDto } from './dto/article-import-preview.req.dto';
+import { ArticleImportPreviewResDto } from './dto/article-import-preview.res.dto';
 
-RUN apk add --no-cache \
-    bash \
-    curl \
-    gzip \
-    postgresql16-client \
-    python3
+@ApiTags('article-import')
+@Controller({ path: 'article-import', version: '1' })
+export class ArticleImportController {
+  constructor(private readonly articleImportService: ArticleImportService) {}
 
-# Pin supercronic release (cron runner for containers) — v0.2.36+ fixes reaper fork-exec bug
-ARG SUPERCRONIC_VERSION=0.2.36
-ARG TARGETARCH
-RUN case "${TARGETARCH:-$(uname -m)}" in \
-      amd64|x86_64) SUPERCRONIC_ARCH=amd64 ;; \
-      arm64|aarch64) SUPERCRONIC_ARCH=arm64 ;; \
-      *) echo "unsupported architecture: ${TARGETARCH:-$(uname -m)}" >&2; exit 1 ;; \
-    esac \
-    && curl -fsSL \
-      "https://github.com/aptible/supercronic/releases/download/v${SUPERCRONIC_VERSION}/supercronic-linux-${SUPERCRONIC_ARCH}" \
-      -o /usr/local/bin/supercronic \
-    && chmod +x /usr/local/bin/supercronic
-
-COPY backup.sh /backup.sh
-COPY crontab /etc/crontab
-RUN chmod +x /backup.sh
-
-ENV BACKUP_DIR=/backups
-VOLUME /backups
-
-ENTRYPOINT ["/usr/local/bin/supercronic", "/etc/crontab"]
+  @ApiAuth({
+    type: ArticleImportPreviewResDto,
+    summary: 'Preview article import from URL',
+  })
+  @Post('preview')
+  @HttpCode(HttpStatus.OK)
+  async preview(
+    @Body() dto: ArticleImportPreviewReqDto,
+  ): Promise<ArticleImportPreviewResDto> {
+    return this.articleImportService.preview(dto);
+  }
+}
 </file>
 
-<file path="docker-compose.backup.yml">
-# Production DB backup sidecar — merged with docker-compose.prod.yml via `make deploy`.
-# See deploy/README.md §7 and docs/specs/db-backup-cron-spec.md
+<file path="apps/api/src/api/article-import/article-import.module.ts">
+import articleImportConfig from '@/api/article-import/config/article-import.config';
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { ArticleFormatterService } from './article-formatter.service';
+import { ArticleImportController } from './article-import.controller';
+import { ArticleImportService } from './article-import.service';
+import { CrawlService } from './crawl.service';
 
-services:
-  db-backup:
-    build:
-      context: ./deploy/backup
-    image: longnhan-db-backup:prod
-    container_name: longnhan_prod_db_backup
-    env_file:
-      - apps/api/.env.production
-    environment:
-      POSTGRES_HOST: db
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: ${DATABASE_USERNAME:-longnhan}
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD}
-      POSTGRES_DB: ${DATABASE_NAME:-longnhan}
-      BACKUP_DIR: /backups
-      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-7}
-      BACKUP_WEBHOOK_URL: ${BACKUP_WEBHOOK_URL:-}
-    volumes:
-      - postgres_backup_data:/backups
-    depends_on:
-      - db
-    restart: unless-stopped
-    networks:
-      - longnhan-prod
+@Module({
+  imports: [ConfigModule.forFeature(articleImportConfig)],
+  controllers: [ArticleImportController],
+  providers: [ArticleImportService, CrawlService, ArticleFormatterService],
+})
+export class ArticleImportModule {}
+</file>
 
-volumes:
-  postgres_backup_data:
+<file path="apps/api/src/api/article-import/article-import.service.spec.ts">
+import { ServiceUnavailableException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Test, TestingModule } from '@nestjs/testing';
+import { ArticleFormatterService } from './article-formatter.service';
+import { ArticleImportService } from './article-import.service';
+import { CrawlService } from './crawl.service';
+
+describe('ArticleImportService', () => {
+  let service: ArticleImportService;
+  let crawlService: { crawl: jest.Mock };
+  let formatterService: { format: jest.Mock };
+  let configGet: jest.Mock;
+
+  beforeEach(async () => {
+    crawlService = { crawl: jest.fn() };
+    formatterService = { format: jest.fn() };
+    configGet = jest.fn((key: string) => {
+      if (key === 'articleImport.firecrawlApiKey') return 'fc-key';
+      if (key === 'articleImport.openaiApiKey') return 'oa-key';
+      return undefined;
+    });
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ArticleImportService,
+        { provide: ConfigService, useValue: { get: configGet } },
+        { provide: CrawlService, useValue: crawlService },
+        { provide: ArticleFormatterService, useValue: formatterService },
+      ],
+    }).compile();
+
+    service = module.get(ArticleImportService);
+  });
+
+  it('returns preview DTO with crawlMeta on happy path', async () => {
+    crawlService.crawl.mockResolvedValue({
+      title: 'Source',
+      markdown: '# Hello',
+    });
+    formatterService.format.mockResolvedValue({
+      title: 'Tiêu đề',
+      excerpt: 'Tóm tắt',
+      contentHtml: '<p>Nội dung</p>',
+      tags: ['tag'],
+    });
+
+    const result = await service.preview({
+      url: 'https://example.com/post',
+    });
+
+    expect(result.sourceUrl).toBe('https://example.com/post');
+    expect(result.title).toBe('Tiêu đề');
+    expect(result.crawlMeta.sourceTitle).toBe('Source');
+    expect(result.crawlMeta.loadTimeMs).toBeGreaterThanOrEqual(0);
+    expect(result.crawlMeta.crawledAt).toBeDefined();
+  });
+
+  it('throws 503 when firecrawl key is missing', async () => {
+    configGet.mockImplementation((key: string) => {
+      if (key === 'articleImport.firecrawlApiKey') return '';
+      if (key === 'articleImport.openaiApiKey') return 'oa-key';
+      return undefined;
+    });
+
+    await expect(
+      service.preview({ url: 'https://example.com/post' }),
+    ).rejects.toThrow(ServiceUnavailableException);
+  });
+});
+</file>
+
+<file path="apps/api/src/api/article-import/article-import.service.ts">
+import { AllConfigType } from '@/config/config.type';
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { plainToInstance } from 'class-transformer';
+import { ArticleFormatterService } from './article-formatter.service';
+import { CrawlService } from './crawl.service';
+import { ArticleImportPreviewReqDto } from './dto/article-import-preview.req.dto';
+import { ArticleImportPreviewResDto } from './dto/article-import-preview.res.dto';
+import { validateImportUrl } from './utils/validate-import-url.util';
+
+@Injectable()
+export class ArticleImportService {
+  constructor(
+    private readonly configService: ConfigService<AllConfigType>,
+    private readonly crawlService: CrawlService,
+    private readonly formatterService: ArticleFormatterService,
+  ) {}
+
+  async preview(
+    dto: ArticleImportPreviewReqDto,
+  ): Promise<ArticleImportPreviewResDto> {
+    validateImportUrl(dto.url);
+    this.assertConfigured();
+
+    const start = Date.now();
+    const crawl = await this.crawlService.crawl(dto.url);
+    const formatted = await this.formatterService.format(dto.url, crawl);
+
+    return plainToInstance(ArticleImportPreviewResDto, {
+      sourceUrl: dto.url,
+      ...formatted,
+      crawlMeta: {
+        crawledAt: new Date().toISOString(),
+        loadTimeMs: Date.now() - start,
+        sourceTitle: crawl.title,
+      },
+    });
+  }
+
+  private assertConfigured(): void {
+    const firecrawlApiKey = this.configService.get(
+      'articleImport.firecrawlApiKey',
+      { infer: true },
+    );
+    const openaiApiKey = this.configService.get('articleImport.openaiApiKey', {
+      infer: true,
+    });
+
+    if (!firecrawlApiKey || !openaiApiKey) {
+      throw new ServiceUnavailableException(
+        'Chức năng nhập URL chưa được cấu hình',
+      );
+    }
+  }
+}
+</file>
+
+<file path="apps/api/src/api/article-import/crawl.service.spec.ts">
+const mockScrapeUrl = jest.fn();
+
+jest.mock('@mendable/firecrawl-js', () => ({
+  __esModule: true,
+  default: jest.fn().mockImplementation(() => ({
+    scrapeUrl: mockScrapeUrl,
+  })),
+}));
+
+import { AllConfigType } from '@/config/config.type';
+import { BadGatewayException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Test, TestingModule } from '@nestjs/testing';
+import { CrawlService } from './crawl.service';
+
+describe('CrawlService', () => {
+  let service: CrawlService;
+
+  beforeEach(async () => {
+    mockScrapeUrl.mockReset();
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        CrawlService,
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: keyof AllConfigType | string) => {
+              if (key === 'articleImport.firecrawlApiKey') return 'fc-key';
+              if (key === 'articleImport.timeoutMs') return 90_000;
+              return undefined;
+            }),
+          },
+        },
+      ],
+    }).compile();
+
+    service = module.get(CrawlService);
+  });
+
+  it('returns markdown and title on success', async () => {
+    mockScrapeUrl.mockResolvedValue({
+      success: true,
+      markdown: '# Hello',
+      metadata: { title: 'Source Title', ogImage: 'https://img.test/a.jpg' },
+    });
+
+    const result = await service.crawl('https://example.com/post');
+
+    expect(result.markdown).toBe('# Hello');
+    expect(result.title).toBe('Source Title');
+    expect(result.metadata?.ogImage).toBe('https://img.test/a.jpg');
+  });
+
+  it('throws BadGatewayException when scrape fails', async () => {
+    mockScrapeUrl.mockResolvedValue({ success: false });
+
+    await expect(service.crawl('https://example.com/post')).rejects.toThrow(
+      BadGatewayException,
+    );
+  });
+
+  it('throws BadGatewayException when markdown is empty', async () => {
+    mockScrapeUrl.mockResolvedValue({ success: true, markdown: '   ' });
+
+    await expect(service.crawl('https://example.com/post')).rejects.toThrow(
+      BadGatewayException,
+    );
+  });
+});
+</file>
+
+<file path="apps/api/src/api/article-import/crawl.service.ts">
+import { AllConfigType } from '@/config/config.type';
+import FirecrawlApp from '@mendable/firecrawl-js';
+import {
+  BadGatewayException,
+  GatewayTimeoutException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { CrawlResult } from './types/crawl-result.type';
+
+@Injectable()
+export class CrawlService {
+  private readonly logger = new Logger(CrawlService.name);
+
+  constructor(private readonly configService: ConfigService<AllConfigType>) {}
+
+  async crawl(url: string): Promise<CrawlResult> {
+    const apiKey = this.configService.get('articleImport.firecrawlApiKey', {
+      infer: true,
+    });
+    const timeoutMs = this.configService.get('articleImport.timeoutMs', {
+      infer: true,
+    })!;
+
+    const crawlPromise = this.scrapeWithFirecrawl(url, apiKey!);
+    let timeoutId: NodeJS.Timeout;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(
+          new GatewayTimeoutException(
+            'Quá thời gian chờ — thử lại hoặc URL khác',
+          ),
+        );
+      }, timeoutMs);
+      timeoutId.unref?.();
+    });
+
+    try {
+      return await Promise.race([crawlPromise, timeoutPromise]);
+    } finally {
+      clearTimeout(timeoutId!);
+    }
+  }
+
+  private async scrapeWithFirecrawl(
+    url: string,
+    apiKey: string,
+  ): Promise<CrawlResult> {
+    const start = Date.now();
+
+    try {
+      const client = new FirecrawlApp({ apiKey });
+      const response = await client.scrapeUrl(url, {
+        formats: ['markdown', 'html'],
+        onlyMainContent: true,
+      });
+
+      if (!response.success) {
+        this.logger.warn(`Firecrawl scrape failed for ${url}`);
+        throw new BadGatewayException('Không thể tải trang nguồn');
+      }
+
+      const markdown = response.markdown?.trim() ?? '';
+      if (!markdown) {
+        throw new BadGatewayException('Không thể tải trang nguồn');
+      }
+
+      const metadata = response.metadata as
+        | { ogImage?: string; title?: string }
+        | undefined;
+
+      this.logger.debug(`Crawled ${url} in ${Date.now() - start}ms`);
+
+      return {
+        title: metadata?.title ?? response.title,
+        markdown,
+        html: response.html,
+        metadata: {
+          ogImage:
+            metadata?.ogImage ??
+            (response.metadata as { ogImage?: string } | undefined)?.ogImage,
+        },
+      };
+    } catch (error) {
+      if (
+        error instanceof BadGatewayException ||
+        error instanceof GatewayTimeoutException
+      ) {
+        throw error;
+      }
+
+      this.logger.error(`Firecrawl error for ${url}`, error);
+      throw new BadGatewayException('Không thể tải trang nguồn');
+    }
+  }
+}
+</file>
+
+<file path="packages/types/src/article-import.ts">
+export interface ArticleImportCrawlMeta {
+  crawledAt: string;
+  loadTimeMs: number;
+  sourceTitle?: string;
+}
+
+export interface ArticleImportPreview {
+  sourceUrl: string;
+  title: string;
+  excerpt: string;
+  contentHtml: string;
+  featuredImageUrl?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  tags?: string[];
+  crawlMeta: ArticleImportCrawlMeta;
+}
+
+export interface ArticleImportPreviewRequest {
+  url: string;
+}
 </file>
 
 <file path="apps/admin/public/file.svg">
@@ -21695,6 +22616,168 @@ export default config;
 }
 </file>
 
+<file path="deploy/backup/backup.sh">
+#!/usr/bin/env bash
+# Nightly Postgres backup: pg_dump → gzip → local volume → prune.
+set -euo pipefail
+
+readonly HOST_LABEL="${BACKUP_HOST_LABEL:-longnhan_prod}"
+readonly BACKUP_DIR="${BACKUP_DIR:-/backups}"
+readonly BACKUP_KEEP_DAYS="${BACKUP_KEEP_DAYS:-7}"
+readonly POSTGRES_HOST="${POSTGRES_HOST:?POSTGRES_HOST is required}"
+readonly POSTGRES_PORT="${POSTGRES_PORT:-5432}"
+readonly POSTGRES_USER="${POSTGRES_USER:?POSTGRES_USER is required}"
+readonly POSTGRES_PASSWORD="${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}"
+readonly POSTGRES_DB="${POSTGRES_DB:?POSTGRES_DB is required}"
+
+LAST_ERROR=""
+WEBHOOK_SENT=0
+
+log() {
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*"
+}
+
+truncate_error() {
+  local msg="$1"
+  if ((${#msg} > 500)); then
+    echo "${msg: -500}"
+  else
+    echo "$msg"
+  fi
+}
+
+notify_failure() {
+  local error_msg
+  error_msg="$(truncate_error "${1:-${LAST_ERROR:-Unknown backup error}}")"
+  local timestamp
+  timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+  log "ERROR: ${error_msg}"
+
+  if [[ -z "${BACKUP_WEBHOOK_URL:-}" ]]; then
+    return 0
+  fi
+
+  if [[ "$WEBHOOK_SENT" -eq 1 ]]; then
+    return 0
+  fi
+  WEBHOOK_SENT=1
+
+  local payload notify_style="slack"
+  if [[ "$BACKUP_WEBHOOK_URL" == *"discord.com/api/webhooks"* ]]; then
+    notify_style="discord"
+  fi
+
+  payload="$(
+    NOTIFY_ERROR_MSG="$error_msg" NOTIFY_TIMESTAMP="$timestamp" NOTIFY_STYLE="$notify_style" HOST_LABEL="$HOST_LABEL" python3 - <<'PY'
+import json, os
+
+error = os.environ["NOTIFY_ERROR_MSG"]
+timestamp = os.environ["NOTIFY_TIMESTAMP"]
+host = os.environ["HOST_LABEL"]
+if os.environ["NOTIFY_STYLE"] == "discord":
+    body = {
+        "content": (
+            f"[longnhan-prod] DB backup FAILED\n"
+            f"host: {host}\n"
+            f"timestamp: {timestamp}\n"
+            f"error: {error}"
+        )
+    }
+else:
+    body = {
+        "text": "[longnhan-prod] DB backup FAILED",
+        "host": host,
+        "error": error,
+        "timestamp": timestamp,
+    }
+print(json.dumps(body))
+PY
+  )"
+
+  if ! curl -fsS -X POST -H "Content-Type: application/json" -d "$payload" "$BACKUP_WEBHOOK_URL" >/dev/null 2>&1; then
+    log "WARN: webhook POST failed (backup failure still reported via exit code)"
+  fi
+}
+
+on_err() {
+  local line="$1"
+  LAST_ERROR="${LAST_ERROR:-Backup failed at line ${line}}"
+  notify_failure "$LAST_ERROR"
+  exit 1
+}
+
+trap 'on_err $LINENO' ERR
+
+mkdir -p "$BACKUP_DIR"
+
+START_EPOCH=$(date +%s)
+DATE=$(date -u +%Y%m%d_%H%M%S)
+FILE="backup_${DATE}.sql.gz"
+OUTPUT="$BACKUP_DIR/$FILE"
+DUMP_ERR=$(mktemp)
+cleanup() {
+  rm -f "$DUMP_ERR"
+}
+trap cleanup EXIT
+
+log "Starting backup → ${FILE}"
+
+export PGPASSWORD="$POSTGRES_PASSWORD"
+if ! pg_dump -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" 2>"$DUMP_ERR" | gzip >"$OUTPUT"; then
+  rm -f "$OUTPUT"
+  LAST_ERROR="$(cat "$DUMP_ERR" 2>/dev/null || true)"
+  notify_failure "$LAST_ERROR"
+  exit 1
+fi
+
+FILE_SIZE=$(stat -c %s "$OUTPUT" 2>/dev/null || stat -f %z "$OUTPUT")
+log "Dump complete: ${FILE} (${FILE_SIZE} bytes)"
+
+find "$BACKUP_DIR" -name 'backup_*.sql.gz' -mtime +"$BACKUP_KEEP_DAYS" -delete
+log "Pruned local backups older than ${BACKUP_KEEP_DAYS} days"
+
+DURATION=$(( $(date +%s) - START_EPOCH ))
+log "Backup succeeded: ${FILE} (${FILE_SIZE} bytes, ${DURATION}s)"
+</file>
+
+<file path="deploy/backup/crontab">
+0 2 * * * /bin/bash /backup.sh
+</file>
+
+<file path="deploy/backup/Dockerfile">
+FROM alpine:3.20
+
+RUN apk add --no-cache \
+    bash \
+    curl \
+    gzip \
+    postgresql16-client \
+    python3
+
+# Pin supercronic release (cron runner for containers) — v0.2.36+ fixes reaper fork-exec bug
+ARG SUPERCRONIC_VERSION=0.2.36
+ARG TARGETARCH
+RUN case "${TARGETARCH:-$(uname -m)}" in \
+      amd64|x86_64) SUPERCRONIC_ARCH=amd64 ;; \
+      arm64|aarch64) SUPERCRONIC_ARCH=arm64 ;; \
+      *) echo "unsupported architecture: ${TARGETARCH:-$(uname -m)}" >&2; exit 1 ;; \
+    esac \
+    && curl -fsSL \
+      "https://github.com/aptible/supercronic/releases/download/v${SUPERCRONIC_VERSION}/supercronic-linux-${SUPERCRONIC_ARCH}" \
+      -o /usr/local/bin/supercronic \
+    && chmod +x /usr/local/bin/supercronic
+
+COPY backup.sh /backup.sh
+COPY crontab /etc/crontab
+RUN chmod +x /backup.sh
+
+ENV BACKUP_DIR=/backups
+VOLUME /backups
+
+ENTRYPOINT ["/usr/local/bin/supercronic", "/etc/crontab"]
+</file>
+
 <file path="deploy/cloudflare/.gitignore">
 # Tunnel credentials and local config (never commit)
 *.json
@@ -25028,6 +26111,39 @@ The border system is particularly distinctive -- Cursor uses `oklab()` color spa
 6. Hover states use `#cf2d56` text color -- the warm crimson shift is a signature interaction
 7. Shadows use large blur values (28px, 70px) for diffused atmospheric depth
 8. The sub-8px spacing scale (1.5, 2, 2.5, 3, 4, 5, 6px) is critical for icon/text micro-alignment
+</file>
+
+<file path="docker-compose.backup.yml">
+# Production DB backup sidecar — merged with docker-compose.prod.yml via `make deploy`.
+# See deploy/README.md §7 and docs/specs/db-backup-cron-spec.md
+
+services:
+  db-backup:
+    build:
+      context: ./deploy/backup
+    image: longnhan-db-backup:prod
+    container_name: longnhan_prod_db_backup
+    env_file:
+      - apps/api/.env.production
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${DATABASE_USERNAME:-longnhan}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME:-longnhan}
+      BACKUP_DIR: /backups
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-7}
+      BACKUP_WEBHOOK_URL: ${BACKUP_WEBHOOK_URL:-}
+    volumes:
+      - postgres_backup_data:/backups
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - longnhan-prod
+
+volumes:
+  postgres_backup_data:
 </file>
 
 <file path="docker-compose.monitoring.yml">
@@ -41059,6 +42175,7 @@ function getCorsOrigin() {
 </file>
 
 <file path="apps/api/src/config/config.type.ts">
+import { ArticleImportConfig } from '@/api/article-import/config/article-import-config.type';
 import { AuthConfig } from '@/api/auth/config/auth-config.type';
 import { CloudinaryConfig } from '@/api/media/config/cloudinary-config.type';
 import { DatabaseConfig } from '@/database/config/database-config.type';
@@ -41075,6 +42192,7 @@ export type AllConfigType = {
   mail: MailConfig;
   cloudinary: CloudinaryConfig;
   sepay: SepayConfig;
+  articleImport: ArticleImportConfig;
 };
 </file>
 
@@ -45805,202 +46923,6 @@ ingress:
   - hostname: admin.nhanhungyen.com
     service: http://admin:3002
   - service: http_status:404
-</file>
-
-<file path="deploy/README.md">
-# Production deploy (Docker + Cloudflare)
-
-Stack: **Postgres**, **Redis**, **API** (Nest), **web** (Next), **admin** (Next), **cloudflared**.
-
-Compose project: `longnhan-prod`. App containers publish on **loopback** `127.0.0.1` so they do not bind on the LAN; public access is via **Cloudflare Tunnel**.
-
-## 1. Environment files (per app)
-
-Create from each app’s `.env.example`:
-
-| File                         | Purpose                                                                                                                                              |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/api/.env.production`   | API secrets; **`DATABASE_PASSWORD` must be set (non-empty)** — used for Postgres + compose; `PROD_*` host ports; optional `CLOUDFLARED_TUNNEL_TOKEN` |
-| `apps/web/.env.production`   | `NEXT_PUBLIC_*` (baked in at **image build**)                                                                                                        |
-| `apps/admin/.env.production` | `API_URL` (public API base with `/api/v1`)                                                                                                           |
-
-Compose **overrides** API DB/Redis hosts to Docker service names (`db`, `redis`). Keep `DATABASE_*` aligned with the `db` service.
-
-**Compose variable substitution** (`${PROD_*_HOST_PORT}`, `${DATABASE_*}` for `db`, `${CLOUDFLARED_TUNNEL_TOKEN}` for `cloudflared`) uses only what `docker compose` loads from **`--env-file apps/api/.env.production`**. Put `PROD_*` and DB password variables there; values that exist only in `apps/web` or `apps/admin` `.env.production` do **not** affect those substitutions.
-
-## 2. Cloudflare Tunnel (choose one)
-
-### A — Token (recommended)
-
-1. Cloudflare **Zero Trust** → **Networks** → **Tunnels** → create or open a tunnel.
-2. Copy the **token** into `apps/api/.env.production`:
-
-   `CLOUDFLARED_TUNNEL_TOKEN=...`
-
-3. In the tunnel → **Public hostnames**, add routes to the **Docker service names** (same Compose network as `cloudflared`):
-
-   | Hostname              | Service URL         |
-   | --------------------- | ------------------- |
-   | `api.<your-domain>`   | `http://api:3001`   |
-   | `www.<your-domain>`   | `http://web:3000`   |
-   | `<apex>`              | `http://web:3000`   |
-   | `admin.<your-domain>` | `http://admin:3002` |
-
-No `deploy/cloudflare/config.yml` or JSON credentials file required.
-
-### B — Credentials + local `config.yml`
-
-1. Copy `deploy/cloudflare/config.yml.example` → `deploy/cloudflare/config.yml` and set `tunnel` + `credentials-file`.
-2. Place the tunnel credentials JSON under `deploy/cloudflare/` (gitignored).
-3. Do **not** set `CLOUDFLARED_TUNNEL_TOKEN` (or remove it) so `make deploy` selects this mode automatically.
-
-Ingress hostnames in `config.yml` should match your DNS.
-
-## 3. Deploy commands
-
-From the **repository root**:
-
-```bash
-make deploy        # build & start (runs prod-preflight)
-make deploy-down   # stop stack
-```
-
-**Default host ports** (alongside local dev on 3000–3002): web `13100`, api `13101`, admin `13102`, Postgres `5436`, Redis `6381` — override with `PROD_*` in `apps/api/.env.production` if needed.
-
-## 4. Database migrations
-
-Run migrations against the **production** DB (e.g. from host with `DATABASE_HOST=127.0.0.1`, `DATABASE_PORT` = your `DATABASE_PORT`, same user/password as in `apps/api/.env.production`), then:
-
-```bash
-make migration-up
-```
-
-(Uses the API package’s migration script; ensure env matches prod.)
-
-## 5. Local development
-
-```bash
-make dev    # docker: db, redis, pgadmin + pnpm dev
-```
-
-Uses default `docker-compose.yml` (not `docker-compose.prod.yml`).
-
-## 6. Files in this folder
-
-| Path                            | Role                                          |
-| ------------------------------- | --------------------------------------------- |
-| `README.md`                     | This guide                                    |
-| `cloudflare/config.yml.example` | Template for **credentials** tunnel mode only |
-| `cloudflare/.gitignore`         | Ignores `config.yml` and `*.json` credentials |
-
-Optional override compose file (repo root): `docker-compose.prod.cloudflared-config.yml` — used automatically when the token is unset but `config.yml` + `*.json` exist.
-
-## 7. Database backups
-
-Production runs a **`db-backup` sidecar** (`docker-compose.backup.yml`, merged by `make deploy`). It dumps Postgres nightly at **02:00 UTC**, stores gzip SQL files on a **local Docker volume** (7-day retention), and POSTs a **webhook on failure**.
-
-### Overview
-
-| Item            | Value                                                           |
-| --------------- | --------------------------------------------------------------- |
-| Schedule        | `0 2 * * *` UTC (supercronic)                                   |
-| Local retention | 7 days (`BACKUP_KEEP_DAYS`)                                     |
-| Storage         | Docker volume `longnhan-prod_postgres_backup_data` → `/backups` |
-| Container       | `longnhan_prod_db_backup`                                       |
-| File format     | `backup_YYYYMMDD_HHMMSS.sql.gz`                                 |
-
-### Env vars (`apps/api/.env.production`)
-
-| Variable             | Purpose                                           |
-| -------------------- | ------------------------------------------------- |
-| `BACKUP_KEEP_DAYS`   | Local prune threshold (default `7`)               |
-| `BACKUP_WEBHOOK_URL` | Slack or Discord incoming webhook (failures only) |
-
-Postgres connection is mapped from existing `DATABASE_*` vars by compose.
-
-### Verify backup
-
-```bash
-# Manual run (same script as cron)
-make backup-run
-# or: docker exec longnhan_prod_db_backup /backup.sh
-
-# Check sidecar logs
-docker logs longnhan_prod_db_backup
-
-# List local dumps
-make backup-list
-
-# Copy latest backup to current directory
-make backup-copy
-# Or copy a specific file / another folder:
-# make backup-copy FILE=backup_20260617_085543.sql.gz
-# make backup-copy BACKUP_OUT=~/Downloads
-
-# Confirm SQL header
-docker run --rm -v longnhan-prod_postgres_backup_data:/backups alpine \
-  sh -c 'gunzip -c /backups/backup_*.sql.gz | head -5'
-```
-
-### Copy backup to host (optional)
-
-```bash
-make backup-list
-make backup-copy
-# make backup-copy FILE=backup_20260617_085543.sql.gz
-# make backup-copy BACKUP_OUT=~/Downloads
-```
-
-### Restore
-
-**Stop the API first** to avoid writes during restore.
-
-```bash
-docker run --rm -v longnhan-prod_postgres_backup_data:/backups alpine ls /backups
-docker run --rm -v longnhan-prod_postgres_backup_data:/backups alpine \
-  sh -c 'gunzip -c /backups/backup_YYYYMMDD_HHMMSS.sql.gz' | \
-  docker exec -i longnhan_prod_db psql -U longnhan -d longnhan
-```
-
-Replace user/database names if your `DATABASE_*` values differ.
-
-### Webhook setup
-
-- **Slack:** Incoming Webhook URL → set `BACKUP_WEBHOOK_URL`. Payload uses `{ "text": "..." }`.
-- **Discord:** Webhook URL containing `discord.com/api/webhooks` → payload uses `{ "content": "..." }`.
-
-### Failure drill
-
-1. Temporarily set wrong `DATABASE_PASSWORD` in the sidecar env (or stop `db`).
-2. Run `make backup-run`.
-3. Confirm webhook message within ~1 minute.
-4. Restore correct credentials and redeploy.
-
-### Troubleshooting
-
-| Symptom                    | Likely cause                                                       |
-| -------------------------- | ------------------------------------------------------------------ |
-| `pg_dump` auth error       | `DATABASE_PASSWORD` mismatch between `db` and sidecar              |
-| Disk full on volume        | Prune failed or DB grew; expand volume or lower `BACKUP_KEEP_DAYS` |
-| Empty or missing `.sql.gz` | Check `docker logs longnhan_prod_db_backup` for errors             |
-
-## Troubleshooting
-
-- **`required variable DATABASE_PASSWORD is missing`** — Add a non-empty line to `apps/api/.env.production`, e.g. `DATABASE_PASSWORD=your_secure_password`. It must match what the API uses to connect to Postgres (`DATABASE_USERNAME` / `DATABASE_NAME` should align with the `db` service too).
-
-- **`exec: "docker-credential-desktop": executable file not found in $PATH`** — Docker is trying to use Docker Desktop’s credential helper, but it is not on your `PATH` (common in some IDE terminals). Fixes (pick one):
-  1. **macOS:** Add Docker’s CLI bin **before** running build:  
-     `export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"`  
-     (optionally add that line to `~/.zshrc` and restart the terminal).
-  2. Ensure **Docker Desktop is running** and, in its settings, that the CLI tools / symlinks are installed.
-  3. **Advanced:** In `~/.docker/config.json`, remove or change `"credsStore": "desktop"` if you only pull public images (you may need to sign in again for private registries later).
-
-## Caveats
-
-- **Next.js images** include `apps/{web,admin}/.env.production` in the final image (for build/runtime). Keep those files limited to non-secret `NEXT_PUBLIC_*` and public URLs; do not put private keys there.
-- **Tunnel token** is passed via Compose substitution; it can appear in `docker inspect` metadata. For stricter handling, use credentials + `config.yml` mode or inject the token from a secret store at deploy time.
-- Prefer **`make deploy`** over raw `docker compose` so the correct compose files and Cloudflare mode are used.
-- Consider **pinning** `cloudflare/cloudflared` to a specific image digest in production for reproducible pulls.
 </file>
 
 <file path="docker/admin.Dockerfile">
@@ -51815,6 +52737,7 @@ export class MailService {
 
 <file path="apps/api/src/utils/modules-set.ts">
 import { ApiModule } from '@/api/api.module';
+import articleImportConfig from '@/api/article-import/config/article-import.config';
 import authConfig from '@/api/auth/config/auth.config';
 import cloudinaryConfig from '@/api/media/config/cloudinary.config';
 import { BackgroundModule } from '@/background/background.module';
@@ -51856,6 +52779,7 @@ function generateModulesSet() {
         mailConfig,
         cloudinaryConfig,
         sepayConfig,
+        articleImportConfig,
       ],
       envFilePath: ['.env', '.env.production'],
     }),
@@ -53808,6 +54732,202 @@ if (sentryEnabled) {
 }
 </file>
 
+<file path="deploy/README.md">
+# Production deploy (Docker + Cloudflare)
+
+Stack: **Postgres**, **Redis**, **API** (Nest), **web** (Next), **admin** (Next), **cloudflared**.
+
+Compose project: `longnhan-prod`. App containers publish on **loopback** `127.0.0.1` so they do not bind on the LAN; public access is via **Cloudflare Tunnel**.
+
+## 1. Environment files (per app)
+
+Create from each app’s `.env.example`:
+
+| File                         | Purpose                                                                                                                                              |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api/.env.production`   | API secrets; **`DATABASE_PASSWORD` must be set (non-empty)** — used for Postgres + compose; `PROD_*` host ports; optional `CLOUDFLARED_TUNNEL_TOKEN` |
+| `apps/web/.env.production`   | `NEXT_PUBLIC_*` (baked in at **image build**)                                                                                                        |
+| `apps/admin/.env.production` | `API_URL` (public API base with `/api/v1`)                                                                                                           |
+
+Compose **overrides** API DB/Redis hosts to Docker service names (`db`, `redis`). Keep `DATABASE_*` aligned with the `db` service.
+
+**Compose variable substitution** (`${PROD_*_HOST_PORT}`, `${DATABASE_*}` for `db`, `${CLOUDFLARED_TUNNEL_TOKEN}` for `cloudflared`) uses only what `docker compose` loads from **`--env-file apps/api/.env.production`**. Put `PROD_*` and DB password variables there; values that exist only in `apps/web` or `apps/admin` `.env.production` do **not** affect those substitutions.
+
+## 2. Cloudflare Tunnel (choose one)
+
+### A — Token (recommended)
+
+1. Cloudflare **Zero Trust** → **Networks** → **Tunnels** → create or open a tunnel.
+2. Copy the **token** into `apps/api/.env.production`:
+
+   `CLOUDFLARED_TUNNEL_TOKEN=...`
+
+3. In the tunnel → **Public hostnames**, add routes to the **Docker service names** (same Compose network as `cloudflared`):
+
+   | Hostname              | Service URL         |
+   | --------------------- | ------------------- |
+   | `api.<your-domain>`   | `http://api:3001`   |
+   | `www.<your-domain>`   | `http://web:3000`   |
+   | `<apex>`              | `http://web:3000`   |
+   | `admin.<your-domain>` | `http://admin:3002` |
+
+No `deploy/cloudflare/config.yml` or JSON credentials file required.
+
+### B — Credentials + local `config.yml`
+
+1. Copy `deploy/cloudflare/config.yml.example` → `deploy/cloudflare/config.yml` and set `tunnel` + `credentials-file`.
+2. Place the tunnel credentials JSON under `deploy/cloudflare/` (gitignored).
+3. Do **not** set `CLOUDFLARED_TUNNEL_TOKEN` (or remove it) so `make deploy` selects this mode automatically.
+
+Ingress hostnames in `config.yml` should match your DNS.
+
+## 3. Deploy commands
+
+From the **repository root**:
+
+```bash
+make deploy        # build & start (runs prod-preflight)
+make deploy-down   # stop stack
+```
+
+**Default host ports** (alongside local dev on 3000–3002): web `13100`, api `13101`, admin `13102`, Postgres `5436`, Redis `6381` — override with `PROD_*` in `apps/api/.env.production` if needed.
+
+## 4. Database migrations
+
+Run migrations against the **production** DB (e.g. from host with `DATABASE_HOST=127.0.0.1`, `DATABASE_PORT` = your `DATABASE_PORT`, same user/password as in `apps/api/.env.production`), then:
+
+```bash
+make migration-up
+```
+
+(Uses the API package’s migration script; ensure env matches prod.)
+
+## 5. Local development
+
+```bash
+make dev    # docker: db, redis, pgadmin + pnpm dev
+```
+
+Uses default `docker-compose.yml` (not `docker-compose.prod.yml`).
+
+## 6. Files in this folder
+
+| Path                            | Role                                          |
+| ------------------------------- | --------------------------------------------- |
+| `README.md`                     | This guide                                    |
+| `cloudflare/config.yml.example` | Template for **credentials** tunnel mode only |
+| `cloudflare/.gitignore`         | Ignores `config.yml` and `*.json` credentials |
+
+Optional override compose file (repo root): `docker-compose.prod.cloudflared-config.yml` — used automatically when the token is unset but `config.yml` + `*.json` exist.
+
+## 7. Database backups
+
+Production runs a **`db-backup` sidecar** (`docker-compose.backup.yml`, merged by `make deploy`). It dumps Postgres nightly at **02:00 UTC**, stores gzip SQL files on a **local Docker volume** (7-day retention), and POSTs a **webhook on failure**.
+
+### Overview
+
+| Item            | Value                                                           |
+| --------------- | --------------------------------------------------------------- |
+| Schedule        | `0 2 * * *` UTC (supercronic)                                   |
+| Local retention | 7 days (`BACKUP_KEEP_DAYS`)                                     |
+| Storage         | Docker volume `longnhan-prod_postgres_backup_data` → `/backups` |
+| Container       | `longnhan_prod_db_backup`                                       |
+| File format     | `backup_YYYYMMDD_HHMMSS.sql.gz`                                 |
+
+### Env vars (`apps/api/.env.production`)
+
+| Variable             | Purpose                                           |
+| -------------------- | ------------------------------------------------- |
+| `BACKUP_KEEP_DAYS`   | Local prune threshold (default `7`)               |
+| `BACKUP_WEBHOOK_URL` | Slack or Discord incoming webhook (failures only) |
+
+Postgres connection is mapped from existing `DATABASE_*` vars by compose.
+
+### Verify backup
+
+```bash
+# Manual run (same script as cron)
+make backup-run
+# or: docker exec longnhan_prod_db_backup /backup.sh
+
+# Check sidecar logs
+docker logs longnhan_prod_db_backup
+
+# List local dumps
+make backup-list
+
+# Copy latest backup to current directory
+make backup-copy
+# Or copy a specific file / another folder:
+# make backup-copy FILE=backup_20260617_085543.sql.gz
+# make backup-copy BACKUP_OUT=~/Downloads
+
+# Confirm SQL header
+docker run --rm -v longnhan-prod_postgres_backup_data:/backups alpine \
+  sh -c 'gunzip -c /backups/backup_*.sql.gz | head -5'
+```
+
+### Copy backup to host (optional)
+
+```bash
+make backup-list
+make backup-copy
+# make backup-copy FILE=backup_20260617_085543.sql.gz
+# make backup-copy BACKUP_OUT=~/Downloads
+```
+
+### Restore
+
+**Stop the API first** to avoid writes during restore.
+
+```bash
+docker run --rm -v longnhan-prod_postgres_backup_data:/backups alpine ls /backups
+docker run --rm -v longnhan-prod_postgres_backup_data:/backups alpine \
+  sh -c 'gunzip -c /backups/backup_YYYYMMDD_HHMMSS.sql.gz' | \
+  docker exec -i longnhan_prod_db psql -U longnhan -d longnhan
+```
+
+Replace user/database names if your `DATABASE_*` values differ.
+
+### Webhook setup
+
+- **Slack:** Incoming Webhook URL → set `BACKUP_WEBHOOK_URL`. Payload uses `{ "text": "..." }`.
+- **Discord:** Webhook URL containing `discord.com/api/webhooks` → payload uses `{ "content": "..." }`.
+
+### Failure drill
+
+1. Temporarily set wrong `DATABASE_PASSWORD` in the sidecar env (or stop `db`).
+2. Run `make backup-run`.
+3. Confirm webhook message within ~1 minute.
+4. Restore correct credentials and redeploy.
+
+### Troubleshooting
+
+| Symptom                    | Likely cause                                                       |
+| -------------------------- | ------------------------------------------------------------------ |
+| `pg_dump` auth error       | `DATABASE_PASSWORD` mismatch between `db` and sidecar              |
+| Disk full on volume        | Prune failed or DB grew; expand volume or lower `BACKUP_KEEP_DAYS` |
+| Empty or missing `.sql.gz` | Check `docker logs longnhan_prod_db_backup` for errors             |
+
+## Troubleshooting
+
+- **`required variable DATABASE_PASSWORD is missing`** — Add a non-empty line to `apps/api/.env.production`, e.g. `DATABASE_PASSWORD=your_secure_password`. It must match what the API uses to connect to Postgres (`DATABASE_USERNAME` / `DATABASE_NAME` should align with the `db` service too).
+
+- **`exec: "docker-credential-desktop": executable file not found in $PATH`** — Docker is trying to use Docker Desktop’s credential helper, but it is not on your `PATH` (common in some IDE terminals). Fixes (pick one):
+  1. **macOS:** Add Docker’s CLI bin **before** running build:  
+     `export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"`  
+     (optionally add that line to `~/.zshrc` and restart the terminal).
+  2. Ensure **Docker Desktop is running** and, in its settings, that the CLI tools / symlinks are installed.
+  3. **Advanced:** In `~/.docker/config.json`, remove or change `"credsStore": "desktop"` if you only pull public images (you may need to sign in again for private registries later).
+
+## Caveats
+
+- **Next.js images** include `apps/{web,admin}/.env.production` in the final image (for build/runtime). Keep those files limited to non-secret `NEXT_PUBLIC_*` and public URLs; do not put private keys there.
+- **Tunnel token** is passed via Compose substitution; it can appear in `docker inspect` metadata. For stricter handling, use credentials + `config.yml` mode or inject the token from a secret store at deploy time.
+- Prefer **`make deploy`** over raw `docker compose` so the correct compose files and Cloudflare mode are used.
+- Consider **pinning** `cloudflare/cloudflared` to a specific image digest in production for reproducible pulls.
+</file>
+
 <file path="docs/sepay/payment-flow-sepay.md">
 # SePay payment flow (Payment Gateway)
 
@@ -54069,6 +55189,7 @@ export * from './order';
 export * from './order-status-history';
 export * from './transaction';
 export * from './article';
+export * from './article-import';
 export * from './auth';
 </file>
 
@@ -54188,19 +55309,27 @@ git add repomix-output.xml
 <file path="apps/admin/src/app/(dashboard)/articles/new/page.tsx">
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import type { Article } from '@longnhan/types';
+import type { ArticleImportPreview } from '@longnhan/types';
 import { toast } from 'sonner';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Header } from '@/components/layout/header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArticleCrawlPanel } from '@/components/articles/article-crawl-panel';
 import { ArticleForm } from '@/components/articles/article-form';
 import { parseArticlePayload } from '@/lib/admin-form-parsers';
+import { mapPreviewToArticle } from '@/lib/article-import-mappers';
 import { adminClientPost } from '@/lib/admin-client';
 import { adminQueryKeys } from '@/lib/query-keys';
 
 export default function ArticleCreatePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [formKey, setFormKey] = useState(0);
+  const [prefill, setPrefill] = useState<ArticleImportPreview | null>(null);
+  const [sourceUrl, setSourceUrl] = useState<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: async (formData: FormData) => {
@@ -54219,22 +55348,44 @@ export default function ArticleCreatePage() {
     },
   });
 
+  const initialArticle = prefill
+    ? (mapPreviewToArticle(prefill) as Article)
+    : undefined;
+
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
       <Header title="Tạo bài viết" />
       <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Nội dung bài viết</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ArticleForm
-              onSubmit={(formData) => mutation.mutateAsync(formData)}
-              isSubmitting={mutation.isPending}
-              submitLabel="Tạo bài viết"
-            />
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <ArticleCrawlPanel
+            disabled={mutation.isPending}
+            onImportSuccess={(preview) => {
+              setPrefill(preview);
+              setSourceUrl(preview.sourceUrl);
+              setFormKey((key) => key + 1);
+              document
+                .getElementById('article-form')
+                ?.scrollIntoView({ behavior: 'smooth' });
+            }}
+          />
+          {sourceUrl ? (
+            <p className="text-sm text-muted-foreground">Nguồn: {sourceUrl}</p>
+          ) : null}
+          <Card id="article-form">
+            <CardHeader>
+              <CardTitle className="text-base">Nội dung bài viết</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ArticleForm
+                key={formKey}
+                initialArticle={initialArticle}
+                onSubmit={(formData) => mutation.mutateAsync(formData)}
+                isSubmitting={mutation.isPending}
+                submitLabel="Tạo bài viết"
+              />
+            </CardContent>
+          </Card>
+        </div>
       </main>
     </div>
   );
@@ -58658,6 +59809,7 @@ dist/
 .next/
 out/
 build/
+backup_*.sql.gz
 
 # Turbo
 .turbo/
@@ -61258,220 +62410,6 @@ networks:
     driver: bridge
 </file>
 
-<file path="Makefile">
-.PHONY: help install dev dev-api dev-web dev-admin \
-        build build-api build-web build-admin \
-        lint format type-check \
-        up down logs reset up-local \
-        deploy deploy-clean deploy-down prod-preflight backup-run backup-list backup-copy \
-        migration-up migration-up-prod migration-down migration-show migration-generate \
-        seed test test-cov test-e2e
-
-# Default target
-help:
-	@echo ""
-	@echo "Long Nhan Hung Yen — available commands:"
-	@echo ""
-	@echo "  Setup"
-	@echo "    make install          Install all dependencies"
-	@echo ""
-	@echo "  Development"
-	@echo "    make dev              Infra (db, redis, pgadmin) + all apps in watch mode"
-	@echo "    make dev-api          Start API only (http://localhost:3001)"
-	@echo "    make dev-web          Start storefront only (http://localhost:3000)"
-	@echo "    make dev-admin        Start admin only (http://localhost:3002)"
-	@echo ""
-	@echo "  Build"
-	@echo "    make build            Build all apps"
-	@echo "    make build-api        Build API only"
-	@echo ""
-	@echo "  Code Quality"
-	@echo "    make lint             Lint all apps"
-	@echo "    make format           Format all apps"
-	@echo "    make type-check       Type-check all apps"
-	@echo ""
-	@echo "  Docker (infra)"
-	@echo "    make up               Start infra services (db, redis, pgadmin)"
-	@echo "    make down             Stop all services"
-	@echo "    make logs             Tail service logs"
-	@echo "    make reset            Reset volumes & restart services"
-	@echo "    make up-local         Start full local stack with API hot-reload"
-	@echo ""
-	@echo "  Production (Docker + Cloudflare Tunnel)"
-	@echo "    make deploy           Build & run api, web, admin, db, redis, cloudflared + monitoring (ports 13100–13102)"
-	@echo "    make deploy-clean     Same as deploy but with --no-cache (full rebuild, ignores all Docker cache)"
-	@echo "    make deploy-down      Stop production stack"
-	@echo "                          See deploy/README.md (token or config.yml + credentials JSON)"
-	@echo "    make backup-run       Trigger manual DB backup (production sidecar)"
-	@echo "    make backup-list      List local DB backup files (Docker volume)"
-	@echo "    make backup-copy      Copy latest backup .sql.gz to BACKUP_OUT (default: .)"
-	@echo "                          Optional: make backup-copy FILE=backup_YYYYMMDD_HHMMSS.sql.gz"
-	@echo ""
-	@echo "  Database"
-	@echo "    make migration-up     Run pending migrations (local .env)"
-	@echo "    make migration-up-prod Run pending migrations using apps/api/.env.production"
-	@echo "    make migration-down   Revert last migration"
-	@echo "    make migration-show   Show migration status"
-	@echo "    make seed             Run database seeders"
-	@echo ""
-	@echo "  Testing"
-	@echo "    make test             Run unit tests"
-	@echo "    make test-cov         Run tests with coverage"
-	@echo "    make test-e2e         Run e2e tests"
-	@echo ""
-
-# ── Setup ─────────────────────────────────────────────────────────────────────
-
-install:
-	pnpm install
-
-# ── Development ───────────────────────────────────────────────────────────────
-
-dev: up
-	pnpm dev
-
-dev-api:
-	pnpm dev:api
-
-dev-web:
-	pnpm dev:web
-
-dev-admin:
-	pnpm dev:admin
-
-# ── Build ─────────────────────────────────────────────────────────────────────
-
-build:
-	pnpm build
-
-build-api:
-	pnpm build:api
-
-build-web:
-	pnpm build:web
-
-build-admin:
-	pnpm build:admin
-
-# ── Code Quality ──────────────────────────────────────────────────────────────
-
-lint:
-	pnpm lint
-
-format:
-	pnpm format
-
-type-check:
-	pnpm type-check
-
-# ── Docker ────────────────────────────────────────────────────────────────────
-
-up:
-	docker compose up -d db redis pgadmin
-
-down:
-	docker compose down
-
-logs:
-	docker compose logs -f
-
-reset:
-	docker compose down -v && docker compose up -d db redis pgadmin
-
-up-local:
-	docker compose -f docker-compose.local.yml up --build -d
-
-# ── Production deploy ─────────────────────────────────────────────────────────
-
-prod-preflight:
-	@test -f apps/api/.env.production || (echo "Missing apps/api/.env.production (see apps/api/.env.example)."; exit 1)
-	@grep -qE '^DATABASE_PASSWORD=.+' apps/api/.env.production 2>/dev/null || (echo "apps/api/.env.production: set DATABASE_PASSWORD= to a non-empty value (required for the Postgres service and compose interpolation)."; exit 1)
-	@test -f apps/web/.env.production || (echo "Missing apps/web/.env.production (see apps/web/.env.example)."; exit 1)
-	@test -f apps/admin/.env.production || (echo "Missing apps/admin/.env.production (see apps/admin/.env.example)."; exit 1)
-	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
-	  : ; \
-	elif [ -f deploy/cloudflare/config.yml ] && ls deploy/cloudflare/*.json >/dev/null 2>&1; then \
-	  : ; \
-	else \
-	  echo "Cloudflare: set CLOUDFLARED_TUNNEL_TOKEN in apps/api/.env.production, OR add deploy/cloudflare/config.yml plus a credentials *.json (see deploy/cloudflare/config.yml.example)."; exit 1; \
-	fi
-
-deploy: prod-preflight
-	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build --force-recreate; \
-	else \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build --force-recreate; \
-	fi
-
-deploy-clean: prod-preflight
-	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml --env-file apps/api/.env.production -p longnhan-prod build --no-cache && \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml --env-file apps/api/.env.production -p longnhan-prod up -d --force-recreate; \
-	else \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod build --no-cache && \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --force-recreate; \
-	fi
-
-deploy-down:
-	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml --env-file apps/api/.env.production -p longnhan-prod down; \
-	else \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod down; \
-	fi
-
-backup-run:
-	docker exec longnhan_prod_db_backup /backup.sh
-
-BACKUP_VOLUME := longnhan-prod_postgres_backup_data
-BACKUP_OUT ?= .
-
-backup-list:
-	docker run --rm -v $(BACKUP_VOLUME):/backups alpine ls -la /backups
-
-backup-copy:
-	@dest="$$(cd "$(BACKUP_OUT)" && pwd)"; \
-	if [ -n "$(FILE)" ]; then \
-	  docker run --rm -v $(BACKUP_VOLUME):/backups -v "$$dest":/out alpine \
-	    sh -c 'test -f "/backups/$(FILE)" || (echo "Not found: /backups/$(FILE) — run make backup-list"; exit 1); cp "/backups/$(FILE)" /out/ && echo "Copied $(FILE) -> '"$$dest"'/"'; \
-	else \
-	  docker run --rm -v $(BACKUP_VOLUME):/backups -v "$$dest":/out alpine \
-	    sh -c 'f=$$(ls -t /backups/backup_*.sql.gz 2>/dev/null | head -1); test -n "$$f" || (echo "No backups found — run make backup-run first."; exit 1); cp "$$f" /out/ && echo "Copied $$(basename "$$f") -> '"$$dest"'/"'; \
-	fi
-
-# ── Database ──────────────────────────────────────────────────────────────────
-
-migration-up:
-	pnpm --filter @longnhan/api migration:up
-
-# Uses production DB credentials/host from apps/api/.env.production (e.g. DATABASE_HOST=127.0.0.1, DATABASE_PORT=5436 when stack exposes Postgres on the host).
-migration-up-prod:
-	@test -f apps/api/.env.production || (echo "Missing apps/api/.env.production (see apps/api/.env.example)."; exit 1)
-	cd apps/api && pnpm exec env-cmd -f .env.production pnpm exec typeorm-ts-node-commonjs -d src/database/data-source.ts migration:run
-
-migration-down:
-	pnpm --filter @longnhan/api migration:down
-
-migration-show:
-	pnpm --filter @longnhan/api migration:show
-
-migration-generate:
-	pnpm --filter @longnhan/api migration:generate
-
-seed:
-	pnpm --filter @longnhan/api seed:run
-
-# ── Testing ───────────────────────────────────────────────────────────────────
-
-test:
-	pnpm --filter @longnhan/api test
-
-test-cov:
-	pnpm --filter @longnhan/api test:cov
-
-test-e2e:
-	pnpm --filter @longnhan/api test:e2e
-</file>
-
 <file path="apps/admin/src/app/(dashboard)/articles/page.client.tsx">
 'use client';
 
@@ -62406,6 +63344,7 @@ export class ProductsController {
 import { Module } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { SepayModule } from '../integrations/sepay/sepay.module';
+import { ArticleImportModule } from './article-import/article-import.module';
 import { ArticlesModule } from './articles/articles.module';
 import { AuthModule } from './auth/auth.module';
 import { CategoriesModule } from './categories/categories.module';
@@ -62439,6 +63378,7 @@ import { VouchersModule } from './vouchers/vouchers.module';
     OrdersModule,
     VouchersModule,
     ArticlesModule,
+    ArticleImportModule,
     MediaModule,
     DashboardModule,
     TransactionsModule,
@@ -63651,6 +64591,220 @@ All configs in `.env.example`:
 - **Repository:** Private (ViBe Coding Team)
 - **Documentation:** ./docs/ directory
 - **Issues:** GitHub Issues (if applicable)
+</file>
+
+<file path="Makefile">
+.PHONY: help install dev dev-api dev-web dev-admin \
+        build build-api build-web build-admin \
+        lint format type-check \
+        up down logs reset up-local \
+        deploy deploy-clean deploy-down prod-preflight backup-run backup-list backup-copy \
+        migration-up migration-up-prod migration-down migration-show migration-generate \
+        seed test test-cov test-e2e
+
+# Default target
+help:
+	@echo ""
+	@echo "Long Nhan Hung Yen — available commands:"
+	@echo ""
+	@echo "  Setup"
+	@echo "    make install          Install all dependencies"
+	@echo ""
+	@echo "  Development"
+	@echo "    make dev              Infra (db, redis, pgadmin) + all apps in watch mode"
+	@echo "    make dev-api          Start API only (http://localhost:3001)"
+	@echo "    make dev-web          Start storefront only (http://localhost:3000)"
+	@echo "    make dev-admin        Start admin only (http://localhost:3002)"
+	@echo ""
+	@echo "  Build"
+	@echo "    make build            Build all apps"
+	@echo "    make build-api        Build API only"
+	@echo ""
+	@echo "  Code Quality"
+	@echo "    make lint             Lint all apps"
+	@echo "    make format           Format all apps"
+	@echo "    make type-check       Type-check all apps"
+	@echo ""
+	@echo "  Docker (infra)"
+	@echo "    make up               Start infra services (db, redis, pgadmin)"
+	@echo "    make down             Stop all services"
+	@echo "    make logs             Tail service logs"
+	@echo "    make reset            Reset volumes & restart services"
+	@echo "    make up-local         Start full local stack with API hot-reload"
+	@echo ""
+	@echo "  Production (Docker + Cloudflare Tunnel)"
+	@echo "    make deploy           Build & run api, web, admin, db, redis, cloudflared + monitoring (ports 13100–13102)"
+	@echo "    make deploy-clean     Same as deploy but with --no-cache (full rebuild, ignores all Docker cache)"
+	@echo "    make deploy-down      Stop production stack"
+	@echo "                          See deploy/README.md (token or config.yml + credentials JSON)"
+	@echo "    make backup-run       Trigger manual DB backup (production sidecar)"
+	@echo "    make backup-list      List local DB backup files (Docker volume)"
+	@echo "    make backup-copy      Copy latest backup .sql.gz to BACKUP_OUT (default: .)"
+	@echo "                          Optional: make backup-copy FILE=backup_YYYYMMDD_HHMMSS.sql.gz"
+	@echo ""
+	@echo "  Database"
+	@echo "    make migration-up     Run pending migrations (local .env)"
+	@echo "    make migration-up-prod Run pending migrations using apps/api/.env.production"
+	@echo "    make migration-down   Revert last migration"
+	@echo "    make migration-show   Show migration status"
+	@echo "    make seed             Run database seeders"
+	@echo ""
+	@echo "  Testing"
+	@echo "    make test             Run unit tests"
+	@echo "    make test-cov         Run tests with coverage"
+	@echo "    make test-e2e         Run e2e tests"
+	@echo ""
+
+# ── Setup ─────────────────────────────────────────────────────────────────────
+
+install:
+	pnpm install
+
+# ── Development ───────────────────────────────────────────────────────────────
+
+dev: up
+	pnpm dev
+
+dev-api:
+	pnpm dev:api
+
+dev-web:
+	pnpm dev:web
+
+dev-admin:
+	pnpm dev:admin
+
+# ── Build ─────────────────────────────────────────────────────────────────────
+
+build:
+	pnpm build
+
+build-api:
+	pnpm build:api
+
+build-web:
+	pnpm build:web
+
+build-admin:
+	pnpm build:admin
+
+# ── Code Quality ──────────────────────────────────────────────────────────────
+
+lint:
+	pnpm lint
+
+format:
+	pnpm format
+
+type-check:
+	pnpm type-check
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+
+up:
+	docker compose up -d db redis pgadmin
+
+down:
+	docker compose down
+
+logs:
+	docker compose logs -f
+
+reset:
+	docker compose down -v && docker compose up -d db redis pgadmin
+
+up-local:
+	docker compose -f docker-compose.local.yml up --build -d
+
+# ── Production deploy ─────────────────────────────────────────────────────────
+
+prod-preflight:
+	@test -f apps/api/.env.production || (echo "Missing apps/api/.env.production (see apps/api/.env.example)."; exit 1)
+	@grep -qE '^DATABASE_PASSWORD=.+' apps/api/.env.production 2>/dev/null || (echo "apps/api/.env.production: set DATABASE_PASSWORD= to a non-empty value (required for the Postgres service and compose interpolation)."; exit 1)
+	@test -f apps/web/.env.production || (echo "Missing apps/web/.env.production (see apps/web/.env.example)."; exit 1)
+	@test -f apps/admin/.env.production || (echo "Missing apps/admin/.env.production (see apps/admin/.env.example)."; exit 1)
+	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
+	  : ; \
+	elif [ -f deploy/cloudflare/config.yml ] && ls deploy/cloudflare/*.json >/dev/null 2>&1; then \
+	  : ; \
+	else \
+	  echo "Cloudflare: set CLOUDFLARED_TUNNEL_TOKEN in apps/api/.env.production, OR add deploy/cloudflare/config.yml plus a credentials *.json (see deploy/cloudflare/config.yml.example)."; exit 1; \
+	fi
+
+deploy: prod-preflight
+	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build --force-recreate; \
+	else \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build --force-recreate; \
+	fi
+
+deploy-clean: prod-preflight
+	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml --env-file apps/api/.env.production -p longnhan-prod build --no-cache && \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml --env-file apps/api/.env.production -p longnhan-prod up -d --force-recreate; \
+	else \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod build --no-cache && \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --force-recreate; \
+	fi
+
+deploy-down:
+	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml --env-file apps/api/.env.production -p longnhan-prod down; \
+	else \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod down; \
+	fi
+
+backup-run:
+	docker exec longnhan_prod_db_backup /backup.sh
+
+BACKUP_VOLUME := longnhan-prod_postgres_backup_data
+BACKUP_OUT ?= .
+
+backup-list:
+	docker run --rm -v $(BACKUP_VOLUME):/backups alpine ls -la /backups
+
+backup-copy:
+	@dest="$$(cd "$(BACKUP_OUT)" && pwd)"; \
+	if [ -n "$(FILE)" ]; then \
+	  docker run --rm -v $(BACKUP_VOLUME):/backups -v "$$dest":/out alpine \
+	    sh -c 'test -f "/backups/$(FILE)" || (echo "Not found: /backups/$(FILE) — run make backup-list"; exit 1); cp "/backups/$(FILE)" /out/ && echo "Copied $(FILE) -> '"$$dest"'/"'; \
+	else \
+	  docker run --rm -v $(BACKUP_VOLUME):/backups -v "$$dest":/out alpine \
+	    sh -c 'f=$$(ls -t /backups/backup_*.sql.gz 2>/dev/null | head -1); test -n "$$f" || (echo "No backups found — run make backup-run first."; exit 1); cp "$$f" /out/ && echo "Copied $$(basename "$$f") -> '"$$dest"'/"'; \
+	fi
+
+# ── Database ──────────────────────────────────────────────────────────────────
+
+migration-up:
+	pnpm --filter @longnhan/api migration:up
+
+# Uses production DB credentials/host from apps/api/.env.production (e.g. DATABASE_HOST=127.0.0.1, DATABASE_PORT=5436 when stack exposes Postgres on the host).
+migration-up-prod:
+	@test -f apps/api/.env.production || (echo "Missing apps/api/.env.production (see apps/api/.env.example)."; exit 1)
+	cd apps/api && pnpm exec env-cmd -f .env.production pnpm exec typeorm-ts-node-commonjs -d src/database/data-source.ts migration:run
+
+migration-down:
+	pnpm --filter @longnhan/api migration:down
+
+migration-show:
+	pnpm --filter @longnhan/api migration:show
+
+migration-generate:
+	pnpm --filter @longnhan/api migration:generate
+
+seed:
+	pnpm --filter @longnhan/api seed:run
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+
+test:
+	pnpm --filter @longnhan/api test
+
+test-cov:
+	pnpm --filter @longnhan/api test:cov
+
+test-e2e:
+	pnpm --filter @longnhan/api test:e2e
 </file>
 
 <file path="package.json">
@@ -65464,6 +66618,7 @@ export function OrderStatusPanel({
   "dependencies": {
     "@getbrevo/brevo": "^5.0.4",
     "@longnhan/types": "workspace:*",
+    "@mendable/firecrawl-js": "^1.21.1",
     "@nestjs/axios": "^3.1.2",
     "@nestjs/bullmq": "^10.2.2",
     "@nestjs/cache-manager": "^2.3.0",
@@ -65491,6 +66646,7 @@ export function OrderStatusPanel({
     "ms": "^2.1.3",
     "nestjs-i18n": "^10.5.0",
     "nestjs-pino": "^4.1.0",
+    "openai": "^4.104.0",
     "pg": "^8.13.1",
     "pino-http": "^10.3.0",
     "pino-pretty": "^11.3.0",
@@ -66172,628 +67328,6 @@ export default function ProductCard({
     </Card>
   );
 }
-</file>
-
-<file path="docs/deployment-guide.md">
-# Deployment Guide
-
-**Last Updated:** 2026-04-01
-**Production Targets:** Railway (API), Vercel (web + admin)
-
----
-
-## Overview
-
-This guide covers setting up, deploying, and maintaining the Long Nhan Hung Yen API in development, staging, and production environments.
-
----
-
-## Prerequisites
-
-### Required Software
-
-- Docker & Docker Compose
-- Node.js >= 20.10.0
-- pnpm >= 9.5.0
-- PostgreSQL 13+ (can use Docker)
-- Redis (can use Docker)
-
-### Required Credentials
-
-- Cloudinary account (production media uploads)
-- Brevo API key (https://app.brevo.com/settings/keys/api)
-- PostgreSQL database credentials
-- JWT secret key (generate securely)
-
----
-
-## Local Development Setup
-
-### 1. Clone & Install
-
-```bash
-# Clone repository
-git clone <repo-url> longnhantongtran
-cd longnhantongtran
-
-# Install dependencies
-pnpm install
-
-# Copy environment template
-cp .env.example .env
-```
-
-### 2. Configure Environment
-
-Edit `.env` for local development:
-
-```env
-# Application
-NODE_ENV=development
-APP_PORT=3000
-APP_DEBUG=true
-APP_CORS_ORIGIN=http://localhost:3000
-
-# Database
-DATABASE_HOST=localhost
-DATABASE_PORT=5435
-DATABASE_NAME=nestjs_api
-DATABASE_USERNAME=postgres
-DATABASE_PASSWORD=postgres
-
-# Authentication
-AUTH_JWT_SECRET=dev-secret-key-change-in-prod
-AUTH_JWT_TOKEN_EXPIRES_IN=1d
-AUTH_REFRESH_SECRET=dev-refresh-secret-change-in-prod
-
-# Email (Brevo SDK — get key at https://app.brevo.com/settings/keys/api)
-BREVO_API_KEY=<your-brevo-api-key>
-MAIL_DEFAULT_EMAIL=noreply@localhost
-MAIL_DEFAULT_NAME=No Reply
-
-# Cloudflare Turnstile (CAPTCHA for COD orders)
-# Use test keys for local dev: https://developers.cloudflare.com/turnstile/get-started/
-NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA
-TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
-```
-
-### 3. Start Infrastructure
-
-```bash
-# Option A: Start only database/cache services
-docker compose up -d db redis pgadmin
-
-# Option B: Full local dev stack with API container (hot-reload)
-docker compose -f docker-compose.local.yml up --build -d
-```
-
-**Services:**
-
-- PostgreSQL: localhost:5435
-- Redis: localhost:6380
-- PgAdmin: http://localhost:5050
-- API (if using `docker-compose.local.yml`): http://localhost:3001 (host mapping in compose)
-
-### 4. Initialize Database
-
-```bash
-# Create database (if not using docker compose)
-pnpm db:create
-
-# Run migrations
-pnpm migration:up
-
-# Seed sample data
-pnpm seed:run
-```
-
-### 5. Start Development Server
-
-```bash
-# Terminal method
-pnpm dev
-
-# Or via Docker (if using docker-compose.local.yml)
-# Already running, check logs with:
-docker compose -f docker-compose.local.yml logs -f api
-```
-
-API available at: http://localhost:3001 (see root `README.md` for all local ports)
-Swagger docs: http://localhost:3001/api-docs
-
----
-
-## Staging Deployment
-
-### Setup
-
-Staging uses the production Docker Compose stack without the API container (deploy separately).
-
-```bash
-# 1. SSH into staging server
-ssh user@staging-server
-
-# 2. Clone repository
-git clone <repo-url> longnhantongtran
-cd longnhantongtran
-
-# 3. Create staging .env file
-cat > .env << EOF
-NODE_ENV=staging
-APP_PORT=3000
-APP_DEBUG=false
-APP_CORS_ORIGIN=https://staging.example.com
-
-DATABASE_HOST=db
-DATABASE_PORT=5432
-DATABASE_NAME=nestjs_api
-DATABASE_USERNAME=postgres
-DATABASE_PASSWORD=$(openssl rand -base64 32)
-
-AUTH_JWT_SECRET=$(openssl rand -hex 32)
-AUTH_JWT_TOKEN_EXPIRES_IN=1d
-AUTH_REFRESH_SECRET=$(openssl rand -hex 32)
-
-BREVO_API_KEY=<staging-brevo-api-key>
-MAIL_DEFAULT_EMAIL=noreply@staging.example.com
-MAIL_DEFAULT_NAME=No Reply
-
-# Cloudinary (if available in staging)
-# CLOUDINARY_CLOUD_NAME=xxx
-# CLOUDINARY_API_KEY=xxx
-# CLOUDINARY_API_SECRET=xxx
-
-# Cloudflare Turnstile (COD bot protection)
-NEXT_PUBLIC_TURNSTILE_SITE_KEY=<staging-site-key>
-TURNSTILE_SECRET_KEY=<staging-secret-key>
-EOF
-
-# 4. Start infrastructure
-docker compose up -d db redis pgadmin
-```
-
-### Deploy API
-
-```bash
-# 1. Build production image
-docker build -t api:staging -f apps/api/Dockerfile .
-
-# 2. Run API container
-docker run -d \
-  --name api \
-  --network longnhan-network \
-  -p 3000:3000 \
-  --env-file .env \
-  api:staging
-
-# 3. Verify
-curl http://localhost:3000/health
-```
-
-### Initialize Database
-
-```bash
-# Run migrations inside container
-docker exec api pnpm migration:up
-
-# Seed data
-docker exec api pnpm seed:run
-```
-
-### Verification Checklist
-
-- [ ] API responds on port 3000
-- [ ] Swagger docs accessible at `/api-docs`
-- [ ] Database migrations applied
-- [ ] Sample data seeded
-- [ ] SMTP configured (provider sandbox for staging)
-- [ ] PostgreSQL accessible via PgAdmin
-- [ ] Redis available for caching
-
----
-
-## Production Deployment
-
-### Pre-Deployment Checklist
-
-- [ ] All tests passing (`pnpm test`)
-- [ ] Code reviewed and merged to main
-- [ ] Environment variables configured
-- [ ] Database backups enabled
-- [ ] SSL/TLS certificates obtained
-- [ ] CDN/reverse proxy configured
-- [ ] Monitoring & alerting setup
-- [ ] Rollback plan documented
-
-### Production Environment Variables
-
-Create secure `.env.production`:
-
-```env
-# Application
-NODE_ENV=production
-APP_PORT=3000
-APP_DEBUG=false
-APP_CORS_ORIGIN=https://api.example.com
-
-# Database
-DATABASE_HOST=prod-db.example.com
-DATABASE_PORT=5432
-DATABASE_NAME=longnhan_prod
-DATABASE_USERNAME=app_user
-DATABASE_PASSWORD=<secure-password>
-DATABASE_SSL_ENABLED=true
-DATABASE_REJECT_UNAUTHORIZED=true
-
-# Authentication
-AUTH_JWT_SECRET=<secure-random-hex-32>
-AUTH_JWT_TOKEN_EXPIRES_IN=1d
-AUTH_REFRESH_SECRET=<secure-random-hex-32>
-
-# Email (Brevo SDK)
-BREVO_API_KEY=<production-brevo-api-key>
-MAIL_DEFAULT_EMAIL=noreply@longnhan.vn
-MAIL_DEFAULT_NAME=Long Nhan Hung Yen
-
-# Cloudinary (Required)
-CLOUDINARY_CLOUD_NAME=<your-cloud-name>
-CLOUDINARY_API_KEY=<your-api-key>
-CLOUDINARY_API_SECRET=<your-api-secret>
-
-# Cloudflare Turnstile (COD bot protection) — https://dash.cloudflare.com/
-NEXT_PUBLIC_TURNSTILE_SITE_KEY=<production-site-key>
-TURNSTILE_SECRET_KEY=<production-secret-key>
-```
-
-**Secure Storage:**
-
-- Use environment management: AWS Secrets Manager, HashiCorp Vault, or similar
-- Never commit `.env.production` to git
-- Rotate secrets regularly
-- Use HTTPS only
-
-### Docker Build & Push
-
-```bash
-# 1. Build image with version tag
-VERSION=1.0.0
-docker build -t api:$VERSION -f apps/api/Dockerfile .
-
-# 2. Tag for registry
-docker tag api:$VERSION your-registry.com/longnhan/api:$VERSION
-docker tag api:$VERSION your-registry.com/longnhan/api:latest
-
-# 3. Push to registry
-docker push your-registry.com/longnhan/api:$VERSION
-docker push your-registry.com/longnhan/api:latest
-```
-
-### Deploy to Production
-
-#### Option A: Docker Swarm
-
-```bash
-# 1. Create docker-compose.production.yml
-cat > docker-compose.production.yml << 'EOF'
-version: '3.8'
-
-services:
-  db:
-    image: postgres:13
-    environment:
-      POSTGRES_DB: longnhan_prod
-      POSTGRES_USER: app_user
-      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - longnhan-network
-    deploy:
-      replicas: 1
-
-  redis:
-    image: redis:7-alpine
-    networks:
-      - longnhan-network
-    deploy:
-      replicas: 1
-
-  api:
-    image: your-registry.com/longnhan/api:latest
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - DATABASE_HOST=db
-      - REDIS_URL=redis://redis:6379
-    env_file:
-      - .env.production
-    networks:
-      - longnhan-network
-    depends_on:
-      - db
-      - redis
-    deploy:
-      replicas: 3
-      update_config:
-        parallelism: 1
-        delay: 10s
-
-volumes:
-  postgres_data:
-
-networks:
-  longnhan-network:
-    driver: overlay
-EOF
-
-# 2. Deploy stack
-docker stack deploy -c docker-compose.production.yml longnhan
-```
-
-#### Option B: Kubernetes
-
-```yaml
-# k8s/deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: api
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: api
-  template:
-    metadata:
-      labels:
-        app: api
-    spec:
-      containers:
-        - name: api
-          image: your-registry.com/longnhan/api:latest
-          ports:
-            - containerPort: 3000
-          env:
-            - name: NODE_ENV
-              value: 'production'
-            - name: DATABASE_HOST
-              valueFrom:
-                configMapKeyRef:
-                  name: app-config
-                  key: db-host
-          envFrom:
-            - secretRef:
-                name: app-secrets
-          livenessProbe:
-            httpGet:
-              path: /health
-              port: 3000
-            initialDelaySeconds: 30
-            periodSeconds: 10
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: 3000
-            initialDelaySeconds: 5
-            periodSeconds: 5
-```
-
-Deploy:
-
-```bash
-kubectl apply -f k8s/deployment.yaml
-kubectl apply -f k8s/service.yaml
-kubectl apply -f k8s/ingress.yaml
-```
-
-#### Option C: Manual Server Deployment
-
-```bash
-# 1. SSH into production server
-ssh deploy@prod-server
-
-# 2. Clone repo
-cd /var/www
-git clone <repo-url> longnhan
-cd longnhan
-
-# 3. Copy production .env (securely obtained)
-# scp .env.production deploy@prod-server:/var/www/longnhan/.env
-
-# 4. Build locally or pull pre-built image
-docker pull your-registry.com/longnhan/api:latest
-
-# 5. Start production stack
-docker compose -f docker-compose.yml up -d
-
-# 6. Run migrations
-docker compose exec api pnpm migration:up
-
-# 7. Verify health
-curl http://localhost:3000/health
-```
-
-### Post-Deployment Verification
-
-```bash
-# 1. Check API health
-curl https://api.example.com/health
-
-# 2. Verify Swagger docs
-curl https://api.example.com/api-docs
-
-# 3. Test authentication
-curl -X POST https://api.example.com/api/v1/auth/sign-in \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"password"}'
-
-# 4. Check logs
-docker logs api  # or kubectl logs deployment/api
-
-# 5. Monitor metrics
-# Check memory, CPU, disk usage, response times
-```
-
----
-
-## Database Management
-
-### Migrations
-
-Migrations are **auto-generated** from entities. Never write manually.
-
-```bash
-# Create migration from entity changes
-pnpm migration:generate src/database/migrations/AddProductTable
-
-# List migrations
-pnpm migration:show
-
-# Run pending migrations
-pnpm migration:up
-
-# Rollback last migration
-pnpm migration:down
-```
-
-### Backup & Restore
-
-#### PostgreSQL Backup
-
-```bash
-# Full database dump
-docker exec db pg_dump -U postgres nestjs_api > backup.sql
-
-# Restore from backup
-cat backup.sql | docker exec -i db psql -U postgres -d nestjs_api
-```
-
-#### Automated Backups (Production)
-
-Production uses a Docker **db-backup sidecar** (nightly 02:00 UTC, local 7-day retention on Docker volume, webhook on failure). Full setup, verify, and restore steps:
-
-**→ [deploy/README.md §7 Database backups](../deploy/README.md#7-database-backups)**
-
-Quick manual dump (same host, no sidecar):
-
-```bash
-docker exec longnhan_prod_db pg_dump -U longnhan -d longnhan | gzip > backup_manual.sql.gz
-```
-
----
-
-## Database Management
-
-### Migrations
-
-Migrations are **auto-generated** from entities. Never write manually.
-
-```bash
-# Create migration from entity changes
-pnpm migration:generate src/database/migrations/AddProductTable
-
-# List migrations
-pnpm migration:show
-
-# Run pending migrations
-pnpm migration:up
-
-# Rollback last migration
-pnpm migration:down
-```
-
-### Backup & Restore
-
-#### PostgreSQL Backup
-
-```bash
-# Full database dump
-docker exec db pg_dump -U postgres nestjs_api > backup.sql
-
-# Restore from backup
-cat backup.sql | docker exec -i db psql -U postgres -d nestjs_api
-```
-
----
-
-## Post-Deployment Verification
-
-```bash
-# 1. Check API health
-curl https://api.example.com/health
-
-# 2. Verify Swagger docs
-curl https://api.example.com/api-docs
-
-# 3. Test authentication
-curl -X POST https://api.example.com/api/v1/auth/sign-in \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"password"}'
-
-# 4. Check logs
-docker logs api
-
-# 5. Monitor metrics
-# Check memory, CPU, disk usage
-```
-
----
-
-## Troubleshooting
-
-### API Container Won't Start
-
-```bash
-# Check logs
-docker logs api
-
-# Common causes: Database not accessible, missing ENV vars, port in use
-docker ps -a
-docker logs api
-```
-
-### Database Migrations Failed
-
-```bash
-pnpm migration:show
-pnpm migration:down
-pnpm migration:up
-```
-
-### Memory Issues
-
-```bash
-docker stats api
-docker run -e "NODE_OPTIONS=--max-old-space-size=2048" api:latest
-```
-
----
-
-## Rollback Procedure
-
-#### Docker Swarm
-
-```bash
-docker service update --image your-registry.com/longnhan/api:previous longnhan_api
-curl http://localhost:3000/health
-```
-
-#### Kubernetes
-
-```bash
-kubectl rollout undo deployment/api
-kubectl rollout status deployment/api
-```
-
----
-
-## References
-
-- [API App README](../apps/api/README.md)
-- [Docker Documentation](https://docs.docker.com/)
-- [NestJS Deployment](https://docs.nestjs.com/deployment)
-- [PostgreSQL Backup](https://www.postgresql.org/docs/13/backup.html)
 </file>
 
 <file path="apps/admin/src/app/(dashboard)/products/[id]/edit/page.tsx">
@@ -67534,104 +68068,6 @@ export class ProductsService {
 }
 </file>
 
-<file path="apps/api/.env.example">
-##== Environment
-NODE_ENV=development
-MODULES_SET=monolith
-
-##== Application
-APP_NAME="NestJS API"
-APP_URL=http://localhost:3001
-WEB_PUBLIC_URL=http://localhost:3000
-APP_PORT=3001
-APP_DEBUG=false
-API_PREFIX=api
-APP_FALLBACK_LANGUAGE=en
-APP_LOG_LEVEL=debug
-APP_LOG_SERVICE=console
-APP_CORS_ORIGIN=http://localhost:3000,http://example.com
-
-##== Database
-DATABASE_TYPE=postgres
-DATABASE_HOST=localhost
-DATABASE_PORT=5435
-DATABASE_USERNAME=postgres
-DATABASE_PASSWORD=postgres
-DATABASE_NAME=nestjs_api
-DATABASE_LOGGING=true
-DATABASE_SYNCHRONIZE=false
-DATABASE_MAX_CONNECTIONS=100
-DATABASE_SSL_ENABLED=false
-DATABASE_REJECT_UNAUTHORIZED=false
-DATABASE_CA=
-DATABASE_KEY=
-DATABASE_CERT=
-
-##== Redis
-REDIS_HOST=localhost
-REDIS_PORT=6380
-REDIS_PASSWORD=redispass
-REDIS_TLS_ENABLED=false
-
-##== Mailer (Brevo transactional email — https://app.brevo.com/settings/keys/api)
-BREVO_API_KEY=
-MAIL_DEFAULT_EMAIL=noreply@example.com
-MAIL_DEFAULT_NAME=No Reply
-
-##== Authentication
-AUTH_JWT_SECRET=secret
-AUTH_JWT_TOKEN_EXPIRES_IN=1d
-AUTH_REFRESH_SECRET=secret_for_refresh
-AUTH_REFRESH_TOKEN_EXPIRES_IN=365d
-AUTH_FORGOT_SECRET=secret_for_forgot
-AUTH_FORGOT_TOKEN_EXPIRES_IN=7d
-AUTH_CONFIRM_EMAIL_SECRET=secret_for_confirm_email
-AUTH_CONFIRM_EMAIL_TOKEN_EXPIRES_IN=1d
-
-##== SePay Payment Gateway
-# sandbox | production
-SEPAY_ENV=sandbox
-SEPAY_MERCHANT_ID=
-SEPAY_SECRET_KEY=
-# Optional override (default: /payments/sepay/ipn)
-SEPAY_IPN_PATH=/payments/sepay/ipn
-# Hourly reconcile sweep — set to "false" to disable
-SEPAY_RECONCILE_ENABLED=true
-
-#== Docker production (copy to apps/api/.env.production)
-# docker-compose.prod.yml overrides DATABASE_HOST=db and REDIS_HOST=redis inside the stack.
-# PROD_* are host port bindings (run prod beside local dev on 3000–3002 / 5435 / 6380).
-NODE_ENV=production
-APP_URL=https://api.example.com
-WEB_PUBLIC_URL=https://www.example.com
-APP_CORS_ORIGIN=https://www.example.com,https://example.com,https://admin.example.com
-DATABASE_NAME=longnhan
-DATABASE_USERNAME=longnhan
-DATABASE_PASSWORD=
-DATABASE_PORT=5436
-REDIS_PORT=6381
-APP_PORT=13101
-
-#== Cloudflare Tunnel (production)
-# Prefer token: Zero Trust → Networks → Tunnels → your tunnel → copy token for `cloudflared`.
-# Routes (api / www / admin) are configured in the tunnel’s Public hostnames (not local config).
-CLOUDFLARED_TUNNEL_TOKEN=
-
-#== Grafana Cloud Monitoring (production)
-# URLs: portal → Connections → Add new connection → Hosted Prometheus / Loki (copy push URL).
-# Each service has its own numeric instance ID (My Account → stack details).
-# API key = Cloud Access Policy token with metrics:write + logs:write (glc_…).
-GRAFANA_CLOUD_PROMETHEUS_URL=
-GRAFANA_CLOUD_PROMETHEUS_USER=
-GRAFANA_CLOUD_LOKI_URL=
-GRAFANA_CLOUD_LOKI_USER=
-GRAFANA_CLOUD_API_KEY=
-
-#== DB backup sidecar (production — docker-compose.backup.yml)
-BACKUP_KEEP_DAYS=7
-BACKUP_WEBHOOK_URL=
-</file>
-
 <file path="apps/web/src/app/order-success/page.tsx">
 import Link from 'next/link';
 import {
@@ -68211,6 +68647,628 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
     </section>
   );
 }
+</file>
+
+<file path="docs/deployment-guide.md">
+# Deployment Guide
+
+**Last Updated:** 2026-04-01
+**Production Targets:** Railway (API), Vercel (web + admin)
+
+---
+
+## Overview
+
+This guide covers setting up, deploying, and maintaining the Long Nhan Hung Yen API in development, staging, and production environments.
+
+---
+
+## Prerequisites
+
+### Required Software
+
+- Docker & Docker Compose
+- Node.js >= 20.10.0
+- pnpm >= 9.5.0
+- PostgreSQL 13+ (can use Docker)
+- Redis (can use Docker)
+
+### Required Credentials
+
+- Cloudinary account (production media uploads)
+- Brevo API key (https://app.brevo.com/settings/keys/api)
+- PostgreSQL database credentials
+- JWT secret key (generate securely)
+
+---
+
+## Local Development Setup
+
+### 1. Clone & Install
+
+```bash
+# Clone repository
+git clone <repo-url> longnhantongtran
+cd longnhantongtran
+
+# Install dependencies
+pnpm install
+
+# Copy environment template
+cp .env.example .env
+```
+
+### 2. Configure Environment
+
+Edit `.env` for local development:
+
+```env
+# Application
+NODE_ENV=development
+APP_PORT=3000
+APP_DEBUG=true
+APP_CORS_ORIGIN=http://localhost:3000
+
+# Database
+DATABASE_HOST=localhost
+DATABASE_PORT=5435
+DATABASE_NAME=nestjs_api
+DATABASE_USERNAME=postgres
+DATABASE_PASSWORD=postgres
+
+# Authentication
+AUTH_JWT_SECRET=dev-secret-key-change-in-prod
+AUTH_JWT_TOKEN_EXPIRES_IN=1d
+AUTH_REFRESH_SECRET=dev-refresh-secret-change-in-prod
+
+# Email (Brevo SDK — get key at https://app.brevo.com/settings/keys/api)
+BREVO_API_KEY=<your-brevo-api-key>
+MAIL_DEFAULT_EMAIL=noreply@localhost
+MAIL_DEFAULT_NAME=No Reply
+
+# Cloudflare Turnstile (CAPTCHA for COD orders)
+# Use test keys for local dev: https://developers.cloudflare.com/turnstile/get-started/
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=1x00000000000000000000AA
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA
+```
+
+### 3. Start Infrastructure
+
+```bash
+# Option A: Start only database/cache services
+docker compose up -d db redis pgadmin
+
+# Option B: Full local dev stack with API container (hot-reload)
+docker compose -f docker-compose.local.yml up --build -d
+```
+
+**Services:**
+
+- PostgreSQL: localhost:5435
+- Redis: localhost:6380
+- PgAdmin: http://localhost:5050
+- API (if using `docker-compose.local.yml`): http://localhost:3001 (host mapping in compose)
+
+### 4. Initialize Database
+
+```bash
+# Create database (if not using docker compose)
+pnpm db:create
+
+# Run migrations
+pnpm migration:up
+
+# Seed sample data
+pnpm seed:run
+```
+
+### 5. Start Development Server
+
+```bash
+# Terminal method
+pnpm dev
+
+# Or via Docker (if using docker-compose.local.yml)
+# Already running, check logs with:
+docker compose -f docker-compose.local.yml logs -f api
+```
+
+API available at: http://localhost:3001 (see root `README.md` for all local ports)
+Swagger docs: http://localhost:3001/api-docs
+
+---
+
+## Staging Deployment
+
+### Setup
+
+Staging uses the production Docker Compose stack without the API container (deploy separately).
+
+```bash
+# 1. SSH into staging server
+ssh user@staging-server
+
+# 2. Clone repository
+git clone <repo-url> longnhantongtran
+cd longnhantongtran
+
+# 3. Create staging .env file
+cat > .env << EOF
+NODE_ENV=staging
+APP_PORT=3000
+APP_DEBUG=false
+APP_CORS_ORIGIN=https://staging.example.com
+
+DATABASE_HOST=db
+DATABASE_PORT=5432
+DATABASE_NAME=nestjs_api
+DATABASE_USERNAME=postgres
+DATABASE_PASSWORD=$(openssl rand -base64 32)
+
+AUTH_JWT_SECRET=$(openssl rand -hex 32)
+AUTH_JWT_TOKEN_EXPIRES_IN=1d
+AUTH_REFRESH_SECRET=$(openssl rand -hex 32)
+
+BREVO_API_KEY=<staging-brevo-api-key>
+MAIL_DEFAULT_EMAIL=noreply@staging.example.com
+MAIL_DEFAULT_NAME=No Reply
+
+# Cloudinary (if available in staging)
+# CLOUDINARY_CLOUD_NAME=xxx
+# CLOUDINARY_API_KEY=xxx
+# CLOUDINARY_API_SECRET=xxx
+
+# Cloudflare Turnstile (COD bot protection)
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=<staging-site-key>
+TURNSTILE_SECRET_KEY=<staging-secret-key>
+EOF
+
+# 4. Start infrastructure
+docker compose up -d db redis pgadmin
+```
+
+### Deploy API
+
+```bash
+# 1. Build production image
+docker build -t api:staging -f apps/api/Dockerfile .
+
+# 2. Run API container
+docker run -d \
+  --name api \
+  --network longnhan-network \
+  -p 3000:3000 \
+  --env-file .env \
+  api:staging
+
+# 3. Verify
+curl http://localhost:3000/health
+```
+
+### Initialize Database
+
+```bash
+# Run migrations inside container
+docker exec api pnpm migration:up
+
+# Seed data
+docker exec api pnpm seed:run
+```
+
+### Verification Checklist
+
+- [ ] API responds on port 3000
+- [ ] Swagger docs accessible at `/api-docs`
+- [ ] Database migrations applied
+- [ ] Sample data seeded
+- [ ] SMTP configured (provider sandbox for staging)
+- [ ] PostgreSQL accessible via PgAdmin
+- [ ] Redis available for caching
+
+---
+
+## Production Deployment
+
+### Pre-Deployment Checklist
+
+- [ ] All tests passing (`pnpm test`)
+- [ ] Code reviewed and merged to main
+- [ ] Environment variables configured
+- [ ] Database backups enabled
+- [ ] SSL/TLS certificates obtained
+- [ ] CDN/reverse proxy configured
+- [ ] Monitoring & alerting setup
+- [ ] Rollback plan documented
+
+### Production Environment Variables
+
+Create secure `.env.production`:
+
+```env
+# Application
+NODE_ENV=production
+APP_PORT=3000
+APP_DEBUG=false
+APP_CORS_ORIGIN=https://api.example.com
+
+# Database
+DATABASE_HOST=prod-db.example.com
+DATABASE_PORT=5432
+DATABASE_NAME=longnhan_prod
+DATABASE_USERNAME=app_user
+DATABASE_PASSWORD=<secure-password>
+DATABASE_SSL_ENABLED=true
+DATABASE_REJECT_UNAUTHORIZED=true
+
+# Authentication
+AUTH_JWT_SECRET=<secure-random-hex-32>
+AUTH_JWT_TOKEN_EXPIRES_IN=1d
+AUTH_REFRESH_SECRET=<secure-random-hex-32>
+
+# Email (Brevo SDK)
+BREVO_API_KEY=<production-brevo-api-key>
+MAIL_DEFAULT_EMAIL=noreply@longnhan.vn
+MAIL_DEFAULT_NAME=Long Nhan Hung Yen
+
+# Cloudinary (Required)
+CLOUDINARY_CLOUD_NAME=<your-cloud-name>
+CLOUDINARY_API_KEY=<your-api-key>
+CLOUDINARY_API_SECRET=<your-api-secret>
+
+# Cloudflare Turnstile (COD bot protection) — https://dash.cloudflare.com/
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=<production-site-key>
+TURNSTILE_SECRET_KEY=<production-secret-key>
+```
+
+**Secure Storage:**
+
+- Use environment management: AWS Secrets Manager, HashiCorp Vault, or similar
+- Never commit `.env.production` to git
+- Rotate secrets regularly
+- Use HTTPS only
+
+### Docker Build & Push
+
+```bash
+# 1. Build image with version tag
+VERSION=1.0.0
+docker build -t api:$VERSION -f apps/api/Dockerfile .
+
+# 2. Tag for registry
+docker tag api:$VERSION your-registry.com/longnhan/api:$VERSION
+docker tag api:$VERSION your-registry.com/longnhan/api:latest
+
+# 3. Push to registry
+docker push your-registry.com/longnhan/api:$VERSION
+docker push your-registry.com/longnhan/api:latest
+```
+
+### Deploy to Production
+
+#### Option A: Docker Swarm
+
+```bash
+# 1. Create docker-compose.production.yml
+cat > docker-compose.production.yml << 'EOF'
+version: '3.8'
+
+services:
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: longnhan_prod
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - longnhan-network
+    deploy:
+      replicas: 1
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - longnhan-network
+    deploy:
+      replicas: 1
+
+  api:
+    image: your-registry.com/longnhan/api:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_HOST=db
+      - REDIS_URL=redis://redis:6379
+    env_file:
+      - .env.production
+    networks:
+      - longnhan-network
+    depends_on:
+      - db
+      - redis
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+
+volumes:
+  postgres_data:
+
+networks:
+  longnhan-network:
+    driver: overlay
+EOF
+
+# 2. Deploy stack
+docker stack deploy -c docker-compose.production.yml longnhan
+```
+
+#### Option B: Kubernetes
+
+```yaml
+# k8s/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: api
+          image: your-registry.com/longnhan/api:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: 'production'
+            - name: DATABASE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: db-host
+          envFrom:
+            - secretRef:
+                name: app-secrets
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+```
+
+Deploy:
+
+```bash
+kubectl apply -f k8s/deployment.yaml
+kubectl apply -f k8s/service.yaml
+kubectl apply -f k8s/ingress.yaml
+```
+
+#### Option C: Manual Server Deployment
+
+```bash
+# 1. SSH into production server
+ssh deploy@prod-server
+
+# 2. Clone repo
+cd /var/www
+git clone <repo-url> longnhan
+cd longnhan
+
+# 3. Copy production .env (securely obtained)
+# scp .env.production deploy@prod-server:/var/www/longnhan/.env
+
+# 4. Build locally or pull pre-built image
+docker pull your-registry.com/longnhan/api:latest
+
+# 5. Start production stack
+docker compose -f docker-compose.yml up -d
+
+# 6. Run migrations
+docker compose exec api pnpm migration:up
+
+# 7. Verify health
+curl http://localhost:3000/health
+```
+
+### Post-Deployment Verification
+
+```bash
+# 1. Check API health
+curl https://api.example.com/health
+
+# 2. Verify Swagger docs
+curl https://api.example.com/api-docs
+
+# 3. Test authentication
+curl -X POST https://api.example.com/api/v1/auth/sign-in \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password"}'
+
+# 4. Check logs
+docker logs api  # or kubectl logs deployment/api
+
+# 5. Monitor metrics
+# Check memory, CPU, disk usage, response times
+```
+
+---
+
+## Database Management
+
+### Migrations
+
+Migrations are **auto-generated** from entities. Never write manually.
+
+```bash
+# Create migration from entity changes
+pnpm migration:generate src/database/migrations/AddProductTable
+
+# List migrations
+pnpm migration:show
+
+# Run pending migrations
+pnpm migration:up
+
+# Rollback last migration
+pnpm migration:down
+```
+
+### Backup & Restore
+
+#### PostgreSQL Backup
+
+```bash
+# Full database dump
+docker exec db pg_dump -U postgres nestjs_api > backup.sql
+
+# Restore from backup
+cat backup.sql | docker exec -i db psql -U postgres -d nestjs_api
+```
+
+#### Automated Backups (Production)
+
+Production uses a Docker **db-backup sidecar** (nightly 02:00 UTC, local 7-day retention on Docker volume, webhook on failure). Full setup, verify, and restore steps:
+
+**→ [deploy/README.md §7 Database backups](../deploy/README.md#7-database-backups)**
+
+Quick manual dump (same host, no sidecar):
+
+```bash
+docker exec longnhan_prod_db pg_dump -U longnhan -d longnhan | gzip > backup_manual.sql.gz
+```
+
+---
+
+## Database Management
+
+### Migrations
+
+Migrations are **auto-generated** from entities. Never write manually.
+
+```bash
+# Create migration from entity changes
+pnpm migration:generate src/database/migrations/AddProductTable
+
+# List migrations
+pnpm migration:show
+
+# Run pending migrations
+pnpm migration:up
+
+# Rollback last migration
+pnpm migration:down
+```
+
+### Backup & Restore
+
+#### PostgreSQL Backup
+
+```bash
+# Full database dump
+docker exec db pg_dump -U postgres nestjs_api > backup.sql
+
+# Restore from backup
+cat backup.sql | docker exec -i db psql -U postgres -d nestjs_api
+```
+
+---
+
+## Post-Deployment Verification
+
+```bash
+# 1. Check API health
+curl https://api.example.com/health
+
+# 2. Verify Swagger docs
+curl https://api.example.com/api-docs
+
+# 3. Test authentication
+curl -X POST https://api.example.com/api/v1/auth/sign-in \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password"}'
+
+# 4. Check logs
+docker logs api
+
+# 5. Monitor metrics
+# Check memory, CPU, disk usage
+```
+
+---
+
+## Troubleshooting
+
+### API Container Won't Start
+
+```bash
+# Check logs
+docker logs api
+
+# Common causes: Database not accessible, missing ENV vars, port in use
+docker ps -a
+docker logs api
+```
+
+### Database Migrations Failed
+
+```bash
+pnpm migration:show
+pnpm migration:down
+pnpm migration:up
+```
+
+### Memory Issues
+
+```bash
+docker stats api
+docker run -e "NODE_OPTIONS=--max-old-space-size=2048" api:latest
+```
+
+---
+
+## Rollback Procedure
+
+#### Docker Swarm
+
+```bash
+docker service update --image your-registry.com/longnhan/api:previous longnhan_api
+curl http://localhost:3000/health
+```
+
+#### Kubernetes
+
+```bash
+kubectl rollout undo deployment/api
+kubectl rollout status deployment/api
+```
+
+---
+
+## References
+
+- [API App README](../apps/api/README.md)
+- [Docker Documentation](https://docs.docker.com/)
+- [NestJS Deployment](https://docs.nestjs.com/deployment)
+- [PostgreSQL Backup](https://www.postgresql.org/docs/13/backup.html)
 </file>
 
 <file path="docs/frontend-code-standards.md">
@@ -69238,9 +70296,27 @@ import { DashboardErrorState } from '@/components/dashboard/dashboard-error-stat
 <file path="docs/project-changelog.md">
 # Project Changelog
 
-**Last Updated:** 2026-04-28
+**Last Updated:** 2026-06-17
 
 All notable changes to the Long Nhan Hung Yen e-commerce project are documented here. **Phase status** is canonical in [Project Roadmap](./project-roadmap.md).
+
+---
+
+## [5.6.0] - 2026-06-17 - Article crawl import (admin)
+
+### Added
+
+- **ArticleImportModule** (`apps/api/src/api/article-import/`) — Firecrawl scrape + OpenAI Vietnamese rewrite for admin URL import preview
+  - `POST /v1/article-import/preview` — SSRF-safe URL validation, sync preview DTO (no DB write)
+  - Config namespace `articleImport` (`FIRECRAWL_API_KEY`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `ARTICLE_IMPORT_TIMEOUT_MS`)
+- **Shared types** (`packages/types/src/article-import.ts`) — `ArticleImportPreview`, `ArticleImportCrawlMeta`
+- **Admin crawl panel** (`ArticleCrawlPanel`) on `/articles/new` — URL input, loading state, form prefill via key remount
+- **Admin BFF** (`apps/admin/src/app/api/article-import/preview/route.ts`) — Proxies preview to API
+
+### Documentation
+
+- Spec: `docs/specs/article-crawl-import-spec.md` (Approved)
+- Plan: `plans/260617-article-crawl-import/`
 
 ---
 
@@ -71238,6 +72314,110 @@ function getAddressPreview(address: string | null | undefined): string | null {
   if (!first) return null;
   return first;
 }
+</file>
+
+<file path="apps/api/.env.example">
+##== Environment
+NODE_ENV=development
+MODULES_SET=monolith
+
+##== Application
+APP_NAME="NestJS API"
+APP_URL=http://localhost:3001
+WEB_PUBLIC_URL=http://localhost:3000
+APP_PORT=3001
+APP_DEBUG=false
+API_PREFIX=api
+APP_FALLBACK_LANGUAGE=en
+APP_LOG_LEVEL=debug
+APP_LOG_SERVICE=console
+APP_CORS_ORIGIN=http://localhost:3000,http://example.com
+
+##== Database
+DATABASE_TYPE=postgres
+DATABASE_HOST=localhost
+DATABASE_PORT=5435
+DATABASE_USERNAME=postgres
+DATABASE_PASSWORD=postgres
+DATABASE_NAME=nestjs_api
+DATABASE_LOGGING=true
+DATABASE_SYNCHRONIZE=false
+DATABASE_MAX_CONNECTIONS=100
+DATABASE_SSL_ENABLED=false
+DATABASE_REJECT_UNAUTHORIZED=false
+DATABASE_CA=
+DATABASE_KEY=
+DATABASE_CERT=
+
+##== Redis
+REDIS_HOST=localhost
+REDIS_PORT=6380
+REDIS_PASSWORD=redispass
+REDIS_TLS_ENABLED=false
+
+##== Mailer (Brevo transactional email — https://app.brevo.com/settings/keys/api)
+BREVO_API_KEY=
+MAIL_DEFAULT_EMAIL=noreply@example.com
+MAIL_DEFAULT_NAME=No Reply
+
+##== Authentication
+AUTH_JWT_SECRET=secret
+AUTH_JWT_TOKEN_EXPIRES_IN=1d
+AUTH_REFRESH_SECRET=secret_for_refresh
+AUTH_REFRESH_TOKEN_EXPIRES_IN=365d
+AUTH_FORGOT_SECRET=secret_for_forgot
+AUTH_FORGOT_TOKEN_EXPIRES_IN=7d
+AUTH_CONFIRM_EMAIL_SECRET=secret_for_confirm_email
+AUTH_CONFIRM_EMAIL_TOKEN_EXPIRES_IN=1d
+
+##== SePay Payment Gateway
+# sandbox | production
+SEPAY_ENV=sandbox
+SEPAY_MERCHANT_ID=
+SEPAY_SECRET_KEY=
+# Optional override (default: /payments/sepay/ipn)
+SEPAY_IPN_PATH=/payments/sepay/ipn
+# Hourly reconcile sweep — set to "false" to disable
+SEPAY_RECONCILE_ENABLED=true
+
+##== Article Import (Firecrawl + OpenAI)
+FIRECRAWL_API_KEY=
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4o-mini
+ARTICLE_IMPORT_TIMEOUT_MS=90000
+
+#== Docker production (copy to apps/api/.env.production)
+# docker-compose.prod.yml overrides DATABASE_HOST=db and REDIS_HOST=redis inside the stack.
+# PROD_* are host port bindings (run prod beside local dev on 3000–3002 / 5435 / 6380).
+NODE_ENV=production
+APP_URL=https://api.example.com
+WEB_PUBLIC_URL=https://www.example.com
+APP_CORS_ORIGIN=https://www.example.com,https://example.com,https://admin.example.com
+DATABASE_NAME=longnhan
+DATABASE_USERNAME=longnhan
+DATABASE_PASSWORD=
+DATABASE_PORT=5436
+REDIS_PORT=6381
+APP_PORT=13101
+
+#== Cloudflare Tunnel (production)
+# Prefer token: Zero Trust → Networks → Tunnels → your tunnel → copy token for `cloudflared`.
+# Routes (api / www / admin) are configured in the tunnel’s Public hostnames (not local config).
+CLOUDFLARED_TUNNEL_TOKEN=
+
+#== Grafana Cloud Monitoring (production)
+# URLs: portal → Connections → Add new connection → Hosted Prometheus / Loki (copy push URL).
+# Each service has its own numeric instance ID (My Account → stack details).
+# API key = Cloud Access Policy token with metrics:write + logs:write (glc_…).
+GRAFANA_CLOUD_PROMETHEUS_URL=
+GRAFANA_CLOUD_PROMETHEUS_USER=
+GRAFANA_CLOUD_LOKI_URL=
+GRAFANA_CLOUD_LOKI_USER=
+GRAFANA_CLOUD_API_KEY=
+
+#== DB backup sidecar (production — docker-compose.backup.yml)
+BACKUP_KEEP_DAYS=7
+BACKUP_WEBHOOK_URL=
 </file>
 
 <file path="apps/web/src/actions/order-actions.ts">
@@ -73924,6 +75104,17 @@ longnhantongtran/
   - `POST /articles` — Create (admin)
   - `PUT /articles/:id` — Update (admin)
   - `DELETE /articles/:id` — Delete (admin)
+
+#### ArticleImportModule
+
+- **Purpose:** Admin URL import preview (Firecrawl scrape + OpenAI Vietnamese rewrite); no DB write on import
+- **Key Files:**
+  - `article-import.service.ts` — Orchestrates crawl → format
+  - `crawl.service.ts` — Firecrawl scrape
+  - `article-formatter.service.ts` — OpenAI structured formatting
+  - `article-import.controller.ts` — Admin preview endpoint
+- **Endpoints:**
+  - `POST /article-import/preview` — Preview import from URL (admin auth)
 
 #### MediaModule
 

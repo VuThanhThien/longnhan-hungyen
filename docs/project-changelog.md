@@ -1,8 +1,26 @@
 # Project Changelog
 
-**Last Updated:** 2026-04-28
+**Last Updated:** 2026-06-17
 
 All notable changes to the Long Nhan Hung Yen e-commerce project are documented here. **Phase status** is canonical in [Project Roadmap](./project-roadmap.md).
+
+---
+
+## [5.6.0] - 2026-06-17 - Article crawl import (admin)
+
+### Added
+
+- **ArticleImportModule** (`apps/api/src/api/article-import/`) — Firecrawl scrape + OpenAI Vietnamese rewrite for admin URL import preview
+  - `POST /v1/article-import/preview` — SSRF-safe URL validation, sync preview DTO (no DB write)
+  - Config namespace `articleImport` (`FIRECRAWL_API_KEY`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `ARTICLE_IMPORT_TIMEOUT_MS`)
+- **Shared types** (`packages/types/src/article-import.ts`) — `ArticleImportPreview`, `ArticleImportCrawlMeta`
+- **Admin crawl panel** (`ArticleCrawlPanel`) on `/articles/new` — URL input, loading state, form prefill via key remount
+- **Admin BFF** (`apps/admin/src/app/api/article-import/preview/route.ts`) — Proxies preview to API
+
+### Documentation
+
+- Spec: `docs/specs/article-crawl-import-spec.md` (Approved)
+- Plan: `plans/260617-article-crawl-import/`
 
 ---
 

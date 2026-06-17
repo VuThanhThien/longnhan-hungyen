@@ -1,4 +1,5 @@
 import { ApiModule } from '@/api/api.module';
+import articleImportConfig from '@/api/article-import/config/article-import.config';
 import authConfig from '@/api/auth/config/auth.config';
 import cloudinaryConfig from '@/api/media/config/cloudinary.config';
 import { BackgroundModule } from '@/background/background.module';
@@ -40,6 +41,7 @@ function generateModulesSet() {
         mailConfig,
         cloudinaryConfig,
         sepayConfig,
+        articleImportConfig,
       ],
       envFilePath: ['.env', '.env.production'],
     }),

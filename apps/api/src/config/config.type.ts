@@ -1,3 +1,4 @@
+import { ArticleImportConfig } from '@/api/article-import/config/article-import-config.type';
 import { AuthConfig } from '@/api/auth/config/auth-config.type';
 import { CloudinaryConfig } from '@/api/media/config/cloudinary-config.type';
 import { DatabaseConfig } from '@/database/config/database-config.type';
@@ -14,4 +15,5 @@ export type AllConfigType = {
   mail: MailConfig;
   cloudinary: CloudinaryConfig;
   sepay: SepayConfig;
+  articleImport: ArticleImportConfig;
 };

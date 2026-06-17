@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { SepayModule } from '../integrations/sepay/sepay.module';
+import { ArticleImportModule } from './article-import/article-import.module';
 import { ArticlesModule } from './articles/articles.module';
 import { AuthModule } from './auth/auth.module';
 import { CategoriesModule } from './categories/categories.module';
@@ -34,6 +35,7 @@ import { VouchersModule } from './vouchers/vouchers.module';
     OrdersModule,
     VouchersModule,
     ArticlesModule,
+    ArticleImportModule,
     MediaModule,
     DashboardModule,
     TransactionsModule,

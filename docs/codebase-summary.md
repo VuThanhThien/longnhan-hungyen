@@ -230,6 +230,17 @@ longnhantongtran/
   - `PUT /articles/:id` — Update (admin)
   - `DELETE /articles/:id` — Delete (admin)
 
+#### ArticleImportModule
+
+- **Purpose:** Admin URL import preview (Firecrawl scrape + OpenAI Vietnamese rewrite); no DB write on import
+- **Key Files:**
+  - `article-import.service.ts` — Orchestrates crawl → format
+  - `crawl.service.ts` — Firecrawl scrape
+  - `article-formatter.service.ts` — OpenAI structured formatting
+  - `article-import.controller.ts` — Admin preview endpoint
+- **Endpoints:**
+  - `POST /article-import/preview` — Preview import from URL (admin auth)
+
 #### MediaModule
 
 - **Purpose:** File uploads, media management, Cloudinary integration
