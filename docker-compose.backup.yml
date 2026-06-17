@@ -1,0 +1,30 @@
+# Production DB backup sidecar — merged with docker-compose.prod.yml via `make deploy`.
+# See deploy/README.md §7 and docs/specs/db-backup-cron-spec.md
+
+services:
+  db-backup:
+    build:
+      context: ./deploy/backup
+    image: longnhan-db-backup:prod
+    container_name: longnhan_prod_db_backup
+    env_file:
+      - apps/api/.env.production
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${DATABASE_USERNAME:-longnhan}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME:-longnhan}
+      BACKUP_DIR: /backups
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-7}
+      BACKUP_WEBHOOK_URL: ${BACKUP_WEBHOOK_URL:-}
+    volumes:
+      - postgres_backup_data:/backups
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - longnhan-prod
+
+volumes:
+  postgres_backup_data:

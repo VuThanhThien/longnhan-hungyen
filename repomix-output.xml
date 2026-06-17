@@ -1136,6 +1136,10 @@ apps/
     tailwind.config.ts
     tsconfig.json
 deploy/
+  backup/
+    backup.sh
+    crontab
+    Dockerfile
   cloudflare/
     .gitignore
     config.yml.example
@@ -1195,6 +1199,7 @@ packages/
 CLAUDE.md
 commitlint.config.mjs
 DESIGN.md
+docker-compose.backup.yml
 docker-compose.local.yml
 docker-compose.monitoring.yml
 docker-compose.prod.cloudflared-config.yml
@@ -1216,219 +1221,199 @@ This section contains the contents of the repository's files.
 
 </file>
 
-<file path="apps/web/src/components/layout/copyright-year.tsx">
-'use client';
+<file path="deploy/backup/backup.sh">
+#!/usr/bin/env bash
+# Nightly Postgres backup: pg_dump → gzip → local volume → prune.
+set -euo pipefail
 
-/** Client-only so the layout footer stays statically prerenderable. */
-export function CopyrightYear() {
-  return <>{new Date().getFullYear()}</>;
+readonly HOST_LABEL="${BACKUP_HOST_LABEL:-longnhan_prod}"
+readonly BACKUP_DIR="${BACKUP_DIR:-/backups}"
+readonly BACKUP_KEEP_DAYS="${BACKUP_KEEP_DAYS:-7}"
+readonly POSTGRES_HOST="${POSTGRES_HOST:?POSTGRES_HOST is required}"
+readonly POSTGRES_PORT="${POSTGRES_PORT:-5432}"
+readonly POSTGRES_USER="${POSTGRES_USER:?POSTGRES_USER is required}"
+readonly POSTGRES_PASSWORD="${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}"
+readonly POSTGRES_DB="${POSTGRES_DB:?POSTGRES_DB is required}"
+
+LAST_ERROR=""
+WEBHOOK_SENT=0
+
+log() {
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*"
 }
+
+truncate_error() {
+  local msg="$1"
+  if ((${#msg} > 500)); then
+    echo "${msg: -500}"
+  else
+    echo "$msg"
+  fi
+}
+
+notify_failure() {
+  local error_msg
+  error_msg="$(truncate_error "${1:-${LAST_ERROR:-Unknown backup error}}")"
+  local timestamp
+  timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+  log "ERROR: ${error_msg}"
+
+  if [[ -z "${BACKUP_WEBHOOK_URL:-}" ]]; then
+    return 0
+  fi
+
+  if [[ "$WEBHOOK_SENT" -eq 1 ]]; then
+    return 0
+  fi
+  WEBHOOK_SENT=1
+
+  local payload notify_style="slack"
+  if [[ "$BACKUP_WEBHOOK_URL" == *"discord.com/api/webhooks"* ]]; then
+    notify_style="discord"
+  fi
+
+  payload="$(
+    NOTIFY_ERROR_MSG="$error_msg" NOTIFY_TIMESTAMP="$timestamp" NOTIFY_STYLE="$notify_style" HOST_LABEL="$HOST_LABEL" python3 - <<'PY'
+import json, os
+
+error = os.environ["NOTIFY_ERROR_MSG"]
+timestamp = os.environ["NOTIFY_TIMESTAMP"]
+host = os.environ["HOST_LABEL"]
+if os.environ["NOTIFY_STYLE"] == "discord":
+    body = {
+        "content": (
+            f"[longnhan-prod] DB backup FAILED\n"
+            f"host: {host}\n"
+            f"timestamp: {timestamp}\n"
+            f"error: {error}"
+        )
+    }
+else:
+    body = {
+        "text": "[longnhan-prod] DB backup FAILED",
+        "host": host,
+        "error": error,
+        "timestamp": timestamp,
+    }
+print(json.dumps(body))
+PY
+  )"
+
+  if ! curl -fsS -X POST -H "Content-Type: application/json" -d "$payload" "$BACKUP_WEBHOOK_URL" >/dev/null 2>&1; then
+    log "WARN: webhook POST failed (backup failure still reported via exit code)"
+  fi
+}
+
+on_err() {
+  local line="$1"
+  LAST_ERROR="${LAST_ERROR:-Backup failed at line ${line}}"
+  notify_failure "$LAST_ERROR"
+  exit 1
+}
+
+trap 'on_err $LINENO' ERR
+
+mkdir -p "$BACKUP_DIR"
+
+START_EPOCH=$(date +%s)
+DATE=$(date -u +%Y%m%d_%H%M%S)
+FILE="backup_${DATE}.sql.gz"
+OUTPUT="$BACKUP_DIR/$FILE"
+DUMP_ERR=$(mktemp)
+cleanup() {
+  rm -f "$DUMP_ERR"
+}
+trap cleanup EXIT
+
+log "Starting backup → ${FILE}"
+
+export PGPASSWORD="$POSTGRES_PASSWORD"
+if ! pg_dump -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" 2>"$DUMP_ERR" | gzip >"$OUTPUT"; then
+  rm -f "$OUTPUT"
+  LAST_ERROR="$(cat "$DUMP_ERR" 2>/dev/null || true)"
+  notify_failure "$LAST_ERROR"
+  exit 1
+fi
+
+FILE_SIZE=$(stat -c %s "$OUTPUT" 2>/dev/null || stat -f %z "$OUTPUT")
+log "Dump complete: ${FILE} (${FILE_SIZE} bytes)"
+
+find "$BACKUP_DIR" -name 'backup_*.sql.gz' -mtime +"$BACKUP_KEEP_DAYS" -delete
+log "Pruned local backups older than ${BACKUP_KEEP_DAYS} days"
+
+DURATION=$(( $(date +%s) - START_EPOCH ))
+log "Backup succeeded: ${FILE} (${FILE_SIZE} bytes, ${DURATION}s)"
 </file>
 
-<file path="apps/web/src/components/products/product-detail-enrichment.tsx">
-import RelatedProducts from '@/components/products/related-products';
-import { fetchApi, fetchPaginated } from '@/lib/api-client';
-import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
-import { relatedProductsCacheTags } from '@/lib/content-cache-tags';
-import { buildProductSchema } from '@/lib/structured-data';
-import type { Product } from '@longnhan/types';
-import { cacheLife, cacheTag } from 'next/cache';
-
-type ProductReviewItem = {
-  id: string;
-  productId: string;
-  rating: number;
-  comment: string | null;
-  createdAt: string;
-  reviewerLabel: string;
-  variantLabel: string;
-};
-
-type ProductReviewsList = {
-  ratingAvg: number;
-  ratingCount: number;
-  items: ProductReviewItem[];
-};
-
-async function getRelatedProducts(
-  category: string | undefined,
-  excludeSlug: string,
-): Promise<Product[]> {
-  'use cache';
-  cacheLife({ revalidate: 60 });
-  cacheTag(...relatedProductsCacheTags(category, excludeSlug));
-  try {
-    const relatedResponse = await fetchPaginated<Product>('/products', {
-      category,
-      limit: 8,
-    });
-    return relatedResponse.data
-      .filter((item) => item.slug !== excludeSlug)
-      .slice(0, 4);
-  } catch (error) {
-    captureApiFetchError(error, {
-      route: '/products/[slug]',
-      section: 'related_products',
-      extra: { category: category ?? null, excludeSlug },
-    });
-    return [];
-  }
-}
-
-async function getProductReviews(
-  productId: string,
-): Promise<ProductReviewsList | null> {
-  'use cache';
-  cacheLife({ revalidate: 60 });
-  cacheTag('products', 'reviews', productId);
-  try {
-    return await fetchApi<ProductReviewsList>(
-      `/products/${encodeURIComponent(productId)}/reviews`,
-    );
-  } catch (error) {
-    captureApiFetchError(error, {
-      route: '/products/[slug]',
-      section: 'product_reviews_schema',
-      extra: { productId },
-    });
-    return null;
-  }
-}
-
-/** Reviews JSON-LD + related products — streamed after primary PDP HTML. */
-export async function ProductDetailEnrichment({
-  product,
-}: {
-  product: Product;
-}) {
-  const [relatedProducts, reviews] = await Promise.all([
-    getRelatedProducts(product.category, product.slug),
-    getProductReviews(product.id as string),
-  ]);
-
-  const baseProductSchema = buildProductSchema(product);
-  const enrichedSchema = {
-    ...baseProductSchema,
-    ...(reviews?.ratingCount && reviews.ratingCount > 0
-      ? {
-          aggregateRating: {
-            '@type': 'AggregateRating',
-            ratingValue: Number(reviews.ratingAvg.toFixed(1)),
-            reviewCount: reviews.ratingCount,
-            bestRating: 5,
-            worstRating: 1,
-          },
-        }
-      : null),
-    ...(reviews?.items?.length
-      ? {
-          review: reviews.items.slice(0, 5).map((r) => ({
-            '@type': 'Review',
-            author: {
-              '@type': 'Person',
-              name: r.reviewerLabel,
-            },
-            datePublished: r.createdAt,
-            reviewRating: {
-              '@type': 'Rating',
-              ratingValue: r.rating,
-              bestRating: 5,
-              worstRating: 1,
-            },
-            ...(r.comment ? { reviewBody: r.comment } : null),
-          })),
-        }
-      : null),
-  };
-
-  return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(enrichedSchema) }}
-      />
-      <RelatedProducts products={relatedProducts} />
-    </>
-  );
-}
+<file path="deploy/backup/crontab">
+0 2 * * * /bin/bash /backup.sh
 </file>
 
-<file path="apps/web/src/lib/seo-keywords.ts">
-/**
- * Central SEO keyword lists — Vietnamese + ASCII (no diacritics) for search coverage.
- * Used in meta keywords, JSON-LD alternateName, and copy templates.
- */
+<file path="deploy/backup/Dockerfile">
+FROM alpine:3.20
 
-/** Use-case keywords — chè dưỡng nhan, nấu chè (có nội dung landing/FAQ hỗ trợ) */
-export const CHE_SEO_KEYWORDS = [
-  'chè dưỡng nhan',
-  'long nhãn nấu chè',
-  'hạt sen long nhãn',
-  'che duong nhan',
-  'long nhan nau che',
-  'hat sen long nhan',
-] as const;
+RUN apk add --no-cache \
+    bash \
+    curl \
+    gzip \
+    postgresql16-client \
+    python3
 
-/** Full keyword set for home / layout */
-export const CORE_SEO_KEYWORDS = [
-  'nhanhunguyen.com',
-  'Nhãn Hưng Yên',
-  'Long nhãn Hưng Yên',
-  'long nhãn Hưng Yên',
-  'nhãn lồng Hưng Yên',
-  'Long Nhãn Tống Trân',
-  'Nhãn Tống Trân',
-  'đặc sản nhãn Hưng Yên',
-  'đặc sản Hưng Yên',
-  'mua nhãn Hưng Yên',
-  'long nhãn sấy khô',
-  'long nhãn sấy khô Hưng Yên',
-  'long nhãn quà tặng',
-  'Long nhãn giao COD',
-  'Long nhãn Shopee',
-  'Long nhãn TikTok',
-  ...CHE_SEO_KEYWORDS,
-  // ASCII — không dấu (gõ không dấu, tìm kiếm giọng nói)
-  'nhan hung yen',
-  'nhan long hung yen',
-  'long nhan hung yen',
-  'nhan long',
-  'nhan long say kho',
-  'mua nhan hung yen',
-  'dac san nhan hung yen',
-  'nhan tong tran',
-] as const;
+# Pin supercronic release (cron runner for containers) — v0.2.36+ fixes reaper fork-exec bug
+ARG SUPERCRONIC_VERSION=0.2.36
+ARG TARGETARCH
+RUN case "${TARGETARCH:-$(uname -m)}" in \
+      amd64|x86_64) SUPERCRONIC_ARCH=amd64 ;; \
+      arm64|aarch64) SUPERCRONIC_ARCH=arm64 ;; \
+      *) echo "unsupported architecture: ${TARGETARCH:-$(uname -m)}" >&2; exit 1 ;; \
+    esac \
+    && curl -fsSL \
+      "https://github.com/aptible/supercronic/releases/download/v${SUPERCRONIC_VERSION}/supercronic-linux-${SUPERCRONIC_ARCH}" \
+      -o /usr/local/bin/supercronic \
+    && chmod +x /usr/local/bin/supercronic
 
-/** Shorter subset for product listing / PDP */
-export const PAGE_SEO_KEYWORDS = [
-  'Nhãn Hưng Yên',
-  'Long nhãn Hưng Yên',
-  'nhãn lồng Hưng Yên',
-  'long nhãn sấy khô',
-  'nhan hung yen',
-  'long nhan hung yen',
-  'nhanhunguyen.com',
-] as const;
+COPY backup.sh /backup.sh
+COPY crontab /etc/crontab
+RUN chmod +x /backup.sh
 
-/** Articles hub — core + chè dưỡng nhan intent */
-export const ARTICLE_SEO_KEYWORDS = [
-  ...PAGE_SEO_KEYWORDS,
-  'chè dưỡng nhan',
-  'long nhãn nấu chè',
-  'hạt sen long nhãn',
-  'che duong nhan',
-] as const;
+ENV BACKUP_DIR=/backups
+VOLUME /backups
 
-/** Schema.org alternateName values */
-export const SCHEMA_ALTERNATE_NAMES = [
-  'Nhãn Hưng Yên',
-  'Long Nhãn Hưng Yên',
-  'Long Nhãn Tống Trân',
-  'nhan hung yen',
-  'long nhan hung yen',
-  'nhan long hung yen',
-  'nhanhunguyen.com',
-] as const;
+ENTRYPOINT ["/usr/local/bin/supercronic", "/etc/crontab"]
+</file>
+
+<file path="docker-compose.backup.yml">
+# Production DB backup sidecar — merged with docker-compose.prod.yml via `make deploy`.
+# See deploy/README.md §7 and docs/specs/db-backup-cron-spec.md
+
+services:
+  db-backup:
+    build:
+      context: ./deploy/backup
+    image: longnhan-db-backup:prod
+    container_name: longnhan_prod_db_backup
+    env_file:
+      - apps/api/.env.production
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${DATABASE_USERNAME:-longnhan}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?Set DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME:-longnhan}
+      BACKUP_DIR: /backups
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-7}
+      BACKUP_WEBHOOK_URL: ${BACKUP_WEBHOOK_URL:-}
+    volumes:
+      - postgres_backup_data:/backups
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - longnhan-prod
+
+volumes:
+  postgres_backup_data:
 </file>
 
 <file path="apps/admin/public/file.svg">
@@ -18108,6 +18093,15 @@ export function LandingUrgencyStrip() {
 }
 </file>
 
+<file path="apps/web/src/components/layout/copyright-year.tsx">
+'use client';
+
+/** Client-only so the layout footer stays statically prerenderable. */
+export function CopyrightYear() {
+  return <>{new Date().getFullYear()}</>;
+}
+</file>
+
 <file path="apps/web/src/components/layout/header-search-suggestions.tsx">
 'use client';
 
@@ -18656,6 +18650,134 @@ export function ProductAddToCart({
         </p>
       ) : null}
     </section>
+  );
+}
+</file>
+
+<file path="apps/web/src/components/products/product-detail-enrichment.tsx">
+import RelatedProducts from '@/components/products/related-products';
+import { fetchApi, fetchPaginated } from '@/lib/api-client';
+import { captureApiFetchError } from '@/lib/observability/api-fetch-sentry';
+import { relatedProductsCacheTags } from '@/lib/content-cache-tags';
+import { buildProductSchema } from '@/lib/structured-data';
+import type { Product } from '@longnhan/types';
+import { cacheLife, cacheTag } from 'next/cache';
+
+type ProductReviewItem = {
+  id: string;
+  productId: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  reviewerLabel: string;
+  variantLabel: string;
+};
+
+type ProductReviewsList = {
+  ratingAvg: number;
+  ratingCount: number;
+  items: ProductReviewItem[];
+};
+
+async function getRelatedProducts(
+  category: string | undefined,
+  excludeSlug: string,
+): Promise<Product[]> {
+  'use cache';
+  cacheLife({ revalidate: 60 });
+  cacheTag(...relatedProductsCacheTags(category, excludeSlug));
+  try {
+    const relatedResponse = await fetchPaginated<Product>('/products', {
+      category,
+      limit: 8,
+    });
+    return relatedResponse.data
+      .filter((item) => item.slug !== excludeSlug)
+      .slice(0, 4);
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/products/[slug]',
+      section: 'related_products',
+      extra: { category: category ?? null, excludeSlug },
+    });
+    return [];
+  }
+}
+
+async function getProductReviews(
+  productId: string,
+): Promise<ProductReviewsList | null> {
+  'use cache';
+  cacheLife({ revalidate: 60 });
+  cacheTag('products', 'reviews', productId);
+  try {
+    return await fetchApi<ProductReviewsList>(
+      `/products/${encodeURIComponent(productId)}/reviews`,
+    );
+  } catch (error) {
+    captureApiFetchError(error, {
+      route: '/products/[slug]',
+      section: 'product_reviews_schema',
+      extra: { productId },
+    });
+    return null;
+  }
+}
+
+/** Reviews JSON-LD + related products — streamed after primary PDP HTML. */
+export async function ProductDetailEnrichment({
+  product,
+}: {
+  product: Product;
+}) {
+  const [relatedProducts, reviews] = await Promise.all([
+    getRelatedProducts(product.category, product.slug),
+    getProductReviews(product.id as string),
+  ]);
+
+  const baseProductSchema = buildProductSchema(product);
+  const enrichedSchema = {
+    ...baseProductSchema,
+    ...(reviews?.ratingCount && reviews.ratingCount > 0
+      ? {
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: Number(reviews.ratingAvg.toFixed(1)),
+            reviewCount: reviews.ratingCount,
+            bestRating: 5,
+            worstRating: 1,
+          },
+        }
+      : null),
+    ...(reviews?.items?.length
+      ? {
+          review: reviews.items.slice(0, 5).map((r) => ({
+            '@type': 'Review',
+            author: {
+              '@type': 'Person',
+              name: r.reviewerLabel,
+            },
+            datePublished: r.createdAt,
+            reviewRating: {
+              '@type': 'Rating',
+              ratingValue: r.rating,
+              bestRating: 5,
+              worstRating: 1,
+            },
+            ...(r.comment ? { reviewBody: r.comment } : null),
+          })),
+        }
+      : null),
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(enrichedSchema) }}
+      />
+      <RelatedProducts products={relatedProducts} />
+    </>
   );
 }
 </file>
@@ -20384,54 +20506,6 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
 Textarea.displayName = 'Textarea';
 </file>
 
-<file path="apps/web/src/components/footer-page-layout.tsx">
-import type { FooterPageData } from '@/data/footer-pages';
-import { buildBreadcrumb, type BreadcrumbItem } from '@/lib/breadcrumb';
-import Breadcrumb from '@/components/ui/breadcrumb';
-
-export function FooterPageLayout({ page }: { page: FooterPageData }) {
-  const breadcrumbItems: BreadcrumbItem[] = [
-    { label: 'Trang chủ', url: '/' },
-    { label: page.title },
-  ];
-  const { schema: breadcrumbSchema } = buildBreadcrumb({
-    items: breadcrumbItems,
-    currentUrl: `/${page.slug}`,
-  });
-
-  return (
-    <article className="mx-auto max-w-3xl px-4 py-12 md:py-16">
-      {breadcrumbSchema ? (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
-        />
-      ) : null}
-      <Breadcrumb items={breadcrumbItems} />
-
-      <h1 className="landing-heading mb-8 text-2xl font-bold text-(--brand-forest) md:text-3xl">
-        {page.title}
-      </h1>
-
-      <div className="space-y-8">
-        {page.sections.map((section) => (
-          <section key={section.heading}>
-            <h2 className="mb-3 text-lg font-semibold text-(--brand-forest)">
-              {section.heading}
-            </h2>
-            <div className="space-y-3 text-sm leading-relaxed text-(--brand-forest)/80 md:text-base">
-              {section.paragraphs.map((p, i) => (
-                <p key={i}>{p}</p>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
-    </article>
-  );
-}
-</file>
-
 <file path="apps/web/src/data/footer-pages.ts">
 export type FooterPageSection = {
   heading: string;
@@ -21201,6 +21275,84 @@ export function savedOrdersForProduct(
     o.lineItems.some((li) => li.productId === productId),
   );
 }
+</file>
+
+<file path="apps/web/src/lib/seo-keywords.ts">
+/**
+ * Central SEO keyword lists — Vietnamese + ASCII (no diacritics) for search coverage.
+ * Used in meta keywords, JSON-LD alternateName, and copy templates.
+ */
+
+/** Use-case keywords — chè dưỡng nhan, nấu chè (có nội dung landing/FAQ hỗ trợ) */
+export const CHE_SEO_KEYWORDS = [
+  'chè dưỡng nhan',
+  'long nhãn nấu chè',
+  'hạt sen long nhãn',
+  'che duong nhan',
+  'long nhan nau che',
+  'hat sen long nhan',
+] as const;
+
+/** Full keyword set for home / layout */
+export const CORE_SEO_KEYWORDS = [
+  'nhanhunguyen.com',
+  'Nhãn Hưng Yên',
+  'Long nhãn Hưng Yên',
+  'long nhãn Hưng Yên',
+  'nhãn lồng Hưng Yên',
+  'Long Nhãn Tống Trân',
+  'Nhãn Tống Trân',
+  'đặc sản nhãn Hưng Yên',
+  'đặc sản Hưng Yên',
+  'mua nhãn Hưng Yên',
+  'long nhãn sấy khô',
+  'long nhãn sấy khô Hưng Yên',
+  'long nhãn quà tặng',
+  'Long nhãn giao COD',
+  'Long nhãn Shopee',
+  'Long nhãn TikTok',
+  ...CHE_SEO_KEYWORDS,
+  // ASCII — không dấu (gõ không dấu, tìm kiếm giọng nói)
+  'nhan hung yen',
+  'nhan long hung yen',
+  'long nhan hung yen',
+  'nhan long',
+  'nhan long say kho',
+  'mua nhan hung yen',
+  'dac san nhan hung yen',
+  'nhan tong tran',
+] as const;
+
+/** Shorter subset for product listing / PDP */
+export const PAGE_SEO_KEYWORDS = [
+  'Nhãn Hưng Yên',
+  'Long nhãn Hưng Yên',
+  'nhãn lồng Hưng Yên',
+  'long nhãn sấy khô',
+  'nhan hung yen',
+  'long nhan hung yen',
+  'nhanhunguyen.com',
+] as const;
+
+/** Articles hub — core + chè dưỡng nhan intent */
+export const ARTICLE_SEO_KEYWORDS = [
+  ...PAGE_SEO_KEYWORDS,
+  'chè dưỡng nhan',
+  'long nhãn nấu chè',
+  'hạt sen long nhãn',
+  'che duong nhan',
+] as const;
+
+/** Schema.org alternateName values */
+export const SCHEMA_ALTERNATE_NAMES = [
+  'Nhãn Hưng Yên',
+  'Long Nhãn Hưng Yên',
+  'Long Nhãn Tống Trân',
+  'nhan hung yen',
+  'long nhan hung yen',
+  'nhan long hung yen',
+  'nhanhunguyen.com',
+] as const;
 </file>
 
 <file path="apps/web/src/lib/utils.ts">
@@ -45400,6 +45552,54 @@ export const SectionTitleLinkButton: React.FC<
 export default SectionTitleLinkButton;
 </file>
 
+<file path="apps/web/src/components/footer-page-layout.tsx">
+import type { FooterPageData } from '@/data/footer-pages';
+import { buildBreadcrumb, type BreadcrumbItem } from '@/lib/breadcrumb';
+import Breadcrumb from '@/components/ui/breadcrumb';
+
+export function FooterPageLayout({ page }: { page: FooterPageData }) {
+  const breadcrumbItems: BreadcrumbItem[] = [
+    { label: 'Trang chủ', url: '/' },
+    { label: page.title },
+  ];
+  const { schema: breadcrumbSchema } = buildBreadcrumb({
+    items: breadcrumbItems,
+    currentUrl: `/${page.slug}`,
+  });
+
+  return (
+    <article className="mx-auto max-w-3xl px-4 py-12 md:py-16">
+      {breadcrumbSchema ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        />
+      ) : null}
+      <Breadcrumb items={breadcrumbItems} />
+
+      <h1 className="landing-heading mb-8 text-2xl font-bold text-(--brand-forest) md:text-3xl">
+        {page.title}
+      </h1>
+
+      <div className="space-y-8">
+        {page.sections.map((section) => (
+          <section key={section.heading}>
+            <h2 className="mb-3 text-lg font-semibold text-(--brand-forest)">
+              {section.heading}
+            </h2>
+            <div className="space-y-3 text-sm leading-relaxed text-(--brand-forest)/80 md:text-base">
+              {section.paragraphs.map((p, i) => (
+                <p key={i}>{p}</p>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </article>
+  );
+}
+</file>
+
 <file path="apps/web/src/lib/observability/api-fetch-sentry.ts">
 import * as Sentry from '@sentry/nextjs';
 import { isApiValidationFetchError } from '@/lib/observability/is-api-validation-fetch-error';
@@ -45694,6 +45894,95 @@ Uses default `docker-compose.yml` (not `docker-compose.prod.yml`).
 | `cloudflare/.gitignore`         | Ignores `config.yml` and `*.json` credentials |
 
 Optional override compose file (repo root): `docker-compose.prod.cloudflared-config.yml` — used automatically when the token is unset but `config.yml` + `*.json` exist.
+
+## 7. Database backups
+
+Production runs a **`db-backup` sidecar** (`docker-compose.backup.yml`, merged by `make deploy`). It dumps Postgres nightly at **02:00 UTC**, stores gzip SQL files on a **local Docker volume** (7-day retention), and POSTs a **webhook on failure**.
+
+### Overview
+
+| Item            | Value                                                           |
+| --------------- | --------------------------------------------------------------- |
+| Schedule        | `0 2 * * *` UTC (supercronic)                                   |
+| Local retention | 7 days (`BACKUP_KEEP_DAYS`)                                     |
+| Storage         | Docker volume `longnhan-prod_postgres_backup_data` → `/backups` |
+| Container       | `longnhan_prod_db_backup`                                       |
+| File format     | `backup_YYYYMMDD_HHMMSS.sql.gz`                                 |
+
+### Env vars (`apps/api/.env.production`)
+
+| Variable             | Purpose                                           |
+| -------------------- | ------------------------------------------------- |
+| `BACKUP_KEEP_DAYS`   | Local prune threshold (default `7`)               |
+| `BACKUP_WEBHOOK_URL` | Slack or Discord incoming webhook (failures only) |
+
+Postgres connection is mapped from existing `DATABASE_*` vars by compose.
+
+### Verify backup
+
+```bash
+# Manual run (same script as cron)
+make backup-run
+# or: docker exec longnhan_prod_db_backup /backup.sh
+
+# Check sidecar logs
+docker logs longnhan_prod_db_backup
+
+# List local dumps
+make backup-list
+
+# Copy latest backup to current directory
+make backup-copy
+# Or copy a specific file / another folder:
+# make backup-copy FILE=backup_20260617_085543.sql.gz
+# make backup-copy BACKUP_OUT=~/Downloads
+
+# Confirm SQL header
+docker run --rm -v longnhan-prod_postgres_backup_data:/backups alpine \
+  sh -c 'gunzip -c /backups/backup_*.sql.gz | head -5'
+```
+
+### Copy backup to host (optional)
+
+```bash
+make backup-list
+make backup-copy
+# make backup-copy FILE=backup_20260617_085543.sql.gz
+# make backup-copy BACKUP_OUT=~/Downloads
+```
+
+### Restore
+
+**Stop the API first** to avoid writes during restore.
+
+```bash
+docker run --rm -v longnhan-prod_postgres_backup_data:/backups alpine ls /backups
+docker run --rm -v longnhan-prod_postgres_backup_data:/backups alpine \
+  sh -c 'gunzip -c /backups/backup_YYYYMMDD_HHMMSS.sql.gz' | \
+  docker exec -i longnhan_prod_db psql -U longnhan -d longnhan
+```
+
+Replace user/database names if your `DATABASE_*` values differ.
+
+### Webhook setup
+
+- **Slack:** Incoming Webhook URL → set `BACKUP_WEBHOOK_URL`. Payload uses `{ "text": "..." }`.
+- **Discord:** Webhook URL containing `discord.com/api/webhooks` → payload uses `{ "content": "..." }`.
+
+### Failure drill
+
+1. Temporarily set wrong `DATABASE_PASSWORD` in the sidecar env (or stop `db`).
+2. Run `make backup-run`.
+3. Confirm webhook message within ~1 minute.
+4. Restore correct credentials and redeploy.
+
+### Troubleshooting
+
+| Symptom                    | Likely cause                                                       |
+| -------------------------- | ------------------------------------------------------------------ |
+| `pg_dump` auth error       | `DATABASE_PASSWORD` mismatch between `db` and sidecar              |
+| Disk full on volume        | Prune failed or DB grew; expand volume or lower `BACKUP_KEEP_DAYS` |
+| Empty or missing `.sql.gz` | Check `docker logs longnhan_prod_db_backup` for errors             |
 
 ## Troubleshooting
 
@@ -53216,183 +53505,6 @@ export const PWA_MANIFEST_SCREENSHOTS = [
 ] as const;
 </file>
 
-<file path="apps/web/src/lib/seo.ts">
-import { SITE_NAME, SITE_URL } from '@/lib/constants';
-import type { Metadata } from 'next';
-import { PWA_CONFIG } from './pwa-config';
-
-type OgImage = {
-  url: string;
-  width?: number;
-  height?: number;
-  alt?: string;
-};
-
-type SeoBuilderCore = {
-  title: string;
-  description?: string;
-  canonicalPath: string;
-  ogImage?: OgImage;
-  ogImages?: OgImage[];
-  /** Meta keywords — Vietnamese + ASCII variants for search coverage. */
-  keywords?: string | string[];
-  /** Use `article` for blog posts so crawlers get the right OG type. */
-  openGraphType?: 'website' | 'article';
-};
-
-/** Core SEO fields plus any optional Next.js `Metadata` fields (merged shallowly; OG/Twitter/canonical are composed on top). */
-export type BuildSeoMetadataInput = SeoBuilderCore & Partial<Metadata>;
-
-const DEFAULT_OG_IMAGE: Required<Pick<OgImage, 'url'>> & Partial<OgImage> = {
-  url: '/banner-web2.png',
-  width: 1200,
-  height: 630,
-  alt: 'Nhãn Hưng Yên — Long Nhãn Tống Trân',
-};
-
-/** Strips HTML and trims to a meta description length (default 160). */
-export function trimMetaDescription(text: string, maxLength = 160): string {
-  const plain = text
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  if (plain.length <= maxLength) return plain;
-  return `${plain.slice(0, maxLength - 1)}…`;
-}
-
-/** Resolves image and page URLs for OG/Twitter; Facebook requires absolute https URLs. */
-export function toAbsoluteUrl(pathOrUrl: string): string {
-  const s = pathOrUrl.trim();
-  if (s.startsWith('https://')) return s;
-  if (s.startsWith('http://')) return s;
-  if (s.startsWith('//')) return `https:${s}`;
-  if (s.startsWith('/')) return `${SITE_URL}${s}`;
-  return `${SITE_URL}/${s}`;
-}
-
-function normalizeCanonicalPath(path: string): string {
-  const p = path.trim();
-  if (!p || p === '/') return '/';
-  return p.startsWith('/') ? p : `/${p}`;
-}
-
-export function buildSeoMetadata(input: BuildSeoMetadataInput): Metadata {
-  const {
-    title,
-    description,
-    canonicalPath,
-    ogImage,
-    ogImages,
-    keywords,
-    openGraphType,
-    alternates: inputAlternates,
-    openGraph: inputOpenGraph,
-    twitter: inputTwitter,
-    robots: inputRobots,
-    ...metadataRest
-  } = input;
-
-  const pathname = normalizeCanonicalPath(canonicalPath);
-  const pageUrl = `${SITE_URL}${pathname === '/' ? '/' : pathname}`;
-
-  const images = (ogImages ?? (ogImage ? [ogImage] : [DEFAULT_OG_IMAGE]))
-    .filter(Boolean)
-    .map((img) => ({
-      ...img,
-      url: toAbsoluteUrl(img.url),
-    }));
-
-  const imageUrls = images.map((i) => i.url);
-
-  const userOg = inputOpenGraph as
-    | (NonNullable<typeof inputOpenGraph> & { type?: 'website' | 'article' })
-    | undefined;
-  const ogType = openGraphType ?? userOg?.type ?? 'website';
-
-  const userTw = inputTwitter as
-    | (NonNullable<typeof inputTwitter> & {
-        card?: 'summary' | 'summary_large_image' | 'app' | 'player';
-      })
-    | undefined;
-
-  return {
-    ...metadataRest,
-    title,
-    description,
-    ...(keywords ? { keywords } : {}),
-    alternates: {
-      ...inputAlternates,
-      canonical: pageUrl,
-    },
-    authors: [{ name: SITE_NAME, url: SITE_URL }],
-    generator: 'Next.js',
-    applicationName: SITE_NAME,
-    category: 'food',
-    metadataBase: new URL(SITE_URL),
-    openGraph: {
-      ...inputOpenGraph,
-      type: ogType,
-      locale: userOg?.locale ?? 'vi_VN',
-      siteName: userOg?.siteName ?? SITE_NAME,
-      url: userOg?.url ?? pageUrl,
-      title,
-      description,
-      images,
-    },
-    twitter: {
-      ...inputTwitter,
-      card: userTw?.card ?? 'summary_large_image',
-      title,
-      description,
-      images: imageUrls,
-    },
-    icons: {
-      icon: [{ url: '/favicon.ico', sizes: 'any' }],
-      apple: [
-        { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
-      ],
-    },
-    robots:
-      inputRobots ??
-      ({
-        index: true,
-        follow: true,
-        googleBot: {
-          index: true,
-          follow: true,
-        },
-      } satisfies Metadata['robots']),
-    classification: 'food',
-    other: {
-      google: 'notranslate',
-      'mobile-web-app-capable': 'yes',
-      'apple-mobile-web-app-capable': 'yes',
-      'apple-mobile-web-app-status-bar-style': 'black-translucent',
-      'apple-mobile-web-app-title': SITE_NAME,
-      'application-name': SITE_NAME,
-      'msapplication-TileColor': PWA_CONFIG.themeColor,
-      'msapplication-config': '/browserconfig.xml',
-      'theme-color': PWA_CONFIG.themeColor,
-      'color-scheme': 'dark light',
-      referrer: 'origin-when-cross-origin',
-      viewport: 'width=device-width, initial-scale=1, maximum-scale=5',
-    },
-    appleWebApp: {
-      capable: true,
-      statusBarStyle: 'black-translucent',
-      title: SITE_NAME,
-      startupImage: [
-        {
-          url: '/apple-touch-startup-image-768x1004.png',
-          media: '(device-width: 768px) and (device-height: 1024px)',
-        },
-      ],
-    },
-    referrer: 'origin-when-cross-origin',
-  };
-}
-</file>
-
 <file path="apps/web/src/services/auth/auth-provider.tsx">
 'use client';
 
@@ -58004,160 +58116,179 @@ export const queryKeys = {
 } as const;
 </file>
 
-<file path="apps/web/src/lib/structured-data.ts">
-// JSON-LD structured data generators for SEO
-// Used on product pages, article pages, and all pages (organization + breadcrumb)
+<file path="apps/web/src/lib/seo.ts">
+import { SITE_NAME, SITE_URL } from '@/lib/constants';
+import type { Metadata } from 'next';
+import { PWA_CONFIG } from './pwa-config';
 
-import { LANDING_BRAND } from '@/data/landing-page-content';
-import type { Product, Article } from '@longnhan/types';
-import {
-  SITE_URL,
-  SITE_NAME,
-  CONTACT_PHONE,
-  CONTACT_ADDRESS,
-  CONTACT_EMAIL,
-  SOCIAL_LINKS,
-} from './constants';
-import { SCHEMA_ALTERNATE_NAMES } from './seo-keywords';
-import { toAbsoluteUrl } from './seo';
+type OgImage = {
+  url: string;
+  width?: number;
+  height?: number;
+  alt?: string;
+};
 
-/** Organization schema — included in root layout */
-export function buildOrganizationSchema() {
-  const sameAs = [
-    SOCIAL_LINKS.facebook,
-    SOCIAL_LINKS.zalo,
-    SOCIAL_LINKS.shopee,
-    SOCIAL_LINKS.tiktok,
-  ].filter((url): url is string => Boolean(url));
+type SeoBuilderCore = {
+  title: string;
+  description?: string;
+  canonicalPath: string;
+  ogImage?: OgImage;
+  ogImages?: OgImage[];
+  /** Meta keywords — Vietnamese + ASCII variants for search coverage. */
+  keywords?: string | string[];
+  /** Use `article` for blog posts so crawlers get the right OG type. */
+  openGraphType?: 'website' | 'article';
+};
 
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'Organization',
-    name: SITE_NAME,
-    alternateName: [...SCHEMA_ALTERNATE_NAMES],
-    url: SITE_URL,
-    logo: toAbsoluteUrl(LANDING_BRAND.logoSrc),
-    email: CONTACT_EMAIL,
-    telephone: CONTACT_PHONE,
-    address: {
-      '@type': 'PostalAddress',
-      addressLocality: 'Hưng Yên',
-      addressRegion: 'Hưng Yên',
-      addressCountry: 'VN',
-      streetAddress: CONTACT_ADDRESS,
-    },
-    ...(sameAs.length > 0 ? { sameAs } : {}),
-    contactPoint: {
-      '@type': 'ContactPoint',
-      telephone: CONTACT_PHONE,
-      contactType: 'customer service',
-      areaServed: 'VN',
-      availableLanguage: ['Vietnamese'],
-    },
-  };
+/** Core SEO fields plus any optional Next.js `Metadata` fields (merged shallowly; OG/Twitter/canonical are composed on top). */
+export type BuildSeoMetadataInput = SeoBuilderCore & Partial<Metadata>;
+
+const DEFAULT_OG_IMAGE: Required<Pick<OgImage, 'url'>> & Partial<OgImage> = {
+  url: '/banner-web2.png',
+  width: 1200,
+  height: 630,
+  alt: 'Nhãn Hưng Yên — Long Nhãn Tống Trân',
+};
+
+/** Strips HTML and trims to a meta description length (default 160). */
+export function trimMetaDescription(text: string, maxLength = 160): string {
+  const plain = text
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (plain.length <= maxLength) return plain;
+  return `${plain.slice(0, maxLength - 1)}…`;
 }
 
-/** WebSite schema with on-site product search — root layout */
-export function buildWebSiteSchema() {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'WebSite',
-    name: SITE_NAME,
-    alternateName: [...SCHEMA_ALTERNATE_NAMES],
-    url: SITE_URL,
-    inLanguage: 'vi-VN',
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: {
-        '@type': 'EntryPoint',
-        urlTemplate: `${SITE_URL}/products?q={search_term_string}`,
-      },
-      'query-input': 'required name=search_term_string',
-    },
-  };
+/** Resolves image and page URLs for OG/Twitter; Facebook requires absolute https URLs. */
+export function toAbsoluteUrl(pathOrUrl: string): string {
+  const s = pathOrUrl.trim();
+  if (s.startsWith('https://')) return s;
+  if (s.startsWith('http://')) return s;
+  if (s.startsWith('//')) return `https:${s}`;
+  if (s.startsWith('/')) return `${SITE_URL}${s}`;
+  return `${SITE_URL}/${s}`;
 }
 
-/** BreadcrumbList schema */
-export function buildBreadcrumbSchema(items: { name: string; url: string }[]) {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: items.map((item, index) => ({
-      '@type': 'ListItem',
-      position: index + 1,
-      name: item.name,
-      item: item.url,
-    })),
-  };
+function normalizeCanonicalPath(path: string): string {
+  const p = path.trim();
+  if (!p || p === '/') return '/';
+  return p.startsWith('/') ? p : `/${p}`;
 }
 
-/** Product schema with VND pricing */
-export function buildProductSchema(product: Product) {
-  const activeVariants = product.variants.filter((v) => v.active || v.isActive);
-  const variantsForPrice =
-    activeVariants.length > 0 ? activeVariants : product.variants;
-  const lowestPrice =
-    variantsForPrice.length > 0
-      ? Math.min(...variantsForPrice.map((v) => v.price))
-      : product.basePrice;
-  const highestPrice =
-    variantsForPrice.length > 0
-      ? Math.max(...variantsForPrice.map((v) => v.price))
-      : product.basePrice;
-  const imageList = product.images?.length
-    ? product.images
-    : product.imageUrls?.length
-      ? product.imageUrls
-      : product.featuredImageUrl
-        ? [product.featuredImageUrl]
-        : [];
-  const absoluteImages = imageList.map((src) => toAbsoluteUrl(src));
+export function buildSeoMetadata(input: BuildSeoMetadataInput): Metadata {
+  const {
+    title,
+    description,
+    canonicalPath,
+    ogImage,
+    ogImages,
+    keywords,
+    openGraphType,
+    alternates: inputAlternates,
+    openGraph: inputOpenGraph,
+    twitter: inputTwitter,
+    robots: inputRobots,
+    ...metadataRest
+  } = input;
+
+  const pathname = normalizeCanonicalPath(canonicalPath);
+  const pageUrl = `${SITE_URL}${pathname === '/' ? '/' : pathname}`;
+
+  const images = (ogImages ?? (ogImage ? [ogImage] : [DEFAULT_OG_IMAGE]))
+    .filter(Boolean)
+    .map((img) => ({
+      ...img,
+      url: toAbsoluteUrl(img.url),
+    }));
+
+  const imageUrls = images.map((i) => i.url);
+
+  const userOg = inputOpenGraph as
+    | (NonNullable<typeof inputOpenGraph> & { type?: 'website' | 'article' })
+    | undefined;
+  const ogType = openGraphType ?? userOg?.type ?? 'website';
+
+  const userTw = inputTwitter as
+    | (NonNullable<typeof inputTwitter> & {
+        card?: 'summary' | 'summary_large_image' | 'app' | 'player';
+      })
+    | undefined;
 
   return {
-    '@context': 'https://schema.org',
-    '@type': 'Product',
-    name: product.name,
-    category: 'Nhãn Hưng Yên / Long nhãn sấy khô',
-    description: product.summary ?? product.description ?? undefined,
-    image: absoluteImages.length > 0 ? absoluteImages : undefined,
-    brand: {
-      '@type': 'Brand',
-      name: SITE_NAME,
+    ...metadataRest,
+    title,
+    description,
+    ...(keywords ? { keywords } : {}),
+    alternates: {
+      ...inputAlternates,
+      canonical: pageUrl,
     },
-    url: `${SITE_URL}/products/${product.slug}`,
-    offers: {
-      '@type': 'AggregateOffer',
-      priceCurrency: 'VND',
-      lowPrice: lowestPrice,
-      highPrice: highestPrice,
-      offerCount: variantsForPrice.length,
-      availability: 'https://schema.org/InStock',
+    authors: [{ name: SITE_NAME, url: SITE_URL }],
+    generator: 'Next.js',
+    applicationName: SITE_NAME,
+    category: 'food',
+    metadataBase: new URL(SITE_URL),
+    openGraph: {
+      ...inputOpenGraph,
+      type: ogType,
+      locale: userOg?.locale ?? 'vi_VN',
+      siteName: userOg?.siteName ?? SITE_NAME,
+      url: userOg?.url ?? pageUrl,
+      title,
+      description,
+      images,
     },
-  };
-}
-
-/** NewsArticle schema */
-export function buildArticleSchema(article: Article) {
-  const rawImage =
-    article.featuredImageUrl ?? article.coverImageUrl ?? undefined;
-  const image = rawImage ? toAbsoluteUrl(rawImage) : undefined;
-
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'NewsArticle',
-    headline: article.title,
-    description: article.excerpt ?? article.summary ?? undefined,
-    image,
-    inLanguage: 'vi-VN',
-    mainEntityOfPage: `${SITE_URL}/articles/${article.slug}`,
-    datePublished: article.publishedAt ?? article.createdAt,
-    dateModified: article.updatedAt,
-    publisher: {
-      '@type': 'Organization',
-      name: SITE_NAME,
-      url: SITE_URL,
+    twitter: {
+      ...inputTwitter,
+      card: userTw?.card ?? 'summary_large_image',
+      title,
+      description,
+      images: imageUrls,
     },
-    url: `${SITE_URL}/articles/${article.slug}`,
+    icons: {
+      icon: [{ url: '/favicon.ico', sizes: 'any' }],
+      apple: [
+        { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+      ],
+    },
+    robots:
+      inputRobots ??
+      ({
+        index: true,
+        follow: true,
+        googleBot: {
+          index: true,
+          follow: true,
+        },
+      } satisfies Metadata['robots']),
+    classification: 'food',
+    other: {
+      google: 'notranslate',
+      'mobile-web-app-capable': 'yes',
+      'apple-mobile-web-app-capable': 'yes',
+      'apple-mobile-web-app-status-bar-style': 'black-translucent',
+      'apple-mobile-web-app-title': SITE_NAME,
+      'application-name': SITE_NAME,
+      'msapplication-TileColor': PWA_CONFIG.themeColor,
+      'msapplication-config': '/browserconfig.xml',
+      'theme-color': PWA_CONFIG.themeColor,
+      'color-scheme': 'dark light',
+      referrer: 'origin-when-cross-origin',
+      viewport: 'width=device-width, initial-scale=1, maximum-scale=5',
+    },
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: 'black-translucent',
+      title: SITE_NAME,
+      startupImage: [
+        {
+          url: '/apple-touch-startup-image-768x1004.png',
+          media: '(device-width: 768px) and (device-height: 1024px)',
+        },
+      ],
+    },
+    referrer: 'origin-when-cross-origin',
   };
 }
 </file>
@@ -60103,6 +60234,164 @@ export function AppProviders({ children }: { children: ReactNode }) {
 }
 </file>
 
+<file path="apps/web/src/lib/structured-data.ts">
+// JSON-LD structured data generators for SEO
+// Used on product pages, article pages, and all pages (organization + breadcrumb)
+
+import { LANDING_BRAND } from '@/data/landing-page-content';
+import type { Product, Article } from '@longnhan/types';
+import {
+  SITE_URL,
+  SITE_NAME,
+  CONTACT_PHONE,
+  CONTACT_ADDRESS,
+  CONTACT_EMAIL,
+  SOCIAL_LINKS,
+} from './constants';
+import { SCHEMA_ALTERNATE_NAMES } from './seo-keywords';
+import { toAbsoluteUrl } from './seo';
+
+/** Organization schema — included in root layout */
+export function buildOrganizationSchema() {
+  const sameAs = [
+    SOCIAL_LINKS.facebook,
+    SOCIAL_LINKS.zalo,
+    SOCIAL_LINKS.shopee,
+    SOCIAL_LINKS.tiktok,
+  ].filter((url): url is string => Boolean(url));
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: SITE_NAME,
+    alternateName: [...SCHEMA_ALTERNATE_NAMES],
+    url: SITE_URL,
+    logo: toAbsoluteUrl(LANDING_BRAND.logoSrc),
+    email: CONTACT_EMAIL,
+    telephone: CONTACT_PHONE,
+    address: {
+      '@type': 'PostalAddress',
+      addressLocality: 'Hưng Yên',
+      addressRegion: 'Hưng Yên',
+      addressCountry: 'VN',
+      streetAddress: CONTACT_ADDRESS,
+    },
+    ...(sameAs.length > 0 ? { sameAs } : {}),
+    contactPoint: {
+      '@type': 'ContactPoint',
+      telephone: CONTACT_PHONE,
+      contactType: 'customer service',
+      areaServed: 'VN',
+      availableLanguage: ['Vietnamese'],
+    },
+  };
+}
+
+/** WebSite schema with on-site product search — root layout */
+export function buildWebSiteSchema() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: SITE_NAME,
+    alternateName: [...SCHEMA_ALTERNATE_NAMES],
+    url: SITE_URL,
+    inLanguage: 'vi-VN',
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: `${SITE_URL}/products?q={search_term_string}`,
+      },
+      'query-input': 'required name=search_term_string',
+    },
+  };
+}
+
+/** BreadcrumbList schema */
+export function buildBreadcrumbSchema(items: { name: string; url: string }[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((item, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  };
+}
+
+/** Product schema with VND pricing */
+export function buildProductSchema(product: Product) {
+  const activeVariants = product.variants.filter((v) => v.active || v.isActive);
+  const variantsForPrice =
+    activeVariants.length > 0 ? activeVariants : product.variants;
+  const lowestPrice =
+    variantsForPrice.length > 0
+      ? Math.min(...variantsForPrice.map((v) => v.price))
+      : product.basePrice;
+  const highestPrice =
+    variantsForPrice.length > 0
+      ? Math.max(...variantsForPrice.map((v) => v.price))
+      : product.basePrice;
+  const imageList = product.images?.length
+    ? product.images
+    : product.imageUrls?.length
+      ? product.imageUrls
+      : product.featuredImageUrl
+        ? [product.featuredImageUrl]
+        : [];
+  const absoluteImages = imageList.map((src) => toAbsoluteUrl(src));
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    category: 'Nhãn Hưng Yên / Long nhãn sấy khô',
+    description: product.summary ?? product.description ?? undefined,
+    image: absoluteImages.length > 0 ? absoluteImages : undefined,
+    brand: {
+      '@type': 'Brand',
+      name: SITE_NAME,
+    },
+    url: `${SITE_URL}/products/${product.slug}`,
+    offers: {
+      '@type': 'AggregateOffer',
+      priceCurrency: 'VND',
+      lowPrice: lowestPrice,
+      highPrice: highestPrice,
+      offerCount: variantsForPrice.length,
+      availability: 'https://schema.org/InStock',
+    },
+  };
+}
+
+/** NewsArticle schema */
+export function buildArticleSchema(article: Article) {
+  const rawImage =
+    article.featuredImageUrl ?? article.coverImageUrl ?? undefined;
+  const image = rawImage ? toAbsoluteUrl(rawImage) : undefined;
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'NewsArticle',
+    headline: article.title,
+    description: article.excerpt ?? article.summary ?? undefined,
+    image,
+    inLanguage: 'vi-VN',
+    mainEntityOfPage: `${SITE_URL}/articles/${article.slug}`,
+    datePublished: article.publishedAt ?? article.createdAt,
+    dateModified: article.updatedAt,
+    publisher: {
+      '@type': 'Organization',
+      name: SITE_NAME,
+      url: SITE_URL,
+    },
+    url: `${SITE_URL}/articles/${article.slug}`,
+  };
+}
+</file>
+
 <file path="apps/web/.env.example">
 ## ============================================
 ## Web app environment variables
@@ -60974,7 +61263,7 @@ networks:
         build build-api build-web build-admin \
         lint format type-check \
         up down logs reset up-local \
-        deploy deploy-clean deploy-down prod-preflight \
+        deploy deploy-clean deploy-down prod-preflight backup-run backup-list backup-copy \
         migration-up migration-up-prod migration-down migration-show migration-generate \
         seed test test-cov test-e2e
 
@@ -61013,6 +61302,10 @@ help:
 	@echo "    make deploy-clean     Same as deploy but with --no-cache (full rebuild, ignores all Docker cache)"
 	@echo "    make deploy-down      Stop production stack"
 	@echo "                          See deploy/README.md (token or config.yml + credentials JSON)"
+	@echo "    make backup-run       Trigger manual DB backup (production sidecar)"
+	@echo "    make backup-list      List local DB backup files (Docker volume)"
+	@echo "    make backup-copy      Copy latest backup .sql.gz to BACKUP_OUT (default: .)"
+	@echo "                          Optional: make backup-copy FILE=backup_YYYYMMDD_HHMMSS.sql.gz"
 	@echo ""
 	@echo "  Database"
 	@echo "    make migration-up     Run pending migrations (local .env)"
@@ -61105,25 +61398,44 @@ prod-preflight:
 
 deploy: prod-preflight
 	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build --force-recreate; \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build --force-recreate; \
 	else \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build --force-recreate; \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build --force-recreate; \
 	fi
 
 deploy-clean: prod-preflight
 	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env-file apps/api/.env.production -p longnhan-prod build --no-cache && \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env-file apps/api/.env.production -p longnhan-prod up -d --force-recreate; \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml --env-file apps/api/.env.production -p longnhan-prod build --no-cache && \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml --env-file apps/api/.env.production -p longnhan-prod up -d --force-recreate; \
 	else \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod build --no-cache && \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --force-recreate; \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod build --no-cache && \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --force-recreate; \
 	fi
 
 deploy-down:
 	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env-file apps/api/.env.production -p longnhan-prod down; \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml --env-file apps/api/.env.production -p longnhan-prod down; \
 	else \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod down; \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod down; \
+	fi
+
+backup-run:
+	docker exec longnhan_prod_db_backup /backup.sh
+
+BACKUP_VOLUME := longnhan-prod_postgres_backup_data
+BACKUP_OUT ?= .
+
+backup-list:
+	docker run --rm -v $(BACKUP_VOLUME):/backups alpine ls -la /backups
+
+backup-copy:
+	@dest="$$(cd "$(BACKUP_OUT)" && pwd)"; \
+	if [ -n "$(FILE)" ]; then \
+	  docker run --rm -v $(BACKUP_VOLUME):/backups -v "$$dest":/out alpine \
+	    sh -c 'test -f "/backups/$(FILE)" || (echo "Not found: /backups/$(FILE) — run make backup-list"; exit 1); cp "/backups/$(FILE)" /out/ && echo "Copied $(FILE) -> '"$$dest"'/"'; \
+	else \
+	  docker run --rm -v $(BACKUP_VOLUME):/backups -v "$$dest":/out alpine \
+	    sh -c 'f=$$(ls -t /backups/backup_*.sql.gz 2>/dev/null | head -1); test -n "$$f" || (echo "No backups found — run make backup-run first."; exit 1); cp "$$f" /out/ && echo "Copied $$(basename "$$f") -> '"$$dest"'/"'; \
 	fi
 
 # ── Database ──────────────────────────────────────────────────────────────────
@@ -66359,27 +66671,14 @@ cat backup.sql | docker exec -i db psql -U postgres -d nestjs_api
 
 #### Automated Backups (Production)
 
+Production uses a Docker **db-backup sidecar** (nightly 02:00 UTC, local 7-day retention on Docker volume, webhook on failure). Full setup, verify, and restore steps:
+
+**→ [deploy/README.md §7 Database backups](../deploy/README.md#7-database-backups)**
+
+Quick manual dump (same host, no sidecar):
+
 ```bash
-# Daily backup script (cron job)
-cat > /usr/local/bin/backup-db.sh << 'EOF'
-#!/bin/bash
-DB_HOST="prod-db.example.com"
-DB_USER="app_user"
-DB_NAME="longnhan_prod"
-BACKUP_DIR="/backups"
-DATE=$(date +%Y%m%d_%H%M%S)
-
-pg_dump -h $DB_HOST -U $DB_USER $DB_NAME | gzip > $BACKUP_DIR/backup_$DATE.sql.gz
-
-# Keep only last 30 days
-find $BACKUP_DIR -name "backup_*.sql.gz" -mtime +30 -delete
-EOF
-
-chmod +x /usr/local/bin/backup-db.sh
-
-# Add to crontab
-crontab -e
-# Add: 0 2 * * * /usr/local/bin/backup-db.sh
+docker exec longnhan_prod_db pg_dump -U longnhan -d longnhan | gzip > backup_manual.sql.gz
 ```
 
 ---
@@ -67327,6 +67626,10 @@ GRAFANA_CLOUD_PROMETHEUS_USER=
 GRAFANA_CLOUD_LOKI_URL=
 GRAFANA_CLOUD_LOKI_USER=
 GRAFANA_CLOUD_API_KEY=
+
+#== DB backup sidecar (production — docker-compose.backup.yml)
+BACKUP_KEEP_DAYS=7
+BACKUP_WEBHOOK_URL=
 </file>
 
 <file path="apps/web/src/app/order-success/page.tsx">
@@ -67529,332 +67832,6 @@ export default async function OrderSuccessPage({
         </CardFooter>
       </Card>
     </section>
-  );
-}
-</file>
-
-<file path="apps/web/src/app/layout.tsx">
-import type { Metadata, Viewport } from 'next';
-import { Geist } from 'next/font/google';
-import localFont from 'next/font/local';
-import './globals.css';
-import { AppProviders } from '@/components/providers/app-providers';
-import Footer from '@/components/layout/footer';
-import Header from '@/components/layout/header';
-import BackToTopButton from '@/components/ui/back-to-top-button';
-import dynamic from 'next/dynamic';
-
-const FloatingContactWidget = dynamic(
-  () => import('@/components/layout/floating-contact-widget'),
-  { loading: () => null },
-);
-import { LANDING_SEO } from '@/data/landing-page-content';
-import { GOOGLE_VERIFICATION, SITE_URL } from '@/lib/constants';
-import { PWA_CONFIG } from '@/lib/pwa-config';
-import { buildSeoMetadata } from '@/lib/seo';
-import {
-  buildOrganizationSchema,
-  buildWebSiteSchema,
-} from '@/lib/structured-data';
-import { GoogleAnalytics } from '@/components/analytics/google-analytics';
-
-const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-});
-
-const seagullDisplay = localFont({
-  src: [
-    {
-      path: '../../public/fonts/UTM SeagullBold.ttf',
-      weight: '700',
-      style: 'normal',
-    },
-    {
-      path: '../../public/fonts/UTM SeagullBoldItalic.ttf',
-      weight: '700',
-      style: 'italic',
-    },
-  ],
-  variable: '--font-seagull',
-  display: 'swap',
-});
-
-export const viewport: Viewport = {
-  themeColor: PWA_CONFIG.themeColor,
-  colorScheme: 'light',
-};
-
-const landingMetadata = buildSeoMetadata({
-  title: LANDING_SEO.title,
-  description: LANDING_SEO.description,
-  canonicalPath: '/',
-  ogImage: {
-    url: PWA_CONFIG.heroImage.path,
-    width: PWA_CONFIG.heroImage.width,
-    height: PWA_CONFIG.heroImage.height,
-    alt: PWA_CONFIG.heroImage.alt,
-  },
-});
-
-export const metadata: Metadata = {
-  ...landingMetadata,
-  metadataBase: new URL(SITE_URL),
-  title: {
-    default: PWA_CONFIG.documentTitle,
-    template: '%s | Long Nhãn Hưng Yên',
-  },
-  keywords: [...LANDING_SEO.keywords],
-  applicationName: PWA_CONFIG.name,
-  category: 'food',
-  icons: {
-    icon: [{ url: PWA_CONFIG.icons.src, type: 'image/png' }],
-    apple: [{ url: PWA_CONFIG.icons.src, type: 'image/png' }],
-  },
-  appleWebApp: {
-    capable: true,
-    title: PWA_CONFIG.name,
-    statusBarStyle: 'black-translucent',
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
-  verification: {
-    google: GOOGLE_VERIFICATION,
-  },
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
-  const structuredData = [buildOrganizationSchema(), buildWebSiteSchema()];
-
-  return (
-    <html
-      lang="vi"
-      className={`${geistSans.variable} ${seagullDisplay.variable} h-full`}
-    >
-      <head>
-        {structuredData.map((schema, index) => (
-          <script
-            key={index}
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-          />
-        ))}
-      </head>
-      <body className="min-h-full flex flex-col antialiased">
-        <GoogleAnalytics />
-        <AppProviders>
-          <Header />
-          <main className="flex-1 pb-16 md:pb-0">{children}</main>
-          <Footer />
-          <FloatingContactWidget />
-          <BackToTopButton />
-        </AppProviders>
-      </body>
-    </html>
-  );
-}
-</file>
-
-<file path="apps/web/src/components/layout/footer.tsx">
-import { FOOTER_PAGES } from '@/data/footer-pages';
-import { LANDING_FOOTER_TAGLINE } from '@/data/landing-page-content';
-import {
-  CONTACT_ADDRESS,
-  CONTACT_EMAIL,
-  CONTACT_PHONE,
-  SITE_NAME,
-  SOCIAL_LINKS,
-} from '@/lib/constants';
-import { CopyrightYear } from '@/components/layout/copyright-year';
-import Image from 'next/image';
-import Link from 'next/link';
-
-export default function Footer() {
-  // Prefer a no-key embed that works with just an address query.
-  const mapEmbedSrc = `https://www.google.com/maps?q=${encodeURIComponent(CONTACT_ADDRESS)}&output=embed`;
-
-  return (
-    <footer className="mt-auto border-t border-(--brand-gold)/25 bg-(--brand-forest) text-(--brand-cream)">
-      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-4 py-12 md:grid-cols-2 lg:grid-cols-4">
-        <div className="space-y-4">
-          <div>
-            <h2 className="landing-heading text-lg font-semibold text-(--brand-cream)">
-              {SITE_NAME}
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed text-(--brand-cream)/80">
-              {LANDING_FOOTER_TAGLINE}
-            </p>
-          </div>
-
-          <div className="text-sm text-(--brand-cream)/80">
-            <div className="font-semibold text-(--brand-cream)">
-              Về chúng tôi
-            </div>
-            <div className="mt-2 space-y-1">
-              <div>
-                <span className="text-(--brand-cream)/60">Điện thoại: </span>
-                <a
-                  href={`tel:${CONTACT_PHONE.replace(/\s/g, '')}`}
-                  className="transition hover:text-(--brand-cream)"
-                >
-                  {CONTACT_PHONE}
-                </a>
-              </div>
-              <div>
-                <span className="text-(--brand-cream)/60">Email: </span>
-                <a
-                  href={`mailto:${CONTACT_EMAIL}`}
-                  className="transition hover:text-(--brand-cream)"
-                >
-                  {CONTACT_EMAIL}
-                </a>
-              </div>
-              <div>
-                <span className="text-(--brand-cream)/60">Địa chỉ: </span>
-                <span>{CONTACT_ADDRESS}</span>
-              </div>
-            </div>
-          </div>
-
-          <div
-            className="pt-1"
-            style={{
-              contentVisibility: 'auto',
-              containIntrinsicSize: '98px 260px',
-            }}
-          >
-            <Image
-              src="/logo-da-thong-bao-bo-cong-thuong-mau-xanh-1.png"
-              alt="Đã thông báo Bộ Công Thương"
-              width={260}
-              height={98}
-              className="h-auto w-[160px] max-w-full sm:w-[220px]"
-              loading="lazy"
-              fetchPriority="low"
-              decoding="async"
-            />
-          </div>
-        </div>
-
-        <div>
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-(--brand-gold)">
-            Hỗ trợ khách hàng
-          </h3>
-          <ul className="space-y-2 text-sm text-(--brand-cream)/80">
-            {FOOTER_PAGES.map((page) => (
-              <li key={page.slug}>
-                <Link
-                  href={`/${page.slug}`}
-                  className="transition hover:text-(--brand-cream)"
-                >
-                  {page.title}
-                </Link>
-              </li>
-            ))}
-            <li>
-              <Link href="/" className="transition hover:text-(--brand-cream)">
-                Liên hệ
-              </Link>
-            </li>
-          </ul>
-        </div>
-
-        <div>
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-(--brand-gold)">
-            Liên kết
-          </h3>
-          <ul className="space-y-2 text-sm">
-            <li>
-              <Link
-                href="/"
-                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
-              >
-                Trang chủ
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/products"
-                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
-              >
-                Sản phẩm
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/articles"
-                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
-              >
-                Bài viết
-              </Link>
-            </li>
-            <li className="flex flex-wrap gap-x-4 gap-y-2 pt-2">
-              <a
-                href={SOCIAL_LINKS.facebook}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
-              >
-                Facebook
-              </a>
-              <a
-                href={SOCIAL_LINKS.zalo}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
-              >
-                Zalo
-              </a>
-              {SOCIAL_LINKS.shopee ? (
-                <a
-                  href={SOCIAL_LINKS.shopee}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
-                >
-                  Shopee
-                </a>
-              ) : null}
-              {SOCIAL_LINKS.tiktok ? (
-                <a
-                  href={SOCIAL_LINKS.tiktok}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
-                >
-                  TikTok
-                </a>
-              ) : null}
-            </li>
-          </ul>
-        </div>
-
-        <div>
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-(--brand-gold)">
-            Chỉ đường
-          </h3>
-          <div className="overflow-hidden rounded-lg border border-(--brand-cream)/15 bg-(--brand-cream)">
-            <iframe
-              title="Google Map"
-              src={mapEmbedSrc}
-              width="100%"
-              height="214"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              className="block w-full"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="border-t border-(--brand-cream)/15 py-4 text-center text-xs text-(--brand-cream)/60">
-        © <CopyrightYear /> {SITE_NAME}. Bảo lưu mọi quyền.
-      </div>
-    </footer>
   );
 }
 </file>
@@ -68234,345 +68211,6 @@ export default function OrderForm({ variants, productName }: OrderFormProps) {
     </section>
   );
 }
-</file>
-
-<file path="apps/web/src/data/landing-page-content.ts">
-import { SOCIAL_LINKS } from '@/lib/constants';
-import { CORE_SEO_KEYWORDS } from '@/lib/seo-keywords';
-
-export const LANDING_SEO = {
-  title: 'Nhãn Hưng Yên — Long Nhãn Tống Trân Chính Gốc | nhanhunguyen.com',
-  description:
-    'Mua nhãn Hưng Yên, long nhãn sấy khô Tống Trân chính gốc tại nhanhunguyen.com — nguyên liệu chè dưỡng nhan, quà biếu sang trọng. Giao COD toàn quốc — Zalo, Shopee, TikTok.',
-  keywords: [...CORE_SEO_KEYWORDS],
-  ogImageAlt:
-    'Nhãn Hưng Yên — long nhãn Tống Trân đặc sản chính gốc, nhanhunguyen.com',
-} as const;
-
-export const PRODUCTS_LISTING_SEO = {
-  title: 'Mua Nhãn Hưng Yên — Sản Phẩm Long Nhãn Tống Trân',
-  description:
-    'Danh mục nhãn Hưng Yên: long nhãn sấy khô, nhãn lồng và set quà biếu Tống Trân — nguyên liệu chè dưỡng nhan, giao COD toàn quốc. Đặt hàng tại nhanhunguyen.com.',
-} as const;
-
-export const ARTICLES_LISTING_SEO = {
-  title: 'Bài Viết Nhãn Hưng Yên — Chè Dưỡng Nhan & Cẩm Nang',
-  description:
-    'Cẩm nang chọn nhãn Hưng Yên, nấu chè dưỡng nhan, bảo quản long nhãn và câu chuyện vườn Tống Trân — kiến thức từ Hưng Yên, cập nhật tại nhanhunguyen.com.',
-} as const;
-
-export const LANDING_BRAND = {
-  name: 'Long Nhãn Hưng Yên',
-  specialtyLine: 'Đặc sản Hưng Yên',
-  tagline: 'Ngọt lành từng hạt — An thần, dưỡng tâm',
-  logoSrc: '/logo.png',
-  logoAlt: 'Logo Long Nhãn Tống Trân — Đặc sản Hưng Yên',
-} as const;
-
-export const LANDING_HERO = {
-  eyebrow: 'Nhãn Hưng Yên · Tống Trân',
-  headline: 'Dẻo thơm vị mật, ngọt thanh vị đời.',
-  subhead:
-    'Tuyển chọn nhãn lồng Hưng Yên ngon nhất từ vườn nhà Tống Trân. Cam kết không tẩm đường, không chất bảo quản.',
-  primaryCta: 'Xem ngay',
-  secondaryCta: 'Xem Shopee',
-  tertiaryCta: 'Chat Zalo',
-} as const;
-
-export const LANDING_ORIGIN = {
-  sectionTitle: 'Long Nhãn Tống Trân',
-  sectionSubtitle: 'Tinh Túy Từ Vườn Nhà, Ngọt Thơm Vị Truyền Thống',
-  paragraphs: [
-    'Sinh ra và lớn lên tại mảnh đất Tống Trân, Hưng Yên – cái nôi của những mùa nhãn lồng trĩu quả, chúng tôi tự hào mang đến cho bạn thức quà quý giá nhất của quê hương: Long nhãn sấy khô 100% nhà làm.',
-    'Không sản xuất công nghiệp đại trà, mỗi mẻ long nhãn của shop đều chứa đựng sự tỉ mỉ của người nông dân. Từ khâu chọn những trái nhãn cùi dày, mọng nước nhất trong chính khu vườn gia đình, đến việc bóc vỏ, tách hạt khéo léo và đưa vào lò sấy giữ trọn hương vị.',
-    'Vì sao bạn có thể hoàn toàn yên tâm khi chọn Long Nhãn nhà chúng tôi?',
-    'Nguồn gốc minh bạch: Thu hoạch trực tiếp từ vườn nhãn gia đình tại Tống Trân, Hưng Yên.',
-    'Chất lượng thượng hạng: Cùi nhãn sấy xong dày mình, màu vàng ươm tự nhiên, dẻo dai và mang vị ngọt thanh, thơm mùi mật quyến rũ.',
-    'An toàn tuyệt đối - Cam kết 3 KHÔNG: KHÔNG tẩm đường – KHÔNG chất bảo quản – KHÔNG chất tạo màu.',
-    'Từ món ăn vặt lành mạnh cho cả gia đình, đến nguyên liệu cho nồi chè dưỡng nhan thanh mát hay bình rượu quý biếu khách, Long Nhãn Tống Trân tự tin làm hài lòng cả những vị khách kỹ tính nhất!',
-  ],
-} as const;
-
-export const LANDING_PRODUCT_TYPES = {
-  sectionTitle: 'Dòng sản phẩm',
-  sectionSubtitle: 'Phù hợp biếu tặng và thưởng thức tại gia',
-  items: [
-    {
-      title: 'Long nhãn đặc biệt',
-      description:
-        'Quả nhãn tươi bóc vỏ, bỏ hạt, sấy khô theo công thức Hưng Yên — vàng ươm, dẻo ngọt, giữ trọn hương đặc trưng.',
-    },
-    {
-      title: 'Set quà cao cấp',
-      description:
-        'Hộp quà sang trọng, tinh tế — biếu ông bà, đối tác hay dịp lễ Tết đều trọn vẹn ý nghĩa.',
-    },
-    {
-      title: 'Kết hợp đặc sản',
-      description:
-        'Có thể kết hợp cùng sen, trà hoặc sản phẩm địa phương khác theo nhu cầu (cập nhật theo mùa).',
-    },
-  ],
-} as const;
-
-export const LANDING_QUALITY = {
-  sectionTitle: 'Chất lượng & quy trình',
-  sectionSubtitle: 'Từ vườn đến hạt — minh bạch, an tâm',
-  bullets: [
-    'Thu hoạch và chế biến giai đoạn tháng 7 — tháng 9 hàng năm (theo mùa vụ).',
-    'Sấy khép kín, đúng quy trình — hạn sử dụng 12 tháng kể từ ngày sản xuất (điền SKU cụ thể khi có).',
-    'Phù hợp mọi lứa tuổi: ăn vặt, pha trà, hầm gà, nấu chè, làm mứt hoặc ngâm rượu.',
-  ],
-} as const;
-
-export const LANDING_NUTRITION = {
-  sectionTitle: 'Dinh dưỡng & đông y',
-  sectionSubtitle: 'Vị ngọt tự nhiên, nhiều dưỡng chất',
-  intro:
-    'Long nhãn chứa đường tự nhiên, vitamin và khoáng chất; khi sấy đúng cách, dưỡng chất được giữ trọn vẹn hơn.',
-  bullets: [
-    'Ăn trực tiếp hoặc thưởng thức cùng trà — hương thơm dễ chịu, vị ngọt thanh.',
-    'Dùng trong món ăn bổ dưỡng: chè, hầm, mứt — thân quen trong bếp Việt.',
-    'Trong đông y, long nhãn thường được nhắc tới trong các phương an thần, dưỡng tâm (tham khảo ý kiến chuyên gia y tế cho nhu cầu cá nhân).',
-  ],
-} as const;
-
-export const LANDING_SEASON = {
-  sectionTitle: 'Mùa vụ & đặt hàng',
-  body: 'Long nhãn tươi và long nhãn sấy theo mùa. Quý khách vui lòng liên hệ để biết tồn kho, dung tích hộp và ưu đãi theo đợt hàng.',
-} as const;
-
-export const LANDING_PRICING = {
-  sectionTitle: 'Báo giá',
-  body: 'Giá theo khối lượng (500g, 1kg…) và loại hộp quà. Vui lòng gọi, nhắn Zalo hoặc đặt qua Shopee/TikTok Shop để nhận báo giá và hỗ trợ giao COD.',
-} as const;
-
-export const LANDING_TESTIMONIALS: {
-  sectionTitle: string;
-  sectionSubtitle: string;
-  items: {
-    quote: string;
-    author: string;
-    location?: string;
-    rating?: number;
-  }[];
-} = {
-  sectionTitle: 'Khách hàng tin chọn',
-  sectionSubtitle: 'Cập nhật đánh giá thật khi có dữ liệu',
-  items: [],
-};
-
-export const LANDING_FAQ = {
-  sectionTitle: 'Câu hỏi thường gặp (FAQ)',
-  items: [
-    {
-      q: 'Long nhãn của shop có đúng là nhãn lồng Hưng Yên chính gốc không?',
-      a: 'Dạ, 100% đúng ạ! Toàn bộ sản phẩm được sấy từ những chùm nhãn lồng tươi ngon nhất tại vườn nhà mình ở Tống Trân, Phù Cừ, Hưng Yên. Vì là hàng nhà làm nên mình kiểm soát được từ khâu hái quả đến khi đóng hộp, không nhập qua trung gian hay trộn hàng vùng khác, bạn hoàn toàn yên tâm về nguồn gốc nhé!',
-    },
-    {
-      q: 'Tại sao long nhãn nhà mình lại có vị ngọt đậm, có phải do tẩm thêm đường không?',
-      a: 'Shop cam kết KHÔNG tẩm thêm một hạt đường nào. Vị ngọt đậm đà bạn cảm nhận được chính là lượng đường tự nhiên từ mật nhãn được cô đọng lại sau quá trình sấy nhiệt lâu. Đây là điểm đặc trưng của nhãn Tống Trân: cùi dày, mọng mật nên khi khô sẽ có vị ngọt thanh rất sang, không bị khé cổ như nhãn tẩm đường công nghiệp.',
-    },
-    {
-      q: 'Sản phẩm có dùng chất bảo quản hay chất tạo màu không?',
-      a: 'Tuyệt đối không ạ. Màu vàng óng ươm của long nhãn là màu tự nhiên của cùi nhãn khi được sấy đủ độ. Nhà mình làm để gia đình dùng và bán cho khách quen lâu năm nên tiêu chí Sạch - An toàn luôn đặt lên hàng đầu. Long nhãn được sấy khô kiệt nên có thể bảo quản tự nhiên rất lâu mà không cần hóa chất.',
-    },
-    {
-      q: 'Tôi nên bảo quản long nhãn thế nào để không bị xuống màu?',
-      a: 'Long nhãn nhà mình đã được sấy rất khô. Bạn chỉ cần để nơi thoáng mát, tránh ánh nắng trực tiếp là có thể dùng trong 6 tháng. Mẹo nhỏ: Nếu bạn muốn giữ màu vàng đẹp mắt và vị dẻo ngon lâu nhất (trên 1 năm), hãy bọc kín và để trong ngăn mát tủ lạnh nhé!',
-    },
-    {
-      q: 'Long nhãn Tống Trân ngoài ăn trực tiếp thì làm món gì ngon nhất?',
-      a: `Bạn có thể biến tấu rất nhiều món:
-
-Giải nhiệt: Nấu chè hạt sen long nhãn, chè dưỡng nhan.
-
-Thư giãn: Pha trà cùng táo đỏ, kỷ tử giúp an thần, ngủ ngon.
-
-Bồi bổ: Hầm gà, chim bồ câu hoặc ngâm rượu quý.
-
-Vị ngọt thơm của nhãn Hưng Yên sẽ làm các món ăn của bạn tăng thêm hương vị đặc trưng.`,
-    },
-    {
-      q: 'Tôi có được kiểm tra hàng trước khi nhận không?',
-      a: 'Chắc chắn là có ạ! Shop khuyến khích bạn mở hộp kiểm tra màu sắc và nếm thử vị nhãn ngay khi nhận hàng. Nếu không đúng chuẩn nhãn Tống Trân, cùi mỏng hay có mùi lạ, bạn cứ hoàn hàng cho shop mà không mất bất kỳ chi phí nào. Uy tín của gia đình là quan trọng nhất!',
-    },
-  ],
-} as const;
-
-export const LANDING_CHANNELS = {
-  sectionTitle: 'Đặt hàng & kết nối',
-  sectionSubtitle: 'Chọn kênh thuận tiện nhất cho bạn',
-  codLabel: 'Đặt hàng COD toàn quốc',
-  codDescription:
-    'Gọi hoặc nhắn Zalo — xác nhận đơn, giao hàng thu tiền tại nhà.',
-  shopee: {
-    label: 'Shopee',
-    href: SOCIAL_LINKS.shopee,
-    description:
-      'Điền link gian hàng Shopee chính thức (cập nhật trong lib/constants).',
-  },
-  tiktok: {
-    label: 'TikTok Shop',
-    href: SOCIAL_LINKS.tiktok,
-    description:
-      'Điền link TikTok hoặc TikTok Shop (cập nhật trong lib/constants).',
-  },
-  zalo: {
-    label: 'Chat Zalo',
-    href: SOCIAL_LINKS.zalo,
-    description: 'Nhắn Zalo để tư vấn size hộp, quà tặng và lịch giao hàng.',
-  },
-  phoneCta: 'Gọi ngay',
-} as const;
-
-export const LANDING_TRUST = {
-  sectionTitle: 'Cam kết từ gia đình chúng tôi',
-  items: [
-    {
-      title: 'Chuẩn vị quê hương',
-      body: '100% long nhãn nguồn gốc Tống Trân - Hưng Yên, cùi dày, ngọt thanh vị mật tự nhiên.',
-    },
-    {
-      title: 'Cam kết 3 KHÔNG',
-      body: 'Không tẩm đường - Không hóa chất bảo quản - Không chất tạo màu. Hoàn toàn sạch và an toàn cho sức khỏe.',
-    },
-    {
-      title: 'Mắt thấy, miệng nếm mới trả tiền',
-      body: 'Hỗ trợ giao hàng COD toàn quốc. Khách được mở hộp kiểm tra màu sắc, chất lượng trước khi thanh toán.',
-    },
-    {
-      title: 'Bảo hành tận tâm',
-      body: 'Hoàn tiền 100% hoặc 1 đổi 1 trong 7 ngày nếu sản phẩm không đúng chuẩn vị Hưng Yên hoặc có lỗi do sản xuất.',
-    },
-  ],
-} as const;
-
-export const LANDING_FOOTER_TAGLINE =
-  'Đặc sản Hưng Yên — long nhãn chọn lọc, quà biếu sang trọng, giao hàng tận nơi.';
-
-// Phase 1 — Conversion Elements
-export const LANDING_SERVICE_BADGES = [
-  { icon: 'truck', label: 'Giao hàng 24h', sublabel: 'Toàn quốc' },
-  { icon: 'chat', label: 'Tư vấn miễn phí', sublabel: 'Zalo & điện thoại' },
-  { icon: 'cash', label: 'Thanh toán COD', sublabel: 'Nhận hàng mới trả' },
-] as const;
-
-// Phase 2 — Trust & Social Proof
-export const LANDING_STATS = [
-  { value: '500+', label: 'Đơn hàng mỗi mùa' },
-  { value: '5+', label: 'Năm kinh nghiệm' },
-  { value: '98%', label: 'Khách hài lòng' },
-] as const;
-
-export const LANDING_CERTS = {
-  sectionTitle: 'Chứng nhận & uy tín',
-  items: [
-    { label: 'An toàn thực phẩm', imageSrc: null },
-    { label: 'Sản phẩm OCOP', imageSrc: null },
-  ],
-} as const;
-
-// Phase 3 — UX Polish
-export const LANDING_URGENCY = {
-  enabled: true,
-  message:
-    'Mùa nhãn tháng 7–9 — Liên hệ sớm để đảm bảo nguồn hàng chất lượng nhất',
-} as const;
-
-// Phase 6 — Home Page Enhancement
-export const LANDING_HERO_SLIDES = [
-  {
-    headline: 'Long nhãn Tống Trân:\n Dẻo thơm vị mật, ngọt thanh vị đời.',
-    subhead:
-      'Hương vị cổ truyền, chọn lọc từ vườn nhãn xứ Đông — món quà quê nhà ý nghĩa.',
-    ctaLabel: 'Xem ngay',
-    ctaHref: '/products',
-    imageSrc: null as string | null,
-  },
-  {
-    headline: 'Set quà cao cấp\nbiếu tặng ý nghĩa',
-    subhead: 'Hộp quà sang trọng, phù hợp mọi dịp lễ và doanh nghiệp.',
-    ctaLabel: 'Xem bộ quà tặng',
-    ctaHref: '/products',
-    imageSrc: null as string | null,
-  },
-];
-
-export const LANDING_CATEGORIES = [
-  {
-    label: 'Đặc sản Hưng Yên',
-    href: '/products?category=longnhan',
-    iconSrc: '/icon-menu-pho-hien-36x36.webp',
-    iconAlt: 'Biểu tượng danh mục',
-  },
-  {
-    label: 'Giải pháp quà tặng',
-    href: '/products?category=gift',
-    iconSrc: '/cate-icon-2.webp',
-    iconAlt: 'Biểu tượng danh mục',
-  },
-  {
-    label: 'Bộ quà tặng',
-    href: '/products?category=giftset',
-    iconSrc: '/cate-icon-2.webp',
-    iconAlt: 'Biểu tượng danh mục',
-  },
-] as const;
-
-/** Curated YouTube URLs for the marketing “video album” block (v1 static). Empty hides the section. */
-export const LANDING_VIDEO_ALBUM_URLS: readonly string[] = [
-  'https://youtube.com/shorts/0XRJt9zdy5I?si=oSfaBYZDvy08SeE7',
-  'https://youtube.com/shorts/vZHSAh8nPz8?si=tqHFp-jpwFYFwL7q',
-  'https://youtube.com/shorts/nkfG25MG9vY?si=oo-R6_Y7SyFHyL7v',
-];
-
-/** Image grid + lightbox on the home page (v1 static paths under `public/`). */
-export const LANDING_IMAGE_ALBUM: { src: string; alt: string }[] = [
-  {
-    src: '/banner-web2.png',
-    alt: 'Tinh hoa Phố Hiến — đặc sản Hưng Yên',
-  },
-  {
-    src: '/bannerweb4.jpg',
-    alt: 'Bộ quà tặng cao cấp',
-  },
-  {
-    src: '/bannerweb5-2048x785.jpg',
-    alt: 'Mật hoa nhãn — Long Nhãn Tống Trân',
-  },
-  {
-    src: '/tinhhoaphohien.com_-2048x788.webp',
-    alt: 'Long Nhãn Tống Trân — banner giới thiệu',
-  },
-];
-
-export const LANDING_BANNER_SLIDES = [
-  {
-    id: 'tinh-hoa-pho-hien',
-    imageSrc: '/banner-web2.png',
-    alt: 'Tinh hoa Phố Hiến — đặc sản Hưng Yên',
-    href: '/products',
-  },
-  {
-    id: 'qua-tang-cao-cap',
-    imageSrc: '/bannerweb4.jpg',
-    alt: 'Mai Trang — Tinh hoa Phố Hiến (bộ quà tặng)',
-    href: '/products?category=giftset',
-  },
-  {
-    id: 'mat-hoa-nhan',
-    imageSrc: '/bannerweb5-2048x785.jpg',
-    alt: 'Mai Trang — sản phẩm mật hoa nhãn',
-    href: '/products',
-  },
-  {
-    id: 'tinhhoaphohien',
-    imageSrc: '/tinhhoaphohien.com_-2048x788.webp',
-    alt: 'Tinh hoa Phố Hiến — banner giới thiệu',
-    href: '/products',
-  },
-] as const;
 </file>
 
 <file path="docs/frontend-code-standards.md">
@@ -71755,6 +71393,866 @@ export async function validateCart(
 }
 </file>
 
+<file path="apps/web/src/app/layout.tsx">
+import type { Metadata, Viewport } from 'next';
+import { Geist } from 'next/font/google';
+import localFont from 'next/font/local';
+import './globals.css';
+import { AppProviders } from '@/components/providers/app-providers';
+import Footer from '@/components/layout/footer';
+import Header from '@/components/layout/header';
+import BackToTopButton from '@/components/ui/back-to-top-button';
+import dynamic from 'next/dynamic';
+
+const FloatingContactWidget = dynamic(
+  () => import('@/components/layout/floating-contact-widget'),
+  { loading: () => null },
+);
+import { LANDING_SEO } from '@/data/landing-page-content';
+import { GOOGLE_VERIFICATION, SITE_URL } from '@/lib/constants';
+import { PWA_CONFIG } from '@/lib/pwa-config';
+import { buildSeoMetadata } from '@/lib/seo';
+import {
+  buildOrganizationSchema,
+  buildWebSiteSchema,
+} from '@/lib/structured-data';
+import { GoogleAnalytics } from '@/components/analytics/google-analytics';
+
+const geistSans = Geist({
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
+});
+
+const seagullDisplay = localFont({
+  src: [
+    {
+      path: '../../public/fonts/UTM SeagullBold.ttf',
+      weight: '700',
+      style: 'normal',
+    },
+    {
+      path: '../../public/fonts/UTM SeagullBoldItalic.ttf',
+      weight: '700',
+      style: 'italic',
+    },
+  ],
+  variable: '--font-seagull',
+  display: 'swap',
+});
+
+export const viewport: Viewport = {
+  themeColor: PWA_CONFIG.themeColor,
+  colorScheme: 'light',
+};
+
+const landingMetadata = buildSeoMetadata({
+  title: LANDING_SEO.title,
+  description: LANDING_SEO.description,
+  canonicalPath: '/',
+  ogImage: {
+    url: PWA_CONFIG.heroImage.path,
+    width: PWA_CONFIG.heroImage.width,
+    height: PWA_CONFIG.heroImage.height,
+    alt: PWA_CONFIG.heroImage.alt,
+  },
+});
+
+export const metadata: Metadata = {
+  ...landingMetadata,
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: PWA_CONFIG.documentTitle,
+    template: '%s | Long Nhãn Hưng Yên',
+  },
+  keywords: [...LANDING_SEO.keywords],
+  applicationName: PWA_CONFIG.name,
+  category: 'food',
+  icons: {
+    icon: [{ url: PWA_CONFIG.icons.src, type: 'image/png' }],
+    apple: [{ url: PWA_CONFIG.icons.src, type: 'image/png' }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: PWA_CONFIG.name,
+    statusBarStyle: 'black-translucent',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  verification: {
+    google: GOOGLE_VERIFICATION,
+  },
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  const structuredData = [buildOrganizationSchema(), buildWebSiteSchema()];
+
+  return (
+    <html
+      lang="vi"
+      className={`${geistSans.variable} ${seagullDisplay.variable} h-full`}
+    >
+      <head>
+        {structuredData.map((schema, index) => (
+          <script
+            key={index}
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+          />
+        ))}
+      </head>
+      <body className="min-h-full flex flex-col antialiased">
+        <GoogleAnalytics />
+        <AppProviders>
+          <Header />
+          <main className="flex-1 pb-16 md:pb-0">{children}</main>
+          <Footer />
+          <FloatingContactWidget />
+          <BackToTopButton />
+        </AppProviders>
+      </body>
+    </html>
+  );
+}
+</file>
+
+<file path="apps/web/src/components/layout/footer.tsx">
+import { FOOTER_PAGES } from '@/data/footer-pages';
+import { LANDING_FOOTER_TAGLINE } from '@/data/landing-page-content';
+import {
+  CONTACT_ADDRESS,
+  CONTACT_EMAIL,
+  CONTACT_PHONE,
+  SITE_NAME,
+  SOCIAL_LINKS,
+} from '@/lib/constants';
+import { CopyrightYear } from '@/components/layout/copyright-year';
+import Image from 'next/image';
+import Link from 'next/link';
+
+export default function Footer() {
+  // Prefer a no-key embed that works with just an address query.
+  const mapEmbedSrc = `https://www.google.com/maps?q=${encodeURIComponent(CONTACT_ADDRESS)}&output=embed`;
+
+  return (
+    <footer className="mt-auto border-t border-(--brand-gold)/25 bg-(--brand-forest) text-(--brand-cream)">
+      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-4 py-12 md:grid-cols-2 lg:grid-cols-4">
+        <div className="space-y-4">
+          <div>
+            <h2 className="landing-heading text-lg font-semibold text-(--brand-cream)">
+              {SITE_NAME}
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-(--brand-cream)/80">
+              {LANDING_FOOTER_TAGLINE}
+            </p>
+          </div>
+
+          <div className="text-sm text-(--brand-cream)/80">
+            <div className="font-semibold text-(--brand-cream)">
+              Về chúng tôi
+            </div>
+            <div className="mt-2 space-y-1">
+              <div>
+                <span className="text-(--brand-cream)/60">Điện thoại: </span>
+                <a
+                  href={`tel:${CONTACT_PHONE.replace(/\s/g, '')}`}
+                  className="transition hover:text-(--brand-cream)"
+                >
+                  {CONTACT_PHONE}
+                </a>
+              </div>
+              <div>
+                <span className="text-(--brand-cream)/60">Email: </span>
+                <a
+                  href={`mailto:${CONTACT_EMAIL}`}
+                  className="transition hover:text-(--brand-cream)"
+                >
+                  {CONTACT_EMAIL}
+                </a>
+              </div>
+              <div>
+                <span className="text-(--brand-cream)/60">Địa chỉ: </span>
+                <span>{CONTACT_ADDRESS}</span>
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="pt-1"
+            style={{
+              contentVisibility: 'auto',
+              containIntrinsicSize: '98px 260px',
+            }}
+          >
+            <Image
+              src="/logo-da-thong-bao-bo-cong-thuong-mau-xanh-1.png"
+              alt="Đã thông báo Bộ Công Thương"
+              width={260}
+              height={98}
+              className="h-auto w-[160px] max-w-full sm:w-[220px]"
+              loading="lazy"
+              fetchPriority="low"
+              decoding="async"
+            />
+          </div>
+        </div>
+
+        <div>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-(--brand-gold)">
+            Hỗ trợ khách hàng
+          </h3>
+          <ul className="space-y-2 text-sm text-(--brand-cream)/80">
+            {FOOTER_PAGES.map((page) => (
+              <li key={page.slug}>
+                <Link
+                  href={`/${page.slug}`}
+                  className="transition hover:text-(--brand-cream)"
+                >
+                  {page.title}
+                </Link>
+              </li>
+            ))}
+            <li>
+              <Link href="/" className="transition hover:text-(--brand-cream)">
+                Liên hệ
+              </Link>
+            </li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-(--brand-gold)">
+            Liên kết
+          </h3>
+          <ul className="space-y-2 text-sm">
+            <li>
+              <Link
+                href="/"
+                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
+              >
+                Trang chủ
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/products"
+                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
+              >
+                Sản phẩm
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/articles"
+                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
+              >
+                Bài viết
+              </Link>
+            </li>
+            <li className="flex flex-wrap gap-x-4 gap-y-2 pt-2">
+              <a
+                href={SOCIAL_LINKS.facebook}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
+              >
+                Facebook
+              </a>
+              <a
+                href={SOCIAL_LINKS.zalo}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
+              >
+                Zalo
+              </a>
+              {SOCIAL_LINKS.shopee ? (
+                <a
+                  href={SOCIAL_LINKS.shopee}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
+                >
+                  Shopee
+                </a>
+              ) : null}
+              {SOCIAL_LINKS.tiktok ? (
+                <a
+                  href={SOCIAL_LINKS.tiktok}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-(--brand-cream)/80 transition hover:text-(--brand-cream)"
+                >
+                  TikTok
+                </a>
+              ) : null}
+            </li>
+          </ul>
+        </div>
+
+        <div>
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-(--brand-gold)">
+            Chỉ đường
+          </h3>
+          <div className="overflow-hidden rounded-lg border border-(--brand-cream)/15 bg-(--brand-cream)">
+            <iframe
+              title="Google Map"
+              src={mapEmbedSrc}
+              width="100%"
+              height="214"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              className="block w-full"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t border-(--brand-cream)/15 py-4 text-center text-xs text-(--brand-cream)/60">
+        © <CopyrightYear /> {SITE_NAME}. Bảo lưu mọi quyền.
+      </div>
+    </footer>
+  );
+}
+</file>
+
+<file path="apps/web/src/components/products/product-pdp-tabs.tsx">
+'use client';
+
+import { useMemo, useState } from 'react';
+import type { Product } from '@longnhan/types';
+
+interface ProductPdpTabsProps {
+  product: Product;
+}
+
+type TabId = 'description' | 'extra';
+
+function buildSpecRows(
+  product: Product,
+): Array<{ key: string; value: string }> {
+  const weights = product.variants
+    .map((variant) => variant.weightG ?? variant.weightGrams ?? 0)
+    .filter((weight) => weight > 0);
+  const minWeight = weights.length > 0 ? Math.min(...weights) : 0;
+  const maxWeight = weights.length > 0 ? Math.max(...weights) : 0;
+
+  return [
+    { key: 'Danh mục', value: product.category || 'Long nhãn' },
+    {
+      key: 'Khối lượng',
+      value:
+        Number.isFinite(minWeight) &&
+        Number.isFinite(maxWeight) &&
+        minWeight > 0
+          ? minWeight === maxWeight
+            ? `${minWeight}g`
+            : `${minWeight}g - ${maxWeight}g`
+          : 'Nhiều quy cách',
+    },
+  ];
+}
+
+export default function ProductPdpTabs({ product }: ProductPdpTabsProps) {
+  const [activeTab, setActiveTab] = useState<TabId>('description');
+  const rows = useMemo(() => buildSpecRows(product), [product]);
+
+  return (
+    <section className="mt-8 rounded-2xl border border-gray-200 bg-white">
+      <div className="flex flex-wrap border-b border-gray-200">
+        {[
+          { id: 'description' as const, label: 'Mô tả' },
+          { id: 'extra' as const, label: 'Thông tin bổ sung' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-4 py-3 text-sm font-semibold transition-colors ${
+              activeTab === tab.id
+                ? 'text-foreground border-b-2 border-foreground'
+                : 'text-gray-500 hover:text-foreground'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="p-5">
+        {activeTab === 'description'
+          ? product.descriptionHtml && (
+              <div
+                className="article-body tiptap ProseMirror simple-editor max-w-none"
+                dangerouslySetInnerHTML={{ __html: product.descriptionHtml }}
+              />
+            )
+          : null}
+
+        {activeTab === 'extra' ? (
+          <div className="overflow-hidden rounded-xl border border-gray-200">
+            <table className="w-full text-sm">
+              <tbody>
+                {rows.map((row) => (
+                  <tr
+                    key={row.key}
+                    className="border-b border-gray-100 last:border-b-0"
+                  >
+                    <th className="w-28 bg-gray-50 px-3 py-3 text-left sm:w-44 sm:px-4">
+                      {row.key}
+                    </th>
+                    <td className="px-4 py-3 text-gray-700">{row.value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+</file>
+
+<file path="apps/web/src/data/landing-page-content.ts">
+import { SOCIAL_LINKS } from '@/lib/constants';
+import { CORE_SEO_KEYWORDS } from '@/lib/seo-keywords';
+
+export const LANDING_SEO = {
+  title: 'Nhãn Hưng Yên — Long Nhãn Tống Trân Chính Gốc | nhanhunguyen.com',
+  description:
+    'Mua nhãn Hưng Yên, long nhãn sấy khô Tống Trân chính gốc tại nhanhunguyen.com — nguyên liệu chè dưỡng nhan, quà biếu sang trọng. Giao COD toàn quốc — Zalo, Shopee, TikTok.',
+  keywords: [...CORE_SEO_KEYWORDS],
+  ogImageAlt:
+    'Nhãn Hưng Yên — long nhãn Tống Trân đặc sản chính gốc, nhanhunguyen.com',
+} as const;
+
+export const PRODUCTS_LISTING_SEO = {
+  title: 'Mua Nhãn Hưng Yên — Sản Phẩm Long Nhãn Tống Trân',
+  description:
+    'Danh mục nhãn Hưng Yên: long nhãn sấy khô, nhãn lồng và set quà biếu Tống Trân — nguyên liệu chè dưỡng nhan, giao COD toàn quốc. Đặt hàng tại nhanhunguyen.com.',
+} as const;
+
+export const ARTICLES_LISTING_SEO = {
+  title: 'Bài Viết Nhãn Hưng Yên — Chè Dưỡng Nhan & Cẩm Nang',
+  description:
+    'Cẩm nang chọn nhãn Hưng Yên, nấu chè dưỡng nhan, bảo quản long nhãn và câu chuyện vườn Tống Trân — kiến thức từ Hưng Yên, cập nhật tại nhanhunguyen.com.',
+} as const;
+
+export const LANDING_BRAND = {
+  name: 'Long Nhãn Hưng Yên',
+  specialtyLine: 'Đặc sản Hưng Yên',
+  tagline: 'Ngọt lành từng hạt — An thần, dưỡng tâm',
+  logoSrc: '/logo.png',
+  logoAlt: 'Logo Long Nhãn Tống Trân — Đặc sản Hưng Yên',
+} as const;
+
+export const LANDING_HERO = {
+  eyebrow: 'Nhãn Hưng Yên · Tống Trân',
+  headline: 'Dẻo thơm vị mật, ngọt thanh vị đời.',
+  subhead:
+    'Tuyển chọn nhãn lồng Hưng Yên ngon nhất từ vườn nhà Tống Trân. Cam kết không tẩm đường, không chất bảo quản.',
+  primaryCta: 'Xem ngay',
+  secondaryCta: 'Xem Shopee',
+  tertiaryCta: 'Chat Zalo',
+} as const;
+
+export const LANDING_ORIGIN = {
+  sectionTitle: 'Long Nhãn Tống Trân',
+  sectionSubtitle: 'Tinh Túy Từ Vườn Nhà, Ngọt Thơm Vị Truyền Thống',
+  paragraphs: [
+    'Sinh ra và lớn lên tại mảnh đất Tống Trân, Hưng Yên – cái nôi của những mùa nhãn lồng trĩu quả, chúng tôi tự hào mang đến cho bạn thức quà quý giá nhất của quê hương: Long nhãn sấy khô 100% nhà làm.',
+    'Không sản xuất công nghiệp đại trà, mỗi mẻ long nhãn của shop đều chứa đựng sự tỉ mỉ của người nông dân. Từ khâu chọn những trái nhãn cùi dày, mọng nước nhất trong chính khu vườn gia đình, đến việc bóc vỏ, tách hạt khéo léo và đưa vào lò sấy giữ trọn hương vị.',
+    'Vì sao bạn có thể hoàn toàn yên tâm khi chọn Long Nhãn nhà chúng tôi?',
+    'Nguồn gốc minh bạch: Thu hoạch trực tiếp từ vườn nhãn gia đình tại Tống Trân, Hưng Yên.',
+    'Chất lượng thượng hạng: Cùi nhãn sấy xong dày mình, màu vàng ươm tự nhiên, dẻo dai và mang vị ngọt thanh, thơm mùi mật quyến rũ.',
+    'An toàn tuyệt đối - Cam kết 3 KHÔNG: KHÔNG tẩm đường – KHÔNG chất bảo quản – KHÔNG chất tạo màu.',
+    'Từ món ăn vặt lành mạnh cho cả gia đình, đến nguyên liệu cho nồi chè dưỡng nhan thanh mát hay bình rượu quý biếu khách, Long Nhãn Tống Trân tự tin làm hài lòng cả những vị khách kỹ tính nhất!',
+  ],
+} as const;
+
+export const LANDING_PRODUCT_TYPES = {
+  sectionTitle: 'Dòng sản phẩm',
+  sectionSubtitle: 'Phù hợp biếu tặng và thưởng thức tại gia',
+  items: [
+    {
+      title: 'Long nhãn đặc biệt',
+      description:
+        'Quả nhãn tươi bóc vỏ, bỏ hạt, sấy khô theo công thức Hưng Yên — vàng ươm, dẻo ngọt, giữ trọn hương đặc trưng.',
+    },
+    {
+      title: 'Set quà cao cấp',
+      description:
+        'Hộp quà sang trọng, tinh tế — biếu ông bà, đối tác hay dịp lễ Tết đều trọn vẹn ý nghĩa.',
+    },
+    {
+      title: 'Kết hợp đặc sản',
+      description:
+        'Có thể kết hợp cùng sen, trà hoặc sản phẩm địa phương khác theo nhu cầu (cập nhật theo mùa).',
+    },
+  ],
+} as const;
+
+export const LANDING_QUALITY = {
+  sectionTitle: 'Chất lượng & quy trình',
+  sectionSubtitle: 'Từ vườn đến hạt — minh bạch, an tâm',
+  bullets: [
+    'Thu hoạch và chế biến giai đoạn tháng 7 — tháng 9 hàng năm (theo mùa vụ).',
+    'Sấy khép kín, đúng quy trình — hạn sử dụng 12 tháng kể từ ngày sản xuất (điền SKU cụ thể khi có).',
+    'Phù hợp mọi lứa tuổi: ăn vặt, pha trà, hầm gà, nấu chè, làm mứt hoặc ngâm rượu.',
+  ],
+} as const;
+
+export const LANDING_NUTRITION = {
+  sectionTitle: 'Dinh dưỡng & đông y',
+  sectionSubtitle: 'Vị ngọt tự nhiên, nhiều dưỡng chất',
+  intro:
+    'Long nhãn chứa đường tự nhiên, vitamin và khoáng chất; khi sấy đúng cách, dưỡng chất được giữ trọn vẹn hơn.',
+  bullets: [
+    'Ăn trực tiếp hoặc thưởng thức cùng trà — hương thơm dễ chịu, vị ngọt thanh.',
+    'Dùng trong món ăn bổ dưỡng: chè, hầm, mứt — thân quen trong bếp Việt.',
+    'Trong đông y, long nhãn thường được nhắc tới trong các phương an thần, dưỡng tâm (tham khảo ý kiến chuyên gia y tế cho nhu cầu cá nhân).',
+  ],
+} as const;
+
+export const LANDING_SEASON = {
+  sectionTitle: 'Mùa vụ & đặt hàng',
+  body: 'Long nhãn tươi và long nhãn sấy theo mùa. Quý khách vui lòng liên hệ để biết tồn kho, dung tích hộp và ưu đãi theo đợt hàng.',
+} as const;
+
+export const LANDING_PRICING = {
+  sectionTitle: 'Báo giá',
+  body: 'Giá theo khối lượng (500g, 1kg…) và loại hộp quà. Vui lòng gọi, nhắn Zalo hoặc đặt qua Shopee/TikTok Shop để nhận báo giá và hỗ trợ giao COD.',
+} as const;
+
+export const LANDING_TESTIMONIALS: {
+  sectionTitle: string;
+  sectionSubtitle: string;
+  items: {
+    quote: string;
+    author: string;
+    location?: string;
+    rating?: number;
+  }[];
+} = {
+  sectionTitle: 'Khách hàng tin chọn',
+  sectionSubtitle: 'Cập nhật đánh giá thật khi có dữ liệu',
+  items: [],
+};
+
+export const LANDING_FAQ = {
+  sectionTitle: 'Câu hỏi thường gặp (FAQ)',
+  items: [
+    {
+      q: 'Long nhãn của shop có đúng là nhãn lồng Hưng Yên chính gốc không?',
+      a: 'Dạ, 100% đúng ạ! Toàn bộ sản phẩm được sấy từ những chùm nhãn lồng tươi ngon nhất tại vườn nhà mình ở Tống Trân, Phù Cừ, Hưng Yên. Vì là hàng nhà làm nên mình kiểm soát được từ khâu hái quả đến khi đóng hộp, không nhập qua trung gian hay trộn hàng vùng khác, bạn hoàn toàn yên tâm về nguồn gốc nhé!',
+    },
+    {
+      q: 'Tại sao long nhãn nhà mình lại có vị ngọt đậm, có phải do tẩm thêm đường không?',
+      a: 'Shop cam kết KHÔNG tẩm thêm một hạt đường nào. Vị ngọt đậm đà bạn cảm nhận được chính là lượng đường tự nhiên từ mật nhãn được cô đọng lại sau quá trình sấy nhiệt lâu. Đây là điểm đặc trưng của nhãn Tống Trân: cùi dày, mọng mật nên khi khô sẽ có vị ngọt thanh rất sang, không bị khé cổ như nhãn tẩm đường công nghiệp.',
+    },
+    {
+      q: 'Sản phẩm có dùng chất bảo quản hay chất tạo màu không?',
+      a: 'Tuyệt đối không ạ. Màu vàng óng ươm của long nhãn là màu tự nhiên của cùi nhãn khi được sấy đủ độ. Nhà mình làm để gia đình dùng và bán cho khách quen lâu năm nên tiêu chí Sạch - An toàn luôn đặt lên hàng đầu. Long nhãn được sấy khô kiệt nên có thể bảo quản tự nhiên rất lâu mà không cần hóa chất.',
+    },
+    {
+      q: 'Tôi nên bảo quản long nhãn thế nào để không bị xuống màu?',
+      a: 'Long nhãn nhà mình đã được sấy rất khô. Bạn chỉ cần để nơi thoáng mát, tránh ánh nắng trực tiếp là có thể dùng trong 6 tháng. Mẹo nhỏ: Nếu bạn muốn giữ màu vàng đẹp mắt và vị dẻo ngon lâu nhất (trên 1 năm), hãy bọc kín và để trong ngăn mát tủ lạnh nhé!',
+    },
+    {
+      q: 'Long nhãn Tống Trân ngoài ăn trực tiếp thì làm món gì ngon nhất?',
+      a: `Bạn có thể biến tấu rất nhiều món:
+
+Giải nhiệt: Nấu chè hạt sen long nhãn, chè dưỡng nhan.
+
+Thư giãn: Pha trà cùng táo đỏ, kỷ tử giúp an thần, ngủ ngon.
+
+Bồi bổ: Hầm gà, chim bồ câu hoặc ngâm rượu quý.
+
+Vị ngọt thơm của nhãn Hưng Yên sẽ làm các món ăn của bạn tăng thêm hương vị đặc trưng.`,
+    },
+    {
+      q: 'Tôi có được kiểm tra hàng trước khi nhận không?',
+      a: 'Chắc chắn là có ạ! Shop khuyến khích bạn mở hộp kiểm tra màu sắc và nếm thử vị nhãn ngay khi nhận hàng. Nếu không đúng chuẩn nhãn Tống Trân, cùi mỏng hay có mùi lạ, bạn cứ hoàn hàng cho shop mà không mất bất kỳ chi phí nào. Uy tín của gia đình là quan trọng nhất!',
+    },
+  ],
+} as const;
+
+export const LANDING_CHANNELS = {
+  sectionTitle: 'Đặt hàng & kết nối',
+  sectionSubtitle: 'Chọn kênh thuận tiện nhất cho bạn',
+  codLabel: 'Đặt hàng COD toàn quốc',
+  codDescription:
+    'Gọi hoặc nhắn Zalo — xác nhận đơn, giao hàng thu tiền tại nhà.',
+  shopee: {
+    label: 'Shopee',
+    href: SOCIAL_LINKS.shopee,
+    description:
+      'Điền link gian hàng Shopee chính thức (cập nhật trong lib/constants).',
+  },
+  tiktok: {
+    label: 'TikTok Shop',
+    href: SOCIAL_LINKS.tiktok,
+    description:
+      'Điền link TikTok hoặc TikTok Shop (cập nhật trong lib/constants).',
+  },
+  zalo: {
+    label: 'Chat Zalo',
+    href: SOCIAL_LINKS.zalo,
+    description: 'Nhắn Zalo để tư vấn size hộp, quà tặng và lịch giao hàng.',
+  },
+  phoneCta: 'Gọi ngay',
+} as const;
+
+export const LANDING_TRUST = {
+  sectionTitle: 'Cam kết từ gia đình chúng tôi',
+  items: [
+    {
+      title: 'Chuẩn vị quê hương',
+      body: '100% long nhãn nguồn gốc Tống Trân - Hưng Yên, cùi dày, ngọt thanh vị mật tự nhiên.',
+    },
+    {
+      title: 'Cam kết 3 KHÔNG',
+      body: 'Không tẩm đường - Không hóa chất bảo quản - Không chất tạo màu. Hoàn toàn sạch và an toàn cho sức khỏe.',
+    },
+    {
+      title: 'Mắt thấy, miệng nếm mới trả tiền',
+      body: 'Hỗ trợ giao hàng COD toàn quốc. Khách được mở hộp kiểm tra màu sắc, chất lượng trước khi thanh toán.',
+    },
+    {
+      title: 'Bảo hành tận tâm',
+      body: 'Hoàn tiền 100% hoặc 1 đổi 1 trong 7 ngày nếu sản phẩm không đúng chuẩn vị Hưng Yên hoặc có lỗi do sản xuất.',
+    },
+  ],
+} as const;
+
+export const LANDING_FOOTER_TAGLINE =
+  'Đặc sản Hưng Yên — long nhãn chọn lọc, quà biếu sang trọng, giao hàng tận nơi.';
+
+// Phase 1 — Conversion Elements
+export const LANDING_SERVICE_BADGES = [
+  { icon: 'truck', label: 'Giao hàng 24h', sublabel: 'Toàn quốc' },
+  { icon: 'chat', label: 'Tư vấn miễn phí', sublabel: 'Zalo & điện thoại' },
+  { icon: 'cash', label: 'Thanh toán COD', sublabel: 'Nhận hàng mới trả' },
+] as const;
+
+// Phase 2 — Trust & Social Proof
+export const LANDING_STATS = [
+  { value: '500+', label: 'Đơn hàng mỗi mùa' },
+  { value: '5+', label: 'Năm kinh nghiệm' },
+  { value: '98%', label: 'Khách hài lòng' },
+] as const;
+
+export const LANDING_CERTS = {
+  sectionTitle: 'Chứng nhận & uy tín',
+  items: [
+    { label: 'An toàn thực phẩm', imageSrc: null },
+    { label: 'Sản phẩm OCOP', imageSrc: null },
+  ],
+} as const;
+
+// Phase 3 — UX Polish
+export const LANDING_URGENCY = {
+  enabled: true,
+  message:
+    'Mùa nhãn tháng 7–9 — Liên hệ sớm để đảm bảo nguồn hàng chất lượng nhất',
+} as const;
+
+// Phase 6 — Home Page Enhancement
+export const LANDING_HERO_SLIDES = [
+  {
+    headline: 'Long nhãn Tống Trân:\n Dẻo thơm vị mật, ngọt thanh vị đời.',
+    subhead:
+      'Hương vị cổ truyền, chọn lọc từ vườn nhãn xứ Đông — món quà quê nhà ý nghĩa.',
+    ctaLabel: 'Xem ngay',
+    ctaHref: '/products',
+    imageSrc: null as string | null,
+  },
+  {
+    headline: 'Set quà cao cấp\nbiếu tặng ý nghĩa',
+    subhead: 'Hộp quà sang trọng, phù hợp mọi dịp lễ và doanh nghiệp.',
+    ctaLabel: 'Xem bộ quà tặng',
+    ctaHref: '/products',
+    imageSrc: null as string | null,
+  },
+];
+
+export const LANDING_CATEGORIES = [
+  {
+    label: 'Đặc sản Hưng Yên',
+    href: '/products?category=longnhan',
+    iconSrc: '/icon-menu-pho-hien-36x36.webp',
+    iconAlt: 'Biểu tượng danh mục',
+  },
+  {
+    label: 'Giải pháp quà tặng',
+    href: '/products?category=gift',
+    iconSrc: '/cate-icon-2.webp',
+    iconAlt: 'Biểu tượng danh mục',
+  },
+  {
+    label: 'Bộ quà tặng',
+    href: '/products?category=giftset',
+    iconSrc: '/cate-icon-2.webp',
+    iconAlt: 'Biểu tượng danh mục',
+  },
+] as const;
+
+/** Curated YouTube URLs for the marketing “video album” block (v1 static). Empty hides the section. */
+export const LANDING_VIDEO_ALBUM_URLS: readonly string[] = [
+  'https://youtube.com/shorts/0XRJt9zdy5I?si=oSfaBYZDvy08SeE7',
+  'https://youtube.com/shorts/vZHSAh8nPz8?si=tqHFp-jpwFYFwL7q',
+  'https://youtube.com/shorts/nkfG25MG9vY?si=oo-R6_Y7SyFHyL7v',
+];
+
+/** Image grid + lightbox on the home page (v1 static paths under `public/`). */
+export const LANDING_IMAGE_ALBUM: { src: string; alt: string }[] = [
+  {
+    src: '/banner-web2.png',
+    alt: 'Tinh hoa Phố Hiến — đặc sản Hưng Yên',
+  },
+  {
+    src: '/bannerweb4.jpg',
+    alt: 'Bộ quà tặng cao cấp',
+  },
+  {
+    src: '/bannerweb5-2048x785.jpg',
+    alt: 'Mật hoa nhãn — Long Nhãn Tống Trân',
+  },
+  {
+    src: '/tinhhoaphohien.com_-2048x788.webp',
+    alt: 'Long Nhãn Tống Trân — banner giới thiệu',
+  },
+];
+
+export const LANDING_BANNER_SLIDES = [
+  {
+    id: 'tinh-hoa-pho-hien',
+    imageSrc: '/banner-web2.png',
+    alt: 'Tinh hoa Phố Hiến — đặc sản Hưng Yên',
+    href: '/products',
+  },
+  {
+    id: 'qua-tang-cao-cap',
+    imageSrc: '/bannerweb4.jpg',
+    alt: 'Mai Trang — Tinh hoa Phố Hiến (bộ quà tặng)',
+    href: '/products?category=giftset',
+  },
+  {
+    id: 'mat-hoa-nhan',
+    imageSrc: '/bannerweb5-2048x785.jpg',
+    alt: 'Mai Trang — sản phẩm mật hoa nhãn',
+    href: '/products',
+  },
+  {
+    id: 'tinhhoaphohien',
+    imageSrc: '/tinhhoaphohien.com_-2048x788.webp',
+    alt: 'Tinh hoa Phố Hiến — banner giới thiệu',
+    href: '/products',
+  },
+] as const;
+</file>
+
+<file path="apps/web/next.config.ts">
+import path from 'node:path';
+import type { NextConfig } from 'next';
+import { withSentryConfig } from '@sentry/nextjs';
+
+const repoRoot = path.join(__dirname, '../..');
+
+const nextConfig: NextConfig = {
+  deploymentId: process.env.NEXT_PUBLIC_DEPLOYMENT_ID,
+  output: 'standalone',
+  outputFileTracingRoot: repoRoot,
+  cacheComponents: true,
+  poweredByHeader: false,
+  async headers() {
+    return [
+      {
+        source: '/sw.js',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+        ],
+      },
+    ];
+  },
+  experimental: {
+    optimizePackageImports: ['lucide-react'],
+  },
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'tinhhoaphohien.vn',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'img.youtube.com',
+        pathname: '/vi/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'res.cloudinary.com',
+        pathname: '/**',
+      },
+    ],
+  },
+  generateBuildId: () => {
+    return process.env.NEXT_PUBLIC_DEPLOYMENT_ID ?? null;
+  },
+};
+
+const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
+const sentryOrg = process.env.SENTRY_ORG;
+const sentryProject = process.env.SENTRY_PROJECT;
+const sentryEnabled = process.env.NODE_ENV === 'production';
+
+export default sentryEnabled && sentryAuthToken && sentryOrg && sentryProject
+  ? withSentryConfig(nextConfig, {
+      org: 'longnhanhungyen',
+      project: 'longnhanhungyen',
+      authToken: sentryAuthToken,
+      tunnelRoute: '/monitoring',
+      // Only print logs for uploading source maps in CI
+      silent: !process.env.CI || process.env.NODE_ENV === 'development',
+
+      // For all available options, see:
+      // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
+
+      // Upload a larger set of source maps for prettier stack traces (increases build time)
+      widenClientFileUpload: true,
+
+      // Uncomment to route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
+      // This can increase your server load as well as your hosting bill.
+      // Note: Check that the configured route will not match with your Next.js proxy, otherwise reporting of client-
+      // side errors will fail.
+      // tunnelRoute: "/monitoring",
+
+      webpack: {
+        // Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)
+        // See the following for more information:
+        // https://docs.sentry.io/product/crons/
+        // https://vercel.com/docs/cron-jobs
+        automaticVercelMonitors: true,
+
+        // Tree-shaking options for reducing bundle size
+        treeshake: {
+          // Automatically tree-shake Sentry logger statements to reduce bundle size
+          removeDebugLogging: true,
+        },
+      },
+    })
+  : nextConfig;
+</file>
+
 <file path="apps/web/src/app/articles/[slug]/page.tsx">
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
@@ -71859,201 +72357,6 @@ export default async function ArticleDetailPage({
     </section>
   );
 }
-</file>
-
-<file path="apps/web/src/components/products/product-pdp-tabs.tsx">
-'use client';
-
-import { useMemo, useState } from 'react';
-import type { Product } from '@longnhan/types';
-
-interface ProductPdpTabsProps {
-  product: Product;
-}
-
-type TabId = 'description' | 'extra';
-
-function buildSpecRows(
-  product: Product,
-): Array<{ key: string; value: string }> {
-  const weights = product.variants
-    .map((variant) => variant.weightG ?? variant.weightGrams ?? 0)
-    .filter((weight) => weight > 0);
-  const minWeight = weights.length > 0 ? Math.min(...weights) : 0;
-  const maxWeight = weights.length > 0 ? Math.max(...weights) : 0;
-
-  return [
-    { key: 'Danh mục', value: product.category || 'Long nhãn' },
-    {
-      key: 'Khối lượng',
-      value:
-        Number.isFinite(minWeight) &&
-        Number.isFinite(maxWeight) &&
-        minWeight > 0
-          ? minWeight === maxWeight
-            ? `${minWeight}g`
-            : `${minWeight}g - ${maxWeight}g`
-          : 'Nhiều quy cách',
-    },
-  ];
-}
-
-export default function ProductPdpTabs({ product }: ProductPdpTabsProps) {
-  const [activeTab, setActiveTab] = useState<TabId>('description');
-  const rows = useMemo(() => buildSpecRows(product), [product]);
-
-  return (
-    <section className="mt-8 rounded-2xl border border-gray-200 bg-white">
-      <div className="flex flex-wrap border-b border-gray-200">
-        {[
-          { id: 'description' as const, label: 'Mô tả' },
-          { id: 'extra' as const, label: 'Thông tin bổ sung' },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-3 text-sm font-semibold transition-colors ${
-              activeTab === tab.id
-                ? 'text-foreground border-b-2 border-foreground'
-                : 'text-gray-500 hover:text-foreground'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="p-5">
-        {activeTab === 'description'
-          ? product.descriptionHtml && (
-              <div
-                className="article-body tiptap ProseMirror simple-editor max-w-none"
-                dangerouslySetInnerHTML={{ __html: product.descriptionHtml }}
-              />
-            )
-          : null}
-
-        {activeTab === 'extra' ? (
-          <div className="overflow-hidden rounded-xl border border-gray-200">
-            <table className="w-full text-sm">
-              <tbody>
-                {rows.map((row) => (
-                  <tr
-                    key={row.key}
-                    className="border-b border-gray-100 last:border-b-0"
-                  >
-                    <th className="w-28 bg-gray-50 px-3 py-3 text-left sm:w-44 sm:px-4">
-                      {row.key}
-                    </th>
-                    <td className="px-4 py-3 text-gray-700">{row.value}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
-      </div>
-    </section>
-  );
-}
-</file>
-
-<file path="apps/web/next.config.ts">
-import path from 'node:path';
-import type { NextConfig } from 'next';
-import { withSentryConfig } from '@sentry/nextjs';
-
-const repoRoot = path.join(__dirname, '../..');
-
-const nextConfig: NextConfig = {
-  deploymentId: process.env.NEXT_PUBLIC_DEPLOYMENT_ID,
-  output: 'standalone',
-  outputFileTracingRoot: repoRoot,
-  cacheComponents: true,
-  poweredByHeader: false,
-  async headers() {
-    return [
-      {
-        source: '/sw.js',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'no-cache, no-store, must-revalidate',
-          },
-        ],
-      },
-    ];
-  },
-  experimental: {
-    optimizePackageImports: ['lucide-react'],
-  },
-  images: {
-    formats: ['image/avif', 'image/webp'],
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'tinhhoaphohien.vn',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'img.youtube.com',
-        pathname: '/vi/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'res.cloudinary.com',
-        pathname: '/**',
-      },
-    ],
-  },
-  generateBuildId: () => {
-    return process.env.NEXT_PUBLIC_DEPLOYMENT_ID ?? null;
-  },
-};
-
-const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN;
-const sentryOrg = process.env.SENTRY_ORG;
-const sentryProject = process.env.SENTRY_PROJECT;
-const sentryEnabled = process.env.NODE_ENV === 'production';
-
-export default sentryEnabled && sentryAuthToken && sentryOrg && sentryProject
-  ? withSentryConfig(nextConfig, {
-      org: 'longnhanhungyen',
-      project: 'longnhanhungyen',
-      authToken: sentryAuthToken,
-      tunnelRoute: '/monitoring',
-      // Only print logs for uploading source maps in CI
-      silent: !process.env.CI || process.env.NODE_ENV === 'development',
-
-      // For all available options, see:
-      // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
-
-      // Upload a larger set of source maps for prettier stack traces (increases build time)
-      widenClientFileUpload: true,
-
-      // Uncomment to route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
-      // This can increase your server load as well as your hosting bill.
-      // Note: Check that the configured route will not match with your Next.js proxy, otherwise reporting of client-
-      // side errors will fail.
-      // tunnelRoute: "/monitoring",
-
-      webpack: {
-        // Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)
-        // See the following for more information:
-        // https://docs.sentry.io/product/crons/
-        // https://vercel.com/docs/cron-jobs
-        automaticVercelMonitors: true,
-
-        // Tree-shaking options for reducing bundle size
-        treeshake: {
-          // Automatically tree-shake Sentry logger statements to reduce bundle size
-          removeDebugLogging: true,
-        },
-      },
-    })
-  : nextConfig;
 </file>
 
 <file path="apps/web/src/app/articles/page.tsx">
@@ -73389,74 +73692,6 @@ export default async function Home() {
 }
 </file>
 
-<file path="apps/web/src/lib/constants.ts">
-export const SITE_URL = 'https://nhanhungyen.com';
-export const SITE_NAME = 'Long Nhãn Hưng Yên — Đặc Sản Tống Trân';
-export const SITE_DESCRIPTION =
-  'Cửa hàng nhãn Hưng Yên, long nhãn Tống Trân chính gốc tại nhanhunguyen.com — nhãn lồng sấy khô, quà biếu sang trọng, giao COD toàn quốc. Zalo, Shopee, TikTok.';
-
-export const CONTACT_PHONE = '0922919456';
-export const CONTACT_EMAIL = 'noreply@nhanhungyen.com';
-export const CONTACT_ADDRESS = 'Tống Trân, Hưng Yên, Việt Nam';
-
-export const SOCIAL_LINKS = {
-  facebook: 'https://www.facebook.com/exameen.dev/',
-  zalo: 'https://zalo.me/0362804035',
-  shopee: 'https://shopee.vn/empt_',
-  tiktok: 'https://www.tiktok.com/@longnhantongtran',
-};
-
-export const PAYMENT_METHODS = [
-  { value: 'cod', label: 'Thanh toán khi nhận hàng (COD)' },
-  { value: 'bank_transfer', label: 'Chuyển khoản (SePay — QR / CK)' },
-];
-
-export const SHIPPING_FLAT_VND = 30_000;
-
-// 34 đơn vị hành chính cấp tỉnh (sau sáp nhập 2025 — NQ 306/NQ-CP, QH khóa XV), thứ tự TT 1–34
-export const PROVINCES = [
-  'TP. Hà Nội',
-  'TP. Hồ Chí Minh',
-  'Tuyên Quang',
-  'Cao Bằng',
-  'Lai Châu',
-  'Lào Cai',
-  'Thái Nguyên',
-  'Điện Biên',
-  'Lạng Sơn',
-  'Sơn La',
-  'Phú Thọ',
-  'TP. Hải Phòng',
-  'Bắc Ninh',
-  'Quảng Ninh',
-  'Hưng Yên',
-  'Ninh Bình',
-  'Thanh Hóa',
-  'Nghệ An',
-  'Hà Tĩnh',
-  'Quảng Trị',
-  'TP. Huế',
-  'TP. Đà Nẵng',
-  'Quảng Ngãi',
-  'Gia Lai',
-  'Đắk Lắk',
-  'Khánh Hòa',
-  'Lâm Đồng',
-  'Đồng Nai',
-  'Tây Ninh',
-  'Đồng Tháp',
-  'An Giang',
-  'Vĩnh Long',
-  'TP. Cần Thơ',
-  'Cà Mau',
-];
-
-export const GOOGLE_VERIFICATION =
-  'pOGGbAnqliIaDiOAoY0ak4OVsKdUzk4UlfGMeOEx2AU';
-
-export const GOOGLE_ANALYTICS_ID = 'G-EF0DG4WZHC';
-</file>
-
 <file path="docs/codebase-summary.md">
 # Codebase Summary
 
@@ -74432,6 +74667,74 @@ Major landing/product additions from **4.1.0** (2026-04-01); **4.2.0** (2026-04-
 - [Project Roadmap](./project-roadmap.md)
 - [Project Changelog](./project-changelog.md)
 - [API App README](../apps/api/README.md)
+</file>
+
+<file path="apps/web/src/lib/constants.ts">
+export const SITE_URL = 'https://nhanhungyen.com';
+export const SITE_NAME = 'Long Nhãn Hưng Yên — Đặc Sản Tống Trân';
+export const SITE_DESCRIPTION =
+  'Cửa hàng nhãn Hưng Yên, long nhãn Tống Trân chính gốc tại nhanhunguyen.com — nhãn lồng sấy khô, quà biếu sang trọng, giao COD toàn quốc. Zalo, Shopee, TikTok.';
+
+export const CONTACT_PHONE = '0922919456';
+export const CONTACT_EMAIL = 'noreply@nhanhungyen.com';
+export const CONTACT_ADDRESS = 'Tống Trân, Hưng Yên, Việt Nam';
+
+export const SOCIAL_LINKS = {
+  facebook: 'https://www.facebook.com/exameen.dev/',
+  zalo: 'https://zalo.me/0362804035',
+  shopee: 'https://shopee.vn/empt_',
+  tiktok: 'https://www.tiktok.com/@longnhantongtran',
+};
+
+export const PAYMENT_METHODS = [
+  { value: 'cod', label: 'Thanh toán khi nhận hàng (COD)' },
+  { value: 'bank_transfer', label: 'Chuyển khoản (SePay — QR / CK)' },
+];
+
+export const SHIPPING_FLAT_VND = 30_000;
+
+// 34 đơn vị hành chính cấp tỉnh (sau sáp nhập 2025 — NQ 306/NQ-CP, QH khóa XV), thứ tự TT 1–34
+export const PROVINCES = [
+  'TP. Hà Nội',
+  'TP. Hồ Chí Minh',
+  'Tuyên Quang',
+  'Cao Bằng',
+  'Lai Châu',
+  'Lào Cai',
+  'Thái Nguyên',
+  'Điện Biên',
+  'Lạng Sơn',
+  'Sơn La',
+  'Phú Thọ',
+  'TP. Hải Phòng',
+  'Bắc Ninh',
+  'Quảng Ninh',
+  'Hưng Yên',
+  'Ninh Bình',
+  'Thanh Hóa',
+  'Nghệ An',
+  'Hà Tĩnh',
+  'Quảng Trị',
+  'TP. Huế',
+  'TP. Đà Nẵng',
+  'Quảng Ngãi',
+  'Gia Lai',
+  'Đắk Lắk',
+  'Khánh Hòa',
+  'Lâm Đồng',
+  'Đồng Nai',
+  'Tây Ninh',
+  'Đồng Tháp',
+  'An Giang',
+  'Vĩnh Long',
+  'TP. Cần Thơ',
+  'Cà Mau',
+];
+
+export const GOOGLE_VERIFICATION =
+  'pOGGbAnqliIaDiOAoY0ak4OVsKdUzk4UlfGMeOEx2AU';
+
+export const GOOGLE_ANALYTICS_ID = 'G-EF0DG4WZHC';
 </file>
 
 </files>

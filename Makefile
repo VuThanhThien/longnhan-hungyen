@@ -2,7 +2,7 @@
         build build-api build-web build-admin \
         lint format type-check \
         up down logs reset up-local \
-        deploy deploy-clean deploy-down prod-preflight \
+        deploy deploy-clean deploy-down prod-preflight backup-run backup-list backup-copy \
         migration-up migration-up-prod migration-down migration-show migration-generate \
         seed test test-cov test-e2e
 
@@ -41,6 +41,10 @@ help:
 	@echo "    make deploy-clean     Same as deploy but with --no-cache (full rebuild, ignores all Docker cache)"
 	@echo "    make deploy-down      Stop production stack"
 	@echo "                          See deploy/README.md (token or config.yml + credentials JSON)"
+	@echo "    make backup-run       Trigger manual DB backup (production sidecar)"
+	@echo "    make backup-list      List local DB backup files (Docker volume)"
+	@echo "    make backup-copy      Copy latest backup .sql.gz to BACKUP_OUT (default: .)"
+	@echo "                          Optional: make backup-copy FILE=backup_YYYYMMDD_HHMMSS.sql.gz"
 	@echo ""
 	@echo "  Database"
 	@echo "    make migration-up     Run pending migrations (local .env)"
@@ -133,25 +137,44 @@ prod-preflight:
 
 deploy: prod-preflight
 	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build --force-recreate; \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build --force-recreate; \
 	else \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build --force-recreate; \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --build --force-recreate; \
 	fi
 
 deploy-clean: prod-preflight
 	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env-file apps/api/.env.production -p longnhan-prod build --no-cache && \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env-file apps/api/.env.production -p longnhan-prod up -d --force-recreate; \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml --env-file apps/api/.env.production -p longnhan-prod build --no-cache && \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml --env-file apps/api/.env.production -p longnhan-prod up -d --force-recreate; \
 	else \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod build --no-cache && \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --force-recreate; \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod build --no-cache && \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod up -d --force-recreate; \
 	fi
 
 deploy-down:
 	@if grep -qE '^CLOUDFLARED_TUNNEL_TOKEN=[^#[:space:]].*' apps/api/.env.production 2>/dev/null; then \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml --env-file apps/api/.env.production -p longnhan-prod down; \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml --env-file apps/api/.env.production -p longnhan-prod down; \
 	else \
-	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod down; \
+	  docker compose -f docker-compose.prod.yml -f docker-compose.monitoring.yml -f docker-compose.backup.yml -f docker-compose.prod.cloudflared-config.yml --env-file apps/api/.env.production -p longnhan-prod down; \
+	fi
+
+backup-run:
+	docker exec longnhan_prod_db_backup /backup.sh
+
+BACKUP_VOLUME := longnhan-prod_postgres_backup_data
+BACKUP_OUT ?= .
+
+backup-list:
+	docker run --rm -v $(BACKUP_VOLUME):/backups alpine ls -la /backups
+
+backup-copy:
+	@dest="$$(cd "$(BACKUP_OUT)" && pwd)"; \
+	if [ -n "$(FILE)" ]; then \
+	  docker run --rm -v $(BACKUP_VOLUME):/backups -v "$$dest":/out alpine \
+	    sh -c 'test -f "/backups/$(FILE)" || (echo "Not found: /backups/$(FILE) — run make backup-list"; exit 1); cp "/backups/$(FILE)" /out/ && echo "Copied $(FILE) -> '"$$dest"'/"'; \
+	else \
+	  docker run --rm -v $(BACKUP_VOLUME):/backups -v "$$dest":/out alpine \
+	    sh -c 'f=$$(ls -t /backups/backup_*.sql.gz 2>/dev/null | head -1); test -n "$$f" || (echo "No backups found — run make backup-run first."; exit 1); cp "$$f" /out/ && echo "Copied $$(basename "$$f") -> '"$$dest"'/"'; \
 	fi
 
 # ── Database ──────────────────────────────────────────────────────────────────

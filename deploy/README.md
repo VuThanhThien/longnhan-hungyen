@@ -85,6 +85,95 @@ Uses default `docker-compose.yml` (not `docker-compose.prod.yml`).
 
 Optional override compose file (repo root): `docker-compose.prod.cloudflared-config.yml` — used automatically when the token is unset but `config.yml` + `*.json` exist.
 
+## 7. Database backups
+
+Production runs a **`db-backup` sidecar** (`docker-compose.backup.yml`, merged by `make deploy`). It dumps Postgres nightly at **02:00 UTC**, stores gzip SQL files on a **local Docker volume** (7-day retention), and POSTs a **webhook on failure**.
+
+### Overview
+
+| Item            | Value                                                           |
+| --------------- | --------------------------------------------------------------- |
+| Schedule        | `0 2 * * *` UTC (supercronic)                                   |
+| Local retention | 7 days (`BACKUP_KEEP_DAYS`)                                     |
+| Storage         | Docker volume `longnhan-prod_postgres_backup_data` → `/backups` |
+| Container       | `longnhan_prod_db_backup`                                       |
+| File format     | `backup_YYYYMMDD_HHMMSS.sql.gz`                                 |
+
+### Env vars (`apps/api/.env.production`)
+
+| Variable             | Purpose                                           |
+| -------------------- | ------------------------------------------------- |
+| `BACKUP_KEEP_DAYS`   | Local prune threshold (default `7`)               |
+| `BACKUP_WEBHOOK_URL` | Slack or Discord incoming webhook (failures only) |
+
+Postgres connection is mapped from existing `DATABASE_*` vars by compose.
+
+### Verify backup
+
+```bash
+# Manual run (same script as cron)
+make backup-run
+# or: docker exec longnhan_prod_db_backup /backup.sh
+
+# Check sidecar logs
+docker logs longnhan_prod_db_backup
+
+# List local dumps
+make backup-list
+
+# Copy latest backup to current directory
+make backup-copy
+# Or copy a specific file / another folder:
+# make backup-copy FILE=backup_20260617_085543.sql.gz
+# make backup-copy BACKUP_OUT=~/Downloads
+
+# Confirm SQL header
+docker run --rm -v longnhan-prod_postgres_backup_data:/backups alpine \
+  sh -c 'gunzip -c /backups/backup_*.sql.gz | head -5'
+```
+
+### Copy backup to host (optional)
+
+```bash
+make backup-list
+make backup-copy
+# make backup-copy FILE=backup_20260617_085543.sql.gz
+# make backup-copy BACKUP_OUT=~/Downloads
+```
+
+### Restore
+
+**Stop the API first** to avoid writes during restore.
+
+```bash
+docker run --rm -v longnhan-prod_postgres_backup_data:/backups alpine ls /backups
+docker run --rm -v longnhan-prod_postgres_backup_data:/backups alpine \
+  sh -c 'gunzip -c /backups/backup_YYYYMMDD_HHMMSS.sql.gz' | \
+  docker exec -i longnhan_prod_db psql -U longnhan -d longnhan
+```
+
+Replace user/database names if your `DATABASE_*` values differ.
+
+### Webhook setup
+
+- **Slack:** Incoming Webhook URL → set `BACKUP_WEBHOOK_URL`. Payload uses `{ "text": "..." }`.
+- **Discord:** Webhook URL containing `discord.com/api/webhooks` → payload uses `{ "content": "..." }`.
+
+### Failure drill
+
+1. Temporarily set wrong `DATABASE_PASSWORD` in the sidecar env (or stop `db`).
+2. Run `make backup-run`.
+3. Confirm webhook message within ~1 minute.
+4. Restore correct credentials and redeploy.
+
+### Troubleshooting
+
+| Symptom                    | Likely cause                                                       |
+| -------------------------- | ------------------------------------------------------------------ |
+| `pg_dump` auth error       | `DATABASE_PASSWORD` mismatch between `db` and sidecar              |
+| Disk full on volume        | Prune failed or DB grew; expand volume or lower `BACKUP_KEEP_DAYS` |
+| Empty or missing `.sql.gz` | Check `docker logs longnhan_prod_db_backup` for errors             |
+
 ## Troubleshooting
 
 - **`required variable DATABASE_PASSWORD is missing`** — Add a non-empty line to `apps/api/.env.production`, e.g. `DATABASE_PASSWORD=your_secure_password`. It must match what the API uses to connect to Postgres (`DATABASE_USERNAME` / `DATABASE_NAME` should align with the `db` service too).

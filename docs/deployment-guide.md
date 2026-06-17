@@ -494,27 +494,14 @@ cat backup.sql | docker exec -i db psql -U postgres -d nestjs_api
 
 #### Automated Backups (Production)
 
+Production uses a Docker **db-backup sidecar** (nightly 02:00 UTC, local 7-day retention on Docker volume, webhook on failure). Full setup, verify, and restore steps:
+
+**→ [deploy/README.md §7 Database backups](../deploy/README.md#7-database-backups)**
+
+Quick manual dump (same host, no sidecar):
+
 ```bash
-# Daily backup script (cron job)
-cat > /usr/local/bin/backup-db.sh << 'EOF'
-#!/bin/bash
-DB_HOST="prod-db.example.com"
-DB_USER="app_user"
-DB_NAME="longnhan_prod"
-BACKUP_DIR="/backups"
-DATE=$(date +%Y%m%d_%H%M%S)
-
-pg_dump -h $DB_HOST -U $DB_USER $DB_NAME | gzip > $BACKUP_DIR/backup_$DATE.sql.gz
-
-# Keep only last 30 days
-find $BACKUP_DIR -name "backup_*.sql.gz" -mtime +30 -delete
-EOF
-
-chmod +x /usr/local/bin/backup-db.sh
-
-# Add to crontab
-crontab -e
-# Add: 0 2 * * * /usr/local/bin/backup-db.sh
+docker exec longnhan_prod_db pg_dump -U longnhan -d longnhan | gzip > backup_manual.sql.gz
 ```
 
 ---
